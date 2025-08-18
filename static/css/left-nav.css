@@ -1,0 +1,90 @@
+.left-nav {
+    width: 200px;
+    background-color: #f5f5f5;
+    padding: 20px 0;
+    position: fixed;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    overflow-y: auto;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    z-index: 100;
+}
+
+.left-nav-header {
+    padding: 0 20px 20px 20px;
+    border-bottom: 1px solid #e0e0e0;
+    margin-bottom: 20px;
+}
+
+.left-nav-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.left-nav-item {
+    margin: 5px 0;
+}
+
+.left-nav-link {
+    display: flex;
+    align-items: center;
+    padding: 10px 20px;
+    color: #333;
+    text-decoration: none;
+    font-weight: 500;
+    transition: background-color 0.3s;
+}
+
+.left-nav-link:hover {
+    background-color: #e0e0e0;
+}
+
+.left-nav-link.active {
+    background-color: #1976d2;
+    color: white;
+}
+
+.left-nav-icon {
+    margin-right: 10px;
+}
+
+.main-content-with-nav {
+    margin-left: 200px;
+    padding: 20px;
+    transition: margin-left 0.3s;
+    padding-top: 50px; /* Space for the header */
+    min-height: calc(100vh - 140px); /* Ensure content doesn't get hidden by footer */
+    position: relative;
+}
+
+/* Left Nav Footer with Version Info */
+.left-nav-footer {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    padding: 10px;
+    background-color: #f5f5f5;
+    border-top: 1px solid #e0e0e0;
+    font-size: 0.9em;
+    color: #555;
+    text-align: center;
+}
+
+.environment-tag {
+    margin-bottom: 3px;
+    font-weight: 500;
+}
+
+.environment-tag.prod {
+    color: #b71c1c;
+    font-weight: bold;
+}
+
+.version-info {
+    font-size: 0.9em;
+    color: #666;
+}
+

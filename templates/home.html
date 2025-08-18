@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>{% block title %}PBI - {% if is_viewer %}Viewer{% else %}Admin{% endif %}{% endblock %}</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="/static/css/left-nav.css">
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    {% set active_section = active_section|default('rules') %}
+    {% include 'left_panel.html' %}
+    {% include 'header.html' %}
+    
+    <div class="main-content-with-nav">
+        <div class="container">
+            {% if permission_error %}
+                <div class="permission-error-banner">
+                    <h2>{{ permission_error }}</h2>
+                    <p>Please contact the administrator if you believe this is an error.</p>
+                </div>
+            {% else %}
+                {% block content %}{% endblock %}
+            {% endif %}
+        </div>
+    </div>
+    
+    {% block scripts %}{% endblock %}
+</body>
+</html>

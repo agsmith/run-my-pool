@@ -1,0 +1,263 @@
+{% extends "home.html" %}
+{% block extra_head %}
+<link rel="stylesheet" href="/static/css/event-style.css">
+{% endblock %}
+
+{% block content %}
+<div id="event-profile-container">
+    <!-- Search Area - Floating Card Design -->
+    <div class="search-area floating-card">
+        <form id="event-query-form" method="get" action="/event" class="search-form">
+            <div class="search-form-group">
+                <label for="customerId" class="search-label">Customer ID</label>
+                <input type="text" id="customerId" name="customerId" placeholder="Enter Customer ID" class="search-input" value="{{ customerId|default('') }}" />
+            </div>
+            <div class="search-form-group">
+                <label for="billingArrangementID" class="search-label">Billing Arrangement ID</label>
+                <input type="text" id="billingArrangementID" name="billingArrangementID" placeholder="Enter Billing Arrangement ID" class="search-input" value="{{ billingArrangementID|default('') }}" />
+            </div>
+            <button type="submit" class="search-button">Search</button>
+        </form>
+    </div>
+    
+    {% if error %}
+        <div class="error"> Please retry after sometime. {{ error }}</div>
+    {% endif %}
+    
+    {% if profile_data %}
+        <!-- Summary Cards Section -->
+        <div class="summary-area">
+            <!-- Rank Card with Activated Rules -->
+            <div class="floating-card summary-rank rank-{{ profile_data.profileRank or 'C' }}">
+                <div class="card-title">Profile Rank</div>
+                <div class="rank-display">{{ profile_data.profileRank or '-' }}</div>
+                
+                {% if activated and activated|length > 0 %}
+                <div style="margin-top: 20px;">
+                    <div style="font-weight: 500; margin-bottom: 5px;">Rule Codes:</div>
+                    <div class="rules-list">
+                        {% for rule in activated %}
+                            <span class="rule-tag">{{ rule }}</span>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
+                <div style="margin-top: 15px;">
+                    <div class="event-stats-item">
+                        <span class="event-stats-label">Total Txn:</span>
+                        <span class="event-stats-value">{{ total_events }}</span>
+                    </div>
+                    <div class="event-stats-item">
+                        <span class="event-stats-label">Failed Txn:</span>
+                        <span class="event-stats-value {% if failed_events > 0 %}failed{% endif %}">{{ failed_events }}</span>
+                    </div>
+                </div>
+                
+            </div>
+
+            <!-- Favorites Card -->
+            <div class="floating-card fav-area">
+                <div class="card-title">Favorites</div>
+                
+                <div class="fav-item">
+                    <span class="fav-label">Channel</span>
+                    <div class="fav-value">{{ fav_channel or '-' }}</div>
+                </div>
+                
+                <div class="fav-item">
+                    <span class="fav-label">Instrument</span>
+                    <div class="fav-value">{{ fav_instrument or '-' }}</div>
+                </div>
+            </div>
+
+            <!-- Amount Card -->
+            <div class="floating-card amount-area">
+                <div class="card-title">Amount</div>
+                <div class="fav-item">
+                    <span class="fav-label" style="color: #888;">Average</span>
+                    <div class="fav-value" style="color: #535353;">${{ "%.2f"|format(avg_amount) }}</div>
+                </div>
+                <div class="fav-item">
+                    <span class="fav-label" style="color: #888;">Std Deviation</span>
+                    <div class="fav-value" style="color: #535353;">${{ "%.2f"|format(std_deviation) }}</div>
+                </div>
+                <p style="margin-top: 10px; font-size: 0.97em; color: #888;">
+                    Based on {{ amount_count }} transaction(s)
+                </p>
+            </div>
+
+            <!-- Channels Card -->
+            <div class="floating-card">
+                <div class="card-title">Channels</div>
+                {% if channels|length > 0 %}
+                    <div>
+                        {% for channel in channels %}
+                            <span class="channel-tag">{{ channel }}</span>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p>-</p>
+                {% endif %}
+            </div>
+
+            <!-- Instruments Card -->
+            <div class="floating-card instruments-area">
+                <div class="card-title">Instrument Ids</div>
+                
+                {% if instruments|length > 0 %}
+                    <div>
+                        {% for instrument in instruments %}
+                            <span class="instrument-tag">{{ instrument }}</span>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p>-</p>
+                {% endif %}
+            </div>
+            <!-- Tokens Card -->
+            <div class="floating-card token-tail-area">
+                <div class="card-title">Tokens</div>
+                
+                {% if token_tails|length > 0 %}
+                    <div>
+                        {% for tail in token_tails %}
+                            <span class="token-tag">** {{ tail }}</span>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p>-</p>
+                {% endif %}
+            </div>
+
+            <!-- Customer IDs Card -->
+            <div class="floating-card customer-ids-area">
+                <div class="card-title">Customer IDs</div>
+                
+                {% if customer_ids|length > 0 %}
+                    <div>
+                        {% for id in customer_ids %}
+                            <span class="customer-id-tag">{{ id }}</span>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p>-</p>
+                {% endif %}
+            </div>
+
+            <!-- Billing Arrangement IDs Card -->
+            <div class="floating-card billing-ids-area">
+                <div class="card-title">Billing Arrangement IDs</div>
+                
+                {% if billing_ids|length > 0 %}
+                    <div>
+                        {% for id in billing_ids %}
+                            <span class="billing-id-tag">{{ id }}</span>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p>-</p>
+                {% endif %}
+            </div>
+
+            <!-- Error Codes Card -->
+            <div class="floating-card error-codes-area">
+                <div class="card-title">Error Codes</div>
+                
+                {% if error_codes|length > 0 %}
+                    <div>
+                        {% for code in error_codes %}
+                            <div style="margin-bottom: 10px;">
+                                {% if error_details and code in error_details %}
+                                    <span class="error-code-tag tooltip-container">
+                                        {{ code }} <span class="error-code-desc">({{ error_details[code][:1] }}{% if error_details[code]|length > 15 %}....{% endif %})</span>
+                                        <span class="tooltip-text">{{ error_details[code] }}</span>
+                                    </span>
+                                {% else %}
+                                    <span class="error-code-tag">{{ code }}</span>
+                                {% endif %}
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p>-</p>
+                {% endif %}
+            </div>
+        </div>
+        
+        {% if months and months|length > 0 %}
+            <div class="floating-card">
+
+            
+                <div id="event-details-area" class="grid-events-view">
+                    {% set current_month = "" %}
+                    {% set month_count = {} %}
+                    {% set seen_months = [] %}
+                    
+                    <!-- First pass: count events per month -->
+                    {% for item in sorted_events %}
+                        {% if item._dt %}
+                            {% set month = item.month_name %}
+                            {% if month not in month_count %}
+                                {% set _ = month_count.update({month: 1}) %}
+                            {% else %}
+                                {% set _ = month_count.update({month: month_count[month] + 1}) %}
+                            {% endif %}
+                        {% endif %}
+                    {% endfor %}
+                    
+                    <!-- Group events by month -->
+                    {% for month, count in month_count.items() %}
+                        <div class="grid-month-header">{{ month }} <span class="event-count">({{ count }} events)</span></div>
+                        
+                        <div class="grid-event-container">
+                            {% for item in sorted_events %}
+                                {% if item._dt and item.month_name == month %}
+                                    <div class="grid-event-card {% if item.exception %}error{% endif %}">
+                                        <div class="grid-event-header">
+                                            <span class="grid-event-day">{{ item.day_with_suffix }}</span>
+                                            <span class="grid-event-time">{{ item.time_only }}</span>
+                                            <span class="grid-event-status {% if item.exception %}error{% else %}success{% endif %}">
+                                                {% if item.exception %}Failed{% else %}Success{% endif %}
+                                            </span>
+                                        </div>
+                                        
+                                        <div class="grid-event-body">
+                                            <div class="grid-event-operation">{{ item.display_label }}</div>
+                                            <div class="grid-event-channel">{{ item.channel }}</div>
+                                            
+                                            {% if item.token_tail or item.amount or item.instrument or item.exception %}
+                                            <div class="grid-event-attributes">
+                                                {% if item.token_tail %}<div class="grid-attribute">Token: {{ item.token_tail }}</div>{% endif %}
+                                                {% if item.amount %}<div class="grid-attribute">Amount: ${{ item.amount }}</div>{% endif %}
+                                                {% if item.instrument %}<div class="grid-attribute">Instrument: {{ item.instrument }}</div>{% endif %}
+                                                {% if item.exception %}
+                                                    <div class="grid-attribute error tooltip-container">
+                                                        <div>{{ item.exception }}</div>
+                                                        {% if item.excptn_desc %}
+                                                            <div class="error-code-desc">
+                                                                ({{ item.excptn_desc[:30] }}{% if item.excptn_desc|length > 30 %}...{% endif %})
+                                                                <span class="tooltip-text">{{ item.excptn_desc }}</span>
+                                                            </div>
+                                                        {% endif %}
+                                                    </div>
+                                                {% endif %}
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        {% endif %}
+    {% endif %}
+</div>
+
+{% block scripts %}
+<!-- No scripts needed for the tooltip implementation -->
+{% endblock %}
+
+{% endblock %}

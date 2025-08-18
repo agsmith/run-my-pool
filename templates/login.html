@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Login - PBI</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="container" style="max-width: 500px; margin: 60px auto 0 auto; position: relative;">
+        <div class="login-logo" style="position: absolute; left: 0; top: 0; padding: 12px 0 0 12px;">
+            <img src="/static/img/logo.jpeg" alt="Logo" />
+        </div>
+        <div class="login-card" style="padding-top: 32px;">
+            <h2>Login</h2>
+            {% if error %}<div class="error">{{ error }}</div>{% endif %}
+            
+            <div class="sso-login" style="text-align: center; margin: 30px 0;">
+                <a href="/auth/azure-login" class="azure-login-btn" style="display: inline-block; padding: 12px 24px; background-color: #0078d4; color: white; text-decoration: none; border-radius: 4px; font-size: 16px;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 21 21" style="vertical-align: middle; margin-right: 8px;">
+                        <path fill="white" d="M11,2 L11,11 L2,11 L2,2 L11,2 Z M21,2 L21,11 L12,11 L12,2 L21,2 Z M11,12 L11,21 L2,21 L2,12 L11,12 Z M21,12 L21,21 L12,21 L12,12 L21,12 Z"/>
+                    </svg>
+                    Sign in with Comcast SSO
+                </a>
+            </div>
+            <div style="margin-top: 24px; text-align: center; color: #555; font-size: 0.97em;">
+                Don’t have access to PBI (PFM)  ?<br>
+                <a href="https://mycomcastaccess.comcast.com/" target="_blank" style="color: #0078d4; text-decoration: underline;">
+                    Request access via MyComcastAccess
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Footer with version and commit information -->
+    <footer style="position: fixed; left: 0; bottom: 0; padding: 8px 16px; font-size: 0.9em; color: #888; background: none; z-index: 100;">
+        Version: {{ version or '0.1.0' }} | Commit: {{ git_commit or 'unknown' }}
+    </footer>
+</body>
+</html>
