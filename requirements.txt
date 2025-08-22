@@ -7,3 +7,5 @@ python-multipart==0.0.9
 bleach==6.2.0
 requests==2.32.2
 msal==1.26.0
+sqlalchemy
+pymysql

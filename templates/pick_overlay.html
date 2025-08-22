@@ -1,0 +1,109 @@
+<div id="pick-overlay" class="pick-overlay" style="display:none;">
+    <div class="pick-overlay-content">
+        <h2>Select a Team for Week <span id="overlay-week">{{ week_num }}</span></h2>
+        <div id="overlay-games" class="overlay-games">
+            {% for game in games %}
+            <div class='overlay-game'>}
+                <img src='{{ game.homeLogo }}' class='overlay-game-logo' alt='{{ game.home }}'>
+                <div class='overlay-game-team'>{{ game.home }}</div>
+                <div class='overlay-game-vs'>vs</div>
+                <img src='{{ game.awayLogo }}' class='overlay-game-logo' alt='{{ game.away }}'>
+                <div class='overlay-game-team'>{{ game.away }}</div>
+            </div>
+            {% endfor %}
+        </div>
+        <form id="submit-pick-form" method="post" action="/submit-pick">
+            <input type="hidden" name="pick_id" value="{{ pick_id }}">
+            <input type="hidden" name="week_num" value="{{ week_num }}">
+            <input type="hidden" name="team" value="">
+            <button type="submit" id="submit-pick-btn" disabled>Submit Pick</button>
+            <button type="button" id="cancel-overlay-btn">Cancel</button>
+        </form>
+    </div>
+</div>
+<style>
+.pick-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.7);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.pick-overlay-content {
+    background: #fff;
+    padding: 32px;
+    border-radius: 12px;
+    box-shadow: 0 2px 16px rgba(0,0,0,0.2);
+    min-width: 320px;
+    max-width: 90vw;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+.overlay-games {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 24px;
+    margin: 24px 0;
+    justify-items: center;
+    width: 100%;
+    box-sizing: border-box;
+}
+.overlay-game {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    background: #f7f7f7;
+    border-radius: 8px;
+    padding: 12px 18px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    min-width: 120px;
+    justify-content: center;
+    flex-direction: column;
+}
+.overlay-game-logo {
+    width: 50px;
+    height: auto;
+    margin-bottom: 8px;
+    cursor: pointer;
+    border: 2px solid transparent;
+    border-radius: 8px;
+    transition: border-color 0.2s;
+    margin-bottom: 0;
+    margin-right: 8px;
+    margin-left: 8px;
+}
+.overlay-game-logo.selected-logo {
+    border-color: #007bff;
+    box-shadow: 0 0 8px #007bff44;
+}
+.overlay-game-team {
+    font-weight: bold;
+    margin-bottom: 4px;
+    margin-right: 8px;
+    margin-left: 8px;
+}
+.overlay-game-vs {
+    color: #888;
+    font-size: 0.95em;
+    margin: 0 8px;
+}
+.overlay-game-time {
+    font-size: 0.85em;
+    color: #444;
+    margin-bottom: 4px;
+}
+.overlay-game-time-top {
+    order: -1;
+    margin-bottom: 8px;
+}
+#close-overlay-btn {
+    margin-top: 24px;
+    padding: 8px 24px;
+    border-radius: 6px;
+    background: #eee;
+    border: 1px solid #ccc;
+    cursor: pointer;
+}
+</style>

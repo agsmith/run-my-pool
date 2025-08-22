@@ -1,0 +1,9 @@
+# Default ignored files
+/shelf/
+/workspace.xml
+.idea/
+__pycache__/
+database.py
+run.sh
+static/.DS_Store
+static/img/.DS_Store
