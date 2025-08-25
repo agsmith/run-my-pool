@@ -41,12 +41,11 @@
     
     <div class="main-content-with-nav">
         <div class="container">
-                <div class="permission-error-banner">
+                <div class="permission-error-banner" style="height:auto; overflow:auto;">
                     <h2>Adam Smith's Entries</h2>
-                    <table>
+                    <table style="width:100%; border-collapse:collapse; position:relative;">
                         <thead>
-                            <tr>
-                                <th></th>
+                            <tr style="position:sticky; top:0; background:#fff; z-index:2;">
                                 <th>Entry Name</th>
                                 <th>Wk 1</th>
                                 <th>Wk 2</th>
@@ -71,84 +70,143 @@
                         <tbody>
                             {% for entry in entries %}
                             <tr>
-                                <td></td>
                                 <td>{{ entry.entry_name }}</td>
                                 {% for pick in picks %}
                                 {% if pick.entry_id == entry.entry_id %}
                                 {% for team in teams %}
                                 {% if pick.week_num == 1 %}
                                     {% if team.team_id == pick.team_id %}
-                                        <td><button class="edit-pick" pic-id="{{ pick.pick_id}}"><img width="50" src={{ team.logo }} alt="Team Logo"></button></td>
+                                        <td><button class="edit-pick" pic-id="{{ pick.pick_id}}"
+                                            {% if pick.result != 'open' or pick.team_id == 98 %}disabled{% endif %}
+                                            {% if pick.team_id == 98 %}style="background:#e0e0e0;opacity:1;cursor:not-allowed;"{% elif pick.result == 'win' %}style="background:#d4f8e8;opacity:1;cursor:not-allowed;"{% elif pick.result == 'loss' %}style="background:#ffd6d6;opacity:1;cursor:not-allowed;"{% elif pick.result != 'open' %}style="opacity:0.5;cursor:not-allowed;"{% endif %}
+                                        ><img width="50" src={{ team.logo }} alt="Team Logo"></button></td>
                                     {% endif %}
                                 {% elif pick.week_num == 2 %}
                                     {% if team.team_id == pick.team_id %}
-                                        <td><button class="edit-pick" pic-id="{{ pick.pick_id}}"><img width="50" src={{ team.logo }} alt="Team Logo"></button></td>
+                                        <td><button class="edit-pick" pic-id="{{ pick.pick_id}}"
+                                            {% if pick.result != 'open' or pick.team_id == 98 %}disabled{% endif %}
+                                            {% if pick.team_id == 98 %}style="background:#e0e0e0;opacity:1;cursor:not-allowed;"{% elif pick.result == 'win' %}style="background:#d4f8e8;opacity:1;cursor:not-allowed;"{% elif pick.result == 'loss' %}style="background:#ffd6d6;opacity:1;cursor:not-allowed;"{% elif pick.result != 'open' %}style="opacity:0.5;cursor:not-allowed;"{% endif %}
+                                        ><img width="50" src={{ team.logo }} alt="Team Logo"></button></td>
                                     {% endif %}
                                 {% elif pick.week_num == 3 %}
                                     {% if team.team_id == pick.team_id %}
-                                        <td><button class="edit-pick" pic-id="{{ pick.pick_id}}"><img width="50" src={{ team.logo }} alt="Team Logo"></button></td>
+                                        <td><button class="edit-pick" pic-id="{{ pick.pick_id}}"
+                                            {% if pick.result != 'open' or pick.team_id == 98 %}disabled{% endif %}
+                                            {% if pick.team_id == 98 %}style="background:#e0e0e0;opacity:1;cursor:not-allowed;"{% elif pick.result == 'win' %}style="background:#d4f8e8;opacity:1;cursor:not-allowed;"{% elif pick.result == 'loss' %}style="background:#ffd6d6;opacity:1;cursor:not-allowed;"{% elif pick.result != 'open' %}style="opacity:0.5;cursor:not-allowed;"{% endif %}
+                                        ><img width="50" src={{ team.logo }} alt="Team Logo"></button></td>
                                     {% endif %}
                                 {% elif pick.week_num == 4 %}
                                     {% if team.team_id == pick.team_id %}
-                                        <td><button class="edit-pick" pic-id="{{ pick.pick_id}}"><img width="50" src={{ team.logo }} alt="Team Logo"></button></td>
+                                        <td><button class="edit-pick" pic-id="{{ pick.pick_id}}"
+                                            {% if pick.result != 'open' or pick.team_id == 98 %}disabled{% endif %}
+                                            {% if pick.team_id == 98 %}style="background:#e0e0e0;opacity:1;cursor:not-allowed;"{% elif pick.result == 'win' %}style="background:#d4f8e8;opacity:1;cursor:not-allowed;"{% elif pick.result == 'loss' %}style="background:#ffd6d6;opacity:1;cursor:not-allowed;"{% elif pick.result != 'open' %}style="opacity:0.5;cursor:not-allowed;"{% endif %}
+                                        ><img width="50" src={{ team.logo }} alt="Team Logo"></button></td>
                                     {% endif %}
                                 {% elif pick.week_num == 5 %}
                                     {% if team.team_id == pick.team_id %}
-                                        <td><button class="edit-pick" pic-id="{{ pick.pick_id}}"><img width="50" src={{ team.logo }} alt="Team Logo"></button></td>
+                                        <td><button class="edit-pick" pic-id="{{ pick.pick_id}}"
+                                            {% if pick.result != 'open' or pick.team_id == 98 %}disabled{% endif %}
+                                            {% if pick.team_id == 98 %}style="background:#e0e0e0;opacity:1;cursor:not-allowed;"{% elif pick.result == 'win' %}style="background:#d4f8e8;opacity:1;cursor:not-allowed;"{% elif pick.result == 'loss' %}style="background:#ffd6d6;opacity:1;cursor:not-allowed;"{% elif pick.result != 'open' %}style="opacity:0.5;cursor:not-allowed;"{% endif %}
+                                        ><img width="50" src={{ team.logo }} alt="Team Logo"></button></td>
                                     {% endif %}
                                 {% elif pick.week_num == 6 %}
                                     {% if team.team_id == pick.team_id %}
-                                        <td><button class="edit-pick" pic-id="{{ pick.pick_id}}"><img width="50" src={{ team.logo }} alt="Team Logo"></button></td>
+                                        <td><button class="edit-pick" pic-id="{{ pick.pick_id}}"
+                                            {% if pick.result != 'open' or pick.team_id == 98 %}disabled{% endif %}
+                                            {% if pick.team_id == 98 %}style="background:#e0e0e0;opacity:1;cursor:not-allowed;"{% elif pick.result == 'win' %}style="background:#d4f8e8;opacity:1;cursor:not-allowed;"{% elif pick.result == 'loss' %}style="background:#ffd6d6;opacity:1;cursor:not-allowed;"{% elif pick.result != 'open' %}style="opacity:0.5;cursor:not-allowed;"{% endif %}
+                                        ><img width="50" src={{ team.logo }} alt="Team Logo"></button></td>
                                     {% endif %}
                                 {% elif pick.week_num == 7 %}
                                     {% if team.team_id == pick.team_id %}
-                                        <td><button class="edit-pick" pic-id="{{ pick.pick_id}}"><img width="50" src={{ team.logo }} alt="Team Logo"></button></td>
+                                        <td><button class="edit-pick" pic-id="{{ pick.pick_id}}"
+                                            {% if pick.result != 'open' or pick.team_id == 98 %}disabled{% endif %}
+                                            {% if pick.team_id == 98 %}style="background:#e0e0e0;opacity:1;cursor:not-allowed;"{% elif pick.result == 'win' %}style="background:#d4f8e8;opacity:1;cursor:not-allowed;"{% elif pick.result == 'loss' %}style="background:#ffd6d6;opacity:1;cursor:not-allowed;"{% elif pick.result != 'open' %}style="opacity:0.5;cursor:not-allowed;"{% endif %}
+                                        ><img width="50" src={{ team.logo }} alt="Team Logo"></button></td>
                                     {% endif %}
                                 {% elif pick.week_num == 8 %}
                                     {% if team.team_id == pick.team_id %}
-                                        <td><button class="edit-pick" pic-id="{{ pick.pick_id}}"><img width="50" src={{ team.logo }} alt="Team Logo"></button></td>
+                                        <td><button class="edit-pick" pic-id="{{ pick.pick_id}}"
+                                            {% if pick.result != 'open' or pick.team_id == 98 %}disabled{% endif %}
+                                            {% if pick.team_id == 98 %}style="background:#e0e0e0;opacity:1;cursor:not-allowed;"{% elif pick.result == 'win' %}style="background:#d4f8e8;opacity:1;cursor:not-allowed;"{% elif pick.result == 'loss' %}style="background:#ffd6d6;opacity:1;cursor:not-allowed;"{% elif pick.result != 'open' %}style="opacity:0.5;cursor:not-allowed;"{% endif %}
+                                        ><img width="50" src={{ team.logo }} alt="Team Logo"></button></td>
                                     {% endif %}
                                 {% elif pick.week_num == 9 %}
                                     {% if team.team_id == pick.team_id %}
-                                        <td><button class="edit-pick" pic-id="{{ pick.pick_id}}"><img width="50" src={{ team.logo }} alt="Team Logo"></button></td>
+                                        <td><button class="edit-pick" pic-id="{{ pick.pick_id}}"
+                                            {% if pick.result != 'open' or pick.team_id == 98 %}disabled{% endif %}
+                                            {% if pick.team_id == 98 %}style="background:#e0e0e0;opacity:1;cursor:not-allowed;"{% elif pick.result == 'win' %}style="background:#d4f8e8;opacity:1;cursor:not-allowed;"{% elif pick.result == 'loss' %}style="background:#ffd6d6;opacity:1;cursor:not-allowed;"{% elif pick.result != 'open' %}style="opacity:0.5;cursor:not-allowed;"{% endif %}
+                                        ><img width="50" src={{ team.logo }} alt="Team Logo"></button></td>
                                     {% endif %}
                                 {% elif pick.week_num == 10 %}
                                     {% if team.team_id == pick.team_id %}
-                                        <td><button class="edit-pick" pic-id="{{ pick.pick_id}}"><img width="50" src={{ team.logo }} alt="Team Logo"></button></td>
+                                        <td><button class="edit-pick" pic-id="{{ pick.pick_id}}"
+                                            {% if pick.result != 'open' or pick.team_id == 98 %}disabled{% endif %}
+                                            {% if pick.team_id == 98 %}style="background:#e0e0e0;opacity:1;cursor:not-allowed;"{% elif pick.result == 'win' %}style="background:#d4f8e8;opacity:1;cursor:not-allowed;"{% elif pick.result == 'loss' %}style="background:#ffd6d6;opacity:1;cursor:not-allowed;"{% elif pick.result != 'open' %}style="opacity:0.5;cursor:not-allowed;"{% endif %}
+                                        ><img width="50" src={{ team.logo }} alt="Team Logo"></button></td>
                                     {% endif %}
                                 {% elif pick.week_num == 11 %}
                                     {% if team.team_id == pick.team_id %}
-                                        <td><button class="edit-pick" pic-id="{{ pick.pick_id}}"><img width="50" src={{ team.logo }} alt="Team Logo"></button></td>
+                                        <td><button class="edit-pick" pic-id="{{ pick.pick_id}}"
+                                            {% if pick.result != 'open' or pick.team_id == 98 %}disabled{% endif %}
+                                            {% if pick.team_id == 98 %}style="background:#e0e0e0;opacity:1;cursor:not-allowed;"{% elif pick.result == 'win' %}style="background:#d4f8e8;opacity:1;cursor:not-allowed;"{% elif pick.result == 'loss' %}style="background:#ffd6d6;opacity:1;cursor:not-allowed;"{% elif pick.result != 'open' %}style="opacity:0.5;cursor:not-allowed;"{% endif %}
+                                        ><img width="50" src={{ team.logo }} alt="Team Logo"></button></td>
                                     {% endif %}
                                 {% elif pick.week_num == 12 %}
                                     {% if team.team_id == pick.team_id %}
-                                        <td><button class="edit-pick" pic-id="{{ pick.pick_id}}"><img width="50" src={{ team.logo }} alt="Team Logo"></button></td>
+                                        <td><button class="edit-pick" pic-id="{{ pick.pick_id}}"
+                                            {% if pick.result != 'open' or pick.team_id == 98 %}disabled{% endif %}
+                                            {% if pick.team_id == 98 %}style="background:#e0e0e0;opacity:1;cursor:not-allowed;"{% elif pick.result == 'win' %}style="background:#d4f8e8;opacity:1;cursor:not-allowed;"{% elif pick.result == 'loss' %}style="background:#ffd6d6;opacity:1;cursor:not-allowed;"{% elif pick.result != 'open' %}style="opacity:0.5;cursor:not-allowed;"{% endif %}
+                                        ><img width="50" src={{ team.logo }} alt="Team Logo"></button></td>
                                     {% endif %}
                                 {% elif pick.week_num == 13 %}
                                     {% if team.team_id == pick.team_id %}
-                                        <td><button class="edit-pick" pic-id="{{ pick.pick_id}}"><img width="50" src={{ team.logo }} alt="Team Logo"></button></td>
+                                        <td><button class="edit-pick" pic-id="{{ pick.pick_id}}"
+                                            {% if pick.result != 'open' or pick.team_id == 98 %}disabled{% endif %}
+                                            {% if pick.team_id == 98 %}style="background:#e0e0e0;opacity:1;cursor:not-allowed;"{% elif pick.result == 'win' %}style="background:#d4f8e8;opacity:1;cursor:not-allowed;"{% elif pick.result == 'loss' %}style="background:#ffd6d6;opacity:1;cursor:not-allowed;"{% elif pick.result != 'open' %}style="opacity:0.5;cursor:not-allowed;"{% endif %}
+                                        ><img width="50" src={{ team.logo }} alt="Team Logo"></button></td>
                                     {% endif %}
                                 {% elif pick.week_num == 14 %}
                                     {% if team.team_id == pick.team_id %}
-                                        <td><button class="edit-pick" pic-id="{{ pick.pick_id}}"><img width="50" src={{ team.logo }} alt="Team Logo"></button></td>
+                                        <td><button class="edit-pick" pic-id="{{ pick.pick_id}}"
+                                            {% if pick.result != 'open' or pick.team_id == 98 %}disabled{% endif %}
+                                            {% if pick.team_id == 98 %}style="background:#e0e0e0;opacity:1;cursor:not-allowed;"{% elif pick.result == 'win' %}style="background:#d4f8e8;opacity:1;cursor:not-allowed;"{% elif pick.result == 'loss' %}style="background:#ffd6d6;opacity:1;cursor:not-allowed;"{% elif pick.result != 'open' %}style="opacity:0.5;cursor:not-allowed;"{% endif %}
+                                        ><img width="50" src={{ team.logo }} alt="Team Logo"></button></td>
                                     {% endif %}
                                 {% elif pick.week_num == 15 %}
                                     {% if team.team_id == pick.team_id %}
-                                        <td><button class="edit-pick" pic-id="{{ pick.pick_id}}"><img width="50" src={{ team.logo }} alt="Team Logo"></button></td>
+                                        <td><button class="edit-pick" pic-id="{{ pick.pick_id}}"
+                                            {% if pick.result != 'open' or pick.team_id == 98 %}disabled{% endif %}
+                                            {% if pick.team_id == 98 %}style="background:#e0e0e0;opacity:1;cursor:not-allowed;"{% elif pick.result == 'win' %}style="background:#d4f8e8;opacity:1;cursor:not-allowed;"{% elif pick.result == 'loss' %}style="background:#ffd6d6;opacity:1;cursor:not-allowed;"{% elif pick.result != 'open' %}style="opacity:0.5;cursor:not-allowed;"{% endif %}
+                                        ><img width="50" src={{ team.logo }} alt="Team Logo"></button></td>
                                     {% endif %}
                                 {% elif pick.week_num == 16 %}
                                     {% if team.team_id == pick.team_id %}
+                                        <td><button class="edit-pick" pic-id="{{ pick.pick_id}}"
+                                            {% if pick.result != 'open' or pick.team_id == 98 %}disabled{% endif %}
+                                            {% if pick.team_id == 98 %}style="background:#e0e0e0;opacity:1;cursor:not-allowed;"{% elif pick.result == 'win' %}style="background:#d4f8e8;opacity:1;cursor:not-allowed;"{% elif pick.result == 'loss' %}style="background:#ffd6d6;opacity:1;cursor:not-allowed;"{% elif pick.result != 'open' %}style="opacity:0.5;cursor:not-allowed;"{% endif %}
+                                        ><img width="50" src={{ team.logo }} alt="Team Logo"></button></td>
                                     {% endif %}
                                 {% elif pick.week_num == 17 %}
                                     {% if team.team_id == pick.team_id %}
-                                        <td><button class="edit-pick" pic-id="{{ pick.pick_id}}"><img width="50" src={{ team.logo }} alt="Team Logo"></button></td>
+                                        <td><button class="edit-pick" pic-id="{{ pick.pick_id}}"
+                                            {% if pick.result != 'open' or pick.team_id == 98 %}disabled{% endif %}
+                                            {% if pick.team_id == 98 %}style="background:#e0e0e0;opacity:1;cursor:not-allowed;"{% elif pick.result == 'win' %}style="background:#d4f8e8;opacity:1;cursor:not-allowed;"{% elif pick.result == 'loss' %}style="background:#ffd6d6;opacity:1;cursor:not-allowed;"{% elif pick.result != 'open' %}style="opacity:0.5;cursor:not-allowed;"{% endif %}
+                                        ><img width="50" src={{ team.logo }} alt="Team Logo"></button></td>
                                     {% endif %}
                                 {% elif pick.week_num == 18 %}
                                     {% if team.team_id == pick.team_id %}
-                                        <td><button class="edit-pick" pic-id="{{ pick.pick_id}}"><img width="50" src={{ team.logo }} alt="Team Logo"></button></td>
+                                        <td><button class="edit-pick" pic-id="{{ pick.pick_id}}"
+                                            {% if pick.result != 'open' or pick.team_id == 98 %}disabled{% endif %}
+                                            {% if pick.team_id == 98 %}style="background:#e0e0e0;opacity:1;cursor:not-allowed;"{% elif pick.result == 'win' %}style="background:#d4f8e8;opacity:1;cursor:not-allowed;"{% elif pick.result == 'loss' %}style="background:#ffd6d6;opacity:1;cursor:not-allowed;"{% elif pick.result != 'open' %}style="opacity:0.5;cursor:not-allowed;"{% endif %}
+                                        ><img width="50" src={{ team.logo }} alt="Team Logo"></button></td>
                                     {% endif %}
                                 {% else %}
-                                        <td><button class="edit-pick" pic-id="{{ pick.pick_id}}"><img width="50" src={{ team.logo }} alt="Team Logo"></button></td>
+                                    {% if team.team_id == pick.team_id %}
+                                        <td><button class="edit-pick" pic-id="{{ pick.pick_id}}"
+                                            {% if pick.result != 'open' or pick.team_id == 98 %}disabled{% endif %}
+                                            {% if pick.team_id == 98 %}style="background:#e0e0e0;opacity:1;cursor:not-allowed;"{% elif pick.result == 'win' %}style="background:#d4f8e8;opacity:1;cursor:not-allowed;"{% elif pick.result == 'loss' %}style="background:#ffd6d6;opacity:1;cursor:not-allowed;"{% elif pick.result != 'open' %}style="opacity:0.5;cursor:not-allowed;"{% endif %}
+                                        ><img width="50" src={{ team.logo }} alt="Team Logo"></button></td>
+                                    {% endif %}
                                 {% endif %}
                                 {% endfor %}
                                 {% endif %}
@@ -159,7 +217,7 @@
                     </table>
                     <div style="display: flex; gap: 16px; margin-top: 16px;">
                         <button id="add-entry-btn" type="button" count="{{ entries|length }}" user="Adam Smith">Add Entry</button>
-                        <form method="post" action="/delEntry/last" style="margin: 0;">
+                        <form method="post" action="/delete-entry/last" style="margin: 0;">
                             <button id="delete-last-entry-btn" type="submit">Delete Entry</button>
                         </form>
                     </div>

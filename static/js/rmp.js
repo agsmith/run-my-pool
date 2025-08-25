@@ -5,7 +5,7 @@ async function addEntry(count, user) {
             active_status: 'active',
             user_id: 10
         }
-        const response = await fetch('/addEntry', {
+        const response = await fetch('/add-entry', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -31,7 +31,7 @@ async function addPick(pick_id) {
         const entry = {
             pick_id: pick_id
         }
-        const response = await fetch('/addPick/' + pick_id, {
+        const response = await fetch('/add-pick/' + pick_id, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -54,7 +54,7 @@ async function addPick(pick_id) {
 
 async function delEntry(entry_id) {
     try {
-        url = '/delEntry/' + entry_id;
+        url = '/delete-entry/' + entry_id;
         const response = await fetch(url, { method: 'DELETE' });
 
         if (!response.ok) {
@@ -169,7 +169,7 @@ document.addEventListener('DOMContentLoaded', function () {
         document.getElementById('submit-pick-form').pick_id.value = pickId;
         document.getElementById('submit-pick-form').week_num.value = weekNum;
         // Fetch schedule from API, passing pickId for context
-        const resp = await fetch(`/api/schedule/${weekNum}?pick_id=${pickId}`);
+        const resp = await fetch(`/schedule/${weekNum}?pick_id=${pickId}`);
         const games = await resp.json();
 
         // Fetch already picked teams for this entry
@@ -179,18 +179,18 @@ document.addEventListener('DOMContentLoaded', function () {
         // }
 
         let gamesHtml = games.games.map(function(game, id) {
-            let homeDisabled = game.homeDisabled ? 'style="opacity:0.4;pointer-events:none;"' : '';
-            let awayDisabled = game.awayDisabled ? 'style="opacity:0.4;pointer-events:none;"' : ''; 
-            let homeSelectable = game.homeSelectable ? 'selectable-logo' : '';
-            let awaySelectable = game.awaySelectable ? 'selectable-logo' : '';
-            return `<div class='overlay-game'>
-                <img src='${game.homeLogo}' class='overlay-game-logo ${homeSelectable}' data-team='${game.homeAbbrv}' tabindex='0' ${homeDisabled}>
-                <div class='overlay-game-team'>${game.homeAbbrv}</div>
-                <div class='overlay-game-vs'>vs</div>
-                <img src='${game.awayLogo}' class='overlay-game-logo ${awaySelectable}' data-team='${game.awayAbbrv}' tabindex='0' ${awayDisabled}>
-                <div class='overlay-game-team'>${game.awayAbbrv}</div>
-                <div class='overlay-game-time'>${game.game_time}</div>
-            </div>`;
+      let homeDisabled = game.homeDisabled ? 'style="opacity:0.4;pointer-events:none;"' : '';
+      let awayDisabled = game.awayDisabled ? 'style="opacity:0.4;pointer-events:none;"' : ''; 
+      let homeSelectable = game.homeSelectable ? 'selectable-logo' : '';
+      let awaySelectable = game.awaySelectable ? 'selectable-logo' : '';
+      return `<div class='overlay-game' data-game-id='${game.game_id}'>
+        <img src='${game.homeLogo}' class='overlay-game-logo ${homeSelectable}' data-team='${game.homeAbbrv}' data-game-id='${game.game_id}' tabindex='0' ${homeDisabled}>
+        <div class='overlay-game-team'>${game.homeAbbrv}</div>
+        <div class='overlay-game-vs'>vs</div>
+        <img src='${game.awayLogo}' class='overlay-game-logo ${awaySelectable}' data-team='${game.awayAbbrv}' data-game-id='${game.game_id}' tabindex='0' ${awayDisabled}>
+        <div class='overlay-game-team'>${game.awayAbbrv}</div>
+        <div class='overlay-game-time'>${game.game_time}</div>
+      </div>`;
         }).join('');
         document.getElementById('overlay-games').innerHTML = gamesHtml;
         document.getElementById('pick-overlay').style.display = 'flex';
@@ -200,23 +200,25 @@ document.addEventListener('DOMContentLoaded', function () {
         const submitBtn = document.getElementById('submit-pick-btn');
         submitBtn.disabled = true;
         document.querySelectorAll('.selectable-logo').forEach(function(logo) {
-            logo.addEventListener('click', function() {
-                if (selectedLogo === logo) {
-                    // Unselect if already selected
-                    logo.classList.remove('selected-logo');
-                    selectedLogo = null;
-                    document.getElementById('submit-pick-form').team.value = '';
-                    submitBtn.disabled = true;
-                } else {
-                    // Unselect previous
-                    if (selectedLogo) selectedLogo.classList.remove('selected-logo');
-                    // Select new
-                    logo.classList.add('selected-logo');
-                    selectedLogo = logo;
-                    document.getElementById('submit-pick-form').team.value = logo.dataset.team;
-                    submitBtn.disabled = false;
-                }
-            });
+      logo.addEventListener('click', function() {
+        if (selectedLogo === logo) {
+          // Unselect if already selected
+          logo.classList.remove('selected-logo');
+          selectedLogo = null;
+          document.getElementById('submit-pick-form').team.value = '';
+          document.getElementById('submit-pick-form').game_id.value = '';
+          submitBtn.disabled = true;
+        } else {
+          // Unselect previous
+          if (selectedLogo) selectedLogo.classList.remove('selected-logo');
+          // Select new
+          logo.classList.add('selected-logo');
+          selectedLogo = logo;
+          document.getElementById('submit-pick-form').team.value = logo.dataset.team;
+          document.getElementById('submit-pick-form').game_id.value = logo.dataset.gameId;
+          submitBtn.disabled = false;
+        }
+      });
         });
         // Reset selection on overlay open
         if (document.getElementById('submit-pick-form').team) {

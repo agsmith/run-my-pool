@@ -1,3 +1,5 @@
+/* Permission Error Banner Styles */
+
 .score-rule-card {
   background: #f6fafd !important;
 }
@@ -34,7 +36,15 @@
   opacity: 0.7;
 }
 body { font-family: Arial, sans-serif; background: #f7f7f7; }
-.container { max-width: 1300px; margin: 40px auto; background: #fff; padding: 32px; border-radius: 12px; box-shadow: 0 2px 16px #0002; }
+.container {
+  width: fit-content;
+  min-width: 320px;
+  max-width: 100%;
+  background: #fff;
+  padding: 32px;
+  border-radius: 12px;
+  box-shadow: 0 2px 16px #0002;
+}
 .header-bar { display: flex; align-items: center; justify-content: flex-start; margin-bottom: 28px; padding-bottom: 0; border-bottom: none; }
 .header-tabs-group { display: flex; gap: 8px; align-items: center; margin-left: 0; margin-right: 24px; }
 .logo { display: flex; align-items: center; gap: 10px; font-size: 1.1em; font-weight: 600; color: #1976d2; letter-spacing: 1px; margin-right: 24px; }

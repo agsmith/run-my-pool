@@ -1,0 +1,641 @@
+<!-- admin.html -->
+<!DOCTYPE html>
+<html lang="en">
+    <meta charset="UTF-8">
+    <title>Run My Pool</title>
+    <link rel="stylesheet" href="/static/css/left-nav.css">
+    <link rel="stylesheet" href="/static/css/style.css">
+    <script src="/static/js/rmp.js"></script>
+<body>
+    {% include 'left_panel.html' %}
+    {% include 'header.html' %}
+    <div class="main-content-with-nav">
+        <div class="container">
+            <h2>Admin Portal</h2>
+            
+            <!-- Admin Tabs -->
+            <div class="tabs" style="margin-top:24px;">
+                <a href="#" class="tab active" onclick="showTab('league-management')">League Management</a>
+                <a href="#" class="tab" onclick="showTab('user-management')">User Management</a>
+                <a href="#" class="tab" onclick="showTab('entry-management')">Entry Management</a>
+                <a href="#" class="tab" onclick="showTab('audit-log')">Change Audit Log</a>
+            </div>
+
+            <!-- Tab Content -->
+            <div id="league-management" class="tab-content active" style="margin-top:32px;">
+                <h3>League Management</h3>
+                <p>Manage leagues, create new leagues, edit league settings.</p>
+                
+                <!-- League Management Subtabs -->
+                <div class="tabs" style="margin-top:16px; margin-bottom:24px;">
+                    <a href="#" class="tab active" onclick="showSubTab('view-leagues')">View Leagues</a>
+                    <a href="#" class="tab" onclick="showSubTab('create-league')">Create League</a>
+                    <a href="#" class="tab" onclick="showSubTab('edit-league')">Edit League</a>
+                </div>
+
+                <!-- Subtab Content -->
+                <div id="view-leagues" class="subtab-content active">
+                    <h4>Current Leagues</h4>
+                    <p>View and manage all leagues in the system.</p>
+                    
+                    <!-- Search and Filter -->
+                    <div style="background:#f5f5f5; padding:16px; border-radius:8px; margin:20px 0;">
+                        <form action="/admin/leagues" method="get" style="display:flex; gap:16px; align-items:end; flex-wrap:wrap;">
+                            <div>
+                                <label for="search_league" style="display:block; margin-bottom:6px; font-weight:500;">Search League Name</label>
+                                <input type="text" id="search_league" name="search" style="padding:8px; border-radius:6px; border:1px solid #ccc; width:200px;" placeholder="League name...">
+                            </div>
+                            <div>
+                                <button type="submit" style="padding:8px 16px; background:#2196f3; color:#fff; border:none; border-radius:6px; cursor:pointer;">Search</button>
+                                <button type="button" onclick="clearLeagueSearch()" style="padding:8px 16px; background:#666; color:#fff; border:none; border-radius:6px; cursor:pointer; margin-left:8px;">Clear</button>
+                            </div>
+                        </form>
+                    </div>
+                    
+                    <!-- Leagues Table -->
+                    <div style="overflow-x:auto; border:1px solid #ddd; border-radius:8px; margin-top:20px;">
+                        <table style="width:100%; border-collapse:collapse; background:#fff;">
+                            <thead style="background:#f8f9fa;">
+                                <tr>
+                                    <th style="padding:12px; text-align:left; border-bottom:2px solid #dee2e6; font-weight:600;">League ID</th>
+                                    <th style="padding:12px; text-align:left; border-bottom:2px solid #dee2e6; font-weight:600;">League Name</th>
+                                    <th style="padding:12px; text-align:left; border-bottom:2px solid #dee2e6; font-weight:600;">Lock Time</th>
+                                    <th style="padding:12px; text-align:left; border-bottom:2px solid #dee2e6; font-weight:600;">Members</th>
+                                    <th style="padding:12px; text-align:left; border-bottom:2px solid #dee2e6; font-weight:600;">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Sample data - will be populated by backend -->
+                                <tr style="border-bottom:1px solid #dee2e6;">
+                                    <td style="padding:12px;">1</td>
+                                    <td style="padding:12px;"><strong>2025 Main League</strong></td>
+                                    <td style="padding:12px;">2025-09-05 13:00:00</td>
+                                    <td style="padding:12px;">24 users</td>
+                                    <td style="padding:12px;">
+                                        <button onclick="editLeague(1)" style="padding:4px 12px; background:#ff9800; color:#fff; border:none; border-radius:4px; cursor:pointer; margin-right:8px;">Edit</button>
+                                        <button onclick="viewLeagueDetails(1)" style="padding:4px 12px; background:#2196f3; color:#fff; border:none; border-radius:4px; cursor:pointer;">Details</button>
+                                    </td>
+                                </tr>
+                                <tr style="border-bottom:1px solid #dee2e6; background:#f8f9fa;">
+                                    <td style="padding:12px;">2</td>
+                                    <td style="padding:12px;"><strong>Family League 2025</strong></td>
+                                    <td style="padding:12px;">2025-09-05 13:00:00</td>
+                                    <td style="padding:12px;">8 users</td>
+                                    <td style="padding:12px;">
+                                        <button onclick="editLeague(2)" style="padding:4px 12px; background:#ff9800; color:#fff; border:none; border-radius:4px; cursor:pointer; margin-right:8px;">Edit</button>
+                                        <button onclick="viewLeagueDetails(2)" style="padding:4px 12px; background:#2196f3; color:#fff; border:none; border-radius:4px; cursor:pointer;">Details</button>
+                                    </td>
+                                </tr>
+                                <tr style="border-bottom:1px solid #dee2e6;">
+                                    <td style="padding:12px;">3</td>
+                                    <td style="padding:12px;"><strong>Office Pool</strong></td>
+                                    <td style="padding:12px;">2025-09-05 13:00:00</td>
+                                    <td style="padding:12px;">16 users</td>
+                                    <td style="padding:12px;">
+                                        <button onclick="editLeague(3)" style="padding:4px 12px; background:#ff9800; color:#fff; border:none; border-radius:4px; cursor:pointer; margin-right:8px;">Edit</button>
+                                        <button onclick="viewLeagueDetails(3)" style="padding:4px 12px; background:#2196f3; color:#fff; border:none; border-radius:4px; cursor:pointer;">Details</button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div id="create-league" class="subtab-content" style="display:none;">
+                    <h4>Create New League</h4>
+                    <p>Set up a new league with custom settings and configurations.</p>
+                    
+                    <form action="/admin/create-league" method="post" style="max-width:600px; margin-top:24px;">
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:24px;">
+                            <div style="grid-column:1/-1;">
+                                <label for="new_league_name" style="display:block; margin-bottom:6px; font-weight:500;">League Name *</label>
+                                <input type="text" id="new_league_name" name="league_name" required style="width:100%; padding:12px; border-radius:6px; border:1px solid #ccc; font-size:1em;" placeholder="Enter league name">
+                            </div>
+                            
+                            <div>
+                                <label for="new_lock_date" style="display:block; margin-bottom:6px; font-weight:500;">Lock Date *</label>
+                                <input type="date" id="new_lock_date" name="lock_date" required style="width:100%; padding:12px; border-radius:6px; border:1px solid #ccc; font-size:1em;">
+                            </div>
+                            
+                            <div>
+                                <label for="new_lock_time" style="display:block; margin-bottom:6px; font-weight:500;">Lock Time *</label>
+                                <input type="time" id="new_lock_time" name="lock_time" required style="width:100%; padding:12px; border-radius:6px; border:1px solid #ccc; font-size:1em;" value="13:00">
+                            </div>
+                        </div>
+                        
+                        <div style="background:#e3f2fd; padding:16px; border-radius:8px; margin:20px 0; border-left:4px solid #2196f3;">
+                            <h5 style="margin:0 0 12px 0; color:#1976d2;">League Settings</h5>
+                            <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+                                <label style="display:flex; align-items:center; gap:8px;">
+                                    <input type="checkbox" name="allow_late_entries" value="1" style="transform:scale(1.2);">
+                                    Allow late entries
+                                </label>
+                                <label style="display:flex; align-items:center; gap:8px;">
+                                    <input type="checkbox" name="public_standings" value="1" checked style="transform:scale(1.2);">
+                                    Public standings
+                                </label>
+                                <label style="display:flex; align-items:center; gap:8px;">
+                                    <input type="checkbox" name="email_notifications" value="1" checked style="transform:scale(1.2);">
+                                    Email notifications
+                                </label>
+                                <label style="display:flex; align-items:center; gap:8px;">
+                                    <input type="checkbox" name="auto_eliminate" value="1" checked style="transform:scale(1.2);">
+                                    Auto-eliminate on loss
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div style="margin-bottom:20px;">
+                            <label for="league_description" style="display:block; margin-bottom:6px; font-weight:500;">League Description</label>
+                            <textarea id="league_description" name="description" style="width:100%; padding:12px; border-radius:6px; border:1px solid #ccc; min-height:80px; font-size:1em;" placeholder="Optional description of the league rules or details..."></textarea>
+                        </div>
+                        
+                        <button type="submit" style="padding:12px 32px; background:#4caf50; color:#fff; border:none; border-radius:8px; font-size:1.1em; cursor:pointer; font-weight:500;">Create League</button>
+                    </form>
+                </div>
+
+                <div id="edit-league" class="subtab-content" style="display:none;">
+                    <h4>Edit League Settings</h4>
+                    <p>Modify existing league configurations and settings.</p>
+                    
+                    <!-- League Selection -->
+                    <div style="background:#f5f5f5; padding:16px; border-radius:8px; margin:20px 0;">
+                        <label for="edit_league_select" style="display:block; margin-bottom:6px; font-weight:500;">Select League to Edit</label>
+                        <select id="edit_league_select" name="league_id" onchange="loadLeagueData(this.value)" style="width:100%; max-width:400px; padding:12px; border-radius:6px; border:1px solid #ccc; font-size:1em;">
+                            <option value="">Choose a league...</option>
+                            <option value="1">2025 Main League</option>
+                            <option value="2">Family League 2025</option>
+                            <option value="3">Office Pool</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Edit Form (hidden until league selected) -->
+                    <div id="edit-league-form" style="display:none;">
+                        <form action="/admin/update-league" method="post" style="max-width:600px; margin-top:24px;">
+                            <input type="hidden" id="edit_league_id" name="league_id" value="">
+                            
+                            <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:24px;">
+                                <div style="grid-column:1/-1;">
+                                    <label for="edit_league_name" style="display:block; margin-bottom:6px; font-weight:500;">League Name *</label>
+                                    <input type="text" id="edit_league_name" name="league_name" required style="width:100%; padding:12px; border-radius:6px; border:1px solid #ccc; font-size:1em;">
+                                </div>
+                                
+                                <div>
+                                    <label for="edit_lock_date" style="display:block; margin-bottom:6px; font-weight:500;">Lock Date *</label>
+                                    <input type="date" id="edit_lock_date" name="lock_date" required style="width:100%; padding:12px; border-radius:6px; border:1px solid #ccc; font-size:1em;">
+                                </div>
+                                
+                                <div>
+                                    <label for="edit_lock_time" style="display:block; margin-bottom:6px; font-weight:500;">Lock Time *</label>
+                                    <input type="time" id="edit_lock_time" name="lock_time" required style="width:100%; padding:12px; border-radius:6px; border:1px solid #ccc; font-size:1em;">
+                                </div>
+                            </div>
+                            
+                            <div style="background:#fff3e0; padding:16px; border-radius:8px; margin:20px 0; border-left:4px solid #ff9800;">
+                                <h5 style="margin:0 0 12px 0; color:#f57c00;">League Settings</h5>
+                                <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+                                    <label style="display:flex; align-items:center; gap:8px;">
+                                        <input type="checkbox" id="edit_allow_late_entries" name="allow_late_entries" value="1" style="transform:scale(1.2);">
+                                        Allow late entries
+                                    </label>
+                                    <label style="display:flex; align-items:center; gap:8px;">
+                                        <input type="checkbox" id="edit_public_standings" name="public_standings" value="1" style="transform:scale(1.2);">
+                                        Public standings
+                                    </label>
+                                    <label style="display:flex; align-items:center; gap:8px;">
+                                        <input type="checkbox" id="edit_email_notifications" name="email_notifications" value="1" style="transform:scale(1.2);">
+                                        Email notifications
+                                    </label>
+                                    <label style="display:flex; align-items:center; gap:8px;">
+                                        <input type="checkbox" id="edit_auto_eliminate" name="auto_eliminate" value="1" style="transform:scale(1.2);">
+                                        Auto-eliminate on loss
+                                    </label>
+                                </div>
+                            </div>
+                            
+                            <div style="margin-bottom:20px;">
+                                <label for="edit_league_description" style="display:block; margin-bottom:6px; font-weight:500;">League Description</label>
+                                <textarea id="edit_league_description" name="description" style="width:100%; padding:12px; border-radius:6px; border:1px solid #ccc; min-height:80px; font-size:1em;"></textarea>
+                            </div>
+                            
+                            <div style="display:flex; gap:16px;">
+                                <button type="submit" style="padding:12px 32px; background:#ff9800; color:#fff; border:none; border-radius:8px; font-size:1.1em; cursor:pointer; font-weight:500;">Update League</button>
+                                <button type="button" onclick="confirmDeleteLeague()" style="padding:12px 32px; background:#d32f2f; color:#fff; border:none; border-radius:8px; font-size:1.1em; cursor:pointer; font-weight:500;">Delete League</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <div id="user-management" class="tab-content" style="margin-top:32px; display:none;">
+                <h3>User Management</h3>
+                
+                <!-- User Management Subtabs -->
+                <div class="tabs" style="margin-top:16px; margin-bottom:24px;">
+                    <a href="#" class="tab active" onclick="showSubTab('reset-password')">Reset Users Password</a>
+                    <a href="#" class="tab" onclick="showSubTab('update-email')">Update Users Email</a>
+                    <a href="#" class="tab" onclick="showSubTab('delete-users')">Delete Users</a>
+                </div>
+
+                <!-- Subtab Content -->
+                <div id="reset-password" class="subtab-content active">
+                    <h4>Reset Users Password</h4>
+                    <p>Reset passwords for users in the system.</p>
+                    
+                    <form action="/admin/reset-password" method="post" style="max-width:400px; margin-top:24px;">
+                        <div style="margin-bottom:16px;">
+                            <label for="username" style="display:block; margin-bottom:6px; font-weight:500;">Username</label>
+                            <input type="text" id="username" name="username" required style="width:100%; padding:8px; border-radius:6px; border:1px solid #ccc;">
+                        </div>
+                        <div style="margin-bottom:16px;">
+                            <label style="display:flex; align-items:center; gap:8px; font-weight:500;">
+                                <input type="checkbox" name="force_password_change" value="true" style="margin:0;">
+                                Force user to change password on next login
+                            </label>
+                        </div>
+                        <button type="submit" style="padding:10px 28px; background:#d32f2f; color:#fff; border:none; border-radius:8px; font-size:1em; cursor:pointer;">Reset Password</button>
+                    </form>
+                </div>
+
+                <div id="update-email" class="subtab-content" style="display:none;">
+                    <h4>Update Users Email</h4>
+                    <p>Update email addresses for users in the system.</p>
+                    
+                    <form action="/admin/update-email" method="post" style="max-width:400px; margin-top:24px;">
+                        <div style="margin-bottom:16px;">
+                            <label for="email_username" style="display:block; margin-bottom:6px; font-weight:500;">Username</label>
+                            <input type="text" id="email_username" name="username" required style="width:100%; padding:8px; border-radius:6px; border:1px solid #ccc;">
+                        </div>
+                        <div style="margin-bottom:16px;">
+                            <label for="new_email" style="display:block; margin-bottom:6px; font-weight:500;">New Email Address</label>
+                            <input type="email" id="new_email" name="email" required style="width:100%; padding:8px; border-radius:6px; border:1px solid #ccc;">
+                        </div>
+                        <button type="submit" style="padding:10px 28px; background:#1976d2; color:#fff; border:none; border-radius:8px; font-size:1em; cursor:pointer;">Update Email Address</button>
+                    </form>
+                </div>
+
+                <div id="delete-users" class="subtab-content" style="display:none;">
+                    <h4>Delete Users</h4>
+                    <p>Remove users from the system.</p>
+                    
+                    <div style="background:#ffebee; border-left:4px solid #d32f2f; padding:16px; margin:16px 0; border-radius:4px;">
+                        <strong>Warning:</strong> This action will permanently delete the user and all associated data including entitlements, entries, and picks. This cannot be undone.
+                    </div>
+                    
+                    <form action="/admin/delete-user" method="post" style="max-width:400px; margin-top:24px;" onsubmit="return confirmDelete()">
+                        <div style="margin-bottom:16px;">
+                            <label for="delete_username" style="display:block; margin-bottom:6px; font-weight:500;">Username</label>
+                            <input type="text" id="delete_username" name="username" required style="width:100%; padding:8px; border-radius:6px; border:1px solid #ccc;">
+                        </div>
+                        <button type="submit" style="padding:10px 28px; background:#d32f2f; color:#fff; border:none; border-radius:8px; font-size:1em; cursor:pointer;">Delete User</button>
+                    </form>
+                </div>
+            </div>
+
+            <div id="entry-management" class="tab-content" style="margin-top:32px; display:none;">
+                <h3>Entry Management</h3>
+                
+                <!-- Entry Management Subtabs -->
+                <div class="tabs" style="margin-top:16px; margin-bottom:24px;">
+                    <a href="#" class="tab active" onclick="showSubTab('transfer-entries')">Transfer Entries</a>
+                    <a href="#" class="tab" onclick="showSubTab('delete-entries')">Delete Entries</a>
+                    <a href="#" class="tab" onclick="showSubTab('correct-picks')">Correct Picks</a>
+                </div>
+
+                <!-- Subtab Content -->
+                <div id="transfer-entries" class="subtab-content active">
+                    <h4>Transfer Entries</h4>
+                    <p>Transfer entries from one user to another.</p>
+                    
+                    <form action="/admin/transfer-entry" method="post" style="max-width:400px; margin-top:24px;">
+                        <div style="margin-bottom:16px;">
+                            <label for="entry_name" style="display:block; margin-bottom:6px; font-weight:500;">Entry Name</label>
+                            <input type="text" id="entry_name" name="entry_name" required style="width:100%; padding:8px; border-radius:6px; border:1px solid #ccc;" placeholder="Entry name to transfer">
+                        </div>
+                        <div style="margin-bottom:16px;">
+                            <label for="from_user" style="display:block; margin-bottom:6px; font-weight:500;">From User</label>
+                            <input type="text" id="from_user" name="from_user" required style="width:100%; padding:8px; border-radius:6px; border:1px solid #ccc;" placeholder="Current owner username">
+                        </div>
+                        <div style="margin-bottom:16px;">
+                            <label for="to_user" style="display:block; margin-bottom:6px; font-weight:500;">To User</label>
+                            <input type="text" id="to_user" name="to_user" required style="width:100%; padding:8px; border-radius:6px; border:1px solid #ccc;" placeholder="New owner username">
+                        </div>
+                        <button type="submit" style="padding:10px 28px; background:#1976d2; color:#fff; border:none; border-radius:8px; font-size:1em; cursor:pointer;">Transfer Entry</button>
+                    </form>
+                </div>
+
+                <div id="delete-entries" class="subtab-content" style="display:none;">
+                    <h4>Delete Entries</h4>
+                    <p>Remove entries and all associated picks from the system.</p>
+                    
+                    <div style="background:#ffebee; border-left:4px solid #d32f2f; padding:16px; margin:16px 0; border-radius:4px;">
+                        <strong>Warning:</strong> This action will permanently delete the entry and all associated picks. This cannot be undone.
+                    </div>
+                    
+                    <form action="/admin/delete-entry" method="post" style="max-width:400px; margin-top:24px;" onsubmit="return confirmEntryDelete()">
+                        <div style="margin-bottom:16px;">
+                            <label for="delete_entry_id" style="display:block; margin-bottom:6px; font-weight:500;">Entry ID</label>
+                            <input type="number" id="delete_entry_id" name="entry_id" required style="width:100%; padding:8px; border-radius:6px; border:1px solid #ccc;" placeholder="Entry ID to delete">
+                        </div>
+                        <div style="margin-bottom:16px;">
+                            <label for="delete_entry_user" style="display:block; margin-bottom:6px; font-weight:500;">Owner Username (for verification)</label>
+                            <input type="text" id="delete_entry_user" name="username" required style="width:100%; padding:8px; border-radius:6px; border:1px solid #ccc;" placeholder="Entry owner username">
+                        </div>
+                        <button type="submit" style="padding:10px 28px; background:#d32f2f; color:#fff; border:none; border-radius:8px; font-size:1em; cursor:pointer;">Delete Entry</button>
+                    </form>
+                </div>
+
+                <div id="correct-picks" class="subtab-content" style="display:none;">
+                    <h4>Correct Picks</h4>
+                    <p>Correct or modify picks for specific entries and weeks.</p>
+                    
+                    <form action="/admin/correct-pick" method="post" style="max-width:400px; margin-top:24px;">
+                        <div style="margin-bottom:16px;">
+                            <label for="pick_username" style="display:block; margin-bottom:6px; font-weight:500;">Username</label>
+                            <input type="text" id="pick_username" name="username" required style="width:100%; padding:8px; border-radius:6px; border:1px solid #ccc;" placeholder="Username">
+                        </div>
+                        <div style="margin-bottom:16px;">
+                            <label for="pick_week" style="display:block; margin-bottom:6px; font-weight:500;">Week Number</label>
+                            <input type="number" id="pick_week" name="week_num" min="1" max="18" required style="width:100%; padding:8px; border-radius:6px; border:1px solid #ccc;" placeholder="Week (1-18)">
+                        </div>
+                        <div style="margin-bottom:16px;">
+                            <label for="pick_team" style="display:block; margin-bottom:6px; font-weight:500;">Team (Abbreviation)</label>
+                            <input type="text" id="pick_team" name="team_abbrv" required style="width:100%; padding:8px; border-radius:6px; border:1px solid #ccc;" placeholder="Team abbreviation (e.g., NE, DAL)" maxlength="3">
+                        </div>
+                        <div style="margin-bottom:16px;">
+                            <label for="pick_reason" style="display:block; margin-bottom:6px; font-weight:500;">Reason for Correction</label>
+                            <textarea id="pick_reason" name="reason" required style="width:100%; padding:8px; border-radius:6px; border:1px solid #ccc; min-height:60px;" placeholder="Explain why this pick is being corrected..."></textarea>
+                        </div>
+                        <button type="submit" style="padding:10px 28px; background:#ff9800; color:#fff; border:none; border-radius:8px; font-size:1em; cursor:pointer;">Correct Pick</button>
+                    </form>
+                </div>
+            </div>
+
+            <div id="audit-log" class="tab-content" style="margin-top:32px; display:none;">
+                <h3>Change Audit Log</h3>
+                <p>View and search system audit logs for changes.</p>
+                
+                <!-- Search Form -->
+                <div style="background:#f5f5f5; padding:20px; border-radius:8px; margin:20px 0;">
+                    <h4 style="margin-top:0;">Search Audit Logs</h4>
+                    <form action="/admin/audit-log" method="get" style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px; max-width:800px;">
+                        <div>
+                            <label for="audit_user_id" style="display:block; margin-bottom:6px; font-weight:500;">User ID</label>
+                            <input type="number" id="audit_user_id" name="user_id" style="width:100%; padding:8px; border-radius:6px; border:1px solid #ccc;" placeholder="User ID">
+                        </div>
+                        <div>
+                            <label for="audit_date_from" style="display:block; margin-bottom:6px; font-weight:500;">Date From</label>
+                            <input type="datetime-local" id="audit_date_from" name="date_from" style="width:100%; padding:8px; border-radius:6px; border:1px solid #ccc;">
+                        </div>
+                        <div>
+                            <label for="audit_date_to" style="display:block; margin-bottom:6px; font-weight:500;">Date To</label>
+                            <input type="datetime-local" id="audit_date_to" name="date_to" style="width:100%; padding:8px; border-radius:6px; border:1px solid #ccc;">
+                        </div>
+                        <div style="grid-column:1/-1;">
+                            <label for="audit_action" style="display:block; margin-bottom:6px; font-weight:500;">Action (contains)</label>
+                            <input type="text" id="audit_action" name="action" style="width:100%; padding:8px; border-radius:6px; border:1px solid #ccc;" placeholder="Search action text...">
+                        </div>
+                        <div style="grid-column:1/-1; display:flex; gap:12px; align-items:center;">
+                            <button type="submit" style="padding:10px 24px; background:#2196f3; color:#fff; border:none; border-radius:8px; font-size:1em; cursor:pointer;">Search</button>
+                            <button type="button" onclick="clearAuditSearch()" style="padding:10px 24px; background:#666; color:#fff; border:none; border-radius:8px; font-size:1em; cursor:pointer;">Clear</button>
+                            <label style="margin-left:20px;">
+                                <input type="checkbox" name="export" value="1" style="margin-right:6px;">
+                                Export to CSV
+                            </label>
+                        </div>
+                    </form>
+                </div>
+                
+                <!-- Results Table -->
+                <div style="margin-top:24px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                        <h4 style="margin:0;">Audit Log Results</h4>
+                        <div style="color:#666; font-size:0.9em;">
+                            Showing results 1-50 of 150 | 
+                            <a href="#" style="color:#2196f3; text-decoration:none;">Previous</a> | 
+                            <a href="#" style="color:#2196f3; text-decoration:none;">Next</a>
+                        </div>
+                    </div>
+                    
+                    <div style="overflow-x:auto; border:1px solid #ddd; border-radius:8px;">
+                        <table style="width:100%; border-collapse:collapse; background:#fff;">
+                            <thead style="background:#f8f9fa;">
+                                <tr>
+                                    <th style="padding:12px; text-align:left; border-bottom:2px solid #dee2e6; font-weight:600;">
+                                        <a href="#" style="color:#333; text-decoration:none;">Audit ID ↕</a>
+                                    </th>
+                                    <th style="padding:12px; text-align:left; border-bottom:2px solid #dee2e6; font-weight:600;">
+                                        <a href="#" style="color:#333; text-decoration:none;">User ID ↕</a>
+                                    </th>
+                                    <th style="padding:12px; text-align:left; border-bottom:2px solid #dee2e6; font-weight:600;">
+                                        <a href="#" style="color:#333; text-decoration:none;">Timestamp ↕</a>
+                                    </th>
+                                    <th style="padding:12px; text-align:left; border-bottom:2px solid #dee2e6; font-weight:600;">
+                                        Action
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Sample data - will be populated by backend -->
+                                <tr style="border-bottom:1px solid #dee2e6;">
+                                    <td style="padding:12px;">1001</td>
+                                    <td style="padding:12px;">123</td>
+                                    <td style="padding:12px;">2025-08-25 14:30:15</td>
+                                    <td style="padding:12px;">User login: admin@example.com</td>
+                                </tr>
+                                <tr style="border-bottom:1px solid #dee2e6; background:#f8f9fa;">
+                                    <td style="padding:12px;">1002</td>
+                                    <td style="padding:12px;">125</td>
+                                    <td style="padding:12px;">2025-08-25 14:28:42</td>
+                                    <td style="padding:12px;">Entry transfer: Entry "Team Hawks" transferred from user123 to user456</td>
+                                </tr>
+                                <tr style="border-bottom:1px solid #dee2e6;">
+                                    <td style="padding:12px;">1003</td>
+                                    <td style="padding:12px;">124</td>
+                                    <td style="padding:12px;">2025-08-25 14:25:18</td>
+                                    <td style="padding:12px;">Pick correction: Week 5 pick changed from DAL to NE for entry "Eagles Fan"</td>
+                                </tr>
+                                <tr style="border-bottom:1px solid #dee2e6; background:#f8f9fa;">
+                                    <td style="padding:12px;">1004</td>
+                                    <td style="padding:12px;">123</td>
+                                    <td style="padding:12px;">2025-08-25 14:20:05</td>
+                                    <td style="padding:12px;">Entry deletion: Entry ID 789 "Patriots Rule" deleted by admin</td>
+                                </tr>
+                                <tr style="border-bottom:1px solid #dee2e6;">
+                                    <td style="padding:12px;">1005</td>
+                                    <td style="padding:12px;">127</td>
+                                    <td style="padding:12px;">2025-08-25 14:15:33</td>
+                                    <td style="padding:12px;">User creation: New user user789@email.com added to system</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- No results message (hidden by default) -->
+                    <div id="no-results" style="display:none; text-align:center; padding:40px; color:#666; background:#f8f9fa; border-radius:8px; margin-top:20px;">
+                        <p style="margin:0; font-size:1.1em;">No audit log entries found matching your search criteria.</p>
+                        <p style="margin:8px 0 0 0; font-size:0.9em;">Try adjusting your search filters or clearing the search to view all entries.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+<script>
+function showTab(tabId) {
+    // Hide all tab content
+    const tabContents = document.querySelectorAll('.tab-content');
+    tabContents.forEach(content => {
+        content.style.display = 'none';
+        content.classList.remove('active');
+    });
+    
+    // Remove active class from all tabs
+    const tabs = document.querySelectorAll('.tab');
+    tabs.forEach(tab => {
+        tab.classList.remove('active');
+    });
+    
+    // Show selected tab content
+    const selectedTab = document.getElementById(tabId);
+    if (selectedTab) {
+        selectedTab.style.display = 'block';
+        selectedTab.classList.add('active');
+    }
+    
+    // Add active class to clicked tab
+    event.target.classList.add('active');
+}
+
+function showSubTab(subTabId) {
+    // Hide all subtab content
+    const subTabContents = document.querySelectorAll('.subtab-content');
+    subTabContents.forEach(content => {
+        content.style.display = 'none';
+        content.classList.remove('active');
+    });
+    
+    // Remove active class from all subtabs in the current parent
+    const parentTab = event.target.closest('.tab-content');
+    const subTabs = parentTab.querySelectorAll('.tab');
+    subTabs.forEach(tab => {
+        tab.classList.remove('active');
+    });
+    
+    // Show selected subtab content
+    const selectedSubTab = document.getElementById(subTabId);
+    if (selectedSubTab) {
+        selectedSubTab.style.display = 'block';
+        selectedSubTab.classList.add('active');
+    }
+    
+    // Add active class to clicked subtab
+    event.target.classList.add('active');
+}
+
+function confirmDelete() {
+    const username = document.getElementById('delete_username').value;
+    return confirm(`Are you sure you want to delete user "${username}" and all their associated data? This action cannot be undone.`);
+}
+
+function confirmEntryDelete() {
+    const entryId = document.getElementById('delete_entry_id').value;
+    const username = document.getElementById('delete_entry_user').value;
+    return confirm(`Are you sure you want to delete entry ${entryId} owned by "${username}" and all associated picks? This action cannot be undone.`);
+}
+
+function clearAuditSearch() {
+    document.getElementById('audit_user_id').value = '';
+    document.getElementById('audit_date_from').value = '';
+    document.getElementById('audit_date_to').value = '';
+    document.getElementById('audit_action').value = '';
+    document.querySelector('input[name="export"]').checked = false;
+}
+
+function clearLeagueSearch() {
+    document.getElementById('search_league').value = '';
+}
+
+function editLeague(leagueId) {
+    // Switch to edit league subtab
+    showSubTab('edit-league');
+    // Set the selected league in the dropdown
+    document.getElementById('edit_league_select').value = leagueId;
+    // Load the league data
+    loadLeagueData(leagueId);
+}
+
+function viewLeagueDetails(leagueId) {
+    // This could open a modal or navigate to a detailed view
+    alert(`Viewing details for League ID: ${leagueId}`);
+    // In a real implementation, this would show detailed league statistics, member list, etc.
+}
+
+function loadLeagueData(leagueId) {
+    if (!leagueId) {
+        document.getElementById('edit-league-form').style.display = 'none';
+        return;
+    }
+    
+    // Show the form
+    document.getElementById('edit-league-form').style.display = 'block';
+    
+    // Sample data loading - in real implementation, this would be an AJAX call
+    const sampleLeagues = {
+        '1': {
+            name: '2025 Main League',
+            lock_date: '2025-09-05',
+            lock_time: '13:00',
+            allow_late_entries: false,
+            public_standings: true,
+            email_notifications: true,
+            auto_eliminate: true,
+            description: 'Main survivor league for 2025 NFL season'
+        },
+        '2': {
+            name: 'Family League 2025',
+            lock_date: '2025-09-05',
+            lock_time: '13:00',
+            allow_late_entries: true,
+            public_standings: true,
+            email_notifications: false,
+            auto_eliminate: true,
+            description: 'Family-only league with relaxed rules'
+        },
+        '3': {
+            name: 'Office Pool',
+            lock_date: '2025-09-05',
+            lock_time: '13:00',
+            allow_late_entries: false,
+            public_standings: true,
+            email_notifications: true,
+            auto_eliminate: true,
+            description: 'Office survivor pool'
+        }
+    };
+    
+    const league = sampleLeagues[leagueId];
+    if (league) {
+        document.getElementById('edit_league_id').value = leagueId;
+        document.getElementById('edit_league_name').value = league.name;
+        document.getElementById('edit_lock_date').value = league.lock_date;
+        document.getElementById('edit_lock_time').value = league.lock_time;
+        document.getElementById('edit_allow_late_entries').checked = league.allow_late_entries;
+        document.getElementById('edit_public_standings').checked = league.public_standings;
+        document.getElementById('edit_email_notifications').checked = league.email_notifications;
+        document.getElementById('edit_auto_eliminate').checked = league.auto_eliminate;
+        document.getElementById('edit_league_description').value = league.description;
+    }
+}
+
+function confirmDeleteLeague() {
+    const leagueName = document.getElementById('edit_league_name').value;
+    const leagueId = document.getElementById('edit_league_id').value;
+    
+    if (confirm(`Are you sure you want to delete league "${leagueName}"? This will also delete all associated entries, picks, and user entitlements. This action cannot be undone.`)) {
+        // In real implementation, this would submit a delete request
+        alert(`League ${leagueId} would be deleted. (Not implemented in demo)`);
+    }
+}
+</script>
+</html>

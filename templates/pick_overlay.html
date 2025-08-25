@@ -15,6 +15,7 @@
         <form id="submit-pick-form" method="post" action="/submit-pick">
             <input type="hidden" name="pick_id" value="{{ pick_id }}">
             <input type="hidden" name="week_num" value="{{ week_num }}">
+            <input type="hidden" name="game_id" value="{{ game_id }}">
             <input type="hidden" name="team" value="">
             <button type="submit" id="submit-pick-btn" disabled>Submit Pick</button>
             <button type="button" id="cancel-overlay-btn">Cancel</button>

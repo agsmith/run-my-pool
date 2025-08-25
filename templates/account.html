@@ -1,0 +1,59 @@
+<!-- account.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Run My Pool</title>
+        <link rel="stylesheet" href="/static/css/left-nav.css">
+    <link rel="stylesheet" href="/static/css/style.css">
+    <script src="/static/js/rmp.js"></script>
+</head>
+<body>
+    {% include 'left_panel.html' %}
+    {% include 'header.html' %}
+    <div class="main-content-with-nav">
+        <div class="container">
+            <h2>Account Page</h2>
+            <div style="margin-top:24px;">
+                <h3>User Details</h3>
+                <ul style="font-size:1.1em; line-height:2; margin-left:24px;">
+                    <li><strong>Username:</strong> {{ username }}</li>
+                    <li><strong>Email:</strong> {{ email }}</li>
+                </ul>
+            </div>
+
+            <div style="margin-top:32px;">
+                <h3>Change Password</h3>
+                <form action="/change-password" method="post" style="max-width:400px;" onsubmit="return validatePasswordMatch()">
+                    <input type="hidden" name="username" value="{{ username }}">
+                    <div style="margin-bottom:16px;">
+                        <label for="new_password" style="display:block; margin-bottom:6px; font-weight:500;">New Password</label>
+                        <input type="password" id="new_password" name="new_password" required style="width:100%; padding:8px; border-radius:6px; border:1px solid #ccc;">
+                    </div>
+                    <div style="margin-bottom:16px;">
+                        <label for="confirm_password" style="display:block; margin-bottom:6px; font-weight:500;">Confirm Password</label>
+                        <input type="password" id="confirm_password" name="confirm_password" required style="width:100%; padding:8px; border-radius:6px; border:1px solid #ccc;">
+                    </div>
+                    <div id="password-error" style="color:#b71c1c; margin-bottom:16px; display:none;">Passwords do not match!</div>
+                    <button type="submit" style="padding:10px 28px; background:#1976d2; color:#fff; border:none; border-radius:8px; font-size:1em; cursor:pointer;">Change Password</button>
+                </form>
+            </div>
+            </div>
+        </div>
+    </div>
+</body>
+<script>
+function validatePasswordMatch() {
+    const password = document.getElementById('new_password').value;
+    const confirmPassword = document.getElementById('confirm_password').value;
+    const errorDiv = document.getElementById('password-error');
+    
+    if (password !== confirmPassword) {
+        errorDiv.style.display = 'block';
+        return false;
+    }
+    errorDiv.style.display = 'none';
+    return true;
+}
+</script>
+</html>

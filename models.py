@@ -1,9 +1,33 @@
+
 from sqlalchemy import Boolean, Column, Integer, String, DateTime
 from database import Base
+
+# User_IAM table for authentication
+class User_IAM(Base):
+    __tablename__ = 'User_IAM'
+    user_id = Column(Integer, primary_key=True, index=True)
+    username = Column(String(128), unique=True, index=True)
+    password = Column(String(256))
+    email = Column(String(256))
+    session_token = Column(String(256))
+    account_created_time = Column(DateTime)
+    last_logged_in_time = Column(DateTime)
+    force_password_change = Column(Boolean, default=False)
+    admin_role = Column(Boolean, default=False)
+
+# User_Entitlements table
+class User_Entitlements(Base):
+    __tablename__ = 'User_Entitlements'
+    entitlement_id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, index=True)
+    league_id = Column(Integer, index=True)
+    status = Column(String(32))
+    role = Column(String(32))
 
 class League(Base):
     __tablename__ = 'League'
     league_id = Column(Integer, primary_key=True, index=True)
+    league_name = Column(String(128), index=True)
     lock_time = Column(DateTime)
 
 class Users(Base):
@@ -30,6 +54,7 @@ class Picks(Base):
     team_id = Column(Integer, index=True)
     week_num = Column(Integer, index=True)
     result = Column(String, default='open')
+    game_id = Column(Integer, index=True)
 
 
 class Teams(Base):

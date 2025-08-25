@@ -2,7 +2,7 @@
 <div class="header-user-section">
     <div class="user-info">
         <span class="welcome-user">Welcome, {{ username or 'User' }}</span>
-        <span class="user-role">{{ role or 'Guest' }}</span>
+    <span class="user-role">{{ role if role else '' }}</span>
     </div>
     <a href="/logout" class="logout-btn">Logout</a>
 </div>
