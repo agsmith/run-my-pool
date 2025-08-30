@@ -154,7 +154,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 document.getElementById('pick-overlay').style.display = 'none';
                 window.location.reload(); // Refresh the page after successful pick submission
             } else {
-                alert('Error submitting pick. Please try again.');
+                const errorData = await resp.json();
+                alert(errorData.error || 'Error submitting pick. Please try again.');
             }
         } catch (err) {
             alert('Network error. Please try again.');
@@ -168,62 +169,104 @@ document.addEventListener('DOMContentLoaded', function () {
         document.getElementById('overlay-week').textContent = weekNum;
         document.getElementById('submit-pick-form').pick_id.value = pickId;
         document.getElementById('submit-pick-form').week_num.value = weekNum;
+        
         // Fetch schedule from API, passing pickId for context
-        const resp = await fetch(`/schedule/${weekNum}?pick_id=${pickId}`);
-        const games = await resp.json();
+        try {
+            const resp = await fetch(`/schedule/${weekNum}?pick_id=${pickId}`);
+            
+            if (!resp.ok) {
+                const errorData = await resp.json();
+                if (errorData.currentGameStarted) {
+                    alert(errorData.error || 'Cannot change this pick - the current game has already started');
+                    return; // Don't show the overlay
+                } else if (errorData.deadlinePassed) {
+                    alert(errorData.error || 'Cannot change this pick - the weekly deadline has passed');
+                    return; // Don't show the overlay
+                } else {
+                    alert('Error loading schedule. Please try again.');
+                    return;
+                }
+            }
+            
+            const games = await resp.json();
 
-        // Fetch already picked teams for this entry
-        // let pickedTeams = [];
-        // if (window.entriesPicks && window.entriesPicks[pickId]) {
-        //     pickedTeams = window.entriesPicks[pickId];
-        // }
+            let gamesHtml = games.games.map(function(game, id) {
+                let homeDisabled = game.homeDisabled ? 'disabled' : '';
+                let awayDisabled = game.awayDisabled ? 'disabled' : ''; 
+                let homeSelectable = game.homeSelectable ? 'selectable-logo' : '';
+                let awaySelectable = game.awaySelectable ? 'selectable-logo' : '';
+                
+                // Determine the reason for disabling
+                let homeTitle = '';
+                let awayTitle = '';
+                
+                if (game.gameStarted) {
+                    homeTitle = 'Game has already started';
+                    awayTitle = 'Game has already started';
+                } else if (game.homeDisabled) {
+                    homeTitle = 'This team has already been selected for this entry';
+                }
+                
+                if (game.gameStarted) {
+                    awayTitle = 'Game has already started';
+                } else if (game.awayDisabled && !game.gameStarted) {
+                    awayTitle = 'This team has already been selected for this entry';
+                }
+                
+                return `<div class='overlay-game ${game.gameStarted ? 'game-started' : ''}' data-game-id='${game.game_id}'>
+                    <img src='${game.home_team.logo}' class='overlay-game-logo ${homeSelectable} ${homeDisabled}' data-team='${game.home_team.abbrv}' data-game-id='${game.game_id}' tabindex='0' title='${homeTitle}'>
+                    <div class='overlay-game-team'>${game.home_team.abbrv}</div>
+                    <div class='overlay-game-vs'>vs</div>
+                    <img src='${game.away_team.logo}' class='overlay-game-logo ${awaySelectable} ${awayDisabled}' data-team='${game.away_team.abbrv}' data-game-id='${game.game_id}' tabindex='0' title='${awayTitle}'>
+                    <div class='overlay-game-team'>${game.away_team.abbrv}</div>
+                    <div class='overlay-game-time'>${game.game_time}</div>
+                </div>`;
+            }).join('');
+            
+            document.getElementById('overlay-games').innerHTML = gamesHtml;
+            document.getElementById('pick-overlay').style.display = 'flex';
 
-        let gamesHtml = games.games.map(function(game, id) {
-      let homeDisabled = game.homeDisabled ? 'style="opacity:0.4;pointer-events:none;"' : '';
-      let awayDisabled = game.awayDisabled ? 'style="opacity:0.4;pointer-events:none;"' : ''; 
-      let homeSelectable = game.homeSelectable ? 'selectable-logo' : '';
-      let awaySelectable = game.awaySelectable ? 'selectable-logo' : '';
-      return `<div class='overlay-game' data-game-id='${game.game_id}'>
-        <img src='${game.homeLogo}' class='overlay-game-logo ${homeSelectable}' data-team='${game.homeAbbrv}' data-game-id='${game.game_id}' tabindex='0' ${homeDisabled}>
-        <div class='overlay-game-team'>${game.homeAbbrv}</div>
-        <div class='overlay-game-vs'>vs</div>
-        <img src='${game.awayLogo}' class='overlay-game-logo ${awaySelectable}' data-team='${game.awayAbbrv}' data-game-id='${game.game_id}' tabindex='0' ${awayDisabled}>
-        <div class='overlay-game-team'>${game.awayAbbrv}</div>
-        <div class='overlay-game-time'>${game.game_time}</div>
-      </div>`;
-        }).join('');
-        document.getElementById('overlay-games').innerHTML = gamesHtml;
-        document.getElementById('pick-overlay').style.display = 'flex';
-
-        // Selection logic
-        let selectedLogo = null;
-        const submitBtn = document.getElementById('submit-pick-btn');
-        submitBtn.disabled = true;
-        document.querySelectorAll('.selectable-logo').forEach(function(logo) {
-      logo.addEventListener('click', function() {
-        if (selectedLogo === logo) {
-          // Unselect if already selected
-          logo.classList.remove('selected-logo');
-          selectedLogo = null;
-          document.getElementById('submit-pick-form').team.value = '';
-          document.getElementById('submit-pick-form').game_id.value = '';
-          submitBtn.disabled = true;
-        } else {
-          // Unselect previous
-          if (selectedLogo) selectedLogo.classList.remove('selected-logo');
-          // Select new
-          logo.classList.add('selected-logo');
-          selectedLogo = logo;
-          document.getElementById('submit-pick-form').team.value = logo.dataset.team;
-          document.getElementById('submit-pick-form').game_id.value = logo.dataset.gameId;
-          submitBtn.disabled = false;
-        }
-      });
-        });
-        // Reset selection on overlay open
-        if (document.getElementById('submit-pick-form').team) {
-            document.getElementById('submit-pick-form').team.value = '';
+            // Selection logic
+            let selectedLogo = null;
+            const submitBtn = document.getElementById('submit-pick-btn');
             submitBtn.disabled = true;
+            
+            document.querySelectorAll('.selectable-logo').forEach(function(logo) {
+                logo.addEventListener('click', function() {
+                    // Don't allow selection of disabled teams
+                    if (logo.classList.contains('disabled')) {
+                        return;
+                    }
+                    
+                    if (selectedLogo === logo) {
+                        // Unselect if already selected
+                        logo.classList.remove('selected-logo');
+                        selectedLogo = null;
+                        document.getElementById('submit-pick-form').team.value = '';
+                        document.getElementById('submit-pick-form').game_id.value = '';
+                        submitBtn.disabled = true;
+                    } else {
+                        // Unselect previous
+                        if (selectedLogo) selectedLogo.classList.remove('selected-logo');
+                        // Select new
+                        logo.classList.add('selected-logo');
+                        selectedLogo = logo;
+                        document.getElementById('submit-pick-form').team.value = logo.dataset.team;
+                        document.getElementById('submit-pick-form').game_id.value = logo.dataset.gameId;
+                        submitBtn.disabled = false;
+                    }
+                });
+            });
+            
+            // Reset selection on overlay open
+            if (document.getElementById('submit-pick-form').team) {
+                document.getElementById('submit-pick-form').team.value = '';
+                submitBtn.disabled = true;
+            }
+            
+        } catch (error) {
+            console.error('Error loading schedule:', error);
+            alert('Network error. Please try again.');
         }
     });
 });

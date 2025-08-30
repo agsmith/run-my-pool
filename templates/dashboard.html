@@ -12,7 +12,7 @@
     {% include 'header.html' %}
         <div class="main-content-with-nav">
         <div class="container" style="height: auto; overflow:auto;">
-                <div class="permission-error-banner">
+                <div class="permission-error-banner" style="padding-bottom: 24px;">
                     <h2>{{ username }}'s Leagues</h2>
                         <div id="league-results">
                         {% if leagues %}
@@ -34,7 +34,7 @@
                 </div>
         </div>
 
-        <div class="container" style="height: auto; overflow:auto;">
+        <div class="container" style="height: auto; overflow:auto; margin-top: 32px;">
                 <div class="permission-error-banner" style="height:auto; overflow:auto;">
                     <h2>League Search</h2>
                         <div id="league-search-bar" style="margin-bottom:24px; display:flex; gap:12px; align-items:center;">

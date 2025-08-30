@@ -1,0 +1,7 @@
+<svg width="160" height="160" viewBox="0 0 160 160" xmlns="http://www.w3.org/2000/svg">
+  <!-- Black circle background -->
+  <circle cx="80" cy="80" r="75" fill="#000000" stroke="#333333" stroke-width="2"/>
+  
+  <!-- White RMP text -->
+  <text x="80" y="95" text-anchor="middle" font-family="Arial, sans-serif" font-size="48" font-weight="bold" fill="#ffffff" letter-spacing="2px">RMP</text>
+</svg>

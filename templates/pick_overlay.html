@@ -17,7 +17,7 @@
             <input type="hidden" name="week_num" value="{{ week_num }}">
             <input type="hidden" name="game_id" value="{{ game_id }}">
             <input type="hidden" name="team" value="">
-            <button type="submit" id="submit-pick-btn" disabled>Submit Pick</button>
+            <button type="submit" id="submit-pick-btn" disabled>Save Pick</button>
             <button type="button" id="cancel-overlay-btn">Cancel</button>
         </form>
     </div>
@@ -37,15 +37,15 @@
     padding: 32px;
     border-radius: 12px;
     box-shadow: 0 2px 16px rgba(0,0,0,0.2);
-    min-width: 320px;
-    max-width: 90vw;
+    min-width: 800px;
+    max-width: 95vw;
     max-height: 90vh;
     overflow-y: auto;
 }
 .overlay-games {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 24px;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 16px;
     margin: 24px 0;
     justify-items: center;
     width: 100%;
@@ -57,33 +57,49 @@
     align-items: center;
     background: #f7f7f7;
     border-radius: 8px;
-    padding: 12px 18px;
+    padding: 8px 12px;
     box-shadow: 0 1px 4px rgba(0,0,0,0.08);
-    min-width: 120px;
+    min-width: 100px;
     justify-content: center;
     flex-direction: column;
 }
 .overlay-game-logo {
-    width: 50px;
+    width: 40px;
     height: auto;
-    margin-bottom: 8px;
+    margin-bottom: 6px;
     cursor: pointer;
     border: 2px solid transparent;
     border-radius: 8px;
-    transition: border-color 0.2s;
+    transition: border-color 0.2s, opacity 0.2s;
     margin-bottom: 0;
-    margin-right: 8px;
-    margin-left: 8px;
+    margin-right: 6px;
+    margin-left: 6px;
 }
 .overlay-game-logo.selected-logo {
     border-color: #007bff;
     box-shadow: 0 0 8px #007bff44;
 }
+.overlay-game-logo.disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+    filter: grayscale(100%);
+}
+.overlay-game-logo.disabled:hover {
+    opacity: 0.3;
+}
+.overlay-game.game-started {
+    background: #ffe6e6;
+    border: 1px solid #ffcccc;
+}
+.overlay-game.game-started .overlay-game-logo {
+    filter: grayscale(100%) brightness(0.8);
+}
 .overlay-game-team {
     font-weight: bold;
+    font-size: 0.85em;
     margin-bottom: 4px;
-    margin-right: 8px;
-    margin-left: 8px;
+    margin-right: 6px;
+    margin-left: 6px;
 }
 .overlay-game-vs {
     color: #888;
@@ -106,5 +122,34 @@
     background: #eee;
     border: 1px solid #ccc;
     cursor: pointer;
+}
+@media (max-width: 1200px) {
+    .overlay-games {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 20px;
+    }
+    .pick-overlay-content {
+        min-width: 600px;
+    }
+}
+@media (max-width: 800px) {
+    .overlay-games {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 16px;
+    }
+    .pick-overlay-content {
+        min-width: 400px;
+        padding: 20px;
+    }
+}
+@media (max-width: 600px) {
+    .overlay-games {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+    }
+    .pick-overlay-content {
+        min-width: 300px;
+        padding: 16px;
+    }
 }
 </style>

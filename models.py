@@ -14,6 +14,18 @@ class User_IAM(Base):
     last_logged_in_time = Column(DateTime)
     force_password_change = Column(Boolean, default=False)
     admin_role = Column(Boolean, default=False)
+    
+    # Security enhancement columns
+    salt = Column(String(255))
+    session_token_expiry = Column(DateTime)
+    failed_login_attempts = Column(Integer, default=0)
+    last_login_attempt = Column(DateTime)
+    password_changed_time = Column(DateTime)
+    created_time = Column(DateTime)
+    account_locked = Column(Boolean, default=False)
+    account_locked_until = Column(DateTime)
+    password_reset_token = Column(String(255))
+    password_reset_token_expiry = Column(DateTime)
 
 # User_Entitlements table
 class User_Entitlements(Base):
@@ -72,3 +84,9 @@ class Schedule(Base):
     home_team = Column(Integer, index=True, nullable=False)
     away_team = Column(Integer, index=True, nullable=False)
     start_time = Column(DateTime, nullable=False)
+
+# Weekly deadline management table
+class Weekly_Locks(Base):
+    __tablename__ = 'Weekly_Locks'
+    week_num = Column(Integer, primary_key=True, index=True)
+    deadline = Column(DateTime, nullable=False)

@@ -3,7 +3,72 @@
 /workspace.xml
 .idea/
 __pycache__/
+
+# Environment files with secrets
+.env
+.env.local
+.env.production
+.env.staging
+
+# Database configuration (contains credentials)
 database.py
+
+# Scripts with hardcoded credentials  
+backup/
+logs/
+*.log
+server.log
+
+# Deployment scripts with secrets
+deploy-*.sh
+
+# SSL certificates and private keys
+*.key
+certs/key.pem
+certs/*.key
+# Allow self-signed cert for local dev (contains no secrets)
+!certs/cert.pem
+
+# Other certificate files
+*.crt
+
+# macOS
 run.sh
 static/.DS_Store
 static/img/.DS_Store
+
+# Python
+*.pyc
+*.pyo
+*.pyd
+__pycache__/
+*.so
+.Python
+env/
+venv/
+.venv/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Security
+secrets/
+credentials/
+# AWS and Terraform files
+*.tfstate
+*.tfstate.*
+*.tfplan
+.terraform/
+.terraform.lock.hcl
+aws/infrastructure/
+*.pem
+apprunner-service.json
+task-definition.json
+
+.DS_Store
+.env.example
