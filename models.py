@@ -46,18 +46,18 @@ class Users(Base):
     __tablename__ = 'Users'
     user_id = Column(Integer, primary_key=True, index=True)
     league_id = Column(Integer, index=True)
-    name = Column(String, unique=True, index=True)
-    status = Column(String)
+    name = Column(String(128), unique=True, index=True)
+    status = Column(String(32))
     paid = Column(Boolean, default=False)
-    username = Column(String, unique=True, index=True)
+    username = Column(String(128), unique=True, index=True)
     admin = Column(Boolean, default=False)
 
 class Entries(Base):
     __tablename__ = 'Entries'
     entry_id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, index=True)
-    active_status = Column(String, default='active')
-    entry_name = Column(String, index=True)
+    active_status = Column(String(32), default='active')
+    entry_name = Column(String(128), index=True)
 
 class Picks(Base):
     __tablename__ = 'Picks'
@@ -65,16 +65,16 @@ class Picks(Base):
     entry_id = Column(Integer, index=True)
     team_id = Column(Integer, index=True)
     week_num = Column(Integer, index=True)
-    result = Column(String, default='open')
+    result = Column(String(32), default='open')
     game_id = Column(Integer, index=True)
 
 
 class Teams(Base):
     __tablename__ = 'Teams'
     team_id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, index=True)
-    abbrv = Column(String, index=True)
-    logo = Column(String, index=True)
+    name = Column(String(128), index=True)
+    abbrv = Column(String(8), index=True)
+    logo = Column(String(256), index=True)
 
 # Schedule table for weekly games
 class Schedule(Base):

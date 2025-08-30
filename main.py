@@ -292,8 +292,11 @@ async def create_user_post(request: Request, db: Session = Depends(get_db), user
     if secure_db.get_user_by_username(db, username) or secure_db.get_user_by_email(db, email):
         return templates.TemplateResponse("create_user.html", {"request": request, "error": "Username or email already exists."})
     
+    # Hash password with salt
+    hashed_password, salt = PasswordSecurity.hash_password(password)
+    
     # Create user securely
-    if secure_db.create_user(db, username, email, password):
+    if secure_db.create_user(db, username, email, hashed_password, salt):
         security_logger.info(f"New user created: {username}")
         return templates.TemplateResponse("create_user.html", {"request": request, "success": "User created successfully! You can now log in."})
     else:

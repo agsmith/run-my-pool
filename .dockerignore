@@ -1,0 +1,62 @@
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Terraform files and state (751MB!)
+terraform/
+*.tfstate
+*.tfstate.backup
+*.tfvars
+.terraform/
+
+# Git files
+.git/
+.gitignore
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+
+# Test files
+tests/
+test_*.py
+*_test.py
+conftest.py
+run_tests.py
+run_all_tests.py
+
+# Development scripts
+debug_*.py
+clear-rate-limiter.py
+migrate_*.py
+reset_auth.py
+generate_team_logos.py
+populate_game_ids*.py
+
+# Documentation
+*.md
+DEPLOYMENT*
+AWS_*
+PRODUCTION_*
+
+# Shell scripts
+*.sh
+
+# Certificate directories
+certs/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Docker files
+Dockerfile*
