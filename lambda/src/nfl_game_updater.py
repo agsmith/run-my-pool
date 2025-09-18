@@ -265,42 +265,44 @@ def fetch_nfl_game_results(week: int) -> List[Dict]:
 def update_game_results(db, game_results: List[Dict]) -> int:
     """Update schedule table with game results"""
     from models import Schedule, Team
-    
     updates_made = 0
     
     for game in game_results:
-        try:
-            # Find the game in our schedule table
-            home_team = db.query(Team).filter(Team.abbrv == game['home_team_abbrv']).first()
-            away_team = db.query(Team).filter(Team.abbrv == game['away_team_abbrv']).first()
+        if game['status'] == 'STATUS_FINAL':
+            try:
+                # Find the game in our schedule table
+                home_team = db.query(Team).filter(Team.abbrv.lower() == game['home_team_abbrv'].lower()).first()
+                away_team = db.query(Team).filter(Team.abbrv.lower() == game['away_team_abbrv'].lower()).first()
+                print(home_team)
+                if not home_team or not away_team:
+                    logger.warning(f"Team not found for game: {game['home_team_abbrv']} vs {game['away_team_abbrv']}")
+                    continue
             
-            if not home_team or not away_team:
-                logger.warning(f"Team not found for game: {game['home_team_abbrv']} vs {game['away_team_abbrv']}")
+                # Find the scheduled game
+                scheduled_game = db.query(Schedule).filter(
+                    and_(
+                        Schedule.home_team_id == home_team.id,
+                        Schedule.away_team_id == away_team.id,
+                        Schedule.week_num == game['week']
+                    )
+                ).first()
+            
+                if not scheduled_game:
+                    logger.warning(f"Scheduled game not found: {game['home_team_abbrv']} vs {game['away_team_abbrv']}, Week {game['week']}")
+                    continue
+            
+                # Update winning team
+            
+                if game['winning_team_abbrv'].lower() == scheduled_game.home_team_abbrv.lower():
+                    scheduled_game.winning_team_id = home_team.id
+                    updates_made += 1
+                else:
+                    scheduled_game.winning_team_id = home_team.id
+                    updates_made += 1
+        
+            except Exception as e:
+                logger.error(f"Error updating game result for {game}: {e}")
                 continue
-            
-            # Find the scheduled game
-            scheduled_game = db.query(Schedule).filter(
-                and_(
-                    Schedule.home_team_id == home_team.id,
-                    Schedule.away_team_id == away_team.id,
-                    Schedule.week_num == game['week']
-                )
-            ).first()
-            
-            if not scheduled_game:
-                logger.warning(f"Scheduled game not found: {game['home_team_abbrv']} vs {game['away_team_abbrv']}, Week {game['week']}")
-                continue
-            
-            # Update winning team
-            winning_team = db.query(Team).filter(Team.abbrv == game['winning_team_abbrv']).first()
-            if winning_team:
-                scheduled_game.winning_team_id = str(winning_team.id)
-                updates_made += 1
-                logger.info(f"Updated game result: {game['away_team_abbrv']} @ {game['home_team_abbrv']}, Winner: {game['winning_team_abbrv']}")
-            
-        except Exception as e:
-            logger.error(f"Error updating game result for {game}: {e}")
-            continue
     
     return updates_made
 
