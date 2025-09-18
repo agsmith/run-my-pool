@@ -151,37 +151,23 @@ def lambda_handler(event, context):
         }
 
 def get_database_engine():
-    """Create database engine from environment variables or Secrets Manager"""
-    database_url = os.getenv("DATABASE_URL")
-    
-    if database_url:
-        return create_engine(database_url, pool_pre_ping=True)
-    
-    # Fallback to individual environment variables
-    mysql_user = os.getenv("MYSQL_USER", "root")
-    mysql_password = os.getenv("MYSQL_PASSWORD")
-    mysql_host = os.getenv("MYSQL_HOST")
-    mysql_port = os.getenv("MYSQL_PORT", "3306")
-    mysql_db = os.getenv("MYSQL_DB", "rmp")
-    
-    if not all([mysql_password, mysql_host]):
-        # Try to get from AWS Secrets Manager
-        secrets_manager = boto3.client('secretsmanager', 
-                                        config=boto3.session.Config(
-                                            connect_timeout=10,
-                                            read_timeout=10
-                                        ))
-        secret_name = 'arn:aws:secretsmanager:us-east-1:739444271939:secret:runmypool/database-url-nRqy5o'
+
+    secrets_manager = boto3.client('secretsmanager', 
+                                    config=boto3.session.Config(
+                                        connect_timeout=10,
+                                        read_timeout=10
+                                    ))
+    secret_name = 'arn:aws:secretsmanager:us-east-1:739444271939:secret:runmypool/database-url-nRqy5o'
         
-        try:
-            response = secrets_manager.get_secret_value(SecretId=secret_name)
-            responseDict = json.loads(response)
-            database_url = responseDict['SecretString']
-        except Exception as e:
-            logger.error(f"Failed to retrieve database credentials from Secrets Manager: {e}")
-            raise
+    try:
+        response = secrets_manager.get_secret_value(SecretId=secret_name)
+        # responseDict = json.loads(response)
+        database_url = response['SecretString']
+    except Exception as e:
+        logger.error(f"Failed to retrieve database credentials from Secrets Manager: {e}")
+        raise
     
-    return create_engine(database_url, pool_pre_ping=True)
+        return create_engine(database_url, pool_pre_ping=True)
 
 def get_current_nfl_week() -> int:
     """Calculate current NFL week based on date"""
