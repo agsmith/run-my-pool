@@ -32,7 +32,7 @@ resource "null_resource" "install_python_dependencies" {
 
 
 data "archive_file" "function_zip" {
-  source_dir  = "src"
+  source_dir  = "lambda"
   type        = "zip"
   output_path = "${path.module}/nfl-game-updater.zip"
   depends_on = [ null_resource.install_python_dependencies ]
