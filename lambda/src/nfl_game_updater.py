@@ -4,7 +4,7 @@ import logging
 from datetime import datetime, timezone
 from typing import Dict, List, Optional
 import boto3
-from sqlalchemy import create_engine, and_
+from sqlalchemy import create_engine, and_, func
 from sqlalchemy.orm import sessionmaker
 import requests
 import mysql.connector
@@ -271,8 +271,8 @@ def update_game_results(db, game_results: List[Dict]) -> int:
         if game['status'] == 'STATUS_FINAL':
             try:
                 # Find the game in our schedule table
-                home_team = db.query(Team).filter(Team.abbrv.lower() == game['home_team_abbrv'].lower()).first()
-                away_team = db.query(Team).filter(Team.abbrv.lower() == game['away_team_abbrv'].lower()).first()
+                home_team = db.query(Team).filter(func.lower(Team.abbrv) == func.lower(game['home_team_abbrv'])).first()
+                away_team = db.query(Team).filter(func.lower(Team.abbrv) == func.lower(game['away_team_abbrv'])).first()
                 print(home_team)
                 if not home_team or not away_team:
                     logger.warning(f"Team not found for game: {game['home_team_abbrv']} vs {game['away_team_abbrv']}")
