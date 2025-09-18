@@ -9,6 +9,9 @@ from sqlalchemy.orm import sessionmaker
 import requests
 import mysql.connector
 
+# Import models at the top level
+from models import Base, Schedule, Team, Pick, Entry
+
 # Configure logging
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -153,7 +156,7 @@ def lambda_handler(event, context):
         }
 
 def get_database_engine():
-
+    """Get database engine with proper configuration"""
     secrets_manager = boto3.client('secretsmanager', 
                                     config=boto3.session.Config(
                                         connect_timeout=10,
@@ -163,13 +166,23 @@ def get_database_engine():
         
     try:
         response = secrets_manager.get_secret_value(SecretId=secret_name)
-        # responseDict = json.loads(response)
         database_url = response['SecretString']
+        
+        # Create engine with proper configuration
+        engine = create_engine(
+            database_url, 
+            pool_pre_ping=True,
+            pool_recycle=3600,
+            echo=False
+        )
+        
+        # Bind metadata to engine
+        Base.metadata.bind = engine
+        
+        return engine
     except Exception as e:
         logger.error(f"Failed to retrieve database credentials from Secrets Manager: {e}")
         raise
-    
-        return create_engine(database_url, pool_pre_ping=True)
 
 def get_current_nfl_week() -> int:
     """Calculate current NFL week based on date"""
@@ -264,7 +277,6 @@ def fetch_nfl_game_results(week: int) -> List[Dict]:
 
 def update_game_results(db, game_results: List[Dict]) -> int:
     """Update schedule table with game results"""
-    from models import Schedule, Team
     updates_made = 0
     
     for game in game_results:
@@ -308,8 +320,6 @@ def update_game_results(db, game_results: List[Dict]) -> int:
 
 def update_picks_results(db, game_results: List[Dict]) -> int:
     """Update picks with win/loss results based on game outcomes"""
-    from models import Pick, Team
-    
     picks_updated = 0
     
     # Create a mapping of team abbreviations to winning status
@@ -350,8 +360,6 @@ def update_picks_results(db, game_results: List[Dict]) -> int:
 
 def eliminate_losing_entries(db) -> int:
     """Mark entries as eliminated if they have any losing picks"""
-    from models import Entry, Pick
-    
     entries_eliminated = 0
     
     try:
@@ -440,9 +448,3 @@ def manual_game_result_update(game_id: int, winning_team_id: int):
     finally:
         db.close()
 
-# if __name__ == "__main__":
-#     # For local testing
-#     test_event = {}
-#     test_context = {}
-#     result = lambda_handler(test_event, test_context)
-#     print(json.dumps(result, indent=2))
