@@ -171,21 +171,15 @@ def get_database_engine():
                                             connect_timeout=10,
                                             read_timeout=10
                                         ))
-        secret_name = os.getenv('DB_SECRET_NAME', 'rmp-database-credentials')
+        secret_name = os.getenv('DB_SECRET_NAME', 'runmypool/database-url')
         
         try:
             response = secrets_manager.get_secret_value(SecretId=secret_name)
-            secret = json.loads(response['SecretString'])
-            mysql_user = secret.get('username', mysql_user)
-            mysql_password = secret['password']
-            mysql_host = secret['host']
-            mysql_port = secret.get('port', mysql_port)
-            mysql_db = secret.get('dbname', mysql_db)
+            database_url = json.loads(response['SecretString'])
         except Exception as e:
             logger.error(f"Failed to retrieve database credentials from Secrets Manager: {e}")
             raise
     
-    database_url = f"mysql+mysqlconnector://{mysql_user}:{mysql_password}@{mysql_host}:{mysql_port}/{mysql_db}"
     return create_engine(database_url, pool_pre_ping=True)
 
 def get_current_nfl_week() -> int:
