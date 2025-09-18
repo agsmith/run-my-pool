@@ -1,5 +1,3 @@
-        # terraform import aws_lambda_function.function nfl-game-updater
-
 name: Deploy main branch
 
 on:
@@ -31,4 +29,5 @@ jobs:
         cd lambda
         terraform fmt
         terraform init
+        terraform import aws_lambda_function.function nfl-game-updater
         terraform apply --auto-approve=true
