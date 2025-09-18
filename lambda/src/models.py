@@ -1,6 +1,13 @@
-from sqlalchemy import Column, String, Boolean, DateTime, ForeignKey, Enum, Text, Integer
+from sqlalchemy import Column, String, Boolean, DateTime, ForeignKey, Enum, Text, Integer, Time
 from sqlalchemy.orm import relationship, declarative_base
 import enum
+
+# Constants for foreign key relationships
+USERS_ID_FK = "users.id"
+POOLS_ID_FK = "pools.id"
+ENTRIES_ID_FK = "entries.id"
+TEAMS_ID_FK = "teams.id"
+RULES_ID_FK = "rules.id"
 
 Base = declarative_base()
 
@@ -40,18 +47,49 @@ class Pool(Base):
     description = Column(Text)
     lock_time = Column(DateTime)
     is_private = Column(Boolean, default=False)
-    owner_id = Column(String(36), ForeignKey("users.id"))
+    owner_id = Column(String(36), ForeignKey(USERS_ID_FK))
     created_at = Column(DateTime)
     updated_at = Column(DateTime)
     # relationships
     owner = relationship("User", back_populates="pools")
     entries = relationship("Entry", back_populates="pool")
+    pool_rules = relationship("PoolRule", back_populates="pool")
+    pool_rule_values = relationship("PoolRuleValue", back_populates="pool")
+
+class Rule(Base):
+    __tablename__ = "rules"
+    id = Column(String(36), primary_key=True, index=True)
+    pool_type = Column(String(50))
+    rule_text = Column(String(255))
+    rule_type = Column(String(25))
+    default_value = Column(String(25))
+    enabled_by_default = Column(Boolean, default=True)
+    # relationships
+    pool_rules = relationship("PoolRule", back_populates="rule")
+    pool_rule_values = relationship("PoolRuleValue", back_populates="rule")
+
+class PoolRule(Base):
+    __tablename__ = "pool_rules"
+    pool_id = Column(String(36), ForeignKey(POOLS_ID_FK), primary_key=True)
+    rule_id = Column(String(36), ForeignKey(RULES_ID_FK), primary_key=True)
+    # relationships
+    pool = relationship("Pool", back_populates="pool_rules")
+    rule = relationship("Rule", back_populates="pool_rules")
+
+class PoolRuleValue(Base):
+    __tablename__ = "pool_rules_values"
+    pool_id = Column(String(36), ForeignKey(POOLS_ID_FK), primary_key=True)
+    rule_id = Column(String(36), ForeignKey(RULES_ID_FK), primary_key=True)
+    rule_value = Column(String(255))
+    # relationships
+    pool = relationship("Pool", back_populates="pool_rule_values")
+    rule = relationship("Rule", back_populates="pool_rule_values")
 
 class Entry(Base):
     __tablename__ = "entries"
     id = Column(String(36), primary_key=True, index=True)
-    user_id = Column(String(36), ForeignKey("users.id"))
-    pool_id = Column(String(36), ForeignKey("pools.id"))
+    user_id = Column(String(36), ForeignKey(USERS_ID_FK))
+    pool_id = Column(String(36), ForeignKey(POOLS_ID_FK))
     name = Column(String(255))
     alive = Column(Boolean, default=True)
     created_at = Column(DateTime)
@@ -64,10 +102,10 @@ class Entry(Base):
 class Pick(Base):
     __tablename__ = "picks"
     id = Column(String(36), primary_key=True, index=True)
-    entry_id = Column(String(36), ForeignKey("entries.id"))
+    entry_id = Column(String(36), ForeignKey(ENTRIES_ID_FK))
     week = Column(Integer)
-    team = Column(String(255))  # Keep for backward compatibility
-    team_id = Column(Integer, ForeignKey("teams.id"))  # New foreign key to teams
+    team = Column(String(255))
+    team_id = Column(Integer, ForeignKey(TEAMS_ID_FK))
     locked = Column(Boolean, default=False)
     result = Column(String(10))  # win, loss, pending
     created_at = Column(DateTime)
@@ -79,19 +117,35 @@ class Pick(Base):
 class AuditLog(Base):
     __tablename__ = "audit_logs"
     id = Column(String(36), primary_key=True, index=True)
-    user_id = Column(String(36), ForeignKey("users.id"))
+    user_id = Column(String(36), ForeignKey(USERS_ID_FK))
     action = Column(String(255))
     details = Column(Text)
     created_at = Column(DateTime)
 
+class MessageBoard(Base):
+    __tablename__ = "message_board"
+    id = Column(String(36), primary_key=True, index=True)
+    pool_id = Column(String(36), ForeignKey(POOLS_ID_FK))
+    user_id = Column(String(36), ForeignKey(USERS_ID_FK))
+    message = Column(Text)
+    created_at = Column(DateTime)
+
+class PoolAdmin(Base):
+    __tablename__ = "pool_admins"
+    pool_id = Column(String(36), ForeignKey(POOLS_ID_FK), primary_key=True)
+    user_id = Column(String(36), ForeignKey(USERS_ID_FK), primary_key=True)
+    # relationships
+    pool = relationship("Pool")
+    user = relationship("User")
+
 class Schedule(Base):
-    __tablename__ = "schedule"  # Use lowercase to match datamodel.sql
+    __tablename__ = "schedule"
     game_id = Column(Integer, primary_key=True)
     week_num = Column(Integer, nullable=False)
-    home_team_id = Column(Integer, ForeignKey("teams.id"), nullable=False)
-    away_team_id = Column(Integer, ForeignKey("teams.id"), nullable=False)
+    home_team_id = Column(Integer, ForeignKey(TEAMS_ID_FK), nullable=False)
+    away_team_id = Column(Integer, ForeignKey(TEAMS_ID_FK), nullable=False)
     start_time = Column(DateTime, nullable=False)
-    winning_team_id = Column(Integer, nullable=False, default=99)
+    winning_team_id = Column(Integer, nullable=True, default=99)
     
     # relationships
     home_team = relationship("Team", foreign_keys=[home_team_id])
