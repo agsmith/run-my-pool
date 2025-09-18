@@ -1,5 +1,5 @@
 ---
-# RunMyPool Application Instructions
+# RunMyPool Application Instructions 
 
 ## Overview
 RunMyPool is a web application (runmypool.net) for managing and participating in various sports pool leagues, launching with a classic NFL Survivor Pool format. The platform is designed for extensibility, security, and usability, supporting both public and private leagues, multiple pool types, and robust admin controls.
