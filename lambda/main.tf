@@ -54,8 +54,8 @@ resource "aws_lambda_function" "function" {
   timeout                        = 900
   memory_size                    = 128
   role                           = "arn:aws:iam::739444271939:role/nfl-game-updater-lambda-role"
-  }
   depends_on = [ aws_s3_object.file_upload ]
 }
+
 
 
