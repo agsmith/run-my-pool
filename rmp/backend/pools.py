@@ -6,6 +6,7 @@ import schemas
 import deps
 from datetime import datetime
 import uuid
+from audit_utils import log_create_operation, log_update_operation, log_delete_operation
 
 router = APIRouter(prefix="/pools", tags=["pools"])
 
@@ -68,6 +69,20 @@ def create_pool(
         )
         db.add(pool_admin)
         db.commit()
+        
+        # Log pool creation
+        log_create_operation(
+            db=db,
+            entity_type="pool",
+            entity_id=db_pool.id,
+            user_id=current_user.id,
+            entity_data={
+                "name": pool.name,
+                "description": pool.description,
+                "is_private": pool.is_private,
+                "owner_email": current_user.email
+            }
+        )
         
         return db_pool
     except Exception as e:

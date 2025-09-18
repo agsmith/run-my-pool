@@ -4,16 +4,18 @@
   "requiresCompatibilities": ["FARGATE"],
   "cpu": "512",
   "memory": "1024",
-  "executionRoleArn": "arn:aws:iam::YOUR_ACCOUNT_ID:role/ecsTaskExecutionRole",
-  "taskRoleArn": "arn:aws:iam::YOUR_ACCOUNT_ID:role/ecsTaskRole",
+  "executionRoleArn": "arn:aws:iam::739444271939:role/ecsTaskExecutionRole",
+  "taskRoleArn": "arn:aws:iam::739444271939:role/ecsTaskRole",
   "containerDefinitions": [
     {
       "name": "backend",
-      "image": "YOUR_ACCOUNT_ID.dkr.ecr.YOUR_REGION.amazonaws.com/runmypool-backend:latest",
+      "image": "739444271939.dkr.ecr.us-east-1.amazonaws.com/runmypool-backend:latest",
       "portMappings": [
         {
+          "name": "backend-port",
           "containerPort": 8000,
-          "protocol": "tcp"
+          "protocol": "tcp",
+          "appProtocol": "http"
         }
       ],
       "essential": true,
@@ -26,18 +28,18 @@
       "secrets": [
         {
           "name": "DATABASE_URL",
-          "valueFrom": "arn:aws:secretsmanager:YOUR_REGION:YOUR_ACCOUNT_ID:secret:runmypool/database-url"
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:739444271939:secret:runmypool/database-url"
         },
         {
           "name": "JWT_SECRET",
-          "valueFrom": "arn:aws:secretsmanager:YOUR_REGION:YOUR_ACCOUNT_ID:secret:runmypool/jwt-secret"
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:739444271939:secret:runmypool/jwt-secret"
         }
       ],
       "logConfiguration": {
         "logDriver": "awslogs",
         "options": {
           "awslogs-group": "/ecs/runmypool-backend",
-          "awslogs-region": "YOUR_REGION",
+          "awslogs-region": "us-east-1",
           "awslogs-stream-prefix": "ecs"
         }
       },

@@ -8,6 +8,8 @@ import audit
 import message_board
 import teams
 import schedule
+import admin
+import rules
 
 router = APIRouter()
 router.include_router(auth.router)
@@ -19,3 +21,5 @@ router.include_router(audit.router)
 router.include_router(message_board.router)
 router.include_router(teams.router, prefix="/teams", tags=["teams"])
 router.include_router(schedule.router, prefix="/schedule", tags=["schedule"])
+router.include_router(admin.router)
+router.include_router(rules.router)

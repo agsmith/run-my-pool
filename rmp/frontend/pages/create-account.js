@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
+import { baseStyles, createHoverHandlers, hoverEffects, createFocusHandlers } from '../styles/globalStyles';
 
 function validateEmail(email) {
   return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email);
@@ -53,40 +54,14 @@ export default function CreateAccount() {
   };
 
   return (
-    <main style={{ 
-      minHeight: '100vh', 
-      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-      display: 'flex', 
-      alignItems: 'center', 
-      justifyContent: 'center',
-      padding: '2rem'
-    }}>
-      <div style={{
-        backgroundColor: 'white',
-        borderRadius: '16px',
-        boxShadow: '0 20px 40px rgba(0, 0, 0, 0.1)',
-        padding: '3rem',
-        width: '100%',
-        maxWidth: '440px',
-        position: 'relative'
-      }}>
+    <main style={baseStyles.authPageContainer}>
+      <div style={baseStyles.authCard}>
         {/* Logo/Brand area */}
         <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
-          <h1 style={{ 
-            color: '#1a202c',
-            fontSize: '2rem',
-            fontWeight: '700',
-            margin: '0 0 0.5rem 0',
-            letterSpacing: '-0.025em'
-          }}>
-            Run My Pool
+          <h1 style={baseStyles.brandTitle}>
+            🏈 Run My Pool
           </h1>
-          <p style={{ 
-            color: '#718096',
-            fontSize: '1rem',
-            margin: 0,
-            fontWeight: '400'
-          }}>
+          <p style={baseStyles.subtitle}>
             Create your new account
           </p>
         </div>

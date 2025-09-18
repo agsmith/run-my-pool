@@ -1,5 +1,8 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
-
+rmp/backend/__pycache__/
+rmp/frontend/node_modules/
+rmp/frontend/.next/
+rmp/backend/tests/__pycache__/
 # dependencies
 /node_modules
 /.pnp
@@ -34,3 +37,5 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+.vscode/

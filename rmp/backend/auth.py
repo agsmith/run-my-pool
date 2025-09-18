@@ -8,6 +8,7 @@ import schemas
 import deps
 import os
 import uuid
+from audit_utils import log_create_operation, log_authentication_event, log_update_operation
 
 SECRET_KEY = os.getenv("SECRET_KEY", "supersecretkey")
 ALGORITHM = "HS256"
@@ -60,6 +61,16 @@ def register(user: schemas.UserCreate, db: Session = Depends(deps.get_db)):
         db.add(db_user)
         db.commit()
         db.refresh(db_user)
+        
+        # Log user registration
+        log_create_operation(
+            db=db,
+            entity_type="user",
+            entity_id=db_user.id,
+            user_id=db_user.id,
+            entity_data={"email": db_user.email, "role": db_user.role.value}
+        )
+        
         print("User created successfully")
         return db_user
     except Exception as e:
@@ -70,7 +81,23 @@ def register(user: schemas.UserCreate, db: Session = Depends(deps.get_db)):
 def login(user: schemas.UserCreate, db: Session = Depends(deps.get_db)):
     db_user = db.query(models.User).filter(models.User.email == user.email).first()
     if not db_user or not verify_password(user.password, db_user.hashed_password):
+        # Log failed login attempt
+        log_authentication_event(
+            db=db,
+            action="LOGIN_FAILED",
+            user_email=user.email,
+            additional_info={"reason": "invalid_credentials"}
+        )
         raise HTTPException(status_code=401, detail="Invalid credentials")
+    
+    # Log successful login
+    log_authentication_event(
+        db=db,
+        action="LOGIN_SUCCESS",
+        user_email=db_user.email,
+        user_id=db_user.id
+    )
+    
     access_token = create_access_token(data={"sub": db_user.email})
     return {"access_token": access_token, "token_type": "bearer"}
 
@@ -129,6 +156,15 @@ def reset_password(request: schemas.ResetPasswordRequest, db: Session = Depends(
         db_user.updated_at = datetime.utcnow()
         
         db.commit()
+        
+        # Log password reset
+        log_update_operation(
+            db=db,
+            entity_type="user",
+            entity_id=db_user.id,
+            user_id=db_user.id,
+            changes={"action": "password_reset"}
+        )
         
         return {"message": "Password reset successfully"}
     except JWTError:

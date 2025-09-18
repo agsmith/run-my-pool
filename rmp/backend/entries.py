@@ -6,6 +6,7 @@ import schemas
 import deps
 from datetime import datetime
 import uuid
+from audit_utils import log_create_operation, log_update_operation, log_delete_operation, log_admin_action
 
 router = APIRouter(prefix="/entries", tags=["entries"])
 
@@ -45,6 +46,19 @@ def create_entry(
         db.add(db_entry)
         db.commit()
         db.refresh(db_entry)
+        
+        # Log entry creation
+        log_create_operation(
+            db=db,
+            entity_type="entry",
+            entity_id=db_entry.id,
+            user_id=current_user.id,
+            entity_data={
+                "name": entry.name,
+                "pool_id": entry.pool_id,
+                "user_email": current_user.email
+            }
+        )
         
         return db_entry
     except HTTPException:
@@ -129,13 +143,26 @@ def update_entry(
         if not entry:
             raise HTTPException(status_code=404, detail="Entry not found")
         
-        if entry_update.name is not None:
+        # Track changes for audit log
+        changes = {}
+        if entry_update.name is not None and entry_update.name != entry.name:
+            changes["name"] = {"old": entry.name, "new": entry_update.name}
             entry.name = entry_update.name
         
         entry.updated_at = datetime.utcnow()
         
         db.commit()
         db.refresh(entry)
+        
+        # Log entry update if there were changes
+        if changes:
+            log_update_operation(
+                db=db,
+                entity_type="entry",
+                entity_id=entry.id,
+                user_id=current_user.id,
+                changes=changes
+            )
         
         return entry
     except HTTPException:
@@ -159,6 +186,19 @@ def delete_entry(
         
         if not entry:
             raise HTTPException(status_code=404, detail="Entry not found")
+        
+        # Log entry deletion before deleting
+        log_delete_operation(
+            db=db,
+            entity_type="entry",
+            entity_id=entry.id,
+            user_id=current_user.id,
+            entity_data={
+                "name": entry.name,
+                "pool_id": entry.pool_id,
+                "user_email": current_user.email
+            }
+        )
         
         db.delete(entry)
         db.commit()

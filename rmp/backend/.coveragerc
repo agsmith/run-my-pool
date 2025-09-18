@@ -1,0 +1,27 @@
+# Coverage configuration
+[run]
+source = .
+omit = 
+    */venv/*
+    */tests/*
+    */__pycache__/*
+    */migrations/*
+    test*.py
+    conftest.py
+    setup.py
+    */env/*
+    .venv/*
+
+[report]
+exclude_lines =
+    pragma: no cover
+    def __repr__
+    raise AssertionError
+    raise NotImplementedError
+    if __name__ == .__main__.:
+    class .*\(Protocol\):
+    @(abc\.)?abstractmethod
+
+[html]
+directory = htmlcov
+title = RunMyPool API Coverage Report

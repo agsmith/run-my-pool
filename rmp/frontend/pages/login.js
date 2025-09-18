@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
+import { baseStyles, createHoverHandlers, hoverEffects, createFocusHandlers, mobileStyles, getResponsiveStyle } from '../styles/globalStyles';
+import { ResponsiveInput, ResponsiveButton, ResponsiveCard } from '../components/ResponsiveComponents';
 
 function validateEmail(email) {
   return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email);
@@ -17,6 +19,7 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
+  const [isMobile, setIsMobile] = useState(false);
   const { login, loading } = useAuth();
   const router = useRouter();
 
@@ -25,6 +28,16 @@ export default function Login() {
       setSuccessMessage(router.query.message);
     }
   }, [router.query.message]);
+
+  useEffect(() => {
+    const checkDevice = () => {
+      setIsMobile(window.innerWidth <= 767);
+    };
+    
+    checkDevice();
+    window.addEventListener('resize', checkDevice);
+    return () => window.removeEventListener('resize', checkDevice);
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -45,38 +58,41 @@ export default function Login() {
     }
   };
 
+  const containerStyles = {
+    minHeight: '100vh',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: isMobile ? '1rem' : '2rem',
+    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+  };
+
+  const cardStyles = {
+    width: '100%',
+    maxWidth: isMobile ? '100%' : '400px',
+    backgroundColor: 'white',
+    borderRadius: isMobile ? '12px' : '16px',
+    padding: isMobile ? '1.5rem' : '2rem',
+    boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'
+  };
+
   return (
-    <main style={{ 
-      minHeight: '100vh', 
-      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-      display: 'flex', 
-      alignItems: 'center', 
-      justifyContent: 'center',
-      padding: '2rem'
-    }}>
-      <div style={{
-        backgroundColor: 'white',
-        borderRadius: '16px',
-        boxShadow: '0 20px 40px rgba(0, 0, 0, 0.1)',
-        padding: '3rem',
-        width: '100%',
-        maxWidth: '440px',
-        position: 'relative'
-      }}>
+    <main style={containerStyles}>
+      <ResponsiveCard style={cardStyles}>
         {/* Logo/Brand area */}
-        <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
+        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
           <h1 style={{ 
-            color: '#1a202c',
-            fontSize: '2rem',
+            color: '#334155',
+            fontSize: isMobile ? '1.75rem' : '2rem',
             fontWeight: '700',
             margin: '0 0 0.5rem 0',
             letterSpacing: '-0.025em'
           }}>
-            Run My Pool
+            🏈 Run My Pool
           </h1>
           <p style={{ 
-            color: '#718096',
-            fontSize: '1rem',
+            color: '#64748b',
+            fontSize: isMobile ? '0.9rem' : '1rem',
             margin: 0,
             fontWeight: '400'
           }}>
@@ -86,14 +102,14 @@ export default function Login() {
 
         {/* Success Message */}
         {successMessage && (
-          <div style={{ 
-            backgroundColor: '#f0fff4',
-            color: '#22543d',
+          <div style={{
+            backgroundColor: '#dcfce7',
+            border: '1px solid #22c55e',
+            color: '#15803d',
             padding: '0.75rem 1rem',
             borderRadius: '8px',
-            marginBottom: '1.5rem',
-            border: '1px solid #9ae6b4',
-            fontSize: '0.875rem'
+            marginBottom: '1rem',
+            fontSize: isMobile ? '0.9rem' : '1rem'
           }}>
             {successMessage}
           </div>
@@ -101,14 +117,14 @@ export default function Login() {
 
         {/* Error Message */}
         {error && (
-          <div style={{ 
-            backgroundColor: '#fed7d7',
-            color: '#742a2a',
+          <div style={{
+            backgroundColor: '#fee2e2',
+            border: '1px solid #ef4444',
+            color: '#b91c1c',
             padding: '0.75rem 1rem',
             borderRadius: '8px',
-            marginBottom: '1.5rem',
-            border: '1px solid #fc8181',
-            fontSize: '0.875rem'
+            marginBottom: '1rem',
+            fontSize: isMobile ? '0.9rem' : '1rem'
           }}>
             {error}
           </div>
@@ -116,117 +132,51 @@ export default function Login() {
 
         <form onSubmit={handleSubmit} style={{ width: '100%' }}>
           <div style={{ marginBottom: '1.5rem' }}>
-            <label style={{ 
+            <label style={{
               display: 'block',
-              fontSize: '0.875rem',
-              fontWeight: '600',
+              marginBottom: '0.5rem',
               color: '#374151',
-              marginBottom: '0.5rem'
+              fontSize: isMobile ? '0.9rem' : '1rem',
+              fontWeight: '500'
             }}>
-              Email Address
+              Email
             </label>
-            <input 
+            <ResponsiveInput 
               type="email" 
               value={email} 
               onChange={e => setEmail(e.target.value)} 
               required 
-              style={{
-                width: '100%',
-                padding: '0.75rem 1rem',
-                border: '2px solid #e5e7eb',
-                borderRadius: '8px',
-                fontSize: '1rem',
-                transition: 'all 0.2s ease',
-                outline: 'none',
-                backgroundColor: '#fafafa'
-              }}
-              onFocus={(e) => {
-                e.target.style.borderColor = '#667eea';
-                e.target.style.backgroundColor = 'white';
-                e.target.style.boxShadow = '0 0 0 3px rgba(102, 126, 234, 0.1)';
-              }}
-              onBlur={(e) => {
-                e.target.style.borderColor = '#e5e7eb';
-                e.target.style.backgroundColor = '#fafafa';
-                e.target.style.boxShadow = 'none';
-              }}
               placeholder="Enter your email"
             />
           </div>
 
           <div style={{ marginBottom: '1.5rem' }}>
-            <label style={{ 
+            <label style={{
               display: 'block',
-              fontSize: '0.875rem',
-              fontWeight: '600',
+              marginBottom: '0.5rem',
               color: '#374151',
-              marginBottom: '0.5rem'
+              fontSize: isMobile ? '0.9rem' : '1rem',
+              fontWeight: '500'
             }}>
               Password
             </label>
-            <input 
+            <ResponsiveInput 
               type="password" 
               value={password} 
               onChange={e => setPassword(e.target.value)} 
               required 
-              style={{
-                width: '100%',
-                padding: '0.75rem 1rem',
-                border: '2px solid #e5e7eb',
-                borderRadius: '8px',
-                fontSize: '1rem',
-                transition: 'all 0.2s ease',
-                outline: 'none',
-                backgroundColor: '#fafafa'
-              }}
-              onFocus={(e) => {
-                e.target.style.borderColor = '#667eea';
-                e.target.style.backgroundColor = 'white';
-                e.target.style.boxShadow = '0 0 0 3px rgba(102, 126, 234, 0.1)';
-              }}
-              onBlur={(e) => {
-                e.target.style.borderColor = '#e5e7eb';
-                e.target.style.backgroundColor = '#fafafa';
-                e.target.style.boxShadow = 'none';
-              }}
               placeholder="Enter your password"
             />
           </div>
 
-          <button 
+          <ResponsiveButton 
             type="submit" 
             disabled={loading} 
-            style={{ 
-              width: '100%',
-              padding: '0.875rem 1rem',
-              backgroundColor: loading ? '#9ca3af' : '#667eea',
-              color: 'white',
-              border: 'none',
-              borderRadius: '8px',
-              fontSize: '1rem',
-              fontWeight: '600',
-              cursor: loading ? 'not-allowed' : 'pointer',
-              transition: 'all 0.2s ease',
-              transform: loading ? 'none' : 'translateY(0)',
-              boxShadow: loading ? 'none' : '0 4px 12px rgba(102, 126, 234, 0.4)'
-            }}
-            onMouseEnter={(e) => {
-              if (!loading) {
-                e.target.style.backgroundColor = '#5a67d8';
-                e.target.style.transform = 'translateY(-1px)';
-                e.target.style.boxShadow = '0 6px 16px rgba(102, 126, 234, 0.5)';
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (!loading) {
-                e.target.style.backgroundColor = '#667eea';
-                e.target.style.transform = 'translateY(0)';
-                e.target.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.4)';
-              }
-            }}
+            variant="primary"
+            style={{ width: '100%', marginTop: '1rem' }}
           >
             {loading ? 'Signing in...' : 'Sign In'}
-          </button>
+          </ResponsiveButton>
         </form>
 
         {/* Footer Links */}
@@ -238,18 +188,23 @@ export default function Login() {
         }}>
           <div style={{ 
             display: 'flex', 
-            flexDirection: 'column', 
-            gap: '0.75rem',
-            alignItems: 'center'
+            flexDirection: isMobile ? 'column' : 'row', 
+            gap: isMobile ? '1rem' : '1.5rem',
+            alignItems: 'center',
+            justifyContent: 'center'
           }}>
             <Link 
               href="/create-account" 
               style={{ 
                 color: '#667eea',
                 textDecoration: 'none',
-                fontSize: '0.875rem',
+                fontSize: isMobile ? '1rem' : '0.875rem',
                 fontWeight: '600',
-                transition: 'color 0.2s ease'
+                transition: 'color 0.2s ease',
+                padding: isMobile ? '0.5rem' : '0',
+                minHeight: isMobile ? '44px' : 'auto',
+                display: 'flex',
+                alignItems: 'center'
               }}
               onMouseEnter={(e) => e.target.style.color = '#5a67d8'}
               onMouseLeave={(e) => e.target.style.color = '#667eea'}
@@ -261,8 +216,12 @@ export default function Login() {
               style={{ 
                 color: '#6b7280',
                 textDecoration: 'none',
-                fontSize: '0.875rem',
-                transition: 'color 0.2s ease'
+                fontSize: isMobile ? '1rem' : '0.875rem',
+                transition: 'color 0.2s ease',
+                padding: isMobile ? '0.5rem' : '0',
+                minHeight: isMobile ? '44px' : 'auto',
+                display: 'flex',
+                alignItems: 'center'
               }}
               onMouseEnter={(e) => e.target.style.color = '#374151'}
               onMouseLeave={(e) => e.target.style.color = '#6b7280'}
@@ -271,7 +230,7 @@ export default function Login() {
             </Link>
           </div>
         </div>
-      </div>
+      </ResponsiveCard>
     </main>
   );
 }

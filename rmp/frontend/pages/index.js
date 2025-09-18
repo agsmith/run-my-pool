@@ -1,11 +1,13 @@
 import Link from 'next/link';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { useAuth } from '../context/AuthContext';
+import { mobileStyles, getResponsiveStyle, touchStyles } from '../styles/globalStyles';
 
 export default function Home() {
   const { user } = useAuth();
   const router = useRouter();
+  const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
     // If user is logged in, redirect to dashboard
@@ -14,44 +16,122 @@ export default function Home() {
     }
   }, [user, router]);
 
+  useEffect(() => {
+    const checkDevice = () => {
+      setIsMobile(window.innerWidth <= 767);
+    };
+    
+    checkDevice();
+    window.addEventListener('resize', checkDevice);
+    return () => window.removeEventListener('resize', checkDevice);
+  }, []);
+
   // Don't render the landing page if user is logged in (will redirect)
   if (user) {
     return <div>Redirecting...</div>;
   }
+
+  const responsiveStyles = {
+    container: {
+      minHeight: '100vh',
+      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      display: 'flex',
+      flexDirection: 'column'
+    },
+    header: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      padding: isMobile ? '1rem' : '1.5rem 2rem',
+      background: 'rgba(255, 255, 255, 0.1)',
+      backdropFilter: 'blur(10px)',
+      flexWrap: 'wrap',
+      gap: isMobile ? '1rem' : '0'
+    },
+    brandTitle: {
+      color: 'white',
+      fontSize: isMobile ? '1.25rem' : '1.5rem',
+      fontWeight: '700',
+      textDecoration: 'none'
+    },
+    loginButton: {
+      fontWeight: '600',
+      color: '#667eea',
+      textDecoration: 'none',
+      border: 'none',
+      borderRadius: '8px',
+      padding: isMobile ? '0.75rem 1.5rem' : '0.75rem 2rem',
+      background: 'white',
+      transition: 'all 0.2s ease',
+      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+      fontSize: isMobile ? '0.9rem' : '1rem',
+      minHeight: isMobile ? '48px' : '44px',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center'
+    },
+    main: {
+      flex: 1,
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      textAlign: 'center',
+      padding: isMobile ? '1rem' : '2rem',
+      background: 'transparent'
+    },
+    heroTitle: {
+      fontSize: isMobile ? '2.5rem' : '4rem',
+      fontWeight: '800',
+      marginBottom: '1rem',
+      color: 'white',
+      textShadow: '0 4px 8px rgba(0, 0, 0, 0.5)',
+      lineHeight: '1.1',
+      zIndex: 10
+    },
+    heroSubtitle: {
+      fontSize: isMobile ? '1.25rem' : '1.8rem',
+      fontWeight: '400',
+      marginBottom: '1rem',
+      color: 'white',
+      maxWidth: '800px',
+      textShadow: '0 2px 4px rgba(0, 0, 0, 0.5)',
+      zIndex: 10,
+      lineHeight: '1.3'
+    },
+    heroDescription: {
+      maxWidth: isMobile ? '100%' : '700px',
+      fontSize: isMobile ? '1rem' : '1.25rem',
+      color: 'white',
+      marginBottom: '3rem',
+      fontWeight: '300',
+      textShadow: '0 2px 4px rgba(0, 0, 0, 0.5)',
+      zIndex: 10,
+      lineHeight: '1.5',
+      padding: isMobile ? '0 1rem' : '0'
+    }
+  };
   return (
-    <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', display: 'flex', flexDirection: 'column' }}>
+    <div style={responsiveStyles.container}>
       {/* Header */}
-      <header style={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center', 
-        padding: '1.5rem 2rem', 
-        background: 'rgba(255, 255, 255, 0.1)',
-        backdropFilter: 'blur(10px)'
-      }}>
-        <div style={{ color: 'white', fontSize: '1.5rem', fontWeight: '700' }}>
+      <header style={responsiveStyles.header}>
+        <Link href="/" style={responsiveStyles.brandTitle}>
           🏈 Run My Pool
-        </div>
+        </Link>
         <Link 
           href="/login" 
-          style={{ 
-            fontWeight: '600', 
-            color: '#667eea', 
-            textDecoration: 'none', 
-            border: 'none', 
-            borderRadius: '8px', 
-            padding: '0.75rem 2rem', 
-            background: 'white', 
-            transition: 'all 0.2s ease',
-            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)'
-          }}
+          style={responsiveStyles.loginButton}
           onMouseEnter={(e) => {
-            e.target.style.transform = 'translateY(-2px)';
-            e.target.style.boxShadow = '0 6px 20px rgba(0, 0, 0, 0.2)';
+            if (!isMobile) {
+              e.target.style.transform = 'translateY(-2px)';
+              e.target.style.boxShadow = '0 6px 20px rgba(0, 0, 0, 0.2)';
+            }
           }}
           onMouseLeave={(e) => {
-            e.target.style.transform = 'translateY(0)';
-            e.target.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
+            if (!isMobile) {
+              e.target.style.transform = 'translateY(0)';
+              e.target.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
+            }
           }}
         >
           Login
@@ -59,48 +139,15 @@ export default function Home() {
       </header>
 
       {/* Hero Section */}
-      <main style={{ 
-        flex: 1, 
-        display: 'flex', 
-        flexDirection: 'column', 
-        alignItems: 'center', 
-        justifyContent: 'center', 
-        textAlign: 'center', 
-        padding: '2rem',
-        background: 'transparent'
-      }}>
-        <h1 style={{ 
-          fontSize: '4rem', 
-          fontWeight: '800', 
-          marginBottom: '1rem', 
-          color: 'white',
-          textShadow: '0 4px 8px rgba(0, 0, 0, 0.5)',
-          lineHeight: '1.1',
-          zIndex: 10
-        }}>
+      <main style={responsiveStyles.main}>
+        <h1 style={responsiveStyles.heroTitle}>
           🏈 Run My Pool
         </h1>
-        <h2 style={{ 
-          fontSize: '1.8rem', 
-          fontWeight: '400', 
-          marginBottom: '1rem', 
-          color: 'white',
-          maxWidth: '800px',
-          textShadow: '0 2px 4px rgba(0, 0, 0, 0.5)',
-          zIndex: 10
-        }}>
+        <h2 style={responsiveStyles.heroSubtitle}>
           Highly Configurable, Affordable, Scalable Pool Management System
         </h2>
-        <p style={{ 
-          maxWidth: '700px', 
-          fontSize: '1.25rem', 
-          color: 'white', 
-          marginBottom: '3rem',
-          fontWeight: '300',
-          textShadow: '0 2px 4px rgba(0, 0, 0, 0.5)',
-          zIndex: 10
-        }}>
-          🏈 Your pool, your way. Complete football-themed pool management with mobile app support. 🏈
+        <p style={responsiveStyles.heroDescription}>
+          🏈 Your pool, your way. Complete football-themed pool management with mobile app support. Create and manage professional football pick pools with ease. Support for multiple game types, custom scoring, and comprehensive league management. 🏈
         </p>
         
         <Link 

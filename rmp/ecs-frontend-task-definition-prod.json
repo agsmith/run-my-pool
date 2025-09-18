@@ -4,16 +4,18 @@
   "requiresCompatibilities": ["FARGATE"],
   "cpu": "256",
   "memory": "512",
-  "executionRoleArn": "arn:aws:iam::YOUR_ACCOUNT_ID:role/ecsTaskExecutionRole",
-  "taskRoleArn": "arn:aws:iam::YOUR_ACCOUNT_ID:role/ecsTaskRole",
+  "executionRoleArn": "arn:aws:iam::739444271939:role/ecsTaskExecutionRole",
+  "taskRoleArn": "arn:aws:iam::739444271939:role/ecsTaskRole",
   "containerDefinitions": [
     {
       "name": "frontend",
-      "image": "YOUR_ACCOUNT_ID.dkr.ecr.YOUR_REGION.amazonaws.com/runmypool-frontend:latest",
+      "image": "739444271939.dkr.ecr.us-east-1.amazonaws.com/runmypool-frontend:latest",
       "portMappings": [
         {
+          "name": "frontend-port",
           "containerPort": 3000,
-          "protocol": "tcp"
+          "protocol": "tcp",
+          "appProtocol": "http"
         }
       ],
       "essential": true,
@@ -24,14 +26,14 @@
         },
         {
           "name": "NEXT_PUBLIC_API_URL",
-          "value": "https://your-backend-alb-domain.com"
+          "value": "https://run-my-pool-alb-1079058824.us-east-1.elb.amazonaws.com"
         }
       ],
       "logConfiguration": {
         "logDriver": "awslogs",
         "options": {
           "awslogs-group": "/ecs/runmypool-frontend",
-          "awslogs-region": "YOUR_REGION",
+          "awslogs-region": "us-east-1",
           "awslogs-stream-prefix": "ecs"
         }
       },

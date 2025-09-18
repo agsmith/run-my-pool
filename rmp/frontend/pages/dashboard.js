@@ -2,6 +2,43 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import ProtectedRoute from '../components/ProtectedRoute';
 import { useAuth } from '../context/AuthContext';
+import { baseStyles, createHoverHandlers, hoverEffects, mobileStyles, getResponsiveStyle, touchStyles } from '../styles/globalStyles';
+
+// NFL team data for logos and team info
+const NFL_TEAMS = {
+  'ARI': { name: 'Arizona Cardinals', color: '#97233F', logo: 'ari.svg' },
+  'ATL': { name: 'Atlanta Falcons', color: '#A71930', logo: 'atl.svg' },
+  'BAL': { name: 'Baltimore Ravens', color: '#241773', logo: 'bal.svg' },
+  'BUF': { name: 'Buffalo Bills', color: '#00338D', logo: 'buf.svg' },
+  'CAR': { name: 'Carolina Panthers', color: '#0085CA', logo: 'car.svg' },
+  'CHI': { name: 'Chicago Bears', color: '#0B162A', logo: 'chi.svg' },
+  'CIN': { name: 'Cincinnati Bengals', color: '#FB4F14', logo: 'cin.svg' },
+  'CLE': { name: 'Cleveland Browns', color: '#311D00', logo: 'cle.svg' },
+  'DAL': { name: 'Dallas Cowboys', color: '#003594', logo: 'dal.svg' },
+  'DEN': { name: 'Denver Broncos', color: '#FB4F14', logo: 'den.svg' },
+  'DET': { name: 'Detroit Lions', color: '#0076B6', logo: 'det.svg' },
+  'GB': { name: 'Green Bay Packers', color: '#203731', logo: 'gb.svg' },
+  'HOU': { name: 'Houston Texans', color: '#03202F', logo: 'hou.svg' },
+  'IND': { name: 'Indianapolis Colts', color: '#002C5F', logo: 'ind.svg' },
+  'JAX': { name: 'Jacksonville Jaguars', color: '#006778', logo: 'jax.svg' },
+  'KC': { name: 'Kansas City Chiefs', color: '#E31837', logo: 'kc.svg' },
+  'LV': { name: 'Las Vegas Raiders', color: '#000000', logo: 'lv.svg' },
+  'LAC': { name: 'Los Angeles Chargers', color: '#0080C6', logo: 'lac.svg' },
+  'LAR': { name: 'Los Angeles Rams', color: '#003594', logo: 'lar.svg' },
+  'MIA': { name: 'Miami Dolphins', color: '#008E97', logo: 'mia.svg' },
+  'MIN': { name: 'Minnesota Vikings', color: '#4F2683', logo: 'min.svg' },
+  'NE': { name: 'New England Patriots', color: '#002244', logo: 'ne.svg' },
+  'NO': { name: 'New Orleans Saints', color: '#D3BC8D', logo: 'no.svg' },
+  'NYG': { name: 'New York Giants', color: '#0B2265', logo: 'nyg.svg' },
+  'NYJ': { name: 'New York Jets', color: '#125740', logo: 'nyj.svg' },
+  'PHI': { name: 'Philadelphia Eagles', color: '#004C54', logo: 'phi.svg' },
+  'PIT': { name: 'Pittsburgh Steelers', color: '#FFB612', logo: 'pit.svg' },
+  'SF': { name: 'San Francisco 49ers', color: '#AA0000', logo: 'sf.svg' },
+  'SEA': { name: 'Seattle Seahawks', color: '#002244', logo: 'sea.svg' },
+  'TB': { name: 'Tampa Bay Buccaneers', color: '#D50A0A', logo: 'tb.svg' },
+  'TEN': { name: 'Tennessee Titans', color: '#0C2340', logo: 'ten.svg' },
+  'WAS': { name: 'Washington Commanders', color: '#5A1414', logo: 'was.svg' }
+};
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -14,6 +51,9 @@ export default function Dashboard() {
   const [poolStatsData, setPoolStatsData] = useState({}); // Store pool stats for each pool
   const [poolAdminStatus, setPoolAdminStatus] = useState({}); // Store admin status for each pool
   const [showAccountMenu, setShowAccountMenu] = useState(false); // Track account dropdown state
+  const [draggedPoolId, setDraggedPoolId] = useState(null); // Track which pool is being dragged
+  const [poolOrder, setPoolOrder] = useState([]); // Track custom pool ordering
+  const [isMobile, setIsMobile] = useState(false); // Track mobile device
 
   // Calculate current NFL week based on date
   const getCurrentWeek = () => {
@@ -40,6 +80,16 @@ export default function Dashboard() {
 
   useEffect(() => {
     fetchUserLeagues();
+  }, []);
+
+  useEffect(() => {
+    const checkDevice = () => {
+      setIsMobile(window.innerWidth <= 767);
+    };
+    
+    checkDevice();
+    window.addEventListener('resize', checkDevice);
+    return () => window.removeEventListener('resize', checkDevice);
   }, []);
 
   useEffect(() => {
@@ -93,9 +143,26 @@ export default function Dashboard() {
         }
         
         setActiveTabs(tabs);
-        setPoolPicksData(picksData);
-        setPoolStatsData(statsData);
-        setPoolAdminStatus(adminStatus);
+                setPoolPicksData(picksData);
+                setPoolStatsData(statsData);
+                setPoolAdminStatus(adminStatus);
+                
+                // Load saved pool order from localStorage
+                try {
+                  const savedOrder = localStorage.getItem('poolOrder');
+                  if (savedOrder) {
+                    const parsedOrder = JSON.parse(savedOrder);
+                    // Filter to only include pools that still exist
+                    const validOrder = parsedOrder.filter(poolId => 
+                      data.some(league => league.id === poolId)
+                    );
+                    if (validOrder.length > 0) {
+                      setPoolOrder(validOrder);
+                    }
+                  }
+                } catch (err) {
+                  console.warn('Could not load pool order from localStorage:', err);
+                }
       } else {
         setError('Failed to load leagues');
       }
@@ -108,32 +175,24 @@ export default function Dashboard() {
 
   const fetchPoolStats = async (leagueId, token) => {
     try {
-      const res = await fetch(process.env.NEXT_PUBLIC_API_URL + `/entries/pool/${leagueId}/stats`, {
+      // Calculate stats manually from entries
+      const entriesRes = await fetch(process.env.NEXT_PUBLIC_API_URL + `/entries/pool/${leagueId}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       
-      if (res.ok) {
-        return await res.json();
-      } else {
-        // Fallback: get all entries and calculate stats manually
-        const entriesRes = await fetch(process.env.NEXT_PUBLIC_API_URL + `/entries/pool/${leagueId}`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
+      if (entriesRes.ok) {
+        const entries = await entriesRes.json();
+        const totalEntries = entries.length;
+        const eliminatedCount = entries.filter(entry => entry.status === 'eliminated').length;
+        const survivorsCount = totalEntries - eliminatedCount;
         
-        if (entriesRes.ok) {
-          const entries = await entriesRes.json();
-          const totalEntries = entries.length;
-          const eliminatedCount = entries.filter(entry => entry.status === 'eliminated').length;
-          const survivorsCount = totalEntries - eliminatedCount;
-          
-          return {
-            totalEntries,
-            survivors: survivorsCount,
-            eliminated: eliminatedCount,
-            survivorsPercentage: totalEntries > 0 ? ((survivorsCount / totalEntries) * 100).toFixed(1) : 0,
-            eliminatedPercentage: totalEntries > 0 ? ((eliminatedCount / totalEntries) * 100).toFixed(1) : 0
-          };
-        }
+        return {
+          totalEntries,
+          survivors: survivorsCount,
+          eliminated: eliminatedCount,
+          survivorsPercentage: totalEntries > 0 ? ((survivorsCount / totalEntries) * 100).toFixed(1) : 0,
+          eliminatedPercentage: totalEntries > 0 ? ((eliminatedCount / totalEntries) * 100).toFixed(1) : 0
+        };
       }
       
       return { totalEntries: 0, survivors: 0, eliminated: 0, survivorsPercentage: 0, eliminatedPercentage: 0 };
@@ -251,7 +310,7 @@ export default function Dashboard() {
   };
 
   const handleCreateLeague = () => {
-    router.push('/create-league');
+    router.push('/create-pool');
   };
 
   const handleLogout = () => {
@@ -264,6 +323,110 @@ export default function Dashboard() {
       ...prev,
       [leagueId]: week
     }));
+  };
+
+  // Drag and drop handlers
+  const handleDragStart = (e, poolId) => {
+    setDraggedPoolId(poolId);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/html', poolId);
+    // Add visual feedback
+    e.target.style.opacity = '0.5';
+  };
+
+  const handleDragEnd = (e) => {
+    setDraggedPoolId(null);
+    e.target.style.opacity = '1';
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    // Add visual feedback for drop zone
+    if (e.target.closest('[draggable="true"]')) {
+      const tile = e.target.closest('[draggable="true"]');
+      if (!tile.classList.contains('drag-over')) {
+        tile.style.backgroundColor = '#f0f9ff';
+        tile.style.borderColor = '#3b82f6';
+        tile.classList.add('drag-over');
+      }
+    }
+  };
+
+  const handleDragLeave = (e) => {
+    // Remove visual feedback when leaving drop zone
+    if (e.target.closest('[draggable="true"]')) {
+      const tile = e.target.closest('[draggable="true"]');
+      if (tile.classList.contains('drag-over')) {
+        tile.style.backgroundColor = '#fafafa';
+        tile.style.borderColor = '#e5e7eb';
+        tile.classList.remove('drag-over');
+      }
+    }
+  };
+
+  const handleDrop = (e, targetPoolId) => {
+    e.preventDefault();
+    
+    // Remove visual feedback
+    const tile = e.target.closest('[draggable="true"]');
+    if (tile && tile.classList.contains('drag-over')) {
+      tile.style.backgroundColor = '#fafafa';
+      tile.style.borderColor = '#e5e7eb';
+      tile.classList.remove('drag-over');
+    }
+    
+    if (!draggedPoolId || draggedPoolId === targetPoolId) {
+      return;
+    }
+
+    // Reorder the pools
+    const currentOrder = poolOrder.length > 0 ? poolOrder : leagues.map(l => l.id);
+    const draggedIndex = currentOrder.indexOf(draggedPoolId);
+    const targetIndex = currentOrder.indexOf(targetPoolId);
+    
+    if (draggedIndex === -1 || targetIndex === -1) return;
+
+    const newOrder = [...currentOrder];
+    // Remove dragged item
+    newOrder.splice(draggedIndex, 1);
+    // Insert at target position
+    newOrder.splice(targetIndex, 0, draggedPoolId);
+    
+    setPoolOrder(newOrder);
+    
+    // Save to localStorage
+    try {
+      localStorage.setItem('poolOrder', JSON.stringify(newOrder));
+    } catch (err) {
+      console.warn('Could not save pool order to localStorage:', err);
+    }
+  };
+
+  // Function to get ordered pools
+  const getOrderedPools = () => {
+    if (poolOrder.length === 0) {
+      return leagues;
+    }
+    
+    // Create a map for quick lookup
+    const poolMap = new Map(leagues.map(pool => [pool.id, pool]));
+    
+    // Order pools according to poolOrder, then add any new pools not in the order
+    const orderedPools = [];
+    
+    // Add pools in the stored order
+    poolOrder.forEach(poolId => {
+      if (poolMap.has(poolId)) {
+        orderedPools.push(poolMap.get(poolId));
+        poolMap.delete(poolId);
+      }
+    });
+    
+    // Add any remaining pools (new ones not in the order)
+    poolMap.forEach(pool => orderedPools.push(pool));
+    
+    return orderedPools;
   };
 
   const renderPoolStats = (league) => {
@@ -382,7 +545,7 @@ export default function Dashboard() {
     );
   };
 
-  const renderWeekTabs = (league) => {
+  const renderWeekSelector = (league) => {
     const leaguePicksData = poolPicksData[league.id] || {};
     const activeWeek = activeTabs[league.id] || getCurrentWeek();
     
@@ -391,52 +554,158 @@ export default function Dashboard() {
     
     return (
       <div>
-        {/* Week Tabs */}
+        {/* Week Selector Dropdown */}
         <div style={{ 
-          display: 'flex', 
-          gap: '0.25rem', 
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.75rem',
           marginBottom: '1rem',
-          overflowX: 'auto',
-          borderBottom: '1px solid #e5e7eb'
+          padding: '0.75rem',
+          backgroundColor: '#f8f9fa',
+          borderRadius: '8px',
+          border: '1px solid #e5e7eb'
         }}>
-          {allWeeks.map(week => (
+          <label 
+            htmlFor={`week-selector-${league.id}`} 
+            style={{ 
+              fontSize: '0.875rem',
+              fontWeight: '600',
+              color: '#374151',
+              minWidth: 'fit-content'
+            }}
+          >
+            Select Week:
+          </label>
+          <select
+            id={`week-selector-${league.id}`}
+            value={activeWeek}
+            onChange={(e) => handleTabChange(league.id, parseInt(e.target.value))}
+            style={{
+              flex: 1,
+              padding: '0.5rem 0.75rem',
+              border: '1px solid #d1d5db',
+              borderRadius: '6px',
+              backgroundColor: 'white',
+              color: '#374151',
+              fontSize: '0.875rem',
+              fontWeight: '500',
+              cursor: 'pointer',
+              outline: 'none',
+              transition: 'all 0.2s ease'
+            }}
+            onFocus={(e) => {
+              e.target.style.borderColor = '#3b82f6';
+              e.target.style.boxShadow = '0 0 0 3px rgba(59, 130, 246, 0.1)';
+            }}
+            onBlur={(e) => {
+              e.target.style.borderColor = '#d1d5db';
+              e.target.style.boxShadow = 'none';
+            }}
+          >
+            {allWeeks.map(week => (
+              <option key={week} value={week}>
+                Week {week} - {getCurrentWeek() === week ? '(Current)' : 
+                             getCurrentWeek() > week ? '(Past)' : 
+                             '(Future)'}
+              </option>
+            ))}
+          </select>
+          
+          {/* Quick Navigation Buttons */}
+          <div style={{ display: 'flex', gap: '0.25rem' }}>
             <button
-              key={week}
-              onClick={() => handleTabChange(league.id, week)}
+              onClick={() => handleTabChange(league.id, Math.max(1, activeWeek - 1))}
+              disabled={activeWeek === 1}
               style={{
-                padding: '0.5rem 0.75rem',
-                border: 'none',
-                backgroundColor: activeWeek === week ? '#667eea' : 'transparent',
-                color: activeWeek === week ? 'white' : '#6b7280',
-                borderRadius: '6px 6px 0 0',
-                cursor: 'pointer',
+                padding: '0.5rem',
+                border: '1px solid #d1d5db',
+                borderRadius: '4px',
+                backgroundColor: activeWeek === 1 ? '#f3f4f6' : 'white',
+                color: activeWeek === 1 ? '#9ca3af' : '#374151',
+                cursor: activeWeek === 1 ? 'not-allowed' : 'pointer',
                 fontSize: '0.75rem',
-                fontWeight: '500',
-                transition: 'all 0.2s ease',
-                whiteSpace: 'nowrap'
+                transition: 'all 0.2s ease'
               }}
               onMouseEnter={(e) => {
-                if (activeWeek !== week) {
-                  e.target.style.backgroundColor = '#f3f4f6';
+                if (activeWeek !== 1) {
+                  e.target.style.backgroundColor = '#f9fafb';
                 }
               }}
               onMouseLeave={(e) => {
-                if (activeWeek !== week) {
-                  e.target.style.backgroundColor = 'transparent';
+                if (activeWeek !== 1) {
+                  e.target.style.backgroundColor = 'white';
                 }
               }}
+              title="Previous Week"
             >
-              Week {week}
+              ◀
             </button>
-          ))}
+            <button
+              onClick={() => handleTabChange(league.id, Math.min(18, activeWeek + 1))}
+              disabled={activeWeek === 18}
+              style={{
+                padding: '0.5rem',
+                border: '1px solid #d1d5db',
+                borderRadius: '4px',
+                backgroundColor: activeWeek === 18 ? '#f3f4f6' : 'white',
+                color: activeWeek === 18 ? '#9ca3af' : '#374151',
+                cursor: activeWeek === 18 ? 'not-allowed' : 'pointer',
+                fontSize: '0.75rem',
+                transition: 'all 0.2s ease'
+              }}
+              onMouseEnter={(e) => {
+                if (activeWeek !== 18) {
+                  e.target.style.backgroundColor = '#f9fafb';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (activeWeek !== 18) {
+                  e.target.style.backgroundColor = 'white';
+                }
+              }}
+              title="Next Week"
+            >
+              ▶
+            </button>
+            <button
+              onClick={() => handleTabChange(league.id, getCurrentWeek())}
+              style={{
+                padding: '0.5rem 0.75rem',
+                border: '1px solid #3b82f6',
+                borderRadius: '4px',
+                backgroundColor: activeWeek === getCurrentWeek() ? '#3b82f6' : 'white',
+                color: activeWeek === getCurrentWeek() ? 'white' : '#3b82f6',
+                cursor: 'pointer',
+                fontSize: '0.75rem',
+                fontWeight: '500',
+                transition: 'all 0.2s ease'
+              }}
+              onMouseEnter={(e) => {
+                if (activeWeek !== getCurrentWeek()) {
+                  e.target.style.backgroundColor = '#eff6ff';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (activeWeek !== getCurrentWeek()) {
+                  e.target.style.backgroundColor = 'white';
+                }
+              }}
+              title="Go to Current Week"
+            >
+              Current
+            </button>
+          </div>
         </div>
 
         {/* Team Counts for Active Week */}
         <div style={{ 
           minHeight: '120px',
+          maxHeight: '300px',
           backgroundColor: '#f8f9fa',
           borderRadius: '8px',
-          padding: '0.75rem'
+          padding: '0.75rem',
+          overflowY: 'auto',
+          overflowX: 'hidden'
         }}>
           {renderTeamCounts(leaguePicksData[activeWeek] || { teams: {}, unlockedCount: 1 }, activeWeek)}
         </div>
@@ -503,7 +772,7 @@ export default function Dashboard() {
                 justifyContent: 'center',
                 width: '24px',
                 height: '24px',
-                backgroundColor: '#667eea',
+                backgroundColor: '#64748b',
                 color: 'white',
                 borderRadius: '50%',
                 fontSize: '0.75rem',
@@ -511,10 +780,26 @@ export default function Dashboard() {
               }}>
                 {index + 1}
               </span>
-              <span style={{ fontWeight: '600', color: '#374151' }}>{team}</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                {NFL_TEAMS[team] && (
+                  <img 
+                    src={`/nfl/${NFL_TEAMS[team].logo}`}
+                    alt={`${team} logo`}
+                    style={{
+                      width: '24px',
+                      height: '24px',
+                      objectFit: 'contain'
+                    }}
+                    onError={(e) => {
+                      e.target.style.display = 'none';
+                    }}
+                  />
+                )}
+                <span style={{ fontWeight: '600', color: '#374151' }}>{team}</span>
+              </div>
             </div>
             <span style={{ 
-              backgroundColor: '#667eea',
+              backgroundColor: '#64748b',
               color: 'white',
               borderRadius: '12px',
               padding: '0.25rem 0.75rem',
@@ -532,9 +817,9 @@ export default function Dashboard() {
               alignItems: 'center',
               justifyContent: 'space-between',
               padding: '0.75rem',
-              backgroundColor: isWeekInPast ? '#fee2e2' : '#fef3c7',
+              backgroundColor: isWeekInPast ? '#fee2e2' : '#f1f5f9',
               borderRadius: '8px',
-              border: isWeekInPast ? '1px solid #ef4444' : '1px solid #f59e0b',
+              border: isWeekInPast ? '1px solid #ef4444' : '1px solid #cbd5e1',
               fontSize: '0.875rem',
               boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
             }}
@@ -546,7 +831,7 @@ export default function Dashboard() {
                 justifyContent: 'center',
                 width: '24px',
                 height: '24px',
-                backgroundColor: isWeekInPast ? '#ef4444' : '#f59e0b',
+                backgroundColor: isWeekInPast ? '#ef4444' : '#64748b',
                 color: 'white',
                 borderRadius: '50%',
                 fontSize: '0.75rem',
@@ -554,12 +839,12 @@ export default function Dashboard() {
               }}>
                 {teamNames.length + 1}
               </span>
-              <span style={{ fontWeight: '600', color: isWeekInPast ? '#dc2626' : '#92400e' }}>
+              <span style={{ fontWeight: '600', color: isWeekInPast ? '#dc2626' : '#475569' }}>
                 {isWeekInPast ? 'No Selection' : 'Unlocked'}
               </span>
             </div>
             <span style={{ 
-              backgroundColor: isWeekInPast ? '#ef4444' : '#f59e0b',
+              backgroundColor: isWeekInPast ? '#ef4444' : '#64748b',
               color: 'white',
               borderRadius: '12px',
               padding: '0.25rem 0.75rem',
@@ -576,21 +861,22 @@ export default function Dashboard() {
 
   return (
     <ProtectedRoute>
-      <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', display: 'flex', flexDirection: 'column' }}>
+      <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)', display: 'flex', flexDirection: 'column' }}>
         {/* Header */}
         <header style={{ 
           display: 'flex', 
           justifyContent: 'space-between', 
           alignItems: 'center', 
           padding: '1.5rem 2rem', 
-          background: 'rgba(255, 255, 255, 0.1)',
-          backdropFilter: 'blur(10px)'
+          background: 'rgba(255, 255, 255, 0.8)',
+          backdropFilter: 'blur(10px)',
+          borderBottom: '1px solid #e2e8f0'
         }}>
-          <div style={{ color: 'white', fontSize: '1.5rem', fontWeight: '700' }}>
+          <div style={{ color: '#1e293b', fontSize: '1.5rem', fontWeight: '700' }}>
             🏈 Run My Pool
           </div>
           <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-            <span style={{ color: 'rgba(255, 255, 255, 0.9)', fontSize: '0.9rem' }}>
+            <span style={{ color: '#64748b', fontSize: '0.9rem' }}>
               Welcome, {user?.email}
             </span>
             <div style={{ position: 'relative' }} data-account-menu>
@@ -598,9 +884,9 @@ export default function Dashboard() {
                 onClick={() => setShowAccountMenu(!showAccountMenu)}
                 style={{ 
                   fontWeight: '500', 
-                  color: 'white', 
-                  backgroundColor: 'rgba(255, 255, 255, 0.1)', 
-                  border: '1px solid rgba(255, 255, 255, 0.3)', 
+                  color: '#475569', 
+                  backgroundColor: '#f1f5f9', 
+                  border: '1px solid #cbd5e1', 
                   borderRadius: '6px', 
                   padding: '0.5rem 0.75rem', 
                   transition: 'all 0.2s ease',
@@ -611,12 +897,12 @@ export default function Dashboard() {
                   gap: '0.5rem'
                 }}
                 onMouseEnter={(e) => {
-                  e.target.style.backgroundColor = 'rgba(255, 255, 255, 0.2)';
-                  e.target.style.borderColor = 'rgba(255, 255, 255, 0.5)';
+                  e.target.style.backgroundColor = '#e2e8f0';
+                  e.target.style.borderColor = '#94a3b8';
                 }}
                 onMouseLeave={(e) => {
-                  e.target.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
-                  e.target.style.borderColor = 'rgba(255, 255, 255, 0.3)';
+                  e.target.style.backgroundColor = '#f1f5f9';
+                  e.target.style.borderColor = '#cbd5e1';
                 }}
               >
                 <span>👤</span>
@@ -704,8 +990,7 @@ export default function Dashboard() {
             fontSize: '3rem', 
             fontWeight: '800', 
             marginBottom: '1rem', 
-            color: 'white',
-            textShadow: '0 4px 8px rgba(0, 0, 0, 0.5)',
+            color: '#1e293b',
             textAlign: 'center'
           }}>
             Dashboard
@@ -714,12 +999,12 @@ export default function Dashboard() {
           {/* Leagues Section */}
           <div style={{ 
             background: 'white', 
-            borderRadius: '20px', 
-            padding: '2.5rem',
-            maxWidth: '1200px',
+            borderRadius: '12px', 
+            padding: '2rem',
+            maxWidth: '1400px',
             width: '100%',
-            boxShadow: '0 20px 40px rgba(0, 0, 0, 0.15)',
-            border: '1px solid rgba(255, 255, 255, 0.2)'
+            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+            border: '1px solid #e2e8f0'
           }}>
             <div style={{
               display: 'flex',
@@ -744,21 +1029,19 @@ export default function Dashboard() {
                   border: 'none', 
                   borderRadius: '8px', 
                   padding: '0.75rem 1.5rem', 
-                  background: '#667eea', 
+                  background: '#475569', 
                   transition: 'all 0.2s ease',
-                  boxShadow: '0 4px 12px rgba(102, 126, 234, 0.4)',
+                  boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06)',
                   cursor: 'pointer',
                   fontSize: '14px'
                 }}
                 onMouseEnter={(e) => {
-                  e.target.style.transform = 'translateY(-2px)';
-                  e.target.style.boxShadow = '0 6px 20px rgba(102, 126, 234, 0.6)';
-                  e.target.style.background = '#5a67d8';
+                  e.target.style.background = '#334155';
+                  e.target.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)';
                 }}
                 onMouseLeave={(e) => {
-                  e.target.style.transform = 'translateY(0)';
-                  e.target.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.4)';
-                  e.target.style.background = '#667eea';
+                  e.target.style.background = '#475569';
+                  e.target.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06)';
                 }}
               >
                 Create Pool
@@ -796,7 +1079,7 @@ export default function Dashboard() {
                 <button 
                   onClick={handleCreateLeague}
                   style={{ 
-                    backgroundColor: '#667eea',
+                    backgroundColor: '#475569',
                     color: 'white',
                     padding: '0.75rem 2rem',
                     border: 'none',
@@ -805,50 +1088,110 @@ export default function Dashboard() {
                     fontWeight: '600',
                     cursor: 'pointer',
                     transition: 'all 0.2s ease',
-                    boxShadow: '0 4px 12px rgba(102, 126, 234, 0.4)'
+                    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06)'
                   }}
                   onMouseEnter={(e) => {
-                    e.target.style.backgroundColor = '#5a67d8';
-                    e.target.style.transform = 'translateY(-1px)';
-                    e.target.style.boxShadow = '0 6px 16px rgba(102, 126, 234, 0.5)';
+                    e.target.style.backgroundColor = '#334155';
+                    e.target.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)';
                   }}
                   onMouseLeave={(e) => {
-                    e.target.style.backgroundColor = '#667eea';
-                    e.target.style.transform = 'translateY(0)';
-                    e.target.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.4)';
+                    e.target.style.backgroundColor = '#475569';
+                    e.target.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06)';
                   }}
                 >
                   Create Your First Pool
                 </button>
               </div>
             ) : (
-              <div style={{ 
-                display: 'grid', 
-                gap: '1.5rem', 
-                gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))',
-                width: '100%',
-                justifyItems: 'center'
-              }}>
-                {leagues.map(league => (
-                  <div key={league.id} style={{ 
-                    border: '1px solid #e5e7eb', 
-                    borderRadius: '12px', 
-                    padding: '1.5rem',
-                    backgroundColor: '#fafafa',
-                    transition: 'all 0.2s ease',
-                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)',
-                    width: '100%',
-                    position: 'relative'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.target.style.boxShadow = '0 8px 25px rgba(0, 0, 0, 0.1)';
-                    e.target.style.transform = 'translateY(-2px)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.target.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.05)';
-                    e.target.style.transform = 'translateY(0)';
-                  }}
+              <>
+                {leagues.length > 1 && (
+                  <div style={{
+                    backgroundColor: '#f0f9ff',
+                    border: '1px solid #bfdbfe',
+                    borderRadius: '8px',
+                    padding: '0.75rem',
+                    marginBottom: '1.5rem',
+                    textAlign: 'center',
+                    fontSize: '0.875rem',
+                    color: '#1e40af'
+                  }}>
+                    💡 <strong>Tip:</strong> You can drag and drop the pool tiles to rearrange them in your preferred order!
+                  </div>
+                )}
+                <div style={{ 
+                  display: 'grid', 
+                  gap: '2rem', 
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(min(350px, 100%), 1fr))',
+                  width: '100%',
+                  padding: '0'
+                }}>
+                {getOrderedPools().map(league => (
+                  <div 
+                    key={league.id} 
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, league.id)}
+                    onDragEnd={handleDragEnd}
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onDrop={(e) => handleDrop(e, league.id)}
+                    style={{ 
+                      border: draggedPoolId === league.id ? '2px dashed #3b82f6' : '1px solid #e5e7eb', 
+                      borderRadius: '12px', 
+                      padding: '1.5rem',
+                      backgroundColor: '#fafafa',
+                      transition: 'all 0.2s ease',
+                      boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)',
+                      minWidth: '0',
+                      minHeight: '280px',
+                      position: 'relative',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      cursor: 'move'
+                    }}
+                    onMouseEnter={(e) => {
+                      if (draggedPoolId !== league.id) {
+                        e.target.style.boxShadow = '0 8px 25px rgba(0, 0, 0, 0.1)';
+                        e.target.style.transform = 'translateY(-2px)';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (draggedPoolId !== league.id) {
+                        e.target.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.05)';
+                        e.target.style.transform = 'translateY(0)';
+                      }
+                    }}
                   >
+                    {/* Drag Handle - Top Left */}
+                    <div style={{ 
+                      position: 'absolute',
+                      top: '0.75rem',
+                      left: '0.75rem',
+                      color: '#9ca3af',
+                      fontSize: '1rem',
+                      cursor: 'move',
+                      padding: '0.5rem',
+                      borderRadius: '6px',
+                      transition: 'all 0.2s ease',
+                      backgroundColor: 'rgba(255, 255, 255, 0.8)',
+                      border: '1px solid rgba(156, 163, 175, 0.3)',
+                      lineHeight: '1',
+                      userSelect: 'none'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.target.style.color = '#6b7280';
+                      e.target.style.backgroundColor = 'rgba(255, 255, 255, 1)';
+                      e.target.style.borderColor = 'rgba(107, 114, 128, 0.5)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.target.style.color = '#9ca3af';
+                      e.target.style.backgroundColor = 'rgba(255, 255, 255, 0.8)';
+                      e.target.style.borderColor = 'rgba(156, 163, 175, 0.3)';
+                    }}
+                    title="Drag to reorder pools"
+                    >
+                      ⋮⋮
+                    </div>
+
                     {/* Privacy Badge - Top Right */}
                     <span style={{ 
                       position: 'absolute',
@@ -874,37 +1217,29 @@ export default function Dashboard() {
                     </h3>
                     
                     {/* Action Buttons */}
-                    <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
-                      <button 
-                        onClick={() => router.push(`/pool/${league.id}`)}
-                        style={{ 
-                          backgroundColor: '#10b981', 
-                          color: 'white', 
-                          padding: '0.5rem 1rem', 
-                          border: 'none', 
-                          borderRadius: '6px', 
-                          cursor: 'pointer',
-                          fontSize: '0.875rem',
-                          fontWeight: '500',
-                          transition: 'all 0.2s ease'
-                        }}
-                        onMouseEnter={(e) => e.target.style.backgroundColor = '#059669'}
-                        onMouseLeave={(e) => e.target.style.backgroundColor = '#10b981'}
-                      >
-                        View Pool
-                      </button>
+                    <div style={{ 
+                      display: 'grid', 
+                      gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(auto-fit, minmax(120px, 1fr))', 
+                      gap: '0.75rem', 
+                      marginBottom: '1rem' 
+                    }}>
                       <button 
                         onClick={() => router.push(`/pool/${league.id}/entries`)}
                         style={{ 
                           backgroundColor: '#8b5cf6', 
                           color: 'white', 
-                          padding: '0.5rem 1rem', 
+                          padding: '0.75rem 1rem', 
                           border: 'none', 
                           borderRadius: '6px', 
                           cursor: 'pointer',
                           fontSize: '0.875rem',
                           fontWeight: '500',
-                          transition: 'all 0.2s ease'
+                          transition: 'all 0.2s ease',
+                          minHeight: '44px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          textAlign: 'center'
                         }}
                         onMouseEnter={(e) => e.target.style.backgroundColor = '#7c3aed'}
                         onMouseLeave={(e) => e.target.style.backgroundColor = '#8b5cf6'}
@@ -912,22 +1247,50 @@ export default function Dashboard() {
                         My Entries
                       </button>
                       <button 
-                        onClick={() => router.push(`/message-board?pool=${league.id}`)}
+                        onClick={() => router.push(`/pool/${league.id}`)}
                         style={{ 
-                          backgroundColor: '#3b82f6', 
+                          backgroundColor: '#10b981', 
                           color: 'white', 
-                          padding: '0.5rem 1rem', 
+                          padding: '0.75rem 1rem', 
                           border: 'none', 
                           borderRadius: '6px', 
                           cursor: 'pointer',
                           fontSize: '0.875rem',
                           fontWeight: '500',
-                          transition: 'all 0.2s ease'
+                          transition: 'all 0.2s ease',
+                          minHeight: '44px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          textAlign: 'center'
+                        }}
+                        onMouseEnter={(e) => e.target.style.backgroundColor = '#059669'}
+                        onMouseLeave={(e) => e.target.style.backgroundColor = '#10b981'}
+                      >
+                        View Pool
+                      </button>
+                      <button 
+                        onClick={() => router.push(`/pool/${league.id}/messages`)}
+                        style={{ 
+                          backgroundColor: '#3b82f6', 
+                          color: 'white', 
+                          padding: '0.75rem 1rem', 
+                          border: 'none', 
+                          borderRadius: '6px', 
+                          cursor: 'pointer',
+                          fontSize: '0.875rem',
+                          fontWeight: '500',
+                          transition: 'all 0.2s ease',
+                          minHeight: '44px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          textAlign: 'center'
                         }}
                         onMouseEnter={(e) => e.target.style.backgroundColor = '#2563eb'}
                         onMouseLeave={(e) => e.target.style.backgroundColor = '#3b82f6'}
                       >
-                        Message Board
+                        Forum
                       </button>
                       {(poolAdminStatus[league.id]?.has_admin_access || league.created_by === user.id) && (
                         <button 
@@ -935,13 +1298,18 @@ export default function Dashboard() {
                           style={{ 
                             backgroundColor: '#f59e0b', 
                             color: 'white', 
-                            padding: '0.5rem 1rem', 
+                            padding: '0.75rem 1rem', 
                             border: 'none', 
                             borderRadius: '6px', 
                             cursor: 'pointer',
                             fontSize: '0.875rem',
                             fontWeight: '500',
-                            transition: 'all 0.2s ease'
+                            transition: 'all 0.2s ease',
+                            minHeight: '44px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            textAlign: 'center'
                           }}
                           onMouseEnter={(e) => e.target.style.backgroundColor = '#d97706'}
                           onMouseLeave={(e) => e.target.style.backgroundColor = '#f59e0b'}
@@ -954,13 +1322,18 @@ export default function Dashboard() {
                     {/* Pool Stats Section */}
                     {renderPoolStats(league)}
                     
-                    {/* Week Tabs Section */}
-                    <div style={{ marginBottom: '1rem' }}>
-                      {renderWeekTabs(league)}
+                    {/* Week Selector Section */}
+                    <div style={{ 
+                      marginBottom: '1rem',
+                      width: '100%',
+                      overflow: 'hidden'
+                    }}>
+                      {renderWeekSelector(league)}
                     </div>
                   </div>
                 ))}
-              </div>
+                </div>
+              </>
             )}
           </div>
         </main>

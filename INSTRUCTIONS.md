@@ -190,7 +190,7 @@ reset user password
 ### /delete-user
 
 ## League Flows
-### /create-league
+### /create-pool
 ### /update-league/{league-id}
 ### /delete-league/{league-id}
 ### /join-league/{league-id}

@@ -28,6 +28,10 @@ class UserOut(UserBase):
     class Config:
         orm_mode = True
 
+class PoolRuleValueCreate(BaseModel):
+    rule_id: str
+    rule_value: str
+
 class PoolBase(BaseModel):
     name: str
     description: Optional[str] = None
@@ -35,13 +39,34 @@ class PoolBase(BaseModel):
     is_private: bool = False
 
 class PoolCreate(PoolBase):
-    pass
+    # Optional rule values for enhanced pool settings
+    rule_values: Optional[List[PoolRuleValueCreate]] = []
 
 class PoolUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
     lock_time: Optional[str] = None
     is_private: Optional[bool] = None
+    rule_values: Optional[List[PoolRuleValueCreate]] = None
+
+class RuleOut(BaseModel):
+    id: str
+    pool_type: Optional[str] = None
+    rule_text: str
+    rule_type: str
+    default_value: Optional[str] = None
+    enabled_by_default: bool = True
+    
+    class Config:
+        orm_mode = True
+
+class PoolRuleValueOut(BaseModel):
+    rule_id: str
+    rule_value: str
+    rule: Optional[RuleOut] = None
+    
+    class Config:
+        orm_mode = True
 
 class PoolOut(BaseModel):
     id: str
@@ -52,6 +77,7 @@ class PoolOut(BaseModel):
     owner_id: str
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
+    rule_values: Optional[List[PoolRuleValueOut]] = []
     
     class Config:
         orm_mode = True
@@ -67,6 +93,10 @@ class EntryCreate(EntryBase):
 
 class EntryUpdate(BaseModel):
     name: Optional[str] = None
+
+class EntryTransfer(BaseModel):
+    entry_id: str
+    to_username: str
 
 class EntryOut(BaseModel):
     id: str
@@ -117,9 +147,17 @@ class AuditLogOut(BaseModel):
     class Config:
         orm_mode = True
 
+class MessageBoardCreate(BaseModel):
+    pool_id: str
+    message: str
+
 class MessageBoardOut(BaseModel):
     id: str
+    pool_id: str
     user_id: str
     message: str
+    created_at: str
+    user_email: Optional[str] = None
+    
     class Config:
         orm_mode = True

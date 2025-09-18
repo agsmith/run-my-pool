@@ -40,13 +40,16 @@ CREATE TABLE picks (
     id CHAR(36) PRIMARY KEY,
     entry_id CHAR(36),
     week INT,
+    team_id INT,
     team VARCHAR(255),
     locked BOOLEAN DEFAULT FALSE,
     result VARCHAR(10), -- win, loss, pending
     created_at DATETIME,
     updated_at DATETIME,
+    FOREIGN KEY (team_id) REFERENCES teams(id),
     FOREIGN KEY (entry_id) REFERENCES entries(id)
 );
+
 
 CREATE TABLE audit_logs (
     id CHAR(36) PRIMARY KEY,
@@ -60,9 +63,11 @@ CREATE TABLE audit_logs (
 CREATE TABLE message_board (
     id CHAR(36) PRIMARY KEY,
     user_id CHAR(36),
+    pool_id CHAR(36),
     message TEXT,
     created_at DATETIME,
-    FOREIGN KEY (user_id) REFERENCES users(id)
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    FOREIGN KEY (pool_id) REFERENCES pools(id)
 );
 
 CREATE TABLE pool_admins (
@@ -89,8 +94,6 @@ CREATE TABLE pool_rules (
     FOREIGN KEY (pool_id) REFERENCES pools(id),
     FOREIGN KEY (rule_id) REFERENCES rules(id)
 );
--- Migration: Add Teams Table and Update Picks
--- This adds a teams reference table and updates picks to use team_id
 
 -- Create teams table
 CREATE TABLE teams (
@@ -100,9 +103,6 @@ CREATE TABLE teams (
     logo VARCHAR(255)
 );
 
--- Add team_id column to picks table (keeping existing team column for backward compatibility)
-ALTER TABLE picks ADD COLUMN team_id INT;
-ALTER TABLE picks ADD FOREIGN KEY (team_id) REFERENCES teams(id);
 
 -- Insert NFL teams data
 INSERT INTO teams (id, name, abbrv, logo) VALUES
@@ -141,21 +141,13 @@ INSERT INTO teams (id, name, abbrv, logo) VALUES
 (98, 'Losing Team', 'LT', '/nfl/red_x.svg'),
 (99, 'No Team', 'NT', '/nfl/green_plus.svg');
 
--- Update existing picks to use team_id based on team abbreviation
--- This assumes your current picks use the team abbreviation in the 'team' column
-UPDATE picks p 
-SET team_id = (
-    SELECT t.id 
-    FROM teams t 
-    WHERE t.abbrv = p.team
-) 
-WHERE p.team IS NOT NULL;
+
 
 -- Create index for better performance
 CREATE INDEX idx_teams_abbrv ON teams(abbrv);
 CREATE INDEX idx_picks_team_id ON picks(team_id);
 
-CREATE TABLE `Schedule` (
+CREATE TABLE `schedule` (
   `game_id` int NOT NULL,
   `week_num` int NOT NULL,
   `home_team_id` int NOT NULL,
@@ -169,7 +161,7 @@ CREATE TABLE `Schedule` (
   CONSTRAINT `schedule_ibfk_2` FOREIGN KEY (`away_team_id`) REFERENCES `teams` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 -- Insert NFL 2025 Regular Season Schedule
-INSERT INTO Schedule (game_id, week_num, home_team_id, away_team_id, start_time, winning_team_id) VALUES
+INSERT INTO schedule (game_id, week_num, home_team_id, away_team_id, start_time, winning_team_id) VALUES
 (401671834, 18, 33, 5, '2025-01-04 21:30:00', '99'),
 (401671836, 18, 23, 4, '2025-01-05 01:00:00', '99'),
 (401671827, 18, 1, 29, '2025-01-05 18:00:00', '99'),
@@ -443,3 +435,31 @@ INSERT INTO Schedule (game_id, week_num, home_team_id, away_team_id, start_time,
 (401772935, 17, 25, 3, '2025-12-29 01:20:00', '99'),
 (401772825, 17, 1, 14, '2025-12-30 01:15:00', '99');
 
+INSERT INTO rules (id, pool_type, rule_text, rule_type, default_value, enabled_by_default) VALUES
+-- Weekly lock time rules
+('weekly-lock-day', 'survivor', 'Weekly Lock Day', 'selection', '0', true),
+('weekly-lock-time', 'survivor', 'Weekly Lock Time', 'time', '13:00:00', true),
+
+-- Auto-pick functionality rules
+('auto-pick-enabled', 'survivor', 'Auto-Pick Enabled', 'boolean', 'false', true),
+('auto-pick-strategy', 'survivor', 'Auto-Pick Strategy', 'selection', 'random', true),
+
+-- Game mode selection rules
+('game-mode', 'survivor', 'Game Mode', 'selection', 'pick_winner', true),
+
+-- Message board rules
+('message-board-enabled', 'survivor', 'Message Board Enabled', 'boolean', 'true', true);
+
+-- Add pool_rules_values table to store rule values for each pool
+CREATE TABLE IF NOT EXISTS pool_rules_values (
+    pool_id VARCHAR(36),
+    rule_id VARCHAR(36),
+    rule_value VARCHAR(255),
+    PRIMARY KEY (pool_id, rule_id),
+    FOREIGN KEY (pool_id) REFERENCES pools(id) ON DELETE CASCADE,
+    FOREIGN KEY (rule_id) REFERENCES rules(id) ON DELETE CASCADE
+);
+
+-- Add indexes for better query performance
+CREATE INDEX IF NOT EXISTS idx_pool_rules_values_pool_id ON pool_rules_values(pool_id);
+CREATE INDEX IF NOT EXISTS idx_pool_rules_values_rule_id ON pool_rules_values(rule_id);

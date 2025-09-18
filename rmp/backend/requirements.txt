@@ -6,3 +6,9 @@ python-dotenv
 passlib[bcrypt]
 python-jose[cryptography]
 pydantic
+email-validator
+pytest
+pytest-cov
+pytest-asyncio
+httpx
+pytest-mock

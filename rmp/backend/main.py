@@ -8,7 +8,8 @@ from sqlalchemy.orm import Session
 import uvicorn
 import os
 
-models.Base.metadata.create_all(bind=database.engine)
+# Skip SQLAlchemy table creation since schema is managed by datamodel.sql
+print("Database schema is managed by datamodel.sql - skipping SQLAlchemy table creation")
 
 app = FastAPI(title="RunMyPool API")
 
