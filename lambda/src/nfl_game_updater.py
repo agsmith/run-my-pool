@@ -174,9 +174,8 @@ def get_database_engine():
         secret_name = os.getenv('DB_SECRET_NAME', 'arn:aws:secretsmanager:us-east-1:739444271939:secret:runmypool/database-url-nRqy5o')
         
         try:
-            response = secrets_manager.get_secret_value(SecretId=secret_name)
-            print(response)
-            database_url = json.loads(response['SecretString'])
+            response = json.loads(secrets_manager.get_secret_value(SecretId=secret_name))
+            database_url = response['SecretString']
         except Exception as e:
             logger.error(f"Failed to retrieve database credentials from Secrets Manager: {e}")
             raise
