@@ -26,6 +26,7 @@ jobs:
         aws-region: us-east-1
     - name: Initialise project and view terraform plan
       run: |
+        cd lambda
         terraform fmt
         terraform init
         terraform import aws_lambda_function.function nfl-game-updater
