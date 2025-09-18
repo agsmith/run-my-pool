@@ -1,3 +1,5 @@
+        # terraform import aws_lambda_function.function nfl-game-updater
+
 name: Deploy main branch
 
 on:

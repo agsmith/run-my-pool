@@ -24,7 +24,7 @@ resource "null_resource" "install_python_dependencies" {
     environment = {
       source_code_path = "${path.module}/lambda"
       function_name = "nfl-game-updater"
-      runtime = "python3.13"
+      runtime = "python3.12"
       path_cwd = "${path.module}"
     }
   }
@@ -50,7 +50,7 @@ resource "aws_lambda_function" "function" {
   s3_key                          = "nfl-game-updater.zip"
   function_name                   = "nfl-game-updater"
   handler                        = "nfl_game_updater.main"
-  runtime                        = "python3.13"
+  runtime                        = "python3.12"
   timeout                        = 900
   memory_size                    = 128
   role                           = "arn:aws:iam::739444271939:role/nfl-game-updater-lambda-role"
