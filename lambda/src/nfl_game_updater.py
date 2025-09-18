@@ -455,9 +455,9 @@ def manual_game_result_update(game_id: int, winning_team_id: int):
     finally:
         db.close()
 
-if __name__ == "__main__":
-    # For local testing
-    test_event = {}
-    test_context = {}
-    result = lambda_handler(test_event, test_context)
-    print(json.dumps(result, indent=2))
+# if __name__ == "__main__":
+#     # For local testing
+#     test_event = {}
+#     test_context = {}
+#     result = lambda_handler(test_event, test_context)
+#     print(json.dumps(result, indent=2))

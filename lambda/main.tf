@@ -49,7 +49,7 @@ resource "aws_lambda_function" "function" {
   s3_bucket                       = "nfl-game-updater-us-east-1-lambda"
   s3_key                          = "nfl-game-updater.zip"
   function_name                   = "nfl-game-updater"
-  handler                        = "nfl_game_updater.main"
+  handler                        = "nfl_game_updater.lambda_handler"
   runtime                        = "python3.12"
   timeout                        = 900
   memory_size                    = 128
