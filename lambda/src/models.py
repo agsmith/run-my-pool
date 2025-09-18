@@ -91,7 +91,7 @@ class Schedule(Base):
     home_team_id = Column(Integer, ForeignKey("teams.id"), nullable=False)
     away_team_id = Column(Integer, ForeignKey("teams.id"), nullable=False)
     start_time = Column(DateTime, nullable=False)
-    winning_team_id = Column(String(100), nullable=False, default='99')
+    winning_team_id = Column(Integer, nullable=False, default=99)
     
     # relationships
     home_team = relationship("Team", foreign_keys=[home_team_id])

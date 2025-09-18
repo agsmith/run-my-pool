@@ -297,7 +297,7 @@ def update_game_results(db, game_results: List[Dict]) -> int:
                     scheduled_game.winning_team_id = home_team.id
                     updates_made += 1
                 else:
-                    scheduled_game.winning_team_id = home_team.id
+                    scheduled_game.winning_team_id = away_team.id
                     updates_made += 1
         
             except Exception as e:
