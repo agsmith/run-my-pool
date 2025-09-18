@@ -175,6 +175,7 @@ def get_database_engine():
         
         try:
             response = secrets_manager.get_secret_value(SecretId=secret_name)
+            print(response)
             database_url = json.loads(response['SecretString'])
         except Exception as e:
             logger.error(f"Failed to retrieve database credentials from Secrets Manager: {e}")
