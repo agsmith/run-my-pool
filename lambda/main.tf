@@ -19,7 +19,7 @@ terraform {
 
 resource "null_resource" "install_python_dependencies" {
   provisioner "local-exec" {
-    command = "bash ${path.module}/src/create_pkg.sh"
+    command = "bash ${path.module}/lambda/src/create_pkg.sh"
 
     environment = {
       source_code_path = "${path.module}/lambda"
