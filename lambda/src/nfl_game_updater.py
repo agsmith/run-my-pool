@@ -171,7 +171,7 @@ def get_database_engine():
                                             connect_timeout=10,
                                             read_timeout=10
                                         ))
-        secret_name = os.getenv('DB_SECRET_NAME', 'database-url')
+        secret_name = os.getenv('DB_SECRET_NAME', 'arn:aws:secretsmanager:us-east-1:739444271939:secret:runmypool/database-url-nRqy5o')
         
         try:
             response = secrets_manager.get_secret_value(SecretId=secret_name)
