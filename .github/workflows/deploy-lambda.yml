@@ -28,5 +28,5 @@ jobs:
       run: |
         terraform fmt
         terraform init
-        terraform import aws_lambda_function.function nfl-fetch-results
+        terraform import aws_lambda_function.function nfl-game-updater
         terraform apply --auto-approve=true
