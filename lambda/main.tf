@@ -19,10 +19,10 @@ terraform {
 
 resource "null_resource" "install_python_dependencies" {
   provisioner "local-exec" {
-    command = "bash ${path.module}/lambda/src/create-pkg.sh"
+    command = "bash ${path.module}/src/create-pkg.sh"
 
     environment = {
-      source_code_path = "${path.module}/lambda"
+      source_code_path = "${path.module}"
       function_name = "nfl-game-updater"
       runtime = "python3.12"
       path_cwd = "${path.module}"
