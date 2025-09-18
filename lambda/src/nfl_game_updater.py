@@ -105,6 +105,8 @@ def lambda_handler(event, context):
             
             # Fetch game results from ESPN API
             game_results = fetch_nfl_game_results(current_week)
+            logger.info(f"Results {game_results}")
+            
             logger.info(f"Fetched {len(game_results)} game results")
             
             # Update database with results
