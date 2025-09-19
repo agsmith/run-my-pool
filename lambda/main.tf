@@ -59,7 +59,7 @@ resource "aws_lambda_function" "function" {
   timeout                        = 900
   memory_size                    = 128
   role                           = "arn:aws:iam::739444271939:role/nfl-game-updater-lambda-role"
-  depends_on = [ aws_s3_object.file_upload ]
+  depends_on = [ aws_s3_object.file_upload  ]
   
   vpc_config {
     subnet_ids         = toset(["subnet-07d85747fe7504912", "subnet-080737ebc3b299dcd"])

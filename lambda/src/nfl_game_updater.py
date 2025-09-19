@@ -361,9 +361,9 @@ def update_picks_results(db, game_results: List[Dict]) -> int:
             # Find all picks for this team in the current week that don't have results yet
             picks = db.query(Pick).filter(
                 and_(
-                    Pick.team == team.abbrv,
+                    func.lower(Pick.team) == team.abbrv.lower(),
                     Pick.week == current_week,
-                    Pick.result.in_(['pending', None])
+                    Pick.result.is_(None)
                 )
             ).all()
             
