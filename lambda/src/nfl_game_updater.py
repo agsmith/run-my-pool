@@ -161,7 +161,9 @@ def get_database_engine():
                                     config=boto3.session.Config(
                                         connect_timeout=10,
                                         read_timeout=10
-                                    ))
+                                    ),
+                                    endpoint_url='https://secretsmanager.us-east-1.amazonaws.com')
+    
     secret_name = 'arn:aws:secretsmanager:us-east-1:739444271939:secret:runmypool/database-url-nRqy5o'
         
     try:
@@ -304,8 +306,7 @@ def update_game_results(db, game_results: List[Dict]) -> int:
                     continue
             
                 # Update winning team
-            
-                if game['winning_team_abbrv'].lower() == scheduled_game.home_team_abbrv.lower():
+                if game['winning_team_abbrv'].lower() == home_team.abbrv.lower():
                     scheduled_game.winning_team_id = home_team.id
                     updates_made += 1
                 else:
