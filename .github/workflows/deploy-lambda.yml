@@ -1,4 +1,4 @@
-name: Deploy main branch
+name: Deploy Lambda
 
 on:
   push:
