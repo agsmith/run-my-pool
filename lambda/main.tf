@@ -16,6 +16,11 @@ terraform {
   required_version = "~> 1.2"
 }
 
+# Data source to reference the existing RDS database
+data "aws_db_instance" "runmypool_db" {
+  db_instance_identifier = "terraform-20250830124351453200000003"
+}
+
 
 resource "null_resource" "install_python_dependencies" {
   provisioner "local-exec" {
@@ -55,11 +60,61 @@ resource "aws_lambda_function" "function" {
   memory_size                    = 128
   role                           = "arn:aws:iam::739444271939:role/nfl-game-updater-lambda-role"
   depends_on = [ aws_s3_object.file_upload ]
+  
   vpc_config {
     subnet_ids         = toset(["subnet-07d85747fe7504912", "subnet-080737ebc3b299dcd"])
     security_group_ids = toset(["sg-022ad503e1afbef4a"])
   }
+
+  environment {
+    variables = {
+      DB_HOST     = data.aws_db_instance.runmypool_db.address
+      DB_PORT     = data.aws_db_instance.runmypool_db.port
+      DB_NAME     = data.aws_db_instance.runmypool_db.db_name
+      DB_USERNAME = data.aws_db_instance.runmypool_db.master_username
+      # Note: Password should be retrieved from AWS Secrets Manager for security
+      SECRETS_MANAGER_ARN = "arn:aws:secretsmanager:us-east-1:739444271939:secret:runmypool/database-url-nRqy5o"
+    }
+  }
 }
 
+# IAM policy for Secrets Manager access (if not already included in the role)
+resource "aws_iam_role_policy" "lambda_secrets_manager" {
+  name = "nfl-game-updater-secrets-manager-policy"
+  role = "nfl-game-updater-lambda-role"
 
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "secretsmanager:GetSecretValue",
+          "secretsmanager:DescribeSecret"
+        ]
+        Resource = "arn:aws:secretsmanager:us-east-1:739444271939:secret:runmypool/database-url-nRqy5o"
+      }
+    ]
+  })
+}
 
+# Outputs for reference
+output "lambda_function_name" {
+  description = "Name of the Lambda function"
+  value       = aws_lambda_function.function.function_name
+}
+
+output "database_endpoint" {
+  description = "RDS database endpoint"
+  value       = data.aws_db_instance.runmypool_db.address
+}
+
+output "database_port" {
+  description = "RDS database port"
+  value       = data.aws_db_instance.runmypool_db.port
+}
+
+output "database_name" {
+  description = "RDS database name"
+  value       = data.aws_db_instance.runmypool_db.db_name
+}
