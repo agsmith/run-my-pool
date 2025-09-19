@@ -336,12 +336,12 @@ def update_picks_results(db, game_results: List[Dict]) -> int:
     for game in game_results:
         if game['status'] == 'STATUS_FINAL':
             # Mark winner as 'win' and loser as 'loss'
-            winning_team = game['winning_team_abbrv'].upper()
+            winning_team = game['winning_team_abbrv'].lower()
             team_results[winning_team] = 'win'
             
             # Determine the losing team
-            home_team = game['home_team_abbrv'].upper()
-            away_team = game['away_team_abbrv'].upper()
+            home_team = game['home_team_abbrv'].lower()
+            away_team = game['away_team_abbrv'].lower()
             loser = home_team if winning_team != home_team else away_team
             team_results[loser] = 'loss'
             
@@ -353,7 +353,7 @@ def update_picks_results(db, game_results: List[Dict]) -> int:
     for team_abbrv, result in team_results.items():
         try:
             # Find the team (case-insensitive match)
-            team = db.query(Team).filter(func.upper(Team.abbrv) == team_abbrv.upper()).first()
+            team = db.query(Team).filter(func.lower(Team.abbrv) == team_abbrv.lower()).first()
             if not team:
                 logger.warning(f"Team not found in database: {team_abbrv}")
                 continue
@@ -361,7 +361,7 @@ def update_picks_results(db, game_results: List[Dict]) -> int:
             # Find all picks for this team in the current week that don't have results yet
             picks = db.query(Pick).filter(
                 and_(
-                    Pick.team_id == team.id,
+                    Pick.team == team.abbrv,
                     Pick.week == current_week,
                     Pick.result.in_(['pending', None])
                 )
