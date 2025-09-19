@@ -323,40 +323,63 @@ def update_picks_results(db, game_results: List[Dict]) -> int:
     """Update picks with win/loss results based on game outcomes"""
     picks_updated = 0
     
+    # Get the week from game results (they should all be the same week)
+    current_week = game_results[0]['week'] if game_results else None
+    if not current_week:
+        logger.warning("No game results provided for pick updates")
+        return 0
+    
+    logger.info(f"Updating picks for week {current_week} based on {len(game_results)} completed games")
+    
     # Create a mapping of team abbreviations to winning status
     team_results = {}
     for game in game_results:
         if game['status'] == 'STATUS_FINAL':
             # Mark winner as 'win' and loser as 'loss'
-            team_results[game['winning_team_abbrv']] = 'win'
-            loser = game['home_team_abbrv'] if game['winning_team_abbrv'] != game['home_team_abbrv'] else game['away_team_abbrv']
+            winning_team = game['winning_team_abbrv'].upper()
+            team_results[winning_team] = 'win'
+            
+            # Determine the losing team
+            home_team = game['home_team_abbrv'].upper()
+            away_team = game['away_team_abbrv'].upper()
+            loser = home_team if winning_team != home_team else away_team
             team_results[loser] = 'loss'
+            
+            logger.info(f"Game result: {winning_team} beat {loser}")
+    
+    logger.info(f"Processing results for {len(team_results)} teams")
     
     # Update picks based on results
     for team_abbrv, result in team_results.items():
         try:
-            # Find the team
-            team = db.query(Team).filter(Team.abbrv == team_abbrv).first()
+            # Find the team (case-insensitive match)
+            team = db.query(Team).filter(func.upper(Team.abbrv) == team_abbrv.upper()).first()
             if not team:
+                logger.warning(f"Team not found in database: {team_abbrv}")
                 continue
             
-            # Find all picks for this team that don't have results yet
+            # Find all picks for this team in the current week that don't have results yet
             picks = db.query(Pick).filter(
                 and_(
                     Pick.team_id == team.id,
+                    Pick.week == current_week,
                     Pick.result.in_(['pending', None])
                 )
             ).all()
             
+            logger.info(f"Found {len(picks)} pending picks for {team_abbrv} in week {current_week}")
+            
             for pick in picks:
+                old_result = pick.result
                 pick.result = result
                 picks_updated += 1
-                logger.info(f"Updated pick result: Entry {pick.entry_id}, Week {pick.week}, Team {team_abbrv}, Result: {result}")
+                logger.info(f"Updated pick: Entry {pick.entry_id}, Week {pick.week}, Team {team_abbrv}, {old_result} → {result}")
                 
         except Exception as e:
             logger.error(f"Error updating picks for team {team_abbrv}: {e}")
             continue
     
+    logger.info(f"Total picks updated: {picks_updated}")
     return picks_updated
 
 def eliminate_losing_entries(db) -> int:
