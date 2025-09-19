@@ -104,7 +104,7 @@ def lambda_handler(event, context):
         try:
             # Get current week
             # current_week = get_current_nfl_week()
-            for currnet_week in range(1, 18):
+            for current_week in range(1, 18):
                 logger.info(f"Processing games for week {current_week}")
                 
                 # Fetch game results from ESPN API
