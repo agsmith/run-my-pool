@@ -170,35 +170,68 @@ export default function EntryDetail() {
   const renderPickCircle = (week) => {
     const pick = getPickForWeek(week);
     const hasTeam = pick && pick.team;
+    const isEntryAlive = entry?.alive !== false; // Default to true if undefined
+    
+    // Determine the background color based on pick result and entry status
+    let backgroundColor = '#f9f9f9'; // Default for empty circles
+    let borderColor = '#ddd';
+    let cursor = 'pointer';
+    
+    if (!isEntryAlive) {
+      // Entry is eliminated - all circles are red, no interaction allowed
+      backgroundColor = '#dc3545'; // Red
+      borderColor = '#dc3545';
+      cursor = 'not-allowed';
+    } else if (hasTeam) {
+      // Entry is alive and has a team picked
+      if (pick.result === 'win') {
+        backgroundColor = '#28a745'; // Green for wins
+        borderColor = '#28a745';
+      } else if (pick.result === 'loss') {
+        backgroundColor = '#dc3545'; // Red for losses
+        borderColor = '#dc3545';
+      } else {
+        // Pending or no result yet - use team color
+        backgroundColor = NFL_TEAMS[pick.team]?.color || '#f0f0f0';
+        borderColor = '#ddd';
+      }
+    }
 
     return (
       <button
         key={week}
-        onClick={() => handlePickClick(week)}
+        onClick={() => isEntryAlive ? handlePickClick(week) : null}
+        disabled={!isEntryAlive}
         style={{
           width: '60px',
           height: '60px',
           borderRadius: '50%',
-          border: '2px solid #ddd',
+          border: `2px solid ${borderColor}`,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          cursor: 'pointer',
-          backgroundColor: hasTeam ? NFL_TEAMS[pick.team]?.color || '#f0f0f0' : '#f9f9f9',
-          color: hasTeam ? 'white' : '#333',
+          cursor: cursor,
+          backgroundColor: backgroundColor,
+          color: (hasTeam || !isEntryAlive) ? 'white' : '#333',
           fontWeight: 'bold',
           fontSize: hasTeam ? '12px' : '14px',
           transition: 'all 0.2s ease',
-          margin: '5px'
+          margin: '5px',
+          opacity: !isEntryAlive ? 0.8 : 1
         }}
         onMouseEnter={(e) => {
-          e.target.style.transform = 'scale(1.1)';
-          e.target.style.boxShadow = '0 2px 8px rgba(0,0,0,0.2)';
+          if (isEntryAlive) {
+            e.target.style.transform = 'scale(1.1)';
+            e.target.style.boxShadow = '0 2px 8px rgba(0,0,0,0.2)';
+          }
         }}
         onMouseLeave={(e) => {
-          e.target.style.transform = 'scale(1)';
-          e.target.style.boxShadow = 'none';
+          if (isEntryAlive) {
+            e.target.style.transform = 'scale(1)';
+            e.target.style.boxShadow = 'none';
+          }
         }}
+        title={!isEntryAlive ? 'Entry eliminated - no more picks allowed' : (pick?.result ? `${pick.team} - ${pick.result}` : '')}
       >
         {hasTeam ? pick.team : week}
       </button>

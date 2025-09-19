@@ -259,35 +259,68 @@ export default function LeagueEntries() {
   const renderPickCircle = (entry, week) => {
     const pick = getPickForEntryWeek(entry.id, week);
     const hasTeam = pick && pick.team;
+    const isEntryAlive = entry.alive !== false; // Default to true if undefined
+    
+    // Determine the background color based on pick result and entry status
+    let backgroundColor = '#f9f9f9'; // Default for empty circles
+    let borderColor = '#ddd';
+    let cursor = 'pointer';
+    
+    if (!isEntryAlive) {
+      // Entry is eliminated - all circles are red, no interaction allowed
+      backgroundColor = '#dc3545'; // Red
+      borderColor = '#dc3545';
+      cursor = 'not-allowed';
+    } else if (hasTeam) {
+      // Entry is alive and has a team picked
+      if (pick.result === 'win') {
+        backgroundColor = '#28a745'; // Green for wins
+        borderColor = '#28a745';
+      } else if (pick.result === 'loss') {
+        backgroundColor = '#dc3545'; // Red for losses
+        borderColor = '#dc3545';
+      } else {
+        // Pending or no result yet - use team color
+        backgroundColor = NFL_TEAMS[pick.team]?.color || '#f0f0f0';
+        borderColor = '#ddd';
+      }
+    }
 
     return (
       <button
         key={`${entry.id}-${week}`}
-        onClick={() => handlePickClick(entry, week)}
+        onClick={() => isEntryAlive ? handlePickClick(entry, week) : null}
+        disabled={!isEntryAlive}
         style={{
           width: '40px',
           height: '40px',
           borderRadius: '50%',
-          border: '1px solid #ddd',
+          border: `2px solid ${borderColor}`,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          cursor: 'pointer',
-          backgroundColor: hasTeam ? NFL_TEAMS[pick.team]?.color || '#f0f0f0' : '#f9f9f9',
-          color: hasTeam ? 'white' : '#333',
+          cursor: cursor,
+          backgroundColor: backgroundColor,
+          color: (hasTeam || !isEntryAlive) ? 'white' : '#333',
           fontWeight: 'bold',
           fontSize: hasTeam ? '10px' : '12px',
           transition: 'all 0.2s ease',
-          margin: '2px'
+          margin: '2px',
+          opacity: !isEntryAlive ? 0.8 : 1
         }}
         onMouseEnter={(e) => {
-          e.target.style.transform = 'scale(1.1)';
-          e.target.style.boxShadow = '0 2px 8px rgba(0,0,0,0.2)';
+          if (isEntryAlive) {
+            e.target.style.transform = 'scale(1.1)';
+            e.target.style.boxShadow = '0 2px 8px rgba(0,0,0,0.2)';
+          }
         }}
         onMouseLeave={(e) => {
-          e.target.style.transform = 'scale(1)';
-          e.target.style.boxShadow = 'none';
+          if (isEntryAlive) {
+            e.target.style.transform = 'scale(1)';
+            e.target.style.boxShadow = 'none';
+          }
         }}
+        title={!isEntryAlive ? 'Entry eliminated - no more picks allowed' : (pick?.result ? `${pick.team} - ${pick.result}` : '')}
       >
         {hasTeam ? pick.team : week}
       </button>
@@ -486,7 +519,60 @@ export default function LeagueEntries() {
       <main style={{ padding: '2rem', maxWidth: '1400px', margin: '0 auto' }}>
         <div style={{ marginBottom: '2rem' }}>
           <h1>{league?.name} - Entries</h1>
-          <p style={{ color: '#666' }}>Click on any week circle to make or change picks</p>
+          <p style={{ color: '#666', marginBottom: '1rem' }}>Click on any week circle to make or change picks</p>
+          
+          {/* Pick Status Legend */}
+          <div style={{ 
+            backgroundColor: '#f8f9fa', 
+            padding: '1rem', 
+            borderRadius: '8px', 
+            border: '1px solid #e9ecef',
+            marginBottom: '1rem'
+          }}>
+            <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '14px', color: '#495057' }}>Pick Status Legend:</h4>
+            <div style={{ display: 'flex', gap: '2rem', flexWrap: 'wrap', fontSize: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <div style={{ 
+                  width: '20px', 
+                  height: '20px', 
+                  borderRadius: '50%', 
+                  backgroundColor: '#28a745', 
+                  border: '2px solid #28a745' 
+                }}></div>
+                <span>Win</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <div style={{ 
+                  width: '20px', 
+                  height: '20px', 
+                  borderRadius: '50%', 
+                  backgroundColor: '#dc3545', 
+                  border: '2px solid #dc3545' 
+                }}></div>
+                <span>Loss (Entry Eliminated)</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <div style={{ 
+                  width: '20px', 
+                  height: '20px', 
+                  borderRadius: '50%', 
+                  backgroundColor: '#f0f0f0', 
+                  border: '2px solid #ddd' 
+                }}></div>
+                <span>Pending/No Result</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <div style={{ 
+                  width: '20px', 
+                  height: '20px', 
+                  borderRadius: '50%', 
+                  backgroundColor: '#f9f9f9', 
+                  border: '2px solid #ddd' 
+                }}></div>
+                <span>No Pick Yet</span>
+              </div>
+            </div>
+          </div>
         </div>
 
         {error && (
@@ -659,7 +745,21 @@ export default function LeagueEntries() {
                           onBlur={(e) => e.target.style.backgroundColor = 'transparent'}
                           title="Click to edit entry name"
                         >
-                          {entry.name}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            {entry.alive === false && (
+                              <span style={{ 
+                                color: '#dc3545', 
+                                fontSize: '12px', 
+                                fontWeight: 'bold',
+                                backgroundColor: '#f8d7da',
+                                padding: '2px 6px',
+                                borderRadius: '4px'
+                              }}>
+                                ❌ ELIMINATED
+                              </span>
+                            )}
+                            <span>{entry.name}</span>
+                          </div>
                         </button>
                       )}
                     </td>
