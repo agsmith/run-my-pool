@@ -103,42 +103,43 @@ def lambda_handler(event, context):
         
         try:
             # Get current week
-            current_week = get_current_nfl_week()
-            logger.info(f"Processing games for week {current_week}")
-            
-            # Fetch game results from ESPN API
-            game_results = fetch_nfl_game_results(current_week)
-            logger.info(f"Results {game_results}")
-            
-            logger.info(f"Fetched {len(game_results)} game results")
-            
-            # Update database with results
-            updates_made = update_game_results(db, game_results)
-            
-            # Update picks based on game results
-            picks_updated = update_picks_results(db, game_results)
-            
-            # Update entry status (eliminate losing entries)
-            entries_eliminated = eliminate_losing_entries(db)
-            
-            # Commit all changes
-            db.commit()
-            
-            response = {
-                'statusCode': 200,
-                'body': json.dumps({
-                    'message': 'Successfully updated NFL game results',
-                    'week': current_week,
-                    'games_updated': updates_made,
-                    'picks_updated': picks_updated,
-                    'entries_eliminated': entries_eliminated,
-                    'timestamp': datetime.now(timezone.utc).isoformat()
-                })
-            }
-            
-            logger.info(f"Process completed successfully: {response['body']}")
-            return response
-            
+            # current_week = get_current_nfl_week()
+            for currnet_week in range(1, 18):
+                logger.info(f"Processing games for week {current_week}")
+                
+                # Fetch game results from ESPN API
+                game_results = fetch_nfl_game_results(current_week)
+                logger.info(f"Results {game_results}")
+                
+                logger.info(f"Fetched {len(game_results)} game results")
+                
+                # Update database with results
+                updates_made = update_game_results(db, game_results)
+                
+                # Update picks based on game results
+                picks_updated = update_picks_results(db, game_results)
+                
+                # Update entry status (eliminate losing entries)
+                entries_eliminated = eliminate_losing_entries(db)
+                
+                # Commit all changes
+                db.commit()
+                
+                response = {
+                    'statusCode': 200,
+                    'body': json.dumps({
+                        'message': 'Successfully updated NFL game results',
+                        'week': current_week,
+                        'games_updated': updates_made,
+                        'picks_updated': picks_updated,
+                        'entries_eliminated': entries_eliminated,
+                        'timestamp': datetime.now(timezone.utc).isoformat()
+                    })
+                }
+                
+                logger.info(f"Process completed successfully: {response['body']}")
+                return response
+                
         except Exception as e:
             db.rollback()
             raise e
