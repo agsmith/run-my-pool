@@ -1,4 +1,4 @@
-name: Build and Push Docker Image to ECR for Subdirectory
+name: Build Backend Docker Image
 
 on:
   push:
