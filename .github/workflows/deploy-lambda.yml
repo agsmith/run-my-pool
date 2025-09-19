@@ -4,7 +4,13 @@ on:
   push:
     branches:
       - main
-
+    paths:
+      - 'lambda/**' # Replace 'my-subdirectory' with your target directory
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'lambda/**' # Replace 'my-subdirectory' with your target directory
 jobs:
   deploy:
     name: deploy
