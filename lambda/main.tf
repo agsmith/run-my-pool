@@ -56,8 +56,8 @@ resource "aws_lambda_function" "function" {
   role                           = "arn:aws:iam::739444271939:role/nfl-game-updater-lambda-role"
   depends_on = [ aws_s3_object.file_upload ]
   vpc_config {
-    subnet_ids         = toset(["subnet-07d85747fe7504912", "subnet-080737ebc3b299dcd"])
-    security_group_ids = toset(["sg-043b716bf6cfb45f8"])
+    subnet_ids         = toset(["subnet-03719a6a5a7b16f89", "subnet-051f6c9e643ec23b6"])
+    security_group_ids = toset(["sg-022ad503e1afbef4a"])
   }
 }
 

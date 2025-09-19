@@ -161,7 +161,8 @@ def get_database_engine():
                                     config=boto3.session.Config(
                                         connect_timeout=10,
                                         read_timeout=10
-                                    ))
+                                    ),
+                                    endpoint_url='https://secretsmanager.us-east-1.amazonaws.com')
     secret_name = 'arn:aws:secretsmanager:us-east-1:739444271939:secret:runmypool/database-url-nRqy5o'
         
     try:
