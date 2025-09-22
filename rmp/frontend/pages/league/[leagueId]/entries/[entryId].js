@@ -80,12 +80,10 @@ export default function EntryDetail() {
   const fetchEntryAndPicks = async () => {
     try {
       const token = localStorage.getItem('access_token');
-      
       // Fetch entry details
       const entryRes = await fetch(process.env.NEXT_PUBLIC_API_URL + `/entries/${entryId}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      
       if (entryRes.ok) {
         const entryData = await entryRes.json();
         setEntry(entryData);
@@ -93,17 +91,14 @@ export default function EntryDetail() {
         setError('Failed to load entry details');
         return;
       }
-
       // Fetch picks for this entry
       const picksRes = await fetch(process.env.NEXT_PUBLIC_API_URL + `/picks/entry/${entryId}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      
       if (picksRes.ok) {
         const picksData = await picksRes.json();
         setPicks(picksData);
       } else {
-        // Picks endpoint might not exist yet, so just set empty array
         setPicks([]);
       }
     } catch (err) {
@@ -126,7 +121,6 @@ export default function EntryDetail() {
 
   const handleSubmitPick = async () => {
     if (!selectedTeam || !selectedWeek) return;
-
     try {
       const token = localStorage.getItem('access_token');
       const res = await fetch(process.env.NEXT_PUBLIC_API_URL + '/picks/create', {
@@ -141,10 +135,9 @@ export default function EntryDetail() {
           team: selectedTeam
         })
       });
-
       if (res.ok) {
         setShowMatchupOverlay(false);
-        fetchEntryAndPicks(); // Refresh picks
+        fetchEntryAndPicks();
       } else {
         const errorData = await res.json();
         setError(errorData.detail || 'Failed to save pick');
@@ -170,277 +163,29 @@ export default function EntryDetail() {
   const renderPickCircle = (week) => {
     const pick = getPickForWeek(week);
     const hasTeam = pick && pick.team;
-    const isEntryAlive = entry?.alive !== false; // Default to true if undefined
-    
-    // Determine the background color based on pick result and entry status
-    let backgroundColor = '#f9f9f9'; // Default for empty circles
+    const isEntryAlive = entry?.alive !== false;
+    let backgroundColor = '#f9f9f9';
     let borderColor = '#ddd';
     let cursor = 'pointer';
-    
     if (!isEntryAlive) {
-      // Entry is eliminated - all circles are red, no interaction allowed
-      backgroundColor = '#dc3545'; // Red
+      backgroundColor = '#dc3545';
       borderColor = '#dc3545';
       cursor = 'not-allowed';
     } else if (hasTeam) {
-      // Entry is alive and has a team picked
       if (pick.result === 'win') {
-        backgroundColor = '#28a745'; // Green for wins
+        backgroundColor = '#28a745';
         borderColor = '#28a745';
       } else if (pick.result === 'loss') {
-        backgroundColor = '#dc3545'; // Red for losses
+        backgroundColor = '#dc3545';
         borderColor = '#dc3545';
       } else {
-        // Pending or no result yet - use team color
         backgroundColor = NFL_TEAMS[pick.team]?.color || '#f0f0f0';
         borderColor = '#ddd';
       }
     }
-
-    return (
-      <button
-        key={week}
-        onClick={() => isEntryAlive ? handlePickClick(week) : null}
-        disabled={!isEntryAlive}
-        style={{
-          width: '60px',
-          height: '60px',
-          borderRadius: '50%',
-          border: `2px solid ${borderColor}`,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          cursor: cursor,
-          backgroundColor: backgroundColor,
-          color: (hasTeam || !isEntryAlive) ? 'white' : '#333',
-          fontWeight: 'bold',
-          fontSize: hasTeam ? '12px' : '14px',
-          transition: 'all 0.2s ease',
-          margin: '5px',
-          opacity: !isEntryAlive ? 0.8 : 1
-        }}
-        onMouseEnter={(e) => {
-          if (isEntryAlive) {
-            e.target.style.transform = 'scale(1.1)';
-            e.target.style.boxShadow = '0 2px 8px rgba(0,0,0,0.2)';
-          }
-        }}
-        onMouseLeave={(e) => {
-          if (isEntryAlive) {
-            e.target.style.transform = 'scale(1)';
-            e.target.style.boxShadow = 'none';
-          }
-        }}
-        title={!isEntryAlive ? 'Entry eliminated - no more picks allowed' : (pick?.result ? `${pick.team} - ${pick.result}` : '')}
-      >
-        {hasTeam ? pick.team : week}
-      </button>
-    );
+    // TODO: Implement the actual rendering logic for the pick circle here
+    return null;
   };
 
-  const renderMatchupOverlay = () => {
-    if (!showMatchupOverlay || !selectedWeek) return null;
-
-    const matchups = MOCK_MATCHUPS[selectedWeek] || [];
-
-    return (
-      <div style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: 'rgba(0,0,0,0.7)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 1000
-      }}>
-        <div style={{
-          backgroundColor: 'white',
-          borderRadius: '12px',
-          padding: '2rem',
-          maxWidth: '600px',
-          maxHeight: '80vh',
-          overflow: 'auto',
-          width: '90%'
-        }}>
-          <h2>Week {selectedWeek} Matchups</h2>
-          <p style={{ color: '#666', marginBottom: '1.5rem' }}>
-            Select a team for your pick. Teams you've already used are grayed out.
-          </p>
-
-          <div style={{ display: 'grid', gap: '1rem', marginBottom: '2rem' }}>
-            {matchups.map((matchup) => {
-              let awayBgColor = 'white';
-              if (isTeamUsed(matchup.away)) {
-                awayBgColor = '#f5f5f5';
-              } else if (selectedTeam === matchup.away) {
-                awayBgColor = '#e6f3ff';
-              }
-              
-              let homeBgColor = 'white';
-              if (isTeamUsed(matchup.home)) {
-                homeBgColor = '#f5f5f5';
-              } else if (selectedTeam === matchup.home) {
-                homeBgColor = '#e6f3ff';
-              }
-              
-              return (
-                <div key={`${matchup.away}-${matchup.home}`} style={{
-                  border: '1px solid #ddd',
-                  borderRadius: '8px',
-                  padding: '1rem',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center'
-                }}>
-                  <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flex: 1 }}>
-                    <button
-                      onClick={() => handleTeamSelect(matchup.away)}
-                      disabled={isTeamUsed(matchup.away)}
-                      style={{
-                        padding: '8px 16px',
-                        border: selectedTeam === matchup.away ? '2px solid #0070f3' : '1px solid #ddd',
-                        borderRadius: '6px',
-                        backgroundColor: awayBgColor,
-                        color: isTeamUsed(matchup.away) ? '#999' : '#333',
-                        cursor: isTeamUsed(matchup.away) ? 'not-allowed' : 'pointer',
-                        flex: 1,
-                        textAlign: 'center'
-                      }}
-                    >
-                      {matchup.away} - {NFL_TEAMS[matchup.away]?.name}
-                    </button>
-                    <span style={{ color: '#666' }}>@</span>
-                    <button
-                      onClick={() => handleTeamSelect(matchup.home)}
-                      disabled={isTeamUsed(matchup.home)}
-                      style={{
-                        padding: '8px 16px',
-                        border: selectedTeam === matchup.home ? '2px solid #0070f3' : '1px solid #ddd',
-                        borderRadius: '6px',
-                        backgroundColor: homeBgColor,
-                        color: isTeamUsed(matchup.home) ? '#999' : '#333',
-                        cursor: isTeamUsed(matchup.home) ? 'not-allowed' : 'pointer',
-                        flex: 1,
-                        textAlign: 'center'
-                      }}
-                    >
-                      {matchup.home} - {NFL_TEAMS[matchup.home]?.name}
-                    </button>
-                  </div>
-                  <div style={{ marginLeft: '1rem', color: '#666', fontSize: '14px' }}>
-                    {matchup.time}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
-            <button
-              onClick={() => setShowMatchupOverlay(false)}
-              style={{
-                padding: '10px 20px',
-                border: '1px solid #ddd',
-                borderRadius: '6px',
-                backgroundColor: 'white',
-                cursor: 'pointer'
-              }}
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleSubmitPick}
-              disabled={!selectedTeam}
-              style={{
-                padding: '10px 20px',
-                border: 'none',
-                borderRadius: '6px',
-                backgroundColor: selectedTeam ? '#0070f3' : '#ccc',
-                color: 'white',
-                cursor: selectedTeam ? 'pointer' : 'not-allowed'
-              }}
-            >
-              Save Pick
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  if (!router.isReady || loading) {
-    return <div>Loading...</div>;
-  }
-
-  return (
-    <ProtectedRoute>
-      <main style={{ padding: '2rem', maxWidth: '1200px', margin: '0 auto' }}>
-        {error ? (
-          <div style={{ color: 'red' }}>{error}</div>
-        ) : entry ? (
-          <>
-            <div style={{ marginBottom: '2rem' }}>
-              <h1>{entry.name}</h1>
-              <p style={{ color: '#666' }}>Click on any week to make or change your pick</p>
-            </div>
-
-            {error && (
-              <div style={{ 
-                color: 'red', 
-                backgroundColor: '#fee', 
-                padding: '10px', 
-                borderRadius: '4px',
-                marginBottom: '1rem'
-              }}>
-                {error}
-              </div>
-            )}
-
-            <div style={{ 
-              display: 'grid', 
-              gridTemplateColumns: 'repeat(auto-fit, minmax(70px, 1fr))', 
-              gap: '10px', 
-              marginBottom: '2rem',
-              maxWidth: '800px'
-            }}>
-              {Array.from({ length: 18 }, (_, i) => i + 1).map(week => renderPickCircle(week))}
-            </div>
-
-            <div style={{ 
-              backgroundColor: '#f8f9fa', 
-              padding: '1rem', 
-              borderRadius: '8px',
-              marginBottom: '2rem'
-            }}>
-              <h3>Your Picks Summary</h3>
-              <p>Teams used: {getUsedTeams().join(', ') || 'None yet'}</p>
-              <p>Weeks remaining: {18 - picks.length}</p>
-            </div>
-
-            <button 
-              onClick={() => router.push(`/league/${leagueId}/entries`)}
-              style={{ 
-                backgroundColor: '#6c757d', 
-                color: 'white', 
-                padding: '10px 20px', 
-                border: 'none', 
-                borderRadius: '5px', 
-                cursor: 'pointer',
-                fontSize: '16px'
-              }}
-            >
-              Back to Entries
-            </button>
-
-            {renderMatchupOverlay()}
-          </>
-        ) : (
-          <div>Entry not found</div>
-        )}
-      </main>
-    </ProtectedRoute>
-  );
+  // ...existing code for rendering the rest of the component...
 }

@@ -9,18 +9,18 @@ export default function CreateEntry() {
   const [loading, setLoading] = useState(false);
   const [pageLoading, setPageLoading] = useState(true);
   const router = useRouter();
-  const { id } = router.query; // league id
+  const { leagueId } = router.query; // league id
 
   useEffect(() => {
-    if (id) {
+    if (leagueId) {
       fetchLeague();
     }
-  }, [id]);
+  }, [leagueId]);
 
   const fetchLeague = async () => {
     try {
       const token = localStorage.getItem('access_token');
-      const res = await fetch(process.env.NEXT_PUBLIC_API_URL + `/pools/${id}`, {
+  const res = await fetch(process.env.NEXT_PUBLIC_API_URL + `/pools/${leagueId}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       
