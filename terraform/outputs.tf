@@ -72,3 +72,13 @@ output "rds_db_name" {
   description = "Database name"
   value       = aws_db_instance.main.db_name
 }
+
+output "alb_dns_name" {
+  description = "ALB DNS name — use this as the CNAME target if not using Route 53 alias"
+  value       = aws_lb.main.dns_name
+}
+
+output "route53_name_servers" {
+  description = "Name servers for the runmypool.net hosted zone — update your registrar if these changed"
+  value       = aws_route53_zone.main.name_servers
+}

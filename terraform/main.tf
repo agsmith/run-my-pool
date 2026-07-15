@@ -219,6 +219,12 @@ resource "aws_ecs_service" "backend" {
     assign_public_ip = true
   }
 
+  load_balancer {
+    target_group_arn = aws_lb_target_group.backend.arn
+    container_name   = "backend"
+    container_port   = 8000
+  }
+
   deployment_circuit_breaker {
     enable   = true
     rollback = true
@@ -236,6 +242,8 @@ resource "aws_ecs_service" "backend" {
     # Prevent Terraform from rolling back image changes made by CI
     ignore_changes = [task_definition]
   }
+
+  depends_on = [aws_lb_listener.https]
 }
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -257,6 +265,12 @@ resource "aws_ecs_service" "frontend" {
     assign_public_ip = true
   }
 
+  load_balancer {
+    target_group_arn = aws_lb_target_group.frontend.arn
+    container_name   = "frontend"
+    container_port   = 3000
+  }
+
   deployment_circuit_breaker {
     enable   = true
     rollback = true
@@ -273,4 +287,6 @@ resource "aws_ecs_service" "frontend" {
   lifecycle {
     ignore_changes = [task_definition]
   }
+
+  depends_on = [aws_lb_listener.https]
 }
