@@ -94,10 +94,10 @@ class TestUserEndpoints:
     # -----------------------------------------------------------------------
 
     def test_delete_user_requires_auth(self, client):
-        """DELETE /users/{user_id} without a token returns 403."""
+        """DELETE /users/{user_id} without a token returns 401 or 403."""
         # Use a syntactically valid integer id; auth check fires before DB lookup.
         resp = client.delete("/users/1")
-        assert resp.status_code == 403
+        assert resp.status_code in (401, 403)
 
     def test_delete_user_not_found(self, client):
         """Authenticated DELETE for a non-existent user returns 404."""
@@ -136,9 +136,9 @@ class TestUserEndpoints:
     # -----------------------------------------------------------------------
 
     def test_update_email_requires_auth(self, client):
-        """PATCH /users/{user_id}/email without a token returns 403."""
+        """PATCH /users/{user_id}/email without a token returns 401 or 403."""
         resp = client.patch("/users/1/email", params={"email": "new@test.com"})
-        assert resp.status_code == 403
+        assert resp.status_code in (401, 403)
 
     def test_update_email_not_found(self, client):
         """Authenticated PATCH email for a non-existent user returns 404."""

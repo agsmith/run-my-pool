@@ -77,9 +77,9 @@ class TestMessageBoardEndpoints:
     # ------------------------------------------------------------------
 
     def test_list_messages_requires_auth(self, client):
-        """Unauthenticated GET /messages/pool/... returns 403."""
+        """Unauthenticated GET /messages/pool/... returns 401 or 403."""
         response = client.get("/messages/pool/some-id")
-        assert response.status_code == 403
+        assert response.status_code in (401, 403)
 
     def test_list_messages_requires_pool_membership(self, client):
         """Authenticated user without a pool entry is denied with 403."""

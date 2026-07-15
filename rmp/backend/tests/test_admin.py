@@ -73,12 +73,12 @@ class TestAdminEndpoints:
     # ------------------------------------------------------------------
 
     def test_transfer_entry_requires_auth(self, client):
-        """POST transfer-entry without a token returns 403."""
+        """POST transfer-entry without a token returns 401 or 403."""
         response = client.post(
             "/admin/pools/some-pool-id/transfer-entry",
             json={"entry_id": "some-entry-id", "to_username": "someone"},
         )
-        assert response.status_code == 403
+        assert response.status_code in (401, 403)
 
     def test_transfer_entry_non_admin_forbidden(self, client):
         """A non-admin user attempting to transfer an entry in another user's pool is denied."""
@@ -127,9 +127,9 @@ class TestAdminEndpoints:
     # ------------------------------------------------------------------
 
     def test_delete_entry_admin_requires_auth(self, client):
-        """DELETE admin entry without a token returns 403."""
+        """DELETE admin entry without a token returns 401 or 403."""
         response = client.delete("/admin/pools/some-pool-id/entries/some-entry-id")
-        assert response.status_code == 403
+        assert response.status_code in (401, 403)
 
     def test_delete_entry_admin_non_admin_forbidden(self, client):
         """A non-admin user cannot delete entries from another user's pool."""

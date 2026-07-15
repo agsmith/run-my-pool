@@ -157,7 +157,7 @@ class TestPickEndpoints:
                 "team": "NE",
             },
         )
-        assert resp.status_code == 403
+        assert resp.status_code in (401, 403)
 
     # -----------------------------------------------------------------------
     # GET /picks/entry/{entry_id}

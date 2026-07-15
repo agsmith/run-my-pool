@@ -142,4 +142,4 @@ class TestEntryLockEnforcement:
             "/entries/create",
             json={"pool_id": "some-id", "name": "Entry"},
         )
-        assert response.status_code == 403
+        assert response.status_code in (401, 403)

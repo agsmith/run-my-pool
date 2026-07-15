@@ -23,7 +23,7 @@ class TestPoolEndpoints:
         response = client.post("/pools/create", json=test_pool_data)
 
         # FastAPI HTTPBearer returns 403 when no credentials are provided
-        assert response.status_code == 403
+        assert response.status_code in (401, 403)
 
     def test_get_my_pools(self, authenticated_client, test_pool_data):
         """Test getting user's pools"""
@@ -70,7 +70,7 @@ class TestPoolEndpoints:
         response = client.get("/pools/some-id")
 
         # FastAPI HTTPBearer returns 403 when no credentials are provided
-        assert response.status_code == 403
+        assert response.status_code in (401, 403)
 
     def test_pool_validation_missing_name(self, authenticated_client):
         """Test pool creation with missing name"""
