@@ -1,42 +1,50 @@
-name: Build Frontend Docker Image
+name: Build and Deploy Frontend
+
 on:
   push:
     branches:
       - main
     paths:
-      - 'rmp/frontend/**' # Replace 'my-subdirectory' with your target directory
+      - 'rmp/frontend/**'
   pull_request:
     branches:
       - main
     paths:
-      - 'rmp/frontend/**' # Replace 'my-subdirectory' with your target directory
+      - 'rmp/frontend/**'
+
+permissions:
+  contents: read
 
 jobs:
-  build-and-push:
-    runs-on: ubuntu-latest
+  build-and-deploy:
+    name: Build, push, and deploy
+    runs-on: comcast-ubuntu-latest
+    # Only deploy on pushes to main — not on PRs
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
 
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@517a711dbcd0e402f90c77e7e2f81e849156e31d  # v6.2.2
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1 # Replace with your AWS region
+          aws-region: us-east-1
 
       - name: Login to Amazon ECR
         id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v2
+        uses: aws-actions/amazon-ecr-login@b040164c4934333d597f3f9c67502ff28f814e9c  # v2.1.6
 
       - name: Build and push Docker image
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          ECR_REPOSITORY: runmypool-frontend # Replace with your ECR repository name
+          ECR_REPOSITORY: runmypool-frontend
           IMAGE_TAG: ${{ github.sha }}
           AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
           AWS_REGION: us-east-1
         run: |
-          cd rmp/ # Specify the subdirectory for the build context
+          cd rmp/
           ./build-and-push-frontend.sh
           aws ecs update-service --cluster run-my-pool-cluster --service runmypool-frontend-service --force-new-deployment
