@@ -26,7 +26,9 @@ import pytest
 # Bootstrap: make the Lambda src importable and stub heavy deps before import
 # ---------------------------------------------------------------------------
 
-SRC_PATH = "/Users/asmith986/work/Development/run-my-pool/lambda/src"
+from pathlib import Path
+
+SRC_PATH = str(Path(__file__).parent.parent / "src")
 if SRC_PATH not in sys.path:
     sys.path.insert(0, SRC_PATH)
 

@@ -1,9 +1,11 @@
+alembic
 fastapi
 uvicorn
 sqlalchemy
 mysql-connector-python
 python-dotenv
 passlib[bcrypt]
+bcrypt<4.0.0
 python-jose[cryptography]
 pydantic
 email-validator
