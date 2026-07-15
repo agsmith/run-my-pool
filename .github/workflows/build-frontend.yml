@@ -18,7 +18,7 @@ permissions:
 jobs:
   build-and-deploy:
     name: Build, push, and deploy
-    runs-on: comcast-ubuntu-latest
+    runs-on: ubuntu-latest
     # Only deploy on pushes to main — not on PRs
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 
