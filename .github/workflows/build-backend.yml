@@ -76,5 +76,5 @@ jobs:
           AWS_REGION: us-east-1
         run: |
           cd rmp/
-          ./build-and-push-backend.sh
+          echo "N" | ./build-and-push-backend.sh
           aws ecs update-service --cluster run-my-pool-cluster --service runmypool-backend-service --force-new-deployment

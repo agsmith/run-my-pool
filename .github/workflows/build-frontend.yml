@@ -48,5 +48,5 @@ jobs:
           AWS_REGION: us-east-1
         run: |
           cd rmp/
-          ./build-and-push-frontend.sh
+          echo "N" | ./build-and-push-frontend.sh
           aws ecs update-service --cluster run-my-pool-cluster --service runmypool-frontend-service --force-new-deployment
