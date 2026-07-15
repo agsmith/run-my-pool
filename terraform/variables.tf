@@ -65,8 +65,7 @@ variable "database_url_secret_arn" {
 variable "jwt_secret_arn" {
   description = "ARN of the Secrets Manager secret holding JWT_SECRET / SECRET_KEY"
   type        = string
-  # Update this if the secret exists under a different ARN
-  default = "arn:aws:secretsmanager:us-east-1:739444271939:secret:runmypool/jwt-secret"
+  default     = "arn:aws:secretsmanager:us-east-1:739444271939:secret:runmypool/jwt-secret-s2S9FU"
 }
 
 # ──────────────────────────────────────────────────────────────────────────────
