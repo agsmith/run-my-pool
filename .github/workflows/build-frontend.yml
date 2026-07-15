@@ -6,11 +6,13 @@ on:
       - main
     paths:
       - 'rmp/frontend/**'
+      - '.github/workflows/build-frontend.yml'
   pull_request:
     branches:
       - main
     paths:
       - 'rmp/frontend/**'
+      - '.github/workflows/build-frontend.yml'
 
 permissions:
   contents: read
