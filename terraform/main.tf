@@ -214,12 +214,11 @@ resource "aws_ecs_service" "backend" {
   force_new_deployment = true
 
   network_configuration {
-    subnets          = var.subnet_ids
-    security_groups  = [var.ecs_security_group_id]
+    subnets          = [aws_subnet.public_a.id, aws_subnet.public_b.id]
+    security_groups  = [aws_security_group.ecs.id]
     assign_public_ip = true
   }
 
-  # Deployment circuit breaker — rolls back automatically on failure
   deployment_circuit_breaker {
     enable   = true
     rollback = true
@@ -253,8 +252,8 @@ resource "aws_ecs_service" "frontend" {
   force_new_deployment = true
 
   network_configuration {
-    subnets          = var.subnet_ids
-    security_groups  = [var.ecs_security_group_id]
+    subnets          = [aws_subnet.public_a.id, aws_subnet.public_b.id]
+    security_groups  = [aws_security_group.ecs.id]
     assign_public_ip = true
   }
 

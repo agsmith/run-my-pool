@@ -37,3 +37,23 @@ output "frontend_log_group" {
   description = "CloudWatch log group for frontend containers"
   value       = aws_cloudwatch_log_group.frontend.name
 }
+
+output "vpc_id" {
+  description = "VPC ID"
+  value       = aws_vpc.main.id
+}
+
+output "public_subnet_ids" {
+  description = "Public subnet IDs (used by ECS tasks)"
+  value       = [aws_subnet.public_a.id, aws_subnet.public_b.id]
+}
+
+output "ecs_security_group_id" {
+  description = "Security group ID for ECS tasks"
+  value       = aws_security_group.ecs.id
+}
+
+output "rds_security_group_id" {
+  description = "Security group ID for RDS — allow this on your RDS instance"
+  value       = aws_security_group.rds.id
+}

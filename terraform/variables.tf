@@ -15,26 +15,12 @@ variable "aws_account_id" {
 }
 
 # ──────────────────────────────────────────────────────────────────────────────
-# Networking — reuse the existing VPC / subnets / security groups
+# Networking — managed by networking.tf; these variables kept for reference only
 # ──────────────────────────────────────────────────────────────────────────────
 
-variable "vpc_id" {
-  description = "ID of the existing VPC"
-  type        = string
-  default     = "vpc-0593914a220fcfc80"
-}
-
-variable "subnet_ids" {
-  description = "Subnet IDs for ECS tasks and the ALB (must span >= 2 AZs)"
-  type        = list(string)
-  default     = ["subnet-07d85747fe7504912", "subnet-080737ebc3b299dcd"]
-}
-
-variable "ecs_security_group_id" {
-  description = "Security group ID for ECS tasks"
-  type        = string
-  default     = "sg-022ad503e1afbef4a"
-}
+# subnet_ids and ecs_security_group_id are now derived from networking.tf resources.
+# Remove these defaults if you want to use pre-existing network resources instead
+# of letting Terraform create them.
 
 # ──────────────────────────────────────────────────────────────────────────────
 # IAM — existing roles
