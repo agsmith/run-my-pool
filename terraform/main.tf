@@ -171,7 +171,7 @@ resource "aws_ecs_task_definition" "frontend" {
         },
         {
           name  = "NEXT_PUBLIC_API_URL"
-          value = "https://run-my-pool-alb-1079058824.us-east-1.elb.amazonaws.com"
+          value = "https://runmypool.net"
         }
       ]
 
