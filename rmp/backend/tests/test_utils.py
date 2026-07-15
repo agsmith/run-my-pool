@@ -9,29 +9,29 @@ class TestDependencies:
         """Test database dependency function"""
         try:
             from deps import get_db
-            
+
             # Test that get_db returns a generator
             db_gen = get_db()
-            assert hasattr(db_gen, '__iter__')
-            
+            assert hasattr(db_gen, "__iter__")
+
         except ImportError:
             pytest.skip("deps module not available")
 
-    @patch('deps.get_current_user')
+    @patch("deps.get_current_user")
     def test_current_user_dependency(self, mock_get_user):
         """Test current user dependency"""
         try:
             from deps import get_current_user
-            
+
             # Mock a user object
             mock_user = Mock()
             mock_user.id = "test-user-id"
             mock_user.email = "test@example.com"
             mock_get_user.return_value = mock_user
-            
+
             result = get_current_user("fake-token", Mock())
             assert result.id == "test-user-id"
-            
+
         except ImportError:
             pytest.skip("deps module not available")
 
@@ -43,31 +43,31 @@ class TestUtilities:
         """Test audit logging utilities"""
         try:
             from audit_utils import log_create_operation, log_authentication_event
-            
+
             # Test that functions exist and can be called
             assert callable(log_create_operation)
             assert callable(log_authentication_event)
-            
+
             # Mock database session
             mock_db = Mock()
-            
+
             # Test calling audit functions (they should not raise errors)
             log_create_operation(mock_db, "test-user-id", "pools", "test-pool-id")
             log_authentication_event(mock_db, "test-user-id", "LOGIN", True)
-            
+
         except ImportError:
             pytest.skip("audit_utils module not available")
 
     def test_password_utilities(self):
         """Test password hashing utilities"""
         from auth import verify_password, get_password_hash
-        
+
         password = "testpassword123"
         hashed = get_password_hash(password)
-        
+
         # Test hash is different from original
         assert hashed != password
-        
+
         # Test verification works
         assert verify_password(password, hashed) is True
         assert verify_password("wrongpassword", hashed) is False
@@ -77,14 +77,14 @@ class TestUtilities:
         from auth import create_access_token
         from jose import jwt, JWTError
         import os
-        
+
         # Test token creation
         data = {"sub": "test@example.com"}
         token = create_access_token(data)
-        
+
         assert isinstance(token, str)
         assert len(token) > 0
-        
+
         # Test token decoding
         secret_key = os.getenv("SECRET_KEY", "supersecretkey")
         try:
@@ -101,14 +101,14 @@ class TestDatabaseConnection:
         """Test database URL configuration"""
         try:
             from database import SQLALCHEMY_DATABASE_URL, engine
-            
+
             # Test that database URL is configured
             assert SQLALCHEMY_DATABASE_URL is not None
             assert len(SQLALCHEMY_DATABASE_URL) > 0
-            
+
             # Test that engine is created
             assert engine is not None
-            
+
         except ImportError:
             pytest.skip("database module not available")
 
@@ -116,12 +116,12 @@ class TestDatabaseConnection:
         """Test database session creation"""
         try:
             from database import SessionLocal
-            
+
             # Test session creation
             session = SessionLocal()
             assert session is not None
             session.close()
-            
+
         except ImportError:
             pytest.skip("database module not available")
 
@@ -133,16 +133,16 @@ class TestErrorHandling:
         """Test handling of invalid JWT tokens"""
         # Try to access protected endpoint with invalid token
         response = client.get(
-            "/pools/my-pools",
-            headers={"Authorization": "Bearer invalid-token"}
+            "/pools/my-pools", headers={"Authorization": "Bearer invalid-token"}
         )
-        
+
         assert response.status_code == 401
 
     def test_missing_token_handling(self, client):
         """Test handling when no token is provided"""
         response = client.get("/pools/my-pools")
-        assert response.status_code == 401
+        # FastAPI HTTPBearer returns 403 (not 401) when no credentials are provided
+        assert response.status_code == 403
 
     def test_malformed_request_handling(self, client):
         """Test handling of malformed requests"""
@@ -150,9 +150,9 @@ class TestErrorHandling:
         response = client.post(
             "/auth/register",
             data="invalid json",
-            headers={"Content-Type": "application/json"}
+            headers={"Content-Type": "application/json"},
         )
-        
+
         assert response.status_code == 422
 
     def test_database_error_handling(self, client):
@@ -169,13 +169,13 @@ class TestPerformance:
         """Test password hashing performance"""
         import time
         from auth import get_password_hash
-        
+
         password = "testpassword123"
-        
+
         start_time = time.time()
         get_password_hash(password)
         end_time = time.time()
-        
+
         # Hashing should complete in reasonable time (less than 1 second)
         assert (end_time - start_time) < 1.0
 
@@ -183,13 +183,13 @@ class TestPerformance:
         """Test JWT token creation performance"""
         import time
         from auth import create_access_token
-        
+
         data = {"sub": "test@example.com"}
-        
+
         start_time = time.time()
         create_access_token(data)
         end_time = time.time()
-        
+
         # Token creation should be fast (less than 0.1 seconds)
         assert (end_time - start_time) < 0.1
 
@@ -200,7 +200,7 @@ class TestConfiguration:
     def test_environment_variables(self):
         """Test environment variable handling"""
         import os
-        
+
         # Test that required environment variables are handled properly
         secret_key = os.getenv("SECRET_KEY", "supersecretkey")
         assert secret_key is not None
@@ -216,7 +216,7 @@ class TestConfiguration:
     def test_full_application_startup(self):
         """Test that the application starts up correctly"""
         from main import app
-        
+
         # Test that app is created successfully
         assert app is not None
         assert app.title == "RunMyPool API"
