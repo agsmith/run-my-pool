@@ -81,3 +81,13 @@ variable "desired_count" {
   type        = number
   default     = 1
 }
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Database
+# ──────────────────────────────────────────────────────────────────────────────
+
+variable "db_password" {
+  description = "Master password for the RDS MySQL instance. Pass on the CLI: -var='db_password=...'"
+  type        = string
+  sensitive   = true
+}
