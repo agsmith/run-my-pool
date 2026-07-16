@@ -1,4 +1,3 @@
-
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import models
@@ -9,7 +8,8 @@ import uvicorn
 import os
 
 # Skip SQLAlchemy table creation since schema is managed by datamodel.sql
-print("Database schema is managed by datamodel.sql - skipping SQLAlchemy table creation")
+# Database schema is managed by Alembic migrations.
+# Run `alembic upgrade head` before starting the server to apply any pending migrations.
 
 app = FastAPI(title="RunMyPool API")
 
@@ -26,13 +26,16 @@ app.add_middleware(
 
 app.include_router(routers.router)
 
+
 @app.get("/")
 def read_root():
     return {"message": "Welcome to the RunMyPool FastAPI backend!"}
 
+
 @app.get("/health")
 def health_check():
     return {"status": "healthy"}
+
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 8000))
