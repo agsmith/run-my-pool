@@ -1,2 +1,10 @@
 .env
 backend/.env
+
+# next-pwa generated service worker files (build artifacts)
+frontend/public/sw.js
+frontend/public/sw.js.map
+frontend/public/workbox-*.js
+frontend/public/workbox-*.js.map
+frontend/public/fallback-*.js
+frontend/public/fallback-*.js.map

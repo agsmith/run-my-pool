@@ -25,6 +25,7 @@ export default function MyApp({ Component, pageProps }) {
         {/* Favicon and app icons */}
         <link rel="icon" href="/favicon.ico" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+        <link rel="manifest" href="/manifest.json" />
         
         <title>Run My Pool - NFL Pick Pool Management</title>
       </Head>
