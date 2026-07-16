@@ -1,13 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from sqlalchemy import and_
+from sqlalchemy import and_, func, or_
 from typing import List
 import uuid
 from datetime import datetime, timezone
 
 from deps import get_db, get_current_user
-from models import Pick, Entry
-from schemas import PickCreate, PickUpdate, PickOut
+from models import Pick, Entry, Schedule, Team
+from schemas import PickCreate, PickUpdate, PickOut, PickBreakdownItem
 from audit_utils import log_create_operation, log_update_operation, log_delete_operation
 
 router = APIRouter()
@@ -232,3 +232,64 @@ async def delete_pick(
     db.delete(pick)
     db.commit()
     return {"message": "Pick deleted successfully"}
+
+
+@router.get(
+    "/picks/pool/{pool_id}/week/{week}/breakdown",
+    response_model=List[PickBreakdownItem],
+)
+def get_pick_breakdown(
+    pool_id: str,
+    week: int,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    """
+    Return per-team pick counts for alive entries in a pool/week.
+    Only includes teams whose game has already kicked off (Schedule.start_time < now).
+    Returns an empty list if no games have started yet.
+    """
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+
+    # Subquery: team IDs with a game that has already started this week
+    started_home = db.query(Schedule.home_team_id).filter(
+        Schedule.week_num == week, Schedule.start_time < now
+    )
+    started_away = db.query(Schedule.away_team_id).filter(
+        Schedule.week_num == week, Schedule.start_time < now
+    )
+    started_team_ids = started_home.union(started_away).subquery()
+
+    rows = (
+        db.query(
+            Pick.team,
+            Pick.team_id,
+            Team.name.label("team_name"),
+            Team.abbrv.label("team_abbrv"),
+            Team.logo.label("team_logo"),
+            func.count(Pick.id).label("count"),
+        )
+        .join(Entry, Pick.entry_id == Entry.id)
+        .join(Team, Pick.team_id == Team.id)
+        .filter(
+            Entry.pool_id == pool_id,
+            Entry.alive == True,
+            Pick.week == week,
+            Pick.team_id.in_(started_team_ids),
+        )
+        .group_by(Pick.team, Pick.team_id, Team.name, Team.abbrv, Team.logo)
+        .order_by(func.count(Pick.id).desc())
+        .all()
+    )
+
+    return [
+        PickBreakdownItem(
+            team=row.team,
+            team_id=row.team_id,
+            team_name=row.team_name,
+            team_abbrv=row.team_abbrv,
+            team_logo=row.team_logo,
+            count=row.count,
+        )
+        for row in rows
+    ]

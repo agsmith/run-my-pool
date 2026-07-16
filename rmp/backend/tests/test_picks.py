@@ -290,3 +290,199 @@ class TestPickEndpoints:
 
         assert resp.status_code == 400, resp.json()
         assert "locked" in resp.json()["detail"].lower()
+
+
+# ---------------------------------------------------------------------------
+# Breakdown endpoint
+# ---------------------------------------------------------------------------
+
+
+def _seed_team(db, team_id, name, abbrv):
+    """Insert a team row directly (bypasses HTTP layer)."""
+    team = models.Team(id=team_id, name=name, abbrv=abbrv, logo=None)
+    db.merge(team)
+    db.commit()
+    return team
+
+
+def _seed_schedule(db, game_id, week_num, home_team_id, away_team_id, start_time):
+    """Insert a schedule row directly."""
+    game = models.Schedule(
+        game_id=game_id,
+        week_num=week_num,
+        home_team_id=home_team_id,
+        away_team_id=away_team_id,
+        start_time=start_time,
+        winning_team_id=None,
+    )
+    db.merge(game)
+    db.commit()
+    return game
+
+
+class TestPickBreakdown:
+    def test_empty_when_no_games_started(self, client, db_session):
+        """Returns empty list when no games have started yet."""
+        from datetime import datetime, timedelta
+
+        token = _register_and_login(client, email="breakdown_empty@example.com")
+        headers = _authed(token)
+        pool_id = _create_pool(client, headers)
+        entry_id = _create_entry(client, headers, pool_id)
+
+        _seed_team(db_session, 1, "New England Patriots", "NE")
+        # Game starts in the future
+        future_time = datetime.utcnow() + timedelta(hours=2)
+        _seed_schedule(
+            db_session,
+            1001,
+            week_num=5,
+            home_team_id=1,
+            away_team_id=2,
+            start_time=future_time,
+        )
+
+        # Plant a pick with team_id set
+        create_resp = _create_pick(client, headers, entry_id, week=5, team="NE")
+        pick_id = create_resp.json()["id"]
+        pick = db_session.query(models.Pick).filter(models.Pick.id == pick_id).first()
+        pick.team_id = 1
+        db_session.commit()
+
+        resp = client.get(f"/picks/pool/{pool_id}/week/5/breakdown", headers=headers)
+        assert resp.status_code == 200
+        assert resp.json() == []
+
+    def test_returns_counts_for_started_games(self, client, db_session):
+        """Returns correct counts when some games have started."""
+        from datetime import datetime, timedelta
+
+        token = _register_and_login(client, email="breakdown_counts@example.com")
+        headers = _authed(token)
+        pool_id = _create_pool(client, headers)
+        entry1 = _create_entry(client, headers, pool_id, name="Entry 1")
+        entry2 = _create_entry(client, headers, pool_id, name="Entry 2")
+
+        _seed_team(db_session, 10, "Kansas City Chiefs", "KC")
+        _seed_team(db_session, 11, "Philadelphia Eagles", "PHI")
+        past_time = datetime.utcnow() - timedelta(hours=1)
+        _seed_schedule(
+            db_session,
+            1002,
+            week_num=6,
+            home_team_id=10,
+            away_team_id=11,
+            start_time=past_time,
+        )
+
+        for entry_id, team_abbrv, team_id in [(entry1, "KC", 10), (entry2, "KC", 10)]:
+            resp = _create_pick(client, headers, entry_id, week=6, team=team_abbrv)
+            pick = (
+                db_session.query(models.Pick)
+                .filter(models.Pick.id == resp.json()["id"])
+                .first()
+            )
+            pick.team_id = team_id
+            db_session.commit()
+
+        resp = client.get(f"/picks/pool/{pool_id}/week/6/breakdown", headers=headers)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert len(data) == 1
+        assert data[0]["team_abbrv"] == "KC"
+        assert data[0]["count"] == 2
+
+    def test_eliminated_entries_excluded(self, client, db_session):
+        """Eliminated entries are not counted in the breakdown."""
+        from datetime import datetime, timedelta
+
+        token = _register_and_login(client, email="breakdown_elim@example.com")
+        headers = _authed(token)
+        pool_id = _create_pool(client, headers)
+        alive_entry = _create_entry(client, headers, pool_id, name="Alive")
+        dead_entry = _create_entry(client, headers, pool_id, name="Dead")
+
+        _seed_team(db_session, 20, "Buffalo Bills", "BUF")
+        _seed_team(db_session, 21, "Miami Dolphins", "MIA")
+        past_time = datetime.utcnow() - timedelta(hours=1)
+        _seed_schedule(
+            db_session,
+            1003,
+            week_num=7,
+            home_team_id=20,
+            away_team_id=21,
+            start_time=past_time,
+        )
+
+        for entry_id, team_abbrv, team_id in [
+            (alive_entry, "BUF", 20),
+            (dead_entry, "BUF", 20),
+        ]:
+            resp = _create_pick(client, headers, entry_id, week=7, team=team_abbrv)
+            pick = (
+                db_session.query(models.Pick)
+                .filter(models.Pick.id == resp.json()["id"])
+                .first()
+            )
+            pick.team_id = team_id
+            db_session.commit()
+
+        # Eliminate the dead entry
+        entry = (
+            db_session.query(models.Entry).filter(models.Entry.id == dead_entry).first()
+        )
+        entry.alive = False
+        db_session.commit()
+
+        resp = client.get(f"/picks/pool/{pool_id}/week/7/breakdown", headers=headers)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert len(data) == 1
+        assert data[0]["count"] == 1  # only the alive entry
+
+    def test_sorted_by_count_descending(self, client, db_session):
+        """Results are ordered from most picks to fewest."""
+        from datetime import datetime, timedelta
+        import uuid as uuid_mod
+
+        token = _register_and_login(client, email="breakdown_sort@example.com")
+        headers = _authed(token)
+        pool_id = _create_pool(client, headers)
+
+        _seed_team(db_session, 30, "Dallas Cowboys", "DAL")
+        _seed_team(db_session, 31, "New York Giants", "NYG")
+        past_time = datetime.utcnow() - timedelta(hours=1)
+        _seed_schedule(
+            db_session,
+            1004,
+            week_num=8,
+            home_team_id=30,
+            away_team_id=31,
+            start_time=past_time,
+        )
+
+        # 2 entries pick DAL, 1 picks NYG
+        for i, (team_abbrv, team_id) in enumerate(
+            [("DAL", 30), ("DAL", 30), ("NYG", 31)]
+        ):
+            token_i = _register_and_login(
+                client, email=f"breakdown_sort_{i}@example.com"
+            )
+            headers_i = _authed(token_i)
+            entry_id = _create_entry(client, headers_i, pool_id, name=f"Entry {i}")
+            resp = _create_pick(client, headers_i, entry_id, week=8, team=team_abbrv)
+            pick = (
+                db_session.query(models.Pick)
+                .filter(models.Pick.id == resp.json()["id"])
+                .first()
+            )
+            pick.team_id = team_id
+            db_session.commit()
+
+        resp = client.get(f"/picks/pool/{pool_id}/week/8/breakdown", headers=headers)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data[0]["team_abbrv"] == "DAL"
+        assert data[0]["count"] == 2
+        assert data[1]["team_abbrv"] == "NYG"
+        assert data[1]["count"] == 1

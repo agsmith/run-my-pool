@@ -59,8 +59,72 @@ const MOCK_MATCHUPS = {
     { home: 'LAC', away: 'LV', time: '4:05 PM ET', date: '09/08' },
     { home: 'NYG', away: 'ARI', time: '4:25 PM ET', date: '09/08' },
     { home: 'SEA', away: 'DEN', time: '4:05 PM ET', date: '09/08' }
-  ]
+   ]
 };
+
+function PickBreakdownPanel({ data, week }) {
+  const total = data.reduce((sum, item) => sum + item.count, 0);
+  if (!data || data.length === 0 || total === 0) return null;
+
+  return (
+    <div style={{
+      backgroundColor: '#f8f9fa',
+      border: '1px solid #dee2e6',
+      borderRadius: '8px',
+      padding: '1rem 1.25rem',
+      marginBottom: '1.5rem',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', marginBottom: '0.75rem', gap: '0.5rem', flexWrap: 'wrap' }}>
+        <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: '600' }}>
+          Week {week} Pick Breakdown
+        </h3>
+        <span style={{
+          fontSize: '0.75rem',
+          backgroundColor: '#dc3545',
+          color: '#fff',
+          padding: '2px 8px',
+          borderRadius: '10px',
+          fontWeight: '500',
+        }}>
+          🔒 Locked
+        </span>
+        <span style={{ fontSize: '0.8rem', color: '#666', marginLeft: 'auto' }}>
+          {total} alive {total === 1 ? 'entry' : 'entries'}
+        </span>
+      </div>
+
+      {data.map((item) => {
+        const pct = Math.round((item.count / total) * 100);
+        return (
+          <div key={item.team_id} style={{ marginBottom: '0.4rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <img
+              src={`/nfl/${item.team_abbrv.toLowerCase()}.svg`}
+              alt={item.team_abbrv}
+              style={{ width: '20px', height: '20px', objectFit: 'contain', flexShrink: 0 }}
+              onError={(e) => { e.target.style.display = 'none'; }}
+            />
+            <span style={{ width: '36px', fontSize: '0.8rem', fontWeight: '500', flexShrink: 0 }}>
+              {item.team_abbrv}
+            </span>
+            <div style={{ flex: 1, backgroundColor: '#e9ecef', borderRadius: '4px', height: '18px', overflow: 'hidden' }}>
+              <div style={{
+                width: `${pct}%`,
+                minWidth: pct > 0 ? '4px' : '0',
+                height: '100%',
+                backgroundColor: '#667eea',
+                borderRadius: '4px',
+                transition: 'width 0.3s ease',
+              }} />
+            </div>
+            <span style={{ width: '64px', fontSize: '0.8rem', color: '#555', textAlign: 'right', flexShrink: 0 }}>
+              {item.count} ({pct}%)
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 export default function LeagueEntries() {
   // Helper to check if pool lock time is in the past
@@ -76,6 +140,8 @@ export default function LeagueEntries() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [selectedWeek, setSelectedWeek] = useState(null);
+  const [breakdownData, setBreakdownData] = useState([]);
+  const [breakdownLoading, setBreakdownLoading] = useState(false);
   const [selectedEntry, setSelectedEntry] = useState(null);
   const [showMatchupOverlay, setShowMatchupOverlay] = useState(false);
   const [selectedTeam, setSelectedTeam] = useState(null);
@@ -233,6 +299,31 @@ export default function LeagueEntries() {
       return [];
     }
   };
+
+  const fetchBreakdown = async (week) => {
+    if (!week || !id) return;
+    setBreakdownLoading(true);
+    try {
+      const token = localStorage.getItem('access_token');
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/picks/pool/${id}/week/${week}/breakdown`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (res.ok) {
+        setBreakdownData(await res.json());
+      } else {
+        setBreakdownData([]);
+      }
+    } catch {
+      setBreakdownData([]);
+    } finally {
+      setBreakdownLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (selectedWeek) fetchBreakdown(selectedWeek);
+  }, [selectedWeek, id]);
 
   const handlePickClick = async (entry, week) => {
     setSelectedEntry(entry);
@@ -1070,9 +1161,11 @@ export default function LeagueEntries() {
             )}
           </div>
         ) : (
-          <div style={{ 
-            overflowX: 'auto',
-            borderRadius: '12px',
+          <>
+            <PickBreakdownPanel data={breakdownData} week={selectedWeek} />
+            <div style={{ 
+              overflowX: 'auto',
+              borderRadius: '12px',
             boxShadow: '0 8px 32px rgba(102, 126, 234, 0.15)',
             backgroundColor: 'white'
           }}>
@@ -1250,6 +1343,7 @@ export default function LeagueEntries() {
               </tbody>
             </table>
           </div>
+          </>
         )}
 
             {/* Footer Navigation */}

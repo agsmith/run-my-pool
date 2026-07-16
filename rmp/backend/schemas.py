@@ -172,6 +172,15 @@ class AuditLogOut(BaseModel):
         orm_mode = True
 
 
+class PickBreakdownItem(BaseModel):
+    team: str
+    team_id: int
+    team_name: str
+    team_abbrv: str
+    team_logo: Optional[str] = None
+    count: int
+
+
 class MessageBoardCreate(BaseModel):
     pool_id: str
     message: str
