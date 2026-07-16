@@ -62,6 +62,12 @@ const MOCK_MATCHUPS = {
 };
 
 export default function LeagueEntries() {
+  // Helper to check if pool lock time is in the past
+  const isPoolLocked = () => {
+    if (!league || !league.lock_time) return false;
+    const lockTime = new Date(league.lock_time);
+    return isNaN(lockTime) ? false : lockTime < new Date();
+  };
   const [league, setLeague] = useState(null);
   const [entries, setEntries] = useState([]);
   const [allPicks, setAllPicks] = useState({});
@@ -261,28 +267,33 @@ export default function LeagueEntries() {
     const hasTeam = pick && pick.team;
     const isEntryAlive = entry.alive !== false; // Default to true if undefined
     
-    // Determine the background color based on pick result and entry status
-    let backgroundColor = '#f9f9f9'; // Default for empty circles
-    let borderColor = '#ddd';
+    // Determine the border color based on pick result and entry status
+    let backgroundColor = 'transparent';
+    let borderColor = 'transparent';
+    let textColor = '#bbb';
     let cursor = 'pointer';
-    
+    let borderWidth = '1px';
+    let opacity = 0.5;
     if (!isEntryAlive) {
-      // Entry is eliminated - all circles are red, no interaction allowed
-      backgroundColor = '#dc3545'; // Red
-      borderColor = '#dc3545';
+      borderColor = '#fbeaea'; // faint red
+      textColor = '#fbeaea';
       cursor = 'not-allowed';
+      borderWidth = '1px';
+      opacity = 0.4;
     } else if (hasTeam) {
-      // Entry is alive and has a team picked
       if (pick.result === 'win') {
-        backgroundColor = '#28a745'; // Green for wins
-        borderColor = '#28a745';
+        borderColor = '#e6f4ea'; // faint green
+        textColor = '#aee9c1';
+        borderWidth = '1.2px';
+        opacity = 0.7;
       } else if (pick.result === 'loss') {
-        backgroundColor = '#dc3545'; // Red for losses
-        borderColor = '#dc3545';
+        borderColor = '#fbeaea';
+        textColor = '#f5b5b5';
+        borderWidth = '1.2px';
+        opacity = 0.7;
       } else {
-        // Pending or no result yet - use team color
-        backgroundColor = NFL_TEAMS[pick.team]?.color || '#f0f0f0';
-        borderColor = '#ddd';
+        borderColor = '#eee';
+        textColor = '#bbb';
       }
     }
 
@@ -292,33 +303,21 @@ export default function LeagueEntries() {
         onClick={() => isEntryAlive ? handlePickClick(entry, week) : null}
         disabled={!isEntryAlive}
         style={{
-          width: '40px',
-          height: '40px',
+          width: '32px',
+          height: '32px',
           borderRadius: '50%',
-          border: `2px solid ${borderColor}`,
+          border: `${borderWidth} solid ${borderColor}`,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           cursor: cursor,
           backgroundColor: backgroundColor,
-          color: (hasTeam || !isEntryAlive) ? 'white' : '#333',
-          fontWeight: 'bold',
-          fontSize: hasTeam ? '10px' : '12px',
+          color: textColor,
+          fontWeight: 400,
+          fontSize: hasTeam ? '9px' : '11px',
           transition: 'all 0.2s ease',
           margin: '2px',
-          opacity: !isEntryAlive ? 0.8 : 1
-        }}
-        onMouseEnter={(e) => {
-          if (isEntryAlive) {
-            e.target.style.transform = 'scale(1.1)';
-            e.target.style.boxShadow = '0 2px 8px rgba(0,0,0,0.2)';
-          }
-        }}
-        onMouseLeave={(e) => {
-          if (isEntryAlive) {
-            e.target.style.transform = 'scale(1)';
-            e.target.style.boxShadow = 'none';
-          }
+          opacity: opacity
         }}
         title={!isEntryAlive ? 'Entry eliminated - no more picks allowed' : (pick?.result ? `${pick.team} - ${pick.result}` : '')}
       >
@@ -520,59 +519,6 @@ export default function LeagueEntries() {
         <div style={{ marginBottom: '2rem' }}>
           <h1>{league?.name} - Entries</h1>
           <p style={{ color: '#666', marginBottom: '1rem' }}>Click on any week circle to make or change picks</p>
-          
-          {/* Pick Status Legend */}
-          <div style={{ 
-            backgroundColor: '#f8f9fa', 
-            padding: '1rem', 
-            borderRadius: '8px', 
-            border: '1px solid #e9ecef',
-            marginBottom: '1rem'
-          }}>
-            <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '14px', color: '#495057' }}>Pick Status Legend:</h4>
-            <div style={{ display: 'flex', gap: '2rem', flexWrap: 'wrap', fontSize: '12px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <div style={{ 
-                  width: '20px', 
-                  height: '20px', 
-                  borderRadius: '50%', 
-                  backgroundColor: '#28a745', 
-                  border: '2px solid #28a745' 
-                }}></div>
-                <span>Win</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <div style={{ 
-                  width: '20px', 
-                  height: '20px', 
-                  borderRadius: '50%', 
-                  backgroundColor: '#dc3545', 
-                  border: '2px solid #dc3545' 
-                }}></div>
-                <span>Loss (Entry Eliminated)</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <div style={{ 
-                  width: '20px', 
-                  height: '20px', 
-                  borderRadius: '50%', 
-                  backgroundColor: '#f0f0f0', 
-                  border: '2px solid #ddd' 
-                }}></div>
-                <span>Pending/No Result</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <div style={{ 
-                  width: '20px', 
-                  height: '20px', 
-                  borderRadius: '50%', 
-                  backgroundColor: '#f9f9f9', 
-                  border: '2px solid #ddd' 
-                }}></div>
-                <span>No Pick Yet</span>
-              </div>
-            </div>
-          </div>
         </div>
 
         {error && (
@@ -588,35 +534,39 @@ export default function LeagueEntries() {
         )}
 
         <div style={{ marginBottom: '2rem', display: 'flex', gap: '1rem' }}>
-          <button 
-            onClick={handleCreateEntry}
-            style={{ 
-              backgroundColor: '#0070f3', 
-              color: 'white', 
-              padding: '10px 20px', 
-              border: 'none', 
-              borderRadius: '5px', 
-              cursor: 'pointer',
-              fontSize: '16px'
-            }}
-          >
-            Create New Entry
-          </button>
-          {entries.length > 0 && (
-            <button 
-              onClick={handleDeleteLastEntry}
-              style={{ 
-                backgroundColor: '#dc3545', 
-                color: 'white', 
-                padding: '10px 20px', 
-                border: 'none', 
-                borderRadius: '5px', 
-                cursor: 'pointer',
-                fontSize: '16px'
-              }}
-            >
-              Delete Entry
-            </button>
+          {!isPoolLocked() && (
+            <>
+              <button 
+                onClick={handleCreateEntry}
+                style={{ 
+                  backgroundColor: '#0070f3', 
+                  color: 'white', 
+                  padding: '10px 20px', 
+                  border: 'none', 
+                  borderRadius: '5px', 
+                  cursor: 'pointer',
+                  fontSize: '16px'
+                }}
+              >
+                Create New Entry
+              </button>
+              {entries.length > 0 && (
+                <button 
+                  onClick={handleDeleteLastEntry}
+                  style={{ 
+                    backgroundColor: '#dc3545', 
+                    color: 'white', 
+                    padding: '10px 20px', 
+                    border: 'none', 
+                    borderRadius: '5px', 
+                    cursor: 'pointer',
+                    fontSize: '16px'
+                  }}
+                >
+                  Delete Entry
+                </button>
+              )}
+            </>
           )}
         </div>
 
@@ -632,20 +582,22 @@ export default function LeagueEntries() {
             <p style={{ color: '#666', marginBottom: '1rem' }}>
               You haven't created any entries for this league yet.
             </p>
-            <button 
-              onClick={handleCreateEntry}
-              style={{ 
-                backgroundColor: '#0070f3', 
-                color: 'white', 
-                padding: '10px 20px', 
-                border: 'none', 
-                borderRadius: '5px', 
-                cursor: 'pointer',
-                fontSize: '16px'
-              }}
-            >
-              Create Your First Entry
-            </button>
+            {!isPoolLocked() && (
+              <button 
+                onClick={handleCreateEntry}
+                style={{ 
+                  backgroundColor: '#0070f3', 
+                  color: 'white', 
+                  padding: '10px 20px', 
+                  border: 'none', 
+                  borderRadius: '5px', 
+                  cursor: 'pointer',
+                  fontSize: '16px'
+                }}
+              >
+                Create Your First Entry
+              </button>
+            )}
           </div>
         ) : (
           <div style={{ overflowX: 'auto' }}>
@@ -775,6 +727,24 @@ export default function LeagueEntries() {
           </div>
         )}
 
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
+          <div></div>
+          <button 
+            onClick={() => router.push('/dashboard')}
+            style={{ 
+              backgroundColor: '#6c757d', 
+              color: 'white', 
+              padding: '10px 20px', 
+              border: 'none', 
+              borderRadius: '5px', 
+              cursor: 'pointer',
+              fontSize: '16px',
+              marginLeft: 'auto'
+            }}
+          >
+            Back to Dashboard
+          </button>
+        </div>
         <div style={{ marginTop: '2rem', display: 'flex', gap: '1rem' }}>
           <button 
             onClick={() => router.push(`/league/${id}`)}
@@ -789,20 +759,6 @@ export default function LeagueEntries() {
             }}
           >
             Back to League
-          </button>
-          <button 
-            onClick={() => router.push('/dashboard')}
-            style={{ 
-              backgroundColor: '#6c757d', 
-              color: 'white', 
-              padding: '10px 20px', 
-              border: 'none', 
-              borderRadius: '5px', 
-              cursor: 'pointer',
-              fontSize: '16px'
-            }}
-          >
-            Back to Dashboard
           </button>
         </div>
 

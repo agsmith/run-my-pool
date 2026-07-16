@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import ProtectedRoute from '../../../components/ProtectedRoute';
@@ -62,6 +63,12 @@ const MOCK_MATCHUPS = {
 };
 
 export default function LeagueEntries() {
+  // Helper to check if pool lock time is in the past
+  const isPoolLocked = () => {
+    if (!league || !league.lock_time) return false;
+    const lockTime = new Date(league.lock_time);
+    return isNaN(lockTime) ? false : lockTime < new Date();
+  };
   const [league, setLeague] = useState(null);
   const [entries, setEntries] = useState([]);
   const [allPicks, setAllPicks] = useState({});
@@ -361,28 +368,33 @@ export default function LeagueEntries() {
     const hasTeam = pick && pick.team;
     const isEntryAlive = entry.alive !== false; // Default to true if undefined
     
-    // Determine the background color based on pick result and entry status
-    let backgroundColor = '#f9f9f9'; // Default for empty circles
-    let borderColor = '#ddd';
+    // More visible outlined style for pick circles
+    let backgroundColor = '#fff';
+    let borderColor = '#ccc';
+    let textColor = '#666';
     let cursor = 'pointer';
-    
+    let borderWidth = '2px';
+    let opacity = 1;
     if (!isEntryAlive) {
-      // Entry is eliminated - all circles are red, no interaction allowed
-      backgroundColor = '#dc3545'; // Red
-      borderColor = '#dc3545';
+      borderColor = '#f19999';
+      textColor = '#d32f2f';
       cursor = 'not-allowed';
+      borderWidth = '2px';
+      opacity = 0.7;
     } else if (hasTeam) {
-      // Entry is alive and has a team picked
       if (pick.result === 'win') {
-        backgroundColor = '#28a745'; // Green for wins
-        borderColor = '#28a745';
+        borderColor = '#4caf50';
+        textColor = '#388e3c';
+        borderWidth = '2.5px';
+        opacity = 1;
       } else if (pick.result === 'loss') {
-        backgroundColor = '#dc3545'; // Red for losses
-        borderColor = '#dc3545';
+        borderColor = '#f44336';
+        textColor = '#d32f2f';
+        borderWidth = '2.5px';
+        opacity = 1;
       } else {
-        // Pending or no result yet - use white background
-        backgroundColor = '#ffffff';
-        borderColor = '#ddd';
+        borderColor = '#bbb';
+        textColor = '#666';
       }
     }
 
@@ -392,57 +404,39 @@ export default function LeagueEntries() {
         onClick={() => isEntryAlive ? handlePickClick(entry, week) : null}
         disabled={!isEntryAlive}
         style={{
-          width: '50px',
-          height: '50px',
+          width: '36px',
+          height: '36px',
           borderRadius: '50%',
-          border: `2px solid ${borderColor}`,
+          border: `${borderWidth} solid ${borderColor}`,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           cursor: cursor,
           backgroundColor: backgroundColor,
-          color: (!isEntryAlive || (hasTeam && pick.result)) ? 'white' : '#333',
-          fontWeight: 'bold',
+          color: textColor,
+          fontWeight: 500,
           fontSize: hasTeam ? '10px' : '12px',
           transition: 'all 0.2s ease',
           margin: '2px auto',
           position: 'relative',
           overflow: 'hidden',
-          opacity: !isEntryAlive ? 0.8 : 1
-        }}
-        onMouseEnter={(e) => {
-          if (isEntryAlive) {
-            e.target.style.transform = 'scale(1.1)';
-            e.target.style.boxShadow = '0 2px 8px rgba(0,0,0,0.2)';
-          }
-        }}
-        onMouseLeave={(e) => {
-          if (isEntryAlive) {
-            e.target.style.transform = 'scale(1)';
-            e.target.style.boxShadow = 'none';
-          }
+          opacity: opacity
         }}
         title={!isEntryAlive ? 'Entry eliminated - no more picks allowed' : (pick?.result ? `${pick.team} - ${pick.result}` : '')}
       >
         {hasTeam ? (
-          <div style={{ 
-            display: 'flex', 
-            flexDirection: 'column', 
-            alignItems: 'center',
-            justifyContent: 'center' 
-          }}>
-            <img 
-              src={`/nfl/${NFL_TEAMS[pick.team]?.logo}`} 
-              alt={`${pick.team} logo`}
-              style={{ 
-                width: '24px', 
-                height: '24px',
-                marginBottom: '2px',
-                filter: (!isEntryAlive || (pick.result && pick.result !== 'pending')) ? 'brightness(0) invert(1)' : 'none'
-              }}
-            />
-            <span style={{ fontSize: '8px', lineHeight: '1' }}>{pick.team}</span>
-          </div>
+          <img
+            src={`/nfl/${NFL_TEAMS[pick.team]?.logo}`}
+            alt={`${pick.team} logo`}
+            style={{
+              width: '20px',
+              height: '20px',
+              marginRight: '0',
+              opacity: 1,
+              display: 'block',
+              margin: '0 auto 2px auto'
+            }}
+          />
         ) : (
           week
         )}
@@ -673,13 +667,15 @@ export default function LeagueEntries() {
   };
 
   const handleCreateEntry = async () => {
+    if (isPoolLocked()) {
+      setError('Pool is locked. No new entries can be created.');
+      return;
+    }
     try {
       const token = localStorage.getItem('access_token');
-      
       // Generate default entry name: "Entry " + entry count
       const entryCount = entries.length + 1;
       const defaultName = `Entry ${entryCount}`;
-      
       const res = await fetch(process.env.NEXT_PUBLIC_API_URL + '/entries/create', {
         method: 'POST',
         headers: { 
@@ -691,14 +687,11 @@ export default function LeagueEntries() {
           pool_id: id
         })
       });
-
       if (res.ok) {
         const newEntry = await res.json();
         console.log('Created new entry:', newEntry);
-        
         // Add the new entry to the existing entries
         setEntries(prevEntries => [...prevEntries, newEntry]);
-        
         // Initialize picks for the new entry as empty
         setAllPicks(prevPicks => ({
           ...prevPicks,
@@ -715,23 +708,24 @@ export default function LeagueEntries() {
   };
 
   const handleDeleteLastEntry = async () => {
+    if (isPoolLocked()) {
+      setError('Pool is locked. Entries cannot be deleted.');
+      return;
+    }
     if (entries.length === 0) {
       setError('No entries to delete');
       return;
     }
-
     // Find the most recently created entry (highest created_at timestamp)
     const lastEntry = entries.reduce((latest, current) => {
       return new Date(current.created_at) > new Date(latest.created_at) ? current : latest;
     });
-
     try {
       const token = localStorage.getItem('access_token');
       const res = await fetch(process.env.NEXT_PUBLIC_API_URL + `/entries/${lastEntry.id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      
       if (res.ok) {
         fetchLeagueAndEntries(); // Refresh the list
       } else {
@@ -917,59 +911,6 @@ export default function LeagueEntries() {
               Click on any week circle to make or change picks
             </p>
             
-            {/* Pick Status Legend */}
-            <div style={{ 
-              backgroundColor: 'rgba(255, 255, 255, 0.1)', 
-              padding: '1rem', 
-              borderRadius: '8px', 
-              border: '1px solid rgba(255, 255, 255, 0.2)',
-              backdropFilter: 'blur(10px)',
-              marginTop: '1rem'
-            }}>
-              <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '14px', color: 'rgba(255, 255, 255, 0.9)' }}>Pick Status Legend:</h4>
-              <div style={{ display: 'flex', gap: '2rem', flexWrap: 'wrap', fontSize: '12px', justifyContent: 'center' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'white' }}>
-                  <div style={{ 
-                    width: '20px', 
-                    height: '20px', 
-                    borderRadius: '50%', 
-                    backgroundColor: '#28a745', 
-                    border: '2px solid #28a745' 
-                  }}></div>
-                  <span>Win</span>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'white' }}>
-                  <div style={{ 
-                    width: '20px', 
-                    height: '20px', 
-                    borderRadius: '50%', 
-                    backgroundColor: '#dc3545', 
-                    border: '2px solid #dc3545' 
-                  }}></div>
-                  <span>Loss (Entry Eliminated)</span>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'white' }}>
-                  <div style={{ 
-                    width: '20px', 
-                    height: '20px', 
-                    borderRadius: '50%', 
-                    backgroundColor: '#f0f0f0', 
-                    border: '2px solid #ddd' 
-                  }}></div>
-                  <span>Pending/No Result</span>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'white' }}>
-                  <div style={{ 
-                    width: '20px', 
-                    height: '20px', 
-                    borderRadius: '50%', 
-                    backgroundColor: '#f9f9f9', 
-                    border: '2px solid #ddd' 
-                  }}></div>
-                  <span>No Pick Yet</span>
-                </div>
-              </div>
-            </div>
           </div>
 
           {/* Main Content Card */}
@@ -1002,61 +943,65 @@ export default function LeagueEntries() {
               gap: '1rem', 
               flexWrap: 'wrap'
             }}>
-              <button 
-                onClick={handleCreateEntry}
-                style={{ 
-                  backgroundColor: '#667eea', 
-                  color: 'white', 
-                  padding: '0.75rem 1.5rem', 
-                  border: 'none', 
-                  borderRadius: '8px', 
-                  cursor: 'pointer',
-                  fontSize: '1rem',
-                  fontWeight: '600',
-                  transition: 'all 0.2s ease',
-                  boxShadow: '0 4px 12px rgba(102, 126, 234, 0.4)'
-                }}
-                onMouseEnter={(e) => {
-                  e.target.style.backgroundColor = '#5a67d8';
-                  e.target.style.transform = 'translateY(-1px)';
-                  e.target.style.boxShadow = '0 6px 16px rgba(102, 126, 234, 0.5)';
-                }}
-                onMouseLeave={(e) => {
-                  e.target.style.backgroundColor = '#667eea';
-                  e.target.style.transform = 'translateY(0)';
-                  e.target.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.4)';
-                }}
-              >
-                Create New Entry
-              </button>
-              {entries.length > 0 && (
-                <button 
-                  onClick={handleDeleteLastEntry}
-                  style={{ 
-                    backgroundColor: '#e53e3e', 
-                    color: 'white', 
-                    padding: '0.75rem 1.5rem', 
-                    border: 'none', 
-                    borderRadius: '8px', 
-                    cursor: 'pointer',
-                    fontSize: '1rem',
-                    fontWeight: '600',
-                    transition: 'all 0.2s ease',
-                    boxShadow: '0 4px 12px rgba(229, 62, 62, 0.4)'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.target.style.backgroundColor = '#c53030';
-                    e.target.style.transform = 'translateY(-1px)';
-                    e.target.style.boxShadow = '0 6px 16px rgba(229, 62, 62, 0.5)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.target.style.backgroundColor = '#e53e3e';
-                    e.target.style.transform = 'translateY(0)';
-                    e.target.style.boxShadow = '0 4px 12px rgba(229, 62, 62, 0.4)';
-                  }}
-                >
-                  Delete Entry
-                </button>
+              {!isPoolLocked() && (
+                <>
+                  <button 
+                    onClick={handleCreateEntry}
+                    style={{ 
+                      backgroundColor: '#667eea', 
+                      color: 'white', 
+                      padding: '0.75rem 1.5rem', 
+                      border: 'none', 
+                      borderRadius: '8px', 
+                      cursor: 'pointer',
+                      fontSize: '1rem',
+                      fontWeight: '600',
+                      transition: 'all 0.2s ease',
+                      boxShadow: '0 4px 12px rgba(102, 126, 234, 0.4)'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.target.style.backgroundColor = '#5a67d8';
+                      e.target.style.transform = 'translateY(-1px)';
+                      e.target.style.boxShadow = '0 6px 16px rgba(102, 126, 234, 0.5)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.target.style.backgroundColor = '#667eea';
+                      e.target.style.transform = 'translateY(0)';
+                      e.target.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.4)';
+                    }}
+                  >
+                    Create New Entry
+                  </button>
+                  {entries.length > 0 && (
+                    <button 
+                      onClick={handleDeleteLastEntry}
+                      style={{ 
+                        backgroundColor: '#e53e3e', 
+                        color: 'white', 
+                        padding: '0.75rem 1.5rem', 
+                        border: 'none', 
+                        borderRadius: '8px', 
+                        cursor: 'pointer',
+                        fontSize: '1rem',
+                        fontWeight: '600',
+                        transition: 'all 0.2s ease',
+                        boxShadow: '0 4px 12px rgba(229, 62, 62, 0.4)'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.target.style.backgroundColor = '#c53030';
+                        e.target.style.transform = 'translateY(-1px)';
+                        e.target.style.boxShadow = '0 6px 16px rgba(229, 62, 62, 0.5)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.target.style.backgroundColor = '#e53e3e';
+                        e.target.style.transform = 'translateY(0)';
+                        e.target.style.boxShadow = '0 4px 12px rgba(229, 62, 62, 0.4)';
+                      }}
+                    >
+                      Delete Entry
+                    </button>
+                  )}
+                </>
               )}
             </div>
 
@@ -1094,33 +1039,35 @@ export default function LeagueEntries() {
             }}>
               You haven't created any entries for this pool yet.
             </p>
-            <button 
-              onClick={handleCreateEntry}
-              style={{ 
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                color: 'white', 
-                padding: '1rem 2rem', 
-                border: 'none', 
-                borderRadius: '12px', 
-                cursor: 'pointer',
-                fontSize: '1.1rem',
-                fontWeight: '600',
-                transition: 'all 0.3s ease',
-                boxShadow: '0 8px 24px rgba(102, 126, 234, 0.4)',
-                textTransform: 'none',
-                letterSpacing: '0.5px'
-              }}
-              onMouseEnter={(e) => {
-                e.target.style.transform = 'translateY(-2px)';
-                e.target.style.boxShadow = '0 12px 32px rgba(102, 126, 234, 0.5)';
-              }}
-              onMouseLeave={(e) => {
-                e.target.style.transform = 'translateY(0)';
-                e.target.style.boxShadow = '0 8px 24px rgba(102, 126, 234, 0.4)';
-              }}
-            >
-              Create Your First Entry
-            </button>
+            {!isPoolLocked() && (
+              <button 
+                onClick={handleCreateEntry}
+                style={{ 
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  color: 'white', 
+                  padding: '1rem 2rem', 
+                  border: 'none', 
+                  borderRadius: '12px', 
+                  cursor: 'pointer',
+                  fontSize: '1.1rem',
+                  fontWeight: '600',
+                  transition: 'all 0.3s ease',
+                  boxShadow: '0 8px 24px rgba(102, 126, 234, 0.4)',
+                  textTransform: 'none',
+                  letterSpacing: '0.5px'
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.transform = 'translateY(-2px)';
+                  e.target.style.boxShadow = '0 12px 32px rgba(102, 126, 234, 0.5)';
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.transform = 'translateY(0)';
+                  e.target.style.boxShadow = '0 8px 24px rgba(102, 126, 234, 0.4)';
+                }}
+              >
+                Create Your First Entry
+              </button>
+            )}
           </div>
         ) : (
           <div style={{ 
