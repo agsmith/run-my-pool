@@ -160,6 +160,22 @@ resource "aws_lb_listener_rule" "backend_api_3" {
   }
 }
 
+resource "aws_lb_listener_rule" "backend_api_4" {
+  listener_arn = aws_lb_listener.https.arn
+  priority     = 13
+
+  condition {
+    path_pattern {
+      values = ["/schedule/*", "/teams/*"]
+    }
+  }
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.backend.arn
+  }
+}
+
 # ──────────────────────────────────────────────────────────────────────────────
 # Route 53
 # ──────────────────────────────────────────────────────────────────────────────
