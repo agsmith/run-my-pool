@@ -1,7 +1,7 @@
 import json
 import os
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timezone, date
 from typing import Dict, List, Optional
 import boto3
 from sqlalchemy import create_engine, and_, func
@@ -16,23 +16,103 @@ from models import Base, Schedule, Team, Pick, Entry
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
+# SSM parameter that stores the date when all games for the week were finalised.
+# Format: "YYYY-MM-DD"  (ET date)
+SSM_GAMES_DONE_PARAM = os.environ.get(
+    "SSM_GAMES_DONE_PARAM", "/runmypool/nfl-games-done-date"
+)
+
+ssm_client = boto3.client("ssm", region_name="us-east-1")
+
+
+def get_et_date_str() -> str:
+    """Return today's date as YYYY-MM-DD in US Eastern Time."""
+    now_utc = datetime.now(timezone.utc)
+    et_hour = (now_utc.hour - 5) % 24
+    # If ET hour is less than UTC hour we've crossed midnight in ET
+    if et_hour > now_utc.hour:
+        # We're still on the previous UTC day in ET
+        from datetime import timedelta
+
+        et_date = (now_utc - timedelta(days=1)).date()
+    else:
+        et_date = now_utc.date()
+    return et_date.isoformat()
+
+
+def all_games_final_today(db) -> bool:
+    """
+    Return True if every game scheduled for the current week that was
+    supposed to be played today (ET) has a determined winner (winning_team_id != 99).
+    Returns False if any game is still unresolved or in-progress.
+    """
+    current_week = get_current_nfl_week()
+    unresolved = (
+        db.query(Schedule)
+        .filter(
+            and_(
+                Schedule.week_num == current_week,
+                Schedule.winning_team_id == 99,
+            )
+        )
+        .count()
+    )
+    logger.info(f"Week {current_week}: {unresolved} game(s) still unresolved in DB")
+    return unresolved == 0
+
+
+def is_done_for_today() -> bool:
+    """
+    Check SSM to see if we already recorded all games final for today's ET date.
+    Returns True (skip processing) if the flag matches today's date.
+    """
+    today = get_et_date_str()
+    try:
+        resp = ssm_client.get_parameter(Name=SSM_GAMES_DONE_PARAM)
+        stored = resp["Parameter"]["Value"]
+        if stored == today:
+            logger.info(f"All games already final for {today} — skipping")
+            return True
+    except ssm_client.exceptions.ParameterNotFound:
+        pass
+    except Exception as e:
+        logger.warning(f"Could not read SSM param {SSM_GAMES_DONE_PARAM}: {e}")
+    return False
+
+
+def mark_done_for_today() -> None:
+    """Write today's ET date to SSM to signal all games are final."""
+    today = get_et_date_str()
+    try:
+        ssm_client.put_parameter(
+            Name=SSM_GAMES_DONE_PARAM,
+            Value=today,
+            Type="String",
+            Overwrite=True,
+        )
+        logger.info(f"Marked all games final for {today} in SSM")
+    except Exception as e:
+        logger.warning(f"Could not write SSM param {SSM_GAMES_DONE_PARAM}: {e}")
+
+
 def get_current_nfl_week() -> int:
     """Calculate current NFL week based on date"""
     now = datetime.now(timezone.utc)
     current_year = now.year
-    
+
     # NFL Week 1 typically starts around September 7-14
     # For 2025, let's assume Week 1 starts September 7, 2025
     week1_start = datetime(current_year, 9, 7, tzinfo=timezone.utc)
-    
+
     if now < week1_start:
         return 1
-    
+
     days_since_week1_end = (now - week1_start).days
     week = (days_since_week1_end // 7) + 1
-    
+
     # Cap at Week 18
     return min(week, 18)
+
 
 def is_nfl_game_time() -> bool:
     """
@@ -40,170 +120,177 @@ def is_nfl_game_time() -> bool:
     Returns True if it's likely that NFL games are being played
     """
     now = datetime.now(timezone.utc)
-    
+
     # Convert to ET for easier comparison
     # UTC is 4-5 hours ahead of ET depending on DST
     # For simplicity, assume 5 hours (EST) during NFL season
     et_hour = (now.hour - 5) % 24
     et_weekday = now.weekday()  # 0=Monday, 6=Sunday
-    
+
     # Check if we're in NFL season (September through February)
     if now.month not in [9, 10, 11, 12, 1, 2]:
         return False
-    
+
     # Sunday (weekday 6): 1:00 PM - 11:30 PM ET
     if et_weekday == 6 and 13 <= et_hour <= 23:
         return True
-    
+
     # Monday (weekday 0): 8:00 PM - 11:30 PM ET (Monday Night Football)
     if et_weekday == 0 and 20 <= et_hour <= 23:
         return True
-    
+
     # Thursday (weekday 3): 8:00 PM - 11:30 PM ET (Thursday Night Football)
     if et_weekday == 3 and 20 <= et_hour <= 23:
         return True
-    
+
     # Saturday (weekday 5): 1:00 PM - 11:30 PM ET (late season games)
     # Only during weeks 15-18 and playoffs
     current_week = get_current_nfl_week()
     if et_weekday == 5 and 13 <= et_hour <= 23 and current_week >= 15:
         return True
-    
+
     return False
+
 
 def lambda_handler(event, context):
     """
     AWS Lambda function to check NFL game results and update database
-    
+
     This function:
-    1. Fetches current NFL game results from ESPN API
-    2. Updates game results in the schedule table
-    3. Updates picks with win/loss status
-    4. Eliminates entries based on losing picks
-    5. Logs all actions for audit trail
+    1. Skips if not during NFL game hours
+    2. Skips if SSM flag says all games are already final for today
+    3. Fetches current NFL game results from ESPN API
+    4. Updates game results in the schedule table
+    5. Updates picks with win/loss status
+    6. Eliminates entries based on losing picks
+    7. If all games for the week are now final, sets SSM flag to stop
+       further invocations until the next game day
     """
     try:
         logger.info("Starting NFL game results update process")
-        
-        # # Check if it's actually game time
-        # if not is_nfl_game_time():
-        #     logger.info("Not during NFL game time, skipping update")
-        #     return {
-        #         'statusCode': 200,
-        #         'body': json.dumps({
-        #             'message': 'Skipped - not during NFL game time',
-        #             'timestamp': datetime.now(timezone.utc).isoformat()
-        #         })
-        #     }
-        
+
+        # Check if it's actually game time
+        if not is_nfl_game_time():
+            logger.info("Not during NFL game time, skipping update")
+            return {
+                "statusCode": 200,
+                "body": json.dumps(
+                    {
+                        "message": "Skipped - not during NFL game time",
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                    }
+                ),
+            }
+
+        # Check SSM flag — skip if all games were already marked final today
+        if is_done_for_today():
+            return {
+                "statusCode": 200,
+                "body": json.dumps(
+                    {
+                        "message": "Skipped - all games already final for today",
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                    }
+                ),
+            }
+
         # Get database connection
         engine = get_database_engine()
         SessionLocal = sessionmaker(bind=engine)
         db = SessionLocal()
-        
+
         try:
             # Get current week
-            # current_week = get_current_nfl_week()
-            for current_week in range(1, 18):
-                logger.info(f"Processing games for week {current_week}")
-                
-                # Fetch game results from ESPN API
-                game_results = fetch_nfl_game_results(current_week)
-                logger.info(f"Results {game_results}")
-                
-                logger.info(f"Fetched {len(game_results)} game results")
-                
-                # Update database with results
-                updates_made = update_game_results(db, game_results)
-                
-                # Update picks based on game results
-                picks_updated = update_picks_results(db, game_results)
-                
-                # Update entry status (eliminate losing entries)
-                entries_eliminated = eliminate_losing_entries(db)
-                
-                # Commit all changes
-                db.commit()
-                
-                response = {
-                    'statusCode': 200,
-                    'body': json.dumps({
-                        'message': 'Successfully updated NFL game results',
-                        'week': current_week,
-                        'games_updated': updates_made,
-                        'picks_updated': picks_updated,
-                        'entries_eliminated': entries_eliminated,
-                        'timestamp': datetime.now(timezone.utc).isoformat()
-                    })
-                }
-                
-                logger.info(f"Process completed successfully: {response['body']}")
-                return response
-                
+            current_week = get_current_nfl_week()
+            logger.info(f"Processing games for week {current_week}")
+
+            # Fetch game results from ESPN API
+            game_results = fetch_nfl_game_results(current_week)
+            logger.info(
+                f"Fetched {len(game_results)} game results for week {current_week}"
+            )
+
+            # Update database with results
+            updates_made = update_game_results(db, game_results)
+
+            # Update picks based on game results
+            picks_updated = update_picks_results(db, game_results)
+
+            # Update entry status (eliminate losing entries)
+            entries_eliminated = eliminate_losing_entries(db)
+
+            # Commit all changes
+            db.commit()
+
+            # Check if all games for this week are now final — if so, set the
+            # SSM flag so we skip all remaining invocations today
+            games_done = all_games_final_today(db)
+            if games_done:
+                mark_done_for_today()
+
+            response = {
+                "statusCode": 200,
+                "body": json.dumps(
+                    {
+                        "message": "Successfully updated NFL game results",
+                        "week": current_week,
+                        "games_updated": updates_made,
+                        "picks_updated": picks_updated,
+                        "entries_eliminated": entries_eliminated,
+                        "all_games_final": games_done,
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                    }
+                ),
+            }
+
+            logger.info(f"Process completed successfully: {response['body']}")
+            return response
+
         except Exception as e:
             db.rollback()
             raise e
         finally:
             db.close()
-            
+
     except Exception as e:
         logger.error(f"Error processing NFL game results: {str(e)}")
         return {
-            'statusCode': 500,
-            'body': json.dumps({
-                'error': str(e),
-                'timestamp': datetime.now(timezone.utc).isoformat()
-            })
+            "statusCode": 500,
+            "body": json.dumps(
+                {"error": str(e), "timestamp": datetime.now(timezone.utc).isoformat()}
+            ),
         }
+
 
 def get_database_engine():
     """Get database engine with proper configuration"""
-    secrets_manager = boto3.client('secretsmanager', 
-                                    config=boto3.session.Config(
-                                        connect_timeout=10,
-                                        read_timeout=10
-                                    ),
-                                    endpoint_url='https://secretsmanager.us-east-1.amazonaws.com')
-    
-    secret_name = 'arn:aws:secretsmanager:us-east-1:739444271939:secret:runmypool/database-url-nRqy5o'
-        
+    secrets_manager = boto3.client(
+        "secretsmanager",
+        config=boto3.session.Config(connect_timeout=10, read_timeout=10),
+        endpoint_url="https://secretsmanager.us-east-1.amazonaws.com",
+    )
+
+    secret_name = "arn:aws:secretsmanager:us-east-1:739444271939:secret:runmypool/database-url-nRqy5o"
+
     try:
         response = secrets_manager.get_secret_value(SecretId=secret_name)
-        database_url = response['SecretString']
-        
+        database_url = response["SecretString"]
+
         # Create engine with proper configuration
         engine = create_engine(
-            database_url, 
-            pool_pre_ping=True,
-            pool_recycle=3600,
-            echo=False
+            database_url, pool_pre_ping=True, pool_recycle=3600, echo=False
         )
-        
+
         # Bind metadata to engine
         Base.metadata.bind = engine
-        
+
         return engine
     except Exception as e:
-        logger.error(f"Failed to retrieve database credentials from Secrets Manager: {e}")
+        logger.error(
+            f"Failed to retrieve database credentials from Secrets Manager: {e}"
+        )
         raise
 
-def get_current_nfl_week() -> int:
-    """Calculate current NFL week based on date"""
-    now = datetime.now(timezone.utc)
-    current_year = now.year
-    
-    # NFL Week 1 typically starts around September 7-14
-    # For 2025, let's assume Week 1 starts September 7, 2025
-    week1_start = datetime(current_year, 9, 7, tzinfo=timezone.utc)
-    
-    if now < week1_start:
-        return 1
-    
-    days_since_week1 = (now - week1_start).days
-    week = (days_since_week1 // 7) + 1
-    
-    # Cap at Week 18
-    return min(week, 18)
 
 def fetch_nfl_game_results(week: int) -> List[Dict]:
     """
@@ -214,63 +301,66 @@ def fetch_nfl_game_results(week: int) -> List[Dict]:
         # ESPN API endpoint for NFL scoreboard
         # This is a free API that provides real-time NFL scores
         url = "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard"
-        
+
         # You can also specify week and season if needed
         params = {
-            'week': week,
-            'seasontype': 2,  # Regular season
-            'year': datetime.now().year
+            "week": week,
+            "seasontype": 2,  # Regular season
+            "year": datetime.now().year,
         }
-        
+
         response = requests.get(url, params=params, timeout=30)
         response.raise_for_status()
-        
+
         data = response.json()
         game_results = []
-        
-        for event in data.get('events', []):
+
+        for event in data.get("events", []):
             # Only process completed games
-            if event['status']['type']['name'] not in ['STATUS_FINAL', 'STATUS_IN_PROGRESS']:
+            if event["status"]["type"]["name"] not in [
+                "STATUS_FINAL",
+                "STATUS_IN_PROGRESS",
+            ]:
                 continue
-                
-            competition = event['competitions'][0]
-            
+
+            competition = event["competitions"][0]
+
             # Extract team information
             home_team = None
             away_team = None
             home_score = 0
             away_score = 0
-            
-            for competitor in competition['competitors']:
-                team_abbrv = competitor['team']['abbreviation']
-                score = int(competitor.get('score', 0))
-                
-                if competitor['homeAway'] == 'home':
+
+            for competitor in competition["competitors"]:
+                team_abbrv = competitor["team"]["abbreviation"]
+                score = int(competitor.get("score", 0))
+
+                if competitor["homeAway"] == "home":
                     home_team = team_abbrv
                     home_score = score
                 else:
                     away_team = team_abbrv
                     away_score = score
-            
+
             # Determine winner
             winning_team = home_team if home_score > away_score else away_team
-            game_status = event['status']['type']['name']
-            
+            game_status = event["status"]["type"]["name"]
+
             game_result = {
-                'home_team_abbrv': home_team,
-                'away_team_abbrv': away_team,
-                'home_score': home_score,
-                'away_score': away_score,
-                'winning_team_abbrv': winning_team,
-                'status': game_status,
-                'week': week,
-                'game_date': event.get('date')
+                "home_team_abbrv": home_team,
+                "away_team_abbrv": away_team,
+                "home_score": home_score,
+                "away_score": away_score,
+                "winning_team_abbrv": winning_team,
+                "status": game_status,
+                "week": week,
+                "game_date": event.get("date"),
             }
-            
+
             game_results.append(game_result)
-            
+
         return game_results
-        
+
     except requests.RequestException as e:
         logger.error(f"Failed to fetch game results from ESPN API: {e}")
         raise
@@ -278,198 +368,247 @@ def fetch_nfl_game_results(week: int) -> List[Dict]:
         logger.error(f"Error processing game results: {e}")
         raise
 
+
 def update_game_results(db, game_results: List[Dict]) -> int:
     """Update schedule table with game results"""
     updates_made = 0
-    
+
     for game in game_results:
-        if game['status'] == 'STATUS_FINAL':
+        if game["status"] == "STATUS_FINAL":
             try:
                 # Find the game in our schedule table
-                home_team = db.query(Team).filter(func.lower(Team.abbrv) == func.lower(game['home_team_abbrv'])).first()
-                away_team = db.query(Team).filter(func.lower(Team.abbrv) == func.lower(game['away_team_abbrv'])).first()
+                home_team = (
+                    db.query(Team)
+                    .filter(
+                        func.lower(Team.abbrv) == func.lower(game["home_team_abbrv"])
+                    )
+                    .first()
+                )
+                away_team = (
+                    db.query(Team)
+                    .filter(
+                        func.lower(Team.abbrv) == func.lower(game["away_team_abbrv"])
+                    )
+                    .first()
+                )
                 print(home_team)
                 if not home_team or not away_team:
-                    logger.warning(f"Team not found for game: {game['home_team_abbrv']} vs {game['away_team_abbrv']}")
-                    continue
-            
-                # Find the scheduled game
-                scheduled_game = db.query(Schedule).filter(
-                    and_(
-                        Schedule.home_team_id == home_team.id,
-                        Schedule.away_team_id == away_team.id,
-                        Schedule.week_num == game['week']
+                    logger.warning(
+                        f"Team not found for game: {game['home_team_abbrv']} vs {game['away_team_abbrv']}"
                     )
-                ).first()
-            
-                if not scheduled_game:
-                    logger.warning(f"Scheduled game not found: {game['home_team_abbrv']} vs {game['away_team_abbrv']}, Week {game['week']}")
                     continue
-            
+
+                # Find the scheduled game
+                scheduled_game = (
+                    db.query(Schedule)
+                    .filter(
+                        and_(
+                            Schedule.home_team_id == home_team.id,
+                            Schedule.away_team_id == away_team.id,
+                            Schedule.week_num == game["week"],
+                        )
+                    )
+                    .first()
+                )
+
+                if not scheduled_game:
+                    logger.warning(
+                        f"Scheduled game not found: {game['home_team_abbrv']} vs {game['away_team_abbrv']}, Week {game['week']}"
+                    )
+                    continue
+
                 # Update winning team
-                if game['winning_team_abbrv'].lower() == home_team.abbrv.lower():
+                if game["winning_team_abbrv"].lower() == home_team.abbrv.lower():
                     scheduled_game.winning_team_id = home_team.id
                     updates_made += 1
                 else:
                     scheduled_game.winning_team_id = away_team.id
                     updates_made += 1
-        
+
             except Exception as e:
                 logger.error(f"Error updating game result for {game}: {e}")
                 continue
-    
+
     return updates_made
+
 
 def update_picks_results(db, game_results: List[Dict]) -> int:
     """Update picks with win/loss results based on game outcomes"""
     picks_updated = 0
-    
+
     # Get the week from game results (they should all be the same week)
-    current_week = game_results[0]['week'] if game_results else None
+    current_week = game_results[0]["week"] if game_results else None
     if not current_week:
         logger.warning("No game results provided for pick updates")
         return 0
-    
-    logger.info(f"Updating picks for week {current_week} based on {len(game_results)} completed games")
-    
+
+    logger.info(
+        f"Updating picks for week {current_week} based on {len(game_results)} completed games"
+    )
+
     # Create a mapping of team abbreviations to winning status
     team_results = {}
     for game in game_results:
-        if game['status'] == 'STATUS_FINAL':
+        if game["status"] == "STATUS_FINAL":
             # Mark winner as 'win' and loser as 'loss'
-            winning_team = game['winning_team_abbrv'].lower()
-            team_results[winning_team] = 'win'
-            
+            winning_team = game["winning_team_abbrv"].lower()
+            team_results[winning_team] = "win"
+
             # Determine the losing team
-            home_team = game['home_team_abbrv'].lower()
-            away_team = game['away_team_abbrv'].lower()
+            home_team = game["home_team_abbrv"].lower()
+            away_team = game["away_team_abbrv"].lower()
             loser = home_team if winning_team != home_team else away_team
-            team_results[loser] = 'loss'
-            
+            team_results[loser] = "loss"
+
             logger.info(f"Game result: {winning_team} beat {loser}")
-    
+
     logger.info(f"Processing results for {len(team_results)} teams")
-    
+
     # Update picks based on results
     for team_abbrv, result in team_results.items():
         try:
             # Find the team (case-insensitive match)
-            team = db.query(Team).filter(func.lower(Team.abbrv) == team_abbrv.lower()).first()
+            team = (
+                db.query(Team)
+                .filter(func.lower(Team.abbrv) == team_abbrv.lower())
+                .first()
+            )
             if not team:
                 logger.warning(f"Team not found in database: {team_abbrv}")
                 continue
-            
+
             # Find all picks for this team in the current week that don't have results yet
-            picks = db.query(Pick).filter(
-                and_(
-                    func.lower(Pick.team) == team.abbrv.lower(),
-                    Pick.week == current_week,
-                    Pick.result.is_(None)
+            picks = (
+                db.query(Pick)
+                .filter(
+                    and_(
+                        func.lower(Pick.team) == team.abbrv.lower(),
+                        Pick.week == current_week,
+                        Pick.result.is_(None),
+                    )
                 )
-            ).all()
-            
-            logger.info(f"Found {len(picks)} pending picks for {team_abbrv} in week {current_week}")
-            
+                .all()
+            )
+
+            logger.info(
+                f"Found {len(picks)} pending picks for {team_abbrv} in week {current_week}"
+            )
+
             for pick in picks:
                 old_result = pick.result
                 pick.result = result
                 picks_updated += 1
-                logger.info(f"Updated pick: Entry {pick.entry_id}, Week {pick.week}, Team {team_abbrv}, {old_result} → {result}")
-                
+                logger.info(
+                    f"Updated pick: Entry {pick.entry_id}, Week {pick.week}, Team {team_abbrv}, {old_result} → {result}"
+                )
+
         except Exception as e:
             logger.error(f"Error updating picks for team {team_abbrv}: {e}")
             continue
-    
+
     logger.info(f"Total picks updated: {picks_updated}")
     return picks_updated
+
 
 def eliminate_losing_entries(db) -> int:
     """Mark entries as eliminated if they have any losing picks"""
     entries_eliminated = 0
-    
+
     try:
         # Find all active entries that have losing picks
-        losing_entries = db.query(Entry).join(Pick).filter(
-            and_(
-                Entry.alive == True,
-                Pick.result == 'loss'
-            )
-        ).distinct().all()
-        
+        losing_entries = (
+            db.query(Entry)
+            .join(Pick)
+            .filter(and_(Entry.alive == True, Pick.result == "loss"))
+            .distinct()
+            .all()
+        )
+
         for entry in losing_entries:
             entry.alive = False
             entries_eliminated += 1
-            
+
             # Log the elimination for audit trail
-            losing_picks = db.query(Pick).filter(
-                and_(
-                    Pick.entry_id == entry.id,
-                    Pick.result == 'loss'
-                )
-            ).all()
-            
-            losing_teams = [pick.team_obj.abbrv for pick in losing_picks if pick.team_obj]
-            logger.info(f"Eliminated entry {entry.id} (User: {entry.user_id}) due to losing pick(s): {', '.join(losing_teams)}")
-        
+            losing_picks = (
+                db.query(Pick)
+                .filter(and_(Pick.entry_id == entry.id, Pick.result == "loss"))
+                .all()
+            )
+
+            losing_teams = [
+                pick.team_obj.abbrv for pick in losing_picks if pick.team_obj
+            ]
+            logger.info(
+                f"Eliminated entry {entry.id} (User: {entry.user_id}) due to losing pick(s): {', '.join(losing_teams)}"
+            )
+
         return entries_eliminated
-        
+
     except Exception as e:
         logger.error(f"Error eliminating losing entries: {e}")
         return 0
+
 
 def create_audit_log(db, action: str, details: str, user_id: str = None):
     """Create an audit log entry"""
     from models import AuditLog
     import uuid
-    
+
     try:
         audit_entry = AuditLog(
             id=str(uuid.uuid4()),
             user_id=user_id,
             action=action,
             details=details,
-            created_at=datetime.now(timezone.utc)
+            created_at=datetime.now(timezone.utc),
         )
         db.add(audit_entry)
         db.commit()
     except Exception as e:
         logger.error(f"Failed to create audit log: {e}")
 
+
 # Additional helper functions for testing and manual operations
+
 
 def test_api_connection():
     """Test function to verify API connectivity"""
     try:
-        response = requests.get("https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard", timeout=10)
+        response = requests.get(
+            "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard",
+            timeout=10,
+        )
         response.raise_for_status()
         return True
     except Exception as e:
         logger.error(f"API connection test failed: {e}")
         return False
 
+
 def manual_game_result_update(game_id: int, winning_team_id: int):
     """Manual function to update a specific game result (for corrections)"""
     engine = get_database_engine()
     SessionLocal = sessionmaker(bind=engine)
     db = SessionLocal()
-    
+
     try:
         from models import Schedule
-        
+
         game = db.query(Schedule).filter(Schedule.game_id == game_id).first()
         if game:
             game.winning_team_id = str(winning_team_id)
             db.commit()
-            logger.info(f"Manually updated game {game_id} winner to team {winning_team_id}")
+            logger.info(
+                f"Manually updated game {game_id} winner to team {winning_team_id}"
+            )
             return True
         else:
             logger.error(f"Game {game_id} not found")
             return False
-            
+
     except Exception as e:
         logger.error(f"Error manually updating game {game_id}: {e}")
         db.rollback()
         return False
     finally:
         db.close()
-
