@@ -197,7 +197,7 @@ resource "aws_route53_record" "apex" {
   alias {
     name                   = aws_lb.main.dns_name
     zone_id                = aws_lb.main.zone_id
-    evaluate_target_health = true
+    evaluate_target_health = false
   }
 }
 
@@ -210,6 +210,6 @@ resource "aws_route53_record" "www" {
   alias {
     name                   = aws_lb.main.dns_name
     zone_id                = aws_lb.main.zone_id
-    evaluate_target_health = true
+    evaluate_target_health = false
   }
 }
