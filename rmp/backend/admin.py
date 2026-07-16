@@ -5,7 +5,7 @@ Admin endpoints for administrative operations
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, func
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 import uuid
 
@@ -210,7 +210,7 @@ def lock_week(
         )
 
     # Lock the pool if not already locked in the past
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
     if pool.lock_time is None or pool.lock_time > now:
         pool.lock_time = now
 
@@ -355,7 +355,7 @@ def admin_update_pick(
     old_team = pick.team
     pick.team = pick_update.team
     pick.locked = True
-    pick.updated_at = datetime.utcnow()
+    pick.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
     db.commit()
     db.refresh(pick)
 

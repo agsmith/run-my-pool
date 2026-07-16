@@ -4,7 +4,7 @@ from typing import List
 import models
 import schemas
 import deps
-from datetime import datetime
+from datetime import datetime, timezone
 import uuid
 
 router = APIRouter(prefix="/leagues", tags=["leagues"])
@@ -53,8 +53,8 @@ def create_league(
             lock_time=lock_time,
             is_private=league.is_private,
             owner_id=current_user.id,
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow()
+            created_at=datetime.now(timezone.utc).replace(tzinfo=None),
+            updated_at=datetime.now(timezone.utc).replace(tzinfo=None)
         )
         
         db.add(db_league)
@@ -167,7 +167,7 @@ def update_league(
                 )
                 db.add(db_rule_value)
         
-        league.updated_at = datetime.utcnow()
+        league.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
         
         db.commit()
         db.refresh(league)

@@ -9,7 +9,7 @@ Routes under test:
 """
 
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 import pytest
 
@@ -71,8 +71,8 @@ def _create_pick(db_session, entry_id, week, team, locked=False):
         week=week,
         team=team,
         locked=locked,
-        created_at=datetime.utcnow(),
-        updated_at=datetime.utcnow(),
+        created_at=datetime.now(timezone.utc),
+        updated_at=datetime.now(timezone.utc),
     )
     db_session.add(pick)
     db_session.commit()

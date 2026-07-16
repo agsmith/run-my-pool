@@ -29,7 +29,7 @@ def _h(token):
 
 
 def _create_pool(client, token, name="Security Pool"):
-    future = (datetime.utcnow() + timedelta(hours=2)).strftime("%Y-%m-%d %H:%M:%S")
+    future = (datetime.now(timezone.utc) + timedelta(hours=2)).strftime("%Y-%m-%d %H:%M:%S")
     resp = client.post(
         "/pools/create",
         json={

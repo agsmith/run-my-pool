@@ -7,7 +7,7 @@ Routes under test:
   DELETE /messages/{message_id}     — delete a message (auth + ownership required)
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 import pytest
 
@@ -296,7 +296,7 @@ class TestMessageBoardRateLimit:
             assert resp.status_code == 200
 
         # Move all messages for this pool 15 minutes into the past
-        old_time = datetime.utcnow() - timedelta(minutes=15)
+        old_time = datetime.now(timezone.utc) - timedelta(minutes=15)
         (
             db_session.query(m.MessageBoard)
             .filter(m.MessageBoard.pool_id == pool_id)

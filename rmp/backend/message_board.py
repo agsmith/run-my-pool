@@ -6,7 +6,7 @@ import schemas
 import deps
 from typing import List
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from audit_utils import log_create_operation, log_delete_operation
 
 router = APIRouter(prefix="/messages", tags=["messages"])
@@ -94,7 +94,7 @@ def post_message(
         raise HTTPException(status_code=400, detail="Message cannot be empty")
 
     # Rate limit: max 5 messages per user per 10-minute rolling window per pool
-    window_start = datetime.utcnow() - timedelta(minutes=RATE_LIMIT_WINDOW_MINUTES)
+    window_start = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(minutes=RATE_LIMIT_WINDOW_MINUTES)
     recent_count = (
         db.query(models.MessageBoard)
         .filter(
@@ -116,7 +116,7 @@ def post_message(
         pool_id=pool_id,
         user_id=current_user.id,
         message=message.message.strip(),
-        created_at=datetime.utcnow(),
+        created_at=datetime.now(timezone.utc).replace(tzinfo=None),
     )
 
     db.add(db_message)

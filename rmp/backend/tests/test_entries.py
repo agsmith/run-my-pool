@@ -1,5 +1,5 @@
 import pytest
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 
 def _register_and_login(client, email="locktest@example.com", password="Test1234!"):
@@ -53,7 +53,7 @@ class TestEntryLockEnforcement:
         """Entry creation on a locked pool returns HTTP 423."""
         token = _register_and_login(client, email="lock1@example.com")
         headers = _authed(client, token)
-        past_lock = (datetime.utcnow() - timedelta(hours=1)).isoformat()
+        past_lock = (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat()
         pool_id = self._create_pool(client, headers, lock_time=past_lock)
 
         response = self._create_entry(client, headers, pool_id)
@@ -65,7 +65,7 @@ class TestEntryLockEnforcement:
         """Entry creation on an unlocked pool succeeds."""
         token = _register_and_login(client, email="lock2@example.com")
         headers = _authed(client, token)
-        future_lock = (datetime.utcnow() + timedelta(hours=24)).isoformat()
+        future_lock = (datetime.now(timezone.utc) + timedelta(hours=24)).isoformat()
         pool_id = self._create_pool(client, headers, lock_time=future_lock)
 
         response = self._create_entry(client, headers, pool_id)
@@ -94,7 +94,7 @@ class TestEntryLockEnforcement:
         headers = _authed(client, token)
 
         # Create entry while pool is unlocked
-        future_lock = (datetime.utcnow() + timedelta(hours=24)).isoformat()
+        future_lock = (datetime.now(timezone.utc) + timedelta(hours=24)).isoformat()
         pool_id = self._create_pool(client, headers, lock_time=future_lock)
         create_response = self._create_entry(client, headers, pool_id)
         entry_id = create_response.json()["id"]
@@ -103,7 +103,7 @@ class TestEntryLockEnforcement:
         import models
 
         pool = db_session.query(models.Pool).filter(models.Pool.id == pool_id).first()
-        pool.lock_time = datetime.utcnow() - timedelta(hours=1)
+        pool.lock_time = datetime.now(timezone.utc) - timedelta(hours=1)
         db_session.commit()
 
         response = client.delete(f"/entries/{entry_id}", headers=headers)
@@ -115,7 +115,7 @@ class TestEntryLockEnforcement:
         """Entry deletion on an unlocked pool succeeds."""
         token = _register_and_login(client, email="lock5@example.com")
         headers = _authed(client, token)
-        future_lock = (datetime.utcnow() + timedelta(hours=24)).isoformat()
+        future_lock = (datetime.now(timezone.utc) + timedelta(hours=24)).isoformat()
         pool_id = self._create_pool(client, headers, lock_time=future_lock)
         create_response = self._create_entry(client, headers, pool_id)
         entry_id = create_response.json()["id"]

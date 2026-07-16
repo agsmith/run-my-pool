@@ -1,27 +1,23 @@
-# Coverage configuration
 [run]
 source = .
-omit = 
-    */venv/*
-    */tests/*
-    */__pycache__/*
-    */migrations/*
-    test*.py
-    conftest.py
-    setup.py
-    */env/*
-    .venv/*
+omit =
+    # One-off scripts — not application code
+    create_schema.py
+    db_init.py
+    fix_duplicate_constraints.py
+    leagues.py
+    migrate_teams.py
+    parse_schedule.py
+    picks_new.py
+    seed_schedule.py
+    # Test files themselves
+    tests/*
+    # Virtualenv
+    venv/*
 
 [report]
 exclude_lines =
     pragma: no cover
     def __repr__
-    raise AssertionError
-    raise NotImplementedError
     if __name__ == .__main__.:
-    class .*\(Protocol\):
-    @(abc\.)?abstractmethod
-
-[html]
-directory = htmlcov
-title = RunMyPool API Coverage Report
+    raise NotImplementedError

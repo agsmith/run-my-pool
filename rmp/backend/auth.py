@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from passlib.context import CryptContext
 from jose import jwt, JWTError
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import models
 import schemas
 import deps
@@ -31,7 +31,7 @@ def get_password_hash(password):
 
 def create_access_token(data: dict, expires_delta: timedelta = None):
     to_encode = data.copy()
-    expire = datetime.utcnow() + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
+    expire = datetime.now(timezone.utc).replace(tzinfo=None) + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
@@ -53,8 +53,8 @@ def register(user: schemas.UserCreate, db: Session = Depends(deps.get_db)):
             email=user.email, 
             hashed_password=hashed_password,
             role=models.UserRole.USER,
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow()
+            created_at=datetime.now(timezone.utc).replace(tzinfo=None),
+            updated_at=datetime.now(timezone.utc).replace(tzinfo=None)
         )
         
         print("Adding to database...")
@@ -153,7 +153,7 @@ def reset_password(request: schemas.ResetPasswordRequest, db: Session = Depends(
         
         # Update the password
         db_user.hashed_password = get_password_hash(request.new_password)
-        db_user.updated_at = datetime.utcnow()
+        db_user.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
         
         db.commit()
         

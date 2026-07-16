@@ -4,7 +4,7 @@ from typing import List
 import models
 import schemas
 import deps
-from datetime import datetime
+from datetime import datetime, timezone
 import uuid
 from audit_utils import log_create_operation, log_update_operation, log_delete_operation
 
@@ -54,8 +54,8 @@ def create_pool(
             lock_time=lock_time,
             is_private=pool.is_private,
             owner_id=current_user.id,
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow()
+            created_at=datetime.now(timezone.utc).replace(tzinfo=None),
+            updated_at=datetime.now(timezone.utc).replace(tzinfo=None)
         )
         
         db.add(db_pool)
@@ -163,7 +163,7 @@ def update_pool(
         if pool_update.is_private is not None:
             pool.is_private = pool_update.is_private
         
-        pool.updated_at = datetime.utcnow()
+        pool.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
         
         db.commit()
         db.refresh(pool)

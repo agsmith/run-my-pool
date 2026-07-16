@@ -5,7 +5,7 @@ Run with: pytest -m scenario
 """
 
 import pytest
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import models
 
@@ -66,7 +66,7 @@ class TestSeasonScenario:
         tokens = [_reg(client, f"player{i}@example.com") for i in range(3)]
 
         # Admin creates pool with future lock_time
-        future = (datetime.utcnow() + timedelta(hours=2)).strftime("%Y-%m-%d %H:%M:%S")
+        future = (datetime.now(timezone.utc) + timedelta(hours=2)).strftime("%Y-%m-%d %H:%M:%S")
         pool_id = _create_pool(client, tokens[0], lock_time=future)
 
         # Each user creates an entry
@@ -92,7 +92,7 @@ class TestSeasonScenario:
 
     def test_week1_pick_change_before_lock(self, client, db_session):
         """Submitting a second pick for the same week/entry upserts the team."""
-        future = (datetime.utcnow() + timedelta(hours=2)).strftime("%Y-%m-%d %H:%M:%S")
+        future = (datetime.now(timezone.utc) + timedelta(hours=2)).strftime("%Y-%m-%d %H:%M:%S")
         token = _reg(client, "upsert@example.com")
         pool_id = _create_pool(client, token, lock_time=future)
         entry_id = _create_entry(client, token, pool_id)
@@ -117,7 +117,7 @@ class TestSeasonScenario:
     def test_pick_rejected_after_lock(self, client, db_session):
         """Submitting a pick after the pool lock time returns 423."""
         # Create pool with past lock_time
-        past = (datetime.utcnow() - timedelta(hours=1)).strftime("%Y-%m-%d %H:%M:%S")
+        past = (datetime.now(timezone.utc) - timedelta(hours=1)).strftime("%Y-%m-%d %H:%M:%S")
         token = _reg(client, "locked@example.com")
         pool_id = _create_pool(client, token, lock_time=past)
 
@@ -130,7 +130,7 @@ class TestSeasonScenario:
         entry_id = _create_entry(client, token, pool_id)
 
         # Restore past lock_time
-        pool.lock_time = datetime.utcnow() - timedelta(hours=1)
+        pool.lock_time = datetime.now(timezone.utc) - timedelta(hours=1)
         db_session.commit()
 
         resp = _submit_pick(client, token, entry_id, week=1, team="NE")
@@ -147,7 +147,7 @@ class TestSeasonScenario:
 
     def test_auto_pick_for_missing_entry(self, client, db_session):
         """Admin lock-week auto-assigns a pick to an entry that has none."""
-        future = (datetime.utcnow() + timedelta(hours=2)).strftime("%Y-%m-%d %H:%M:%S")
+        future = (datetime.now(timezone.utc) + timedelta(hours=2)).strftime("%Y-%m-%d %H:%M:%S")
         admin_token = _reg(client, "admin.auto@example.com")
         player_token = _reg(client, "player.auto@example.com")
 
@@ -183,7 +183,7 @@ class TestSeasonScenario:
 
     def test_results_and_elimination(self, client, db_session):
         """Entries with a losing pick are marked alive=False."""
-        future = (datetime.utcnow() + timedelta(hours=2)).strftime("%Y-%m-%d %H:%M:%S")
+        future = (datetime.now(timezone.utc) + timedelta(hours=2)).strftime("%Y-%m-%d %H:%M:%S")
         token0 = _reg(client, "elim0@example.com")
         token1 = _reg(client, "elim1@example.com")
 
@@ -242,7 +242,7 @@ class TestSeasonScenario:
 
     def test_week2_team_reuse_rejected(self, client, db_session):
         """Picking the same team in week 2 that was used in week 1 returns 400."""
-        future = (datetime.utcnow() + timedelta(hours=2)).strftime("%Y-%m-%d %H:%M:%S")
+        future = (datetime.now(timezone.utc) + timedelta(hours=2)).strftime("%Y-%m-%d %H:%M:%S")
         token = _reg(client, "reuse@example.com")
         pool_id = _create_pool(client, token, lock_time=future)
         entry_id = _create_entry(client, token, pool_id)
@@ -256,7 +256,7 @@ class TestSeasonScenario:
 
     def test_admin_corrects_locked_pick(self, client, db_session):
         """Admin can update a locked pick; regular user cannot."""
-        future = (datetime.utcnow() + timedelta(hours=2)).strftime("%Y-%m-%d %H:%M:%S")
+        future = (datetime.now(timezone.utc) + timedelta(hours=2)).strftime("%Y-%m-%d %H:%M:%S")
         token = _reg(client, "adminfix@example.com")
         pool_id = _create_pool(client, token, lock_time=future)
         entry_id = _create_entry(client, token, pool_id)
@@ -294,7 +294,7 @@ class TestSeasonScenario:
 
     def test_audit_trail_for_pick_operations(self, client, db_session):
         """Creating a pick writes at least one AuditLog record."""
-        future = (datetime.utcnow() + timedelta(hours=2)).strftime("%Y-%m-%d %H:%M:%S")
+        future = (datetime.now(timezone.utc) + timedelta(hours=2)).strftime("%Y-%m-%d %H:%M:%S")
         token = _reg(client, "audit@example.com")
         pool_id = _create_pool(client, token, lock_time=future)
         entry_id = _create_entry(client, token, pool_id)

@@ -147,7 +147,7 @@ class TestErrorHandling:
         # Send invalid JSON
         response = client.post(
             "/auth/register",
-            data="invalid json",
+            content=b"invalid json",
             headers={"Content-Type": "application/json"},
         )
 

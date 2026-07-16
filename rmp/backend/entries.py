@@ -4,7 +4,7 @@ from typing import List
 import models
 import schemas
 import deps
-from datetime import datetime
+from datetime import datetime, timezone
 import uuid
 from audit_utils import (
     log_create_operation,
@@ -37,7 +37,7 @@ def create_entry(
                     lock_time = datetime.fromisoformat(lock_time)
                 except ValueError:
                     lock_time = None
-            if lock_time and lock_time < datetime.utcnow():
+            if lock_time and lock_time < datetime.now(timezone.utc).replace(tzinfo=None):
                 raise HTTPException(
                     status_code=423,
                     detail="Pool is locked. Entry creation is not allowed after the lock time.",
@@ -66,8 +66,8 @@ def create_entry(
             user_id=current_user.id,
             pool_id=entry.pool_id,
             alive=True,
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow(),
+            created_at=datetime.now(timezone.utc).replace(tzinfo=None),
+            updated_at=datetime.now(timezone.utc).replace(tzinfo=None),
         )
 
         db.add(db_entry)
@@ -193,7 +193,7 @@ def update_entry(
             changes["name"] = {"old": entry.name, "new": entry_update.name}
             entry.name = entry_update.name
 
-        entry.updated_at = datetime.utcnow()
+        entry.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
 
         db.commit()
         db.refresh(entry)
@@ -244,7 +244,7 @@ def delete_entry(
                     lock_time = datetime.fromisoformat(lock_time)
                 except ValueError:
                     lock_time = None
-            if lock_time and lock_time < datetime.utcnow():
+            if lock_time and lock_time < datetime.now(timezone.utc).replace(tzinfo=None):
                 raise HTTPException(
                     status_code=423,
                     detail="Pool is locked. Entry deletion is not allowed after the lock time.",
