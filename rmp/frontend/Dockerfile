@@ -50,6 +50,9 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 # included in the standalone output trace. Copy it explicitly.
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@ducanh2912 ./node_modules/@ducanh2912
 
+# Health check script — avoids hostname resolution issues in Fargate awsvpc
+COPY --chown=nextjs:nodejs healthcheck.js ./healthcheck.js
+
 USER nextjs
 
 EXPOSE 3000
