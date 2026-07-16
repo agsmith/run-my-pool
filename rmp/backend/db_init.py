@@ -98,7 +98,7 @@ def stamp_alembic():
 
 
 def seed_schedule():
-    # Import and run seed_schedule as a module
+    # Import and call seed() directly — don't rely on __main__ guard
     import importlib.util
 
     spec = importlib.util.spec_from_file_location(
@@ -106,6 +106,7 @@ def seed_schedule():
     )
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
+    mod.seed()
     print("✓ 2025 NFL schedule seeded")
 
 
