@@ -46,6 +46,10 @@ RUN mkdir .next && \
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
+# next.config.js requires @ducanh2912/next-pwa at runtime but it is not
+# included in the standalone output trace. Copy it explicitly.
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@ducanh2912 ./node_modules/@ducanh2912
+
 USER nextjs
 
 EXPOSE 3000
