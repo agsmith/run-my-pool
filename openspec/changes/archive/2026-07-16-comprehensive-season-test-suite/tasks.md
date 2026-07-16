@@ -35,5 +35,5 @@
 
 ## 6. CI Verification
 
-- [ ] 6.1 Run full test suite locally and confirm all tests pass including `scenario` and `security`
-- [ ] 6.2 Push to main and confirm CI backend test job is green
+- [x] 6.1 Run full test suite locally and confirm all tests pass including `scenario` and `security`
+- [x] 6.2 Push to main and confirm CI backend test job is green
