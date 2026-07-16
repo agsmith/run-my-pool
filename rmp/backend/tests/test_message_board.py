@@ -7,6 +7,8 @@ Routes under test:
   DELETE /messages/{message_id}     — delete a message (auth + ownership required)
 """
 
+from datetime import datetime
+
 import pytest
 
 
@@ -222,3 +224,164 @@ class TestMessageBoardEndpoints:
 
         response = client.delete(f"/messages/{non_existent_id}", headers=_authed(token))
         assert response.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# Test class — rate limiting
+# ---------------------------------------------------------------------------
+
+
+class TestMessageBoardRateLimit:
+    """Integration tests for the per-user-per-pool message rate limit."""
+
+    def test_rate_limit_allows_five_messages(self, client):
+        """A user can post 5 messages in a row without hitting the rate limit."""
+        token, pool_id, _ = _setup_user_with_pool_entry(
+            client, email="rl_five@example.com"
+        )
+        headers = _authed(token)
+
+        for i in range(5):
+            resp = client.post(
+                f"/messages/pool/{pool_id}",
+                json={"pool_id": pool_id, "message": f"Message {i + 1}"},
+                headers=headers,
+            )
+            assert resp.status_code == 200, (
+                f"Message {i + 1} was unexpectedly blocked: {resp.json()}"
+            )
+
+    def test_rate_limit_blocks_sixth_message(self, client):
+        """After 5 messages the 6th is rejected with 429 containing 'Rate limit exceeded'."""
+        token, pool_id, _ = _setup_user_with_pool_entry(
+            client, email="rl_sixth@example.com"
+        )
+        headers = _authed(token)
+
+        for i in range(5):
+            resp = client.post(
+                f"/messages/pool/{pool_id}",
+                json={"pool_id": pool_id, "message": f"Message {i + 1}"},
+                headers=headers,
+            )
+            assert resp.status_code == 200
+
+        sixth = client.post(
+            f"/messages/pool/{pool_id}",
+            json={"pool_id": pool_id, "message": "This should be blocked"},
+            headers=headers,
+        )
+        assert sixth.status_code == 429
+        assert "Rate limit exceeded" in sixth.json().get("detail", "")
+
+    def test_rate_limit_resets_after_window(self, client, db_session):
+        """
+        After hitting 5 messages, back-dating them past the rate-limit window
+        allows a 6th message to succeed.
+        """
+        from datetime import timedelta
+        import models as m
+
+        token, pool_id, _ = _setup_user_with_pool_entry(
+            client, email="rl_reset@example.com"
+        )
+        headers = _authed(token)
+
+        for i in range(5):
+            resp = client.post(
+                f"/messages/pool/{pool_id}",
+                json={"pool_id": pool_id, "message": f"Message {i + 1}"},
+                headers=headers,
+            )
+            assert resp.status_code == 200
+
+        # Move all messages for this pool 15 minutes into the past
+        old_time = datetime.utcnow() - timedelta(minutes=15)
+        (
+            db_session.query(m.MessageBoard)
+            .filter(m.MessageBoard.pool_id == pool_id)
+            .update({"created_at": old_time})
+        )
+        db_session.commit()
+
+        resp = client.post(
+            f"/messages/pool/{pool_id}",
+            json={
+                "pool_id": pool_id,
+                "message": "Should be allowed after window reset",
+            },
+            headers=headers,
+        )
+        assert resp.status_code == 200, (
+            f"Expected 200 after window reset, got: {resp.json()}"
+        )
+
+    def test_rate_limit_is_per_user_per_pool(self, client):
+        """
+        User A hitting the limit in pool 1 does not block:
+          - User B posting to pool 1
+          - User A posting to pool 2
+        """
+        # User A: pool 1 owner
+        token_a, pool1_id, _ = _setup_user_with_pool_entry(
+            client, email="rl_user_a@example.com"
+        )
+        headers_a = _authed(token_a)
+
+        # User B: joins pool 1 with their own entry, and creates pool 2
+        token_b, pool2_id, _ = _setup_user_with_pool_entry(
+            client, email="rl_user_b@example.com"
+        )
+        headers_b = _authed(token_b)
+
+        # User B joins pool 1
+        entry_resp = client.post(
+            "/entries/create",
+            json={"pool_id": pool1_id, "name": "B's Entry in Pool 1"},
+            headers=headers_b,
+        )
+        assert entry_resp.status_code == 200
+
+        # User A also joins pool 2
+        entry_resp = client.post(
+            "/entries/create",
+            json={"pool_id": pool2_id, "name": "A's Entry in Pool 2"},
+            headers=headers_a,
+        )
+        assert entry_resp.status_code == 200
+
+        # User A hits limit in pool 1
+        for i in range(5):
+            resp = client.post(
+                f"/messages/pool/{pool1_id}",
+                json={"pool_id": pool1_id, "message": f"A pool1 msg {i + 1}"},
+                headers=headers_a,
+            )
+            assert resp.status_code == 200
+
+        blocked = client.post(
+            f"/messages/pool/{pool1_id}",
+            json={"pool_id": pool1_id, "message": "A blocked in pool1"},
+            headers=headers_a,
+        )
+        assert blocked.status_code == 429
+
+        # User B can still post to pool 1
+        resp_b = client.post(
+            f"/messages/pool/{pool1_id}",
+            json={"pool_id": pool1_id, "message": "B posts to pool 1"},
+            headers=headers_b,
+        )
+        assert resp_b.status_code == 200, (
+            f"User B unexpectedly blocked in pool 1: {resp_b.json()}"
+        )
+
+        # User A can still post to pool 2
+        resp_a2 = client.post(
+            f"/messages/pool/{pool2_id}",
+            json={"pool_id": pool2_id, "message": "A posts to pool 2"},
+            headers=headers_a,
+        )
+        assert resp_a2.status_code == 200, (
+            f"User A unexpectedly blocked in pool 2: {resp_a2.json()}"
+        )
