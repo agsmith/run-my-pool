@@ -45,6 +45,13 @@ jobs:
           SECRET_KEY: ci-test-secret-key
         run: python -m pytest tests/ -q --tb=short
 
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@e53489f4d376d79066609109e7a95a29eb3740b1  # v7.0.0
+        with:
+          files: rmp/backend/coverage.xml
+          flags: backend
+          fail_ci_if_error: false
+
   build-and-deploy:
     name: Build, push, and deploy
     runs-on: ubuntu-latest
