@@ -4,7 +4,7 @@ import ProtectedRoute from '../../components/ProtectedRoute';
 import { useAuth } from '../../context/AuthContext';
 
 export default function PoolDetail() {
-  const [pool, setPool] = useState(null);
+  const [league, setLeague] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
@@ -33,7 +33,7 @@ export default function PoolDetail() {
       
       if (res.ok) {
         const data = await res.json();
-        setPool(data);
+        setLeague(data);
       } else {
         setError('Failed to load pool details');
       }
