@@ -4,6 +4,7 @@ import { useRouter } from 'next/router';
 import ProtectedRoute from '../../../components/ProtectedRoute';
 import { useAuth } from '../../../context/AuthContext';
 import { PoolWorkspaceNav, WorkspaceHeader } from '../../../components/ProductWorkspace';
+import { getPickAvailability } from '../../../utils/pickAvailability';
 
 // Mock NFL team data - in production this would come from an API
 const NFL_TEAMS = {
@@ -329,7 +330,8 @@ export default function LeagueEntries() {
   const handlePickClick = async (entry, week) => {
     setSelectedEntry(entry);
     setSelectedWeek(week);
-    setSelectedTeam(null);
+    const { currentPick } = getPickAvailability(allPicks[entry.id] || [], week);
+    setSelectedTeam(currentPick?.team || null);
     
     // Fetch schedule data for this week if we don't have it
     await fetchScheduleForWeek(week);
@@ -397,11 +399,6 @@ export default function LeagueEntries() {
       console.log(`Getting pick for entry ${entryId}, week ${week}:`, pick, 'from picks:', picks);
     }
     return pick;
-  };
-
-  const getUsedTeamsForEntry = (entryId) => {
-    const picks = allPicks[entryId] || [];
-    return picks.map(pick => pick.team);
   };
 
   const handleStartEditingEntryName = (entry) => {
@@ -536,20 +533,27 @@ export default function LeagueEntries() {
     );
   };
 
-  const getTeamButtonStyle = (team, isSelected, isUsed) => {
+  const getTeamButtonStyle = (team, isSelected, isUsed, isCurrentPick) => {
     let backgroundColor = 'white';
+    let border = '1px solid #ddd';
+    let textColor = '#333';
     if (isUsed) {
       backgroundColor = '#f5f5f5';
+      textColor = '#999';
+    } else if (isCurrentPick) {
+      backgroundColor = '#efffc0';
+      border = '2px solid #9fca00';
     } else if (isSelected) {
       backgroundColor = '#e6f3ff';
+      border = '2px solid #0070f3';
     }
 
     return {
       padding: '12px 16px',
-      border: isSelected ? '2px solid #0070f3' : '1px solid #ddd',
+      border,
       borderRadius: '8px',
       backgroundColor,
-      color: isUsed ? '#999' : '#333',
+      color: textColor,
       cursor: isUsed ? 'not-allowed' : 'pointer',
       flex: 1,
       textAlign: 'left',
@@ -565,7 +569,10 @@ export default function LeagueEntries() {
 
     // Use real schedule data instead of mock data
     const weekSchedule = scheduleData[selectedWeek] || [];
-    const usedTeams = getUsedTeamsForEntry(selectedEntry.id);
+    const { currentPick, usedInOtherWeeks } = getPickAvailability(
+      allPicks[selectedEntry.id] || [],
+      selectedWeek
+    );
 
     // Helper function to format date and time
     const formatGameTime = (startTime) => {
@@ -612,7 +619,7 @@ export default function LeagueEntries() {
           <div style={{ padding: '2rem 2rem 1rem 2rem' }}>
             <h2>Week {selectedWeek} Matchups - {selectedEntry.name}</h2>
             <p style={{ color: '#666', marginBottom: '0' }}>
-              Select a team for your pick. Teams you've already used are grayed out.
+              Teams used in other weeks are unavailable. Your saved pick for this week is highlighted in lime.
             </p>
           </div>
 
@@ -633,6 +640,10 @@ export default function LeagueEntries() {
                   const gameTime = formatGameTime(game.start_time);
                   const awayTeam = game.away_team;
                   const homeTeam = game.home_team;
+                  const awayUsed = usedInOtherWeeks.has(awayTeam.abbrv);
+                  const homeUsed = usedInOtherWeeks.has(homeTeam.abbrv);
+                  const awayCurrent = currentPick?.team === awayTeam.abbrv;
+                  const homeCurrent = currentPick?.team === homeTeam.abbrv;
                   
                   return (
                     <div key={game.game_id} style={{
@@ -646,8 +657,9 @@ export default function LeagueEntries() {
                       <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flex: 1 }}>
                         <button
                           onClick={() => handleTeamSelect(awayTeam.abbrv)}
-                          disabled={usedTeams.includes(awayTeam.abbrv)}
-                          style={getTeamButtonStyle(awayTeam.abbrv, selectedTeam === awayTeam.abbrv, usedTeams.includes(awayTeam.abbrv))}
+                          disabled={awayUsed}
+                          aria-label={`${awayTeam.name}${awayUsed ? ', used in another week' : awayCurrent ? ', current week pick' : ''}`}
+                          style={getTeamButtonStyle(awayTeam.abbrv, selectedTeam === awayTeam.abbrv, awayUsed, awayCurrent)}
                         >
                           <img 
                             src={awayTeam.logo} 
@@ -657,13 +669,15 @@ export default function LeagueEntries() {
                           <div>
                             <div style={{ fontWeight: 'bold', fontSize: '14px' }}>{awayTeam.abbrv}</div>
                             <div style={{ fontSize: '12px', color: '#666' }}>{awayTeam.name}</div>
+                            {awayCurrent && <div style={{ fontSize: '11px', color: '#526900', fontWeight: 800 }}>CURRENT PICK</div>}
                           </div>
                         </button>
                         <span style={{ color: '#666', fontWeight: 'bold' }}>@</span>
                         <button
                           onClick={() => handleTeamSelect(homeTeam.abbrv)}
-                          disabled={usedTeams.includes(homeTeam.abbrv)}
-                          style={getTeamButtonStyle(homeTeam.abbrv, selectedTeam === homeTeam.abbrv, usedTeams.includes(homeTeam.abbrv))}
+                          disabled={homeUsed}
+                          aria-label={`${homeTeam.name}${homeUsed ? ', used in another week' : homeCurrent ? ', current week pick' : ''}`}
+                          style={getTeamButtonStyle(homeTeam.abbrv, selectedTeam === homeTeam.abbrv, homeUsed, homeCurrent)}
                         >
                           <img 
                             src={homeTeam.logo} 
@@ -673,6 +687,7 @@ export default function LeagueEntries() {
                           <div>
                             <div style={{ fontWeight: 'bold', fontSize: '14px' }}>{homeTeam.abbrv}</div>
                             <div style={{ fontSize: '12px', color: '#666' }}>{homeTeam.name}</div>
+                            {homeCurrent && <div style={{ fontSize: '11px', color: '#526900', fontWeight: 800 }}>CURRENT PICK</div>}
                           </div>
                         </button>
                       </div>
