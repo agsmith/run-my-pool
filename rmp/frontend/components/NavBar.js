@@ -3,13 +3,14 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 
 export default function NavBar() {
+  const MOBILE_NAV_BREAKPOINT = 960;
   const { user, logout } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
     const checkDevice = () => {
-      setIsMobile(window.innerWidth <= 767);
+      setIsMobile(window.innerWidth <= MOBILE_NAV_BREAKPOINT);
     };
     
     checkDevice();
@@ -47,7 +48,7 @@ export default function NavBar() {
       transition: 'background-color 0.2s ease'
     },
     menuContainer: {
-      display: isMobile ? (isMobileMenuOpen ? 'block' : 'none') : 'flex',
+      display: isMobile ? (isMobileMenuOpen ? 'flex' : 'none') : 'flex',
       width: isMobile ? '100%' : 'auto',
       flexDirection: isMobile ? 'column' : 'row',
       alignItems: isMobile ? 'stretch' : 'center',
@@ -76,7 +77,8 @@ export default function NavBar() {
       fontSize: isMobile ? '1rem' : '0.9rem',
       fontWeight: '500',
       textAlign: 'left',
-      width: '100%'
+      width: isMobile ? '100%' : 'auto',
+      whiteSpace: 'nowrap'
     }
   };
 
@@ -101,6 +103,8 @@ export default function NavBar() {
         <button 
           style={navStyles.menuToggle}
           onClick={toggleMobileMenu}
+          aria-label="Toggle navigation menu"
+          aria-expanded={isMobileMenuOpen}
           onMouseEnter={handleLinkHover}
           onMouseLeave={handleLinkLeave}
         >

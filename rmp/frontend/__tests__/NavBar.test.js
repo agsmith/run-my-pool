@@ -115,6 +115,17 @@ describe('NavBar', () => {
     expect(screen.getByText('✕')).toBeInTheDocument()
   })
 
+  test('uses the collapsed menu at tablet widths', () => {
+    act(() => {
+      window.innerWidth = 900
+      window.dispatchEvent(new Event('resize'))
+    })
+    render(<NavBar />)
+
+    expect(screen.getByRole('button', { name: /toggle navigation menu/i })).toBeVisible()
+    expect(screen.getByRole('button', { name: /toggle navigation menu/i })).toHaveAttribute('aria-expanded', 'false')
+  })
+
   test('hides Login and Register links when user is authenticated', () => {
     useAuth.mockReturnValue({ user: { email: 'a@b.com' }, logout: jest.fn() })
 

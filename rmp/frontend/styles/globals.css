@@ -622,7 +622,8 @@ table {
 .broadcast-v2 button,.broadcast-v2 [role="button"] { border-radius:999px!important; font-weight:800!important; letter-spacing:.01em; min-height:42px; transition:transform .16s ease,filter .16s ease,border-color .16s ease!important; }
 .broadcast-v2 button:hover,.broadcast-v2 [role="button"]:hover { transform:translateY(-1px); filter:brightness(1.08); }
 
-.broadcast-nav { position:sticky; top:0; z-index:40!important; min-height:66px; padding:.75rem clamp(1rem,4vw,3.5rem); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; color:#fff; background:rgba(8,13,15,.88); border-bottom:1px solid rgba(159,239,255,.18); backdrop-filter:blur(18px); box-shadow:0 12px 38px rgba(0,0,0,.24); }
+.broadcast-nav { position:sticky; top:0; z-index:40!important; min-height:66px; padding:.75rem clamp(1rem,4vw,3.5rem); display:flex; justify-content:space-between; align-items:center; gap:.75rem 1rem; flex-wrap:wrap; color:#fff; background:rgba(8,13,15,.88); border-bottom:1px solid rgba(159,239,255,.18); backdrop-filter:blur(18px); box-shadow:0 12px 38px rgba(0,0,0,.24); }
+.broadcast-nav > div { min-width:0; }
 .broadcast-nav__mark { display:inline-grid; place-items:center; width:34px; height:24px; margin-right:.45rem; color:#081013; background:var(--lime,#d7ff3f); border-radius:4px; font-size:.66rem; font-style:normal; letter-spacing:.05em; transform:skew(-8deg); }
 .broadcast-nav__brand { display:flex!important; align-items:center; gap:.65rem; font-family:Impact,'Arial Narrow',sans-serif!important; }
 .broadcast-nav__brand b { color:#9fefff; }
@@ -675,6 +676,14 @@ table {
   .broadcast-v2 h1 { font-size:clamp(2rem,11vw,3rem)!important; }
   .broadcast-v2--competition main > div:first-child { align-items:flex-start!important; flex-direction:column!important; }
   .broadcast-v2--competition main > div:first-child > div { flex-wrap:wrap; }
+}
+
+@media (max-width:960px) {
+  .broadcast-nav { align-items:stretch; }
+  .broadcast-nav > div:first-child { flex:1 1 100%; }
+  .broadcast-nav > div:last-child { flex:1 1 100%; }
+  .broadcast-nav > div:last-child a,
+  .broadcast-nav > div:last-child button { width:100%!important; margin:0!important; padding:.8rem .25rem!important; }
 }
 
 /* Final product-shell authority: these intentional structures supersede legacy archetype selectors. */
