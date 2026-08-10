@@ -23,6 +23,7 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 from jose import jwt as jose_jwt
+from auth import create_access_token
 
 
 # ---------------------------------------------------------------------------
@@ -524,15 +525,9 @@ class TestPasswordReset:
         email = "reset_reuse@example.com"
         _reg(client, email)
 
-        secret = os.environ.get("SECRET_KEY", "test-secret-key")
-        reset_token = jose_jwt.encode(
-            {
-                "sub": email,
-                "type": "password_reset",
-                "exp": datetime.utcnow() + timedelta(hours=1),
-            },
-            secret,
-            algorithm="HS256",
+        reset_token = create_access_token(
+            {"sub": email, "type": "password_reset"},
+            expires_delta=timedelta(hours=1),
         )
 
         payload_first = {
