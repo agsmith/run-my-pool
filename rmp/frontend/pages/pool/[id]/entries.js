@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import ProtectedRoute from '../../../components/ProtectedRoute';
 import { useAuth } from '../../../context/AuthContext';
+import { PoolWorkspaceNav, WorkspaceHeader } from '../../../components/ProductWorkspace';
 
 // Mock NFL team data - in production this would come from an API
 const NFL_TEAMS = {
@@ -831,7 +832,7 @@ export default function LeagueEntries() {
 
   if (!router.isReady || loading) {
     return (
-      <div style={{ 
+      <div className="product-page entries-page" style={{
         minHeight: '100vh', 
         background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
         display: 'flex',
@@ -859,7 +860,7 @@ export default function LeagueEntries() {
         flexDirection: 'column'
       }}>
         {/* Header */}
-        <header style={{ 
+        <header className="legacy-page-header" style={{
           display: 'flex', 
           justifyContent: 'space-between', 
           alignItems: 'center', 
@@ -973,14 +974,21 @@ export default function LeagueEntries() {
         </header>
 
         {/* Main Content */}
-        <main style={{ 
+        <main className="product-main" style={{
           flex: 1,
           maxWidth: '1400px', 
           margin: '0 auto',
           padding: '2rem'
         }}>
+          <PoolWorkspaceNav poolId={id} poolName={league?.name} active="entries" />
+          <WorkspaceHeader
+            eyebrow="Picks desk"
+            title={league?.name || 'Pool picks'}
+            description="Make selections, review every entry, and track the season week by week."
+            meta={`${entries.length} ${entries.length === 1 ? 'entry' : 'entries'}`}
+          />
           {/* Header */}
-          <div style={{ 
+          <div className="legacy-page-title" style={{
             textAlign: 'center',
             marginBottom: '2rem'
           }}>
@@ -1005,7 +1013,7 @@ export default function LeagueEntries() {
           </div>
 
           {/* Main Content Card */}
-          <div style={{ 
+          <div className="product-panel entries-board" style={{
             background: 'white', 
             borderRadius: '20px', 
             padding: '2.5rem',

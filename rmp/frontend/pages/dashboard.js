@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import ProtectedRoute from '../components/ProtectedRoute';
 import { useAuth } from '../context/AuthContext';
+import { WorkspaceHeader } from '../components/ProductWorkspace';
 import { baseStyles, createHoverHandlers, hoverEffects, mobileStyles, getResponsiveStyle, touchStyles } from '../styles/globalStyles';
 
 // NFL team data for logos and team info
@@ -861,9 +862,9 @@ export default function Dashboard() {
 
   return (
     <ProtectedRoute>
-      <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)', display: 'flex', flexDirection: 'column' }}>
+      <div className="product-page dashboard-page" style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)', display: 'flex', flexDirection: 'column' }}>
         {/* Header */}
-        <header style={{ 
+        <header className="legacy-page-header" style={{
           display: 'flex', 
           justifyContent: 'space-between', 
           alignItems: 'center', 
@@ -978,7 +979,7 @@ export default function Dashboard() {
         </header>
 
         {/* Main Content */}
-        <main style={{ 
+        <main className="product-main" style={{
           flex: 1, 
           display: 'flex', 
           flexDirection: 'column', 
@@ -986,7 +987,14 @@ export default function Dashboard() {
           padding: '2rem',
           background: 'transparent'
         }}>
-          <h1 style={{ 
+          <WorkspaceHeader
+            eyebrow="Pool control room"
+            title="Your pools, one clear view"
+            description="See what needs a pick, what is locked, and where every entry stands this week."
+            meta={user?.email}
+            actions={<button onClick={handleCreateLeague} className="workspace-primary-action">Create pool</button>}
+          />
+          <h1 className="legacy-page-title" style={{
             fontSize: '3rem', 
             fontWeight: '800', 
             marginBottom: '1rem', 
@@ -997,7 +1005,7 @@ export default function Dashboard() {
           </h1>
           
           {/* Leagues Section */}
-          <div style={{ 
+          <div className="product-panel dashboard-pools" style={{
             background: 'white', 
             borderRadius: '12px', 
             padding: '2rem',
@@ -1012,7 +1020,7 @@ export default function Dashboard() {
               alignItems: 'center',
               marginBottom: '2rem'
             }}>
-              <h2 style={{ 
+              <h2 className="section-title" style={{
                 fontSize: '2rem', 
                 fontWeight: '700', 
                 color: '#1a202c',
@@ -1044,7 +1052,7 @@ export default function Dashboard() {
                   e.target.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06)';
                 }}
               >
-                Create Pool
+                Create pool
               </button>
             </div>
             
@@ -1126,7 +1134,7 @@ export default function Dashboard() {
                   padding: '0'
                 }}>
                 {getOrderedPools().map(league => (
-                  <div 
+                  <div className="pool-card"
                     key={league.id} 
                     draggable
                     onDragStart={(e) => handleDragStart(e, league.id)}

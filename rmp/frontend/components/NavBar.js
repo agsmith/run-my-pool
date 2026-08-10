@@ -93,8 +93,9 @@ export default function NavBar() {
   return (
     <nav className="broadcast-nav">
       <div style={{ display: 'flex', alignItems: 'center', width: isMobile ? '100%' : 'auto', justifyContent: isMobile ? 'space-between' : 'flex-start' }}>
-        <Link href="/" style={navStyles.brand} onClick={closeMobileMenu}>
-          <span className="broadcast-nav__mark">RMP</span> RUN MY <span style={{ color: '#d7ff3f' }}>POOL</span>
+        <Link href="/" className="broadcast-nav__brand" style={navStyles.brand} onClick={closeMobileMenu}>
+          <span className="product-football-mark" aria-hidden="true"><i /><i /><i /></span>
+          <span>RUN MY <b>POOL</b></span>
         </Link>
         
         <button 

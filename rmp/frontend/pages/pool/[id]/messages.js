@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import ProtectedRoute from '../../../components/ProtectedRoute';
 import { useAuth } from '../../../context/AuthContext';
+import { PoolWorkspaceNav, WorkspaceHeader } from '../../../components/ProductWorkspace';
 
 export default function MessageBoard() {
   const [pool, setPool] = useState(null);
@@ -157,14 +158,21 @@ export default function MessageBoard() {
 
   return (
     <ProtectedRoute>
-      <div style={{ 
+      <div className="product-page messages-page" style={{
         minHeight: '100vh', 
         background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', 
         padding: '2rem 1rem'
       }}>
-        <div style={{ maxWidth: '800px', margin: '0 auto' }}>
+        <main className="product-main messages-main" style={{ maxWidth: '800px', margin: '0 auto' }}>
+          <PoolWorkspaceNav poolId={poolId} poolName={pool?.name} active="messages" />
+          <WorkspaceHeader
+            eyebrow="Pool clubhouse"
+            title="Pool messages"
+            description="Updates, reminders, and week-to-week conversation for everyone in the pool."
+            meta={`${messages.length} ${messages.length === 1 ? 'message' : 'messages'}`}
+          />
           {/* Header */}
-          <div style={{
+          <div className="legacy-page-title" style={{
             background: 'rgba(255, 255, 255, 0.1)',
             backdropFilter: 'blur(10px)',
             borderRadius: '12px',
@@ -214,7 +222,7 @@ export default function MessageBoard() {
           </div>
 
           {/* Post Message Form */}
-          <div style={{
+          <div className="product-panel message-composer" style={{
             background: 'white',
             borderRadius: '12px',
             padding: '2rem',
@@ -288,7 +296,7 @@ export default function MessageBoard() {
           )}
 
           {/* Messages List */}
-          <div style={{
+          <div className="product-panel message-feed" style={{
             background: 'white',
             borderRadius: '12px',
             padding: '2rem',
@@ -311,7 +319,7 @@ export default function MessageBoard() {
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 {messages.map((message) => (
-                  <div
+                  <article className="message-card"
                     key={message.id}
                     style={{
                       backgroundColor: message.user_id === user?.id ? '#f0f4ff' : '#f8f9fa',
@@ -405,12 +413,12 @@ export default function MessageBoard() {
                     }}>
                       {message.message}
                     </p>
-                  </div>
+                  </article>
                 ))}
               </div>
             )}
           </div>
-        </div>
+        </main>
       </div>
     </ProtectedRoute>
   );

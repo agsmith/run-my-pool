@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import ProtectedRoute from '../../../components/ProtectedRoute';
 import { useAuth } from '../../../context/AuthContext';
+import { PoolWorkspaceNav, WorkspaceHeader } from '../../../components/ProductWorkspace';
 
 const TIMEZONES = [
   { label: 'Eastern Time (ET)',   iana: 'America/New_York' },
@@ -261,7 +262,7 @@ export default function AdminPortal() {
   };
 
   const renderSidebar = () => (
-    <div style={{
+    <aside className="admin-sidebar" style={{
       width: '300px',
       backgroundColor: 'white',
       borderRadius: '12px',
@@ -361,7 +362,7 @@ export default function AdminPortal() {
           ← Back to Dashboard
         </button>
       </div>
-    </div>
+    </aside>
   );
 
   const handleSetLockTime = async () => {
@@ -1692,12 +1693,19 @@ export default function AdminPortal() {
 
   return (
     <ProtectedRoute>
-      <div style={{ 
+      <div className="product-page admin-page" style={{
         minHeight: '100vh', 
         background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', 
         padding: '2rem 1rem'
       }}>
-        <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
+        <main className="product-main admin-main" style={{ maxWidth: '1400px', margin: '0 auto' }}>
+          <PoolWorkspaceNav poolId={leagueId} poolName={league?.name} active="admin" showAdmin />
+          <WorkspaceHeader
+            eyebrow="Commissioner control room"
+            title={league?.name || 'Pool administration'}
+            description="Run the pool, support players, manage entries, and review every recorded action."
+            meta="Commissioner access"
+          />
           {error && (
             <div style={{
               backgroundColor: '#fed7d7',
@@ -1711,9 +1719,9 @@ export default function AdminPortal() {
             </div>
           )}
           
-          <div style={{ display: 'flex', gap: '2rem', alignItems: 'flex-start' }}>
+          <div className="admin-workspace" style={{ display: 'flex', gap: '2rem', alignItems: 'flex-start' }}>
             {renderSidebar()}
-            <div style={{
+            <section className="product-panel admin-content" style={{
               flex: 1,
               backgroundColor: 'rgba(255, 255, 255, 0.1)',
               backdropFilter: 'blur(10px)',
@@ -1723,9 +1731,9 @@ export default function AdminPortal() {
               color: 'white'
             }}>
               {renderContent()}
-            </div>
+            </section>
           </div>
-        </div>
+        </main>
       </div>
     </ProtectedRoute>
   );

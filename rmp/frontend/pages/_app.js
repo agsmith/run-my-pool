@@ -2,6 +2,7 @@ import '../styles/globals.css'
 import { AuthProvider } from '../context/AuthContext'
 import Head from 'next/head'
 import { useRouter } from 'next/router'
+import NavBar from '../components/NavBar'
 
 export default function MyApp({ Component, pageProps }) {
   const router = useRouter()
@@ -20,6 +21,7 @@ export default function MyApp({ Component, pageProps }) {
   }
 
   const experience = getExperience(router.pathname)
+  const showProductNav = !isLandingPage && !['auth', 'utility'].includes(experience)
 
   return (
     <>
@@ -52,6 +54,7 @@ export default function MyApp({ Component, pageProps }) {
           className={isLandingPage ? '' : `broadcast-v2 broadcast-v2--${experience}`}
           data-route={router.pathname}
         >
+          {showProductNav && <NavBar />}
           <Component {...pageProps} />
         </div>
       </AuthProvider>
