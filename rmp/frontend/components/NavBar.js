@@ -28,7 +28,7 @@ export default function NavBar() {
   const navStyles = {
     nav: {
       padding: isMobile ? '1rem' : '1rem 2rem',
-      background: '#222',
+      background: '#080d0f',
       color: '#fff',
       position: 'relative',
       display: 'flex',
@@ -38,7 +38,7 @@ export default function NavBar() {
     },
     brand: {
       fontSize: '1.25rem',
-      fontWeight: '700',
+      fontWeight: '800',
       color: '#fff',
       textDecoration: 'none',
       marginRight: '2rem'
@@ -88,7 +88,7 @@ export default function NavBar() {
   };
 
   const handleLinkHover = (e) => {
-    e.target.style.backgroundColor = '#444';
+    e.target.style.backgroundColor = '#263337';
   };
 
   const handleLinkLeave = (e) => {
@@ -99,7 +99,7 @@ export default function NavBar() {
     <nav style={navStyles.nav}>
       <div style={{ display: 'flex', alignItems: 'center', width: isMobile ? '100%' : 'auto', justifyContent: isMobile ? 'space-between' : 'flex-start' }}>
         <Link href="/" style={navStyles.brand} onClick={closeMobileMenu}>
-          🏈 Run My Pool
+          ◈ RUN MY POOL
         </Link>
         
         <button 

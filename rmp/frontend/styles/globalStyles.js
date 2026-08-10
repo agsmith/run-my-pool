@@ -49,9 +49,9 @@ export const colors = {
   
   // Brand colors
   brand: {
-    primary: '#475569',
-    secondary: '#667eea',
-    accent: '#764ba2'
+    primary: '#10191c',
+    secondary: '#286678',
+    accent: '#d7ff3f'
   },
   
   // Semantic colors
@@ -95,7 +95,7 @@ export const colors = {
 
 export const gradients = {
   primary: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)',
-  brand: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+  brand: 'radial-gradient(circle at 70% 25%, rgba(39, 114, 130, 0.45), transparent 38%), linear-gradient(135deg, #080d0f 0%, #10191c 100%)',
   success: 'linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%)',
   error: 'linear-gradient(135deg, #fee2e2 0%, #fecaca 100%)'
 };
