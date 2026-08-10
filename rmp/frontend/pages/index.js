@@ -1,303 +1,132 @@
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { useAuth } from '../context/AuthContext';
-import { mobileStyles, getResponsiveStyle, touchStyles } from '../styles/globalStyles';
+
+const games = [
+  { number: '01', time: 'SUN 1:00', away: 'BUF', awayName: 'Buffalo', home: 'NYJ', homeName: 'New York', className: 'blue' },
+  { number: '02', time: 'SUN 4:25', away: 'GB', awayName: 'Green Bay', home: 'CHI', homeName: 'Chicago', className: 'green', selected: true },
+  { number: '03', time: 'SNF 8:20', away: 'DAL', awayName: 'Dallas', home: 'PHI', homeName: 'Philadelphia', className: 'navy' },
+];
+
+const features = [
+  { number: '01', title: 'Highly Configurable', copy: 'Set lock times, entry rules, autopicks, scoring, and tiebreakers. Your pool, your call.' },
+  { number: '02', title: 'Affordable', copy: 'Everything your commissioner needs without enterprise pricing or surprise fees.' },
+  { number: '03', title: 'Mobile App', copy: 'Make picks, check results, and follow the leaderboard from any screen.' },
+];
+
+function FootballMark() {
+  return <span className="rmp-mark" aria-hidden="true"><i /><i /><i /></span>;
+}
 
 export default function Home() {
   const { user } = useAuth();
   const router = useRouter();
-  const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
-    // If user is logged in, redirect to dashboard
-    if (user) {
-      router.push('/dashboard');
-    }
+    if (user) router.push('/dashboard');
   }, [user, router]);
 
-  useEffect(() => {
-    const checkDevice = () => {
-      setIsMobile(window.innerWidth <= 767);
-    };
-    
-    checkDevice();
-    window.addEventListener('resize', checkDevice);
-    return () => window.removeEventListener('resize', checkDevice);
-  }, []);
+  if (user) return <div>Redirecting...</div>;
 
-  // Don't render the landing page if user is logged in (will redirect)
-  if (user) {
-    return <div>Redirecting...</div>;
-  }
-
-  const responsiveStyles = {
-    container: {
-      minHeight: '100vh',
-      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-      display: 'flex',
-      flexDirection: 'column'
-    },
-    header: {
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      padding: isMobile ? '1rem' : '1.5rem 2rem',
-      background: 'rgba(255, 255, 255, 0.1)',
-      backdropFilter: 'blur(10px)',
-      flexWrap: 'wrap',
-      gap: isMobile ? '1rem' : '0'
-    },
-    brandTitle: {
-      color: 'white',
-      fontSize: isMobile ? '1.25rem' : '1.5rem',
-      fontWeight: '700',
-      textDecoration: 'none'
-    },
-    loginButton: {
-      fontWeight: '600',
-      color: '#667eea',
-      textDecoration: 'none',
-      border: 'none',
-      borderRadius: '8px',
-      padding: isMobile ? '0.75rem 1.5rem' : '0.75rem 2rem',
-      background: 'white',
-      transition: 'all 0.2s ease',
-      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
-      fontSize: isMobile ? '0.9rem' : '1rem',
-      minHeight: isMobile ? '48px' : '44px',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center'
-    },
-    main: {
-      flex: 1,
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      textAlign: 'center',
-      padding: isMobile ? '1rem' : '2rem',
-      background: 'transparent'
-    },
-    heroTitle: {
-      fontSize: isMobile ? '2.5rem' : '4rem',
-      fontWeight: '800',
-      marginBottom: '1rem',
-      color: 'white',
-      textShadow: '0 4px 8px rgba(0, 0, 0, 0.5)',
-      lineHeight: '1.1',
-      zIndex: 10
-    },
-    heroSubtitle: {
-      fontSize: isMobile ? '1.25rem' : '1.8rem',
-      fontWeight: '400',
-      marginBottom: '1rem',
-      color: 'white',
-      maxWidth: '800px',
-      textShadow: '0 2px 4px rgba(0, 0, 0, 0.5)',
-      zIndex: 10,
-      lineHeight: '1.3'
-    },
-    heroDescription: {
-      maxWidth: isMobile ? '100%' : '700px',
-      fontSize: isMobile ? '1rem' : '1.25rem',
-      color: 'white',
-      marginBottom: '3rem',
-      fontWeight: '300',
-      textShadow: '0 2px 4px rgba(0, 0, 0, 0.5)',
-      zIndex: 10,
-      lineHeight: '1.5',
-      padding: isMobile ? '0 1rem' : '0'
-    }
-  };
   return (
-    <div style={responsiveStyles.container}>
-      {/* Header */}
-      <header style={responsiveStyles.header}>
-        <Link href="/" style={responsiveStyles.brandTitle}>
-          🏈 Run My Pool
-        </Link>
-        <Link 
-          href="/login" 
-          style={responsiveStyles.loginButton}
-          onMouseEnter={(e) => {
-            if (!isMobile) {
-              e.target.style.transform = 'translateY(-2px)';
-              e.target.style.boxShadow = '0 6px 20px rgba(0, 0, 0, 0.2)';
-            }
-          }}
-          onMouseLeave={(e) => {
-            if (!isMobile) {
-              e.target.style.transform = 'translateY(0)';
-              e.target.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
-            }
-          }}
-        >
-          Login
-        </Link>
+    <div className="rmp-landing">
+      <header className="rmp-header">
+        <nav className="rmp-shell" aria-label="Main navigation">
+          <Link href="/" className="rmp-brand" aria-label="Run My Pool home">
+            <FootballMark /><span>RUN MY <b>POOL</b></span>
+          </Link>
+          <div className="rmp-nav-links">
+            <a href="#how">How it works</a>
+            <a href="#features">Features</a>
+            <a href="#pool-types">Pool formats</a>
+          </div>
+          <div className="rmp-nav-actions">
+            <Link href="/login" className="rmp-login">Login</Link>
+            <Link href="/create-account" className="rmp-nav-cta">Start a pool <span>↗</span></Link>
+          </div>
+        </nav>
       </header>
 
-      {/* Hero Section */}
-      <main style={responsiveStyles.main}>
-        <h1 style={responsiveStyles.heroTitle}>
-          🏈 Run My Pool
-        </h1>
-        <h2 style={responsiveStyles.heroSubtitle}>
-          Highly Configurable, Affordable, Scalable Pool Management System
-        </h2>
-        <p style={responsiveStyles.heroDescription}>
-          🏈 Your pool, your way. Complete football-themed pool management with mobile app support. Create and manage professional football pick pools with ease. Support for multiple game types, custom scoring, and comprehensive league management. 🏈
-        </p>
-        
-        <Link 
-          href="/create-account" 
-          style={{ 
-            fontSize: '1.2rem',
-            fontWeight: '700', 
-            color: '#667eea', 
-            textDecoration: 'none', 
-            border: 'none', 
-            borderRadius: '12px', 
-            padding: '1rem 3rem', 
-            background: 'white', 
-            transition: 'all 0.3s ease',
-            boxShadow: '0 8px 25px rgba(0, 0, 0, 0.2)',
-            marginBottom: '4rem'
-          }}
-          onMouseEnter={(e) => {
-            e.target.style.transform = 'translateY(-3px)';
-            e.target.style.boxShadow = '0 12px 35px rgba(0, 0, 0, 0.3)';
-          }}
-          onMouseLeave={(e) => {
-            e.target.style.transform = 'translateY(0)';
-            e.target.style.boxShadow = '0 8px 25px rgba(0, 0, 0, 0.2)';
-          }}
-        >
-          Get Started Free
-        </Link>
-
-        {/* Features Section */}
-        <div style={{ 
-          background: 'white', 
-          borderRadius: '20px', 
-          padding: '3rem 2rem',
-          maxWidth: '1200px',
-          width: '100%',
-          boxShadow: '0 20px 40px rgba(0, 0, 0, 0.15)',
-          border: '1px solid rgba(255, 255, 255, 0.2)'
-        }}>
-          <h3 style={{ 
-            fontSize: '2.5rem', 
-            fontWeight: '700', 
-            marginBottom: '3rem', 
-            color: '#1a202c',
-            textAlign: 'center'
-          }}>
-            Why Choose Run My Pool?
-          </h3>
-          
-          <div style={{ 
-            display: 'grid', 
-            gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', 
-            gap: '2.5rem',
-            marginBottom: '2rem'
-          }}>
-            {/* Highly Configurable */}
-            <div style={{ textAlign: 'left', padding: '1.5rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', marginBottom: '1rem', gap: '1rem' }}>
-                <div style={{ fontSize: '3rem' }}>⚙️</div>
-                <h4 style={{ fontSize: '1.5rem', fontWeight: '700', margin: '0', color: '#1a202c' }}>
-                  Highly Configurable
-                </h4>
+      <main className="rmp-main">
+        <section className="rmp-hero">
+          <div className="rmp-shell rmp-hero-grid">
+            <div className="rmp-hero-copy">
+              <p className="rmp-eyebrow"><span /> BUILT FOR FOOTBALL PEOPLE</p>
+              <h1><span className="rmp-sr-only">Run My Pool: </span>RUN THE POOL.<br /><em>OWN THE SEASON.</em></h1>
+              <h2>Highly Configurable, Affordable, Scalable Pool Management System</h2>
+              <p className="rmp-hero-intro">Run a survivor pool your crew talks about all week. Set it up in minutes, automate the busywork, and follow every pick from kickoff to the final whistle.</p>
+              <div className="rmp-hero-actions">
+                <Link href="/create-account" className="rmp-button rmp-primary">Get Started Free <span>→</span></Link>
+                <a href="#how" className="rmp-button rmp-secondary"><i>▶</i> See how it works</a>
               </div>
-              <p style={{ fontSize: '1rem', color: '#4a5568', lineHeight: '1.6' }}>
-                Customize every aspect of your pool - from scoring rules to entry limits. Create the perfect pool experience for your group.
-              </p>
+              <div className="rmp-proof">
+                <div className="rmp-avatars"><span>JM</span><span>AK</span><span>SR</span><span>+</span></div>
+                <p><b>Made for commissioners</b><small>Less admin. More football.</small></p>
+              </div>
             </div>
 
-            {/* Affordable */}
-            <div style={{ textAlign: 'left', padding: '1.5rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', marginBottom: '1rem', gap: '1rem' }}>
-                <div style={{ fontSize: '3rem' }}>💰</div>
-                <h4 style={{ fontSize: '1.5rem', fontWeight: '700', margin: '0', color: '#1a202c' }}>
-                  Affordable
-                </h4>
+            <div className="rmp-product-stage" aria-label="Run My Pool survivor pick preview">
+              <div className="rmp-stage-glow" />
+              <div className="rmp-week-chip"><i>●</i> PICKS OPEN <b>WEEK 08</b></div>
+              <div className="rmp-pick-card">
+                <div className="rmp-card-head">
+                  <div><small>SUNDAY SURVIVOR</small><h3>Make your pick</h3></div>
+                  <div className="rmp-deadline"><small>LOCKS IN</small><b>02:41:16</b></div>
+                </div>
+                <div className="rmp-progress"><div><span>1 PICK REQUIRED</span><span>WEEK 08</span></div><i><b /></i></div>
+                <div className="rmp-game-list">
+                  {games.map((game) => (
+                    <div className={`rmp-game rmp-game-${game.className}`} key={game.away}>
+                      <div className="rmp-game-time"><span>{game.number}</span><small>{game.time}</small></div>
+                      <button className="rmp-team" type="button"><i>{game.away}</i><span><b>{game.awayName}</b><small>Available</small></span></button>
+                      <span className="rmp-versus">VS</span>
+                      <button className={`rmp-team rmp-home ${game.selected ? 'rmp-selected' : ''}`} type="button"><span><b>{game.homeName}</b><small>{game.selected ? 'Your pick' : 'Available'}</small></span><i>{game.selected ? '✓' : game.home}</i></button>
+                    </div>
+                  ))}
+                </div>
+                <button className="rmp-lock-picks" type="button">LOCK IN PICK <span>→</span></button>
+                <div className="rmp-card-foot"><span>Auto-saved 12:38 PM</span><b><i /> LIVE SCORING ON</b></div>
               </div>
-              <p style={{ fontSize: '1rem', color: '#4a5568', lineHeight: '1.6' }}>
-                Premium features at budget-friendly prices. No hidden fees, no surprises. Just great value for pool management excellence.
-              </p>
-            </div>
-
-            {/* Scalable */}
-            <div style={{ textAlign: 'left', padding: '1.5rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', marginBottom: '1rem', gap: '1rem' }}>
-                <div style={{ fontSize: '3rem' }}>📈</div>
-                <h4 style={{ fontSize: '1.5rem', fontWeight: '700', margin: '0', color: '#1a202c' }}>
-                  Scalable
-                </h4>
-              </div>
-              <h4 style={{ fontSize: '1.5rem', fontWeight: '700', marginBottom: '1rem', color: '#1a202c' }}>
-                Scalable
-              </h4>
-              <p style={{ fontSize: '1rem', color: '#4a5568', lineHeight: '1.6' }}>
-                Whether you have 5 friends or 500 participants, our system grows with you. Enterprise-grade reliability at any scale.
-              </p>
-            </div>
-
-            {/* Mobile App */}
-            <div style={{ textAlign: 'left', padding: '1.5rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', marginBottom: '1rem', gap: '1rem' }}>
-                <div style={{ fontSize: '3rem' }}>📱</div>
-                <h4 style={{ fontSize: '1.5rem', fontWeight: '700', margin: '0', color: '#1a202c' }}>
-                  Mobile App
-                </h4>
-              </div>
-              <p style={{ fontSize: '1rem', color: '#4a5568', lineHeight: '1.6' }}>
-                Native mobile app for iOS and Android. Make picks, check standings, and manage your pool from anywhere.
-              </p>
-            </div>
-
-            {/* Football Themed */}
-            <div style={{ textAlign: 'left', padding: '1.5rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', marginBottom: '1rem', gap: '1rem' }}>
-                <div style={{ fontSize: '3rem' }}>🏈</div>
-                <h4 style={{ fontSize: '1.5rem', fontWeight: '700', margin: '0', color: '#1a202c' }}>
-                  Football Themed
-                </h4>
-              </div>
-              <p style={{ fontSize: '1rem', color: '#4a5568', lineHeight: '1.6' }}>
-                Built specifically for football pools with authentic NFL branding, team logos, and real-time game integration.
-              </p>
-            </div>
-
-            {/* Your Way */}
-            <div style={{ textAlign: 'left', padding: '1.5rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', marginBottom: '1rem', gap: '1rem' }}>
-                <div style={{ fontSize: '3rem' }}>🎯</div>
-                <h4 style={{ fontSize: '1.5rem', fontWeight: '700', margin: '0', color: '#1a202c' }}>
-                  Your Way
-                </h4>
-              </div>
-              <p style={{ fontSize: '1rem', color: '#4a5568', lineHeight: '1.6' }}>
-                Survivor pools, pick'em leagues, confidence points - set up any type of football pool with our flexible platform.
-              </p>
+              <div className="rmp-rank-toast"><span>↑</span><div><small>YOUR RANK</small><b>Up 3 spots this week</b></div><strong>#04</strong></div>
             </div>
           </div>
-        </div>
+          <div className="rmp-ticker"><div><span>LIVE</span><b>NYJ 17</b><i>3RD · 08:42</i><b>BUF 20</b></div><p>REAL-TIME SCORES <i>•</i> AUTOMATIC STANDINGS <i>•</i> ZERO SPREADSHEETS</p></div>
+        </section>
+
+        <section className="rmp-how" id="how">
+          <div className="rmp-shell">
+            <div className="rmp-section-kicker"><span>01</span><b>GAME PLAN</b></div>
+            <div className="rmp-section-heading"><h2>FROM GROUP CHAT<br />TO <em>GAME ON.</em></h2><p>We handle the repetitive stuff. You set the rules, invite your people, and enjoy the season.</p></div>
+            <div className="rmp-steps">
+              <article><span>01</span><div className="rmp-step-icon rmp-sliders"><i/><i/><i/></div><h3>SET THE RULES</h3><p>Choose your schedule, lock time, entry limits, and autopick behavior.</p></article>
+              <article><span>02</span><div className="rmp-step-icon rmp-people"><i/><i/><i/></div><h3>INVITE THE CREW</h3><p>Share one simple link. Players can join and make picks from any device.</p></article>
+              <article><span>03</span><div className="rmp-step-icon rmp-trophy"><i>★</i></div><h3>LET IT RUN</h3><p>Results and standings update automatically. You just bring the banter.</p></article>
+            </div>
+          </div>
+        </section>
+
+        <section className="rmp-features" id="features">
+          <div className="rmp-shell">
+            <div className="rmp-section-kicker rmp-light"><span>02</span><b>COMMISSIONER ADVANTAGE</b></div>
+            <div className="rmp-feature-heading"><div><h3>Why Choose Run My Pool?</h3><h2>LESS ADMIN.<br /><em>MORE FOOTBALL.</em></h2></div><p>Everything you need to run a polished pool without chasing picks, fixing formulas, or spending Monday morning on standings.</p></div>
+            <div className="rmp-feature-grid">
+              {features.map((feature) => <article key={feature.title}><span>{feature.number}</span><div className="rmp-feature-icon">{feature.number === '01' ? '≡' : feature.number === '02' ? '$' : '↗'}</div><h4>{feature.title}</h4><p>{feature.copy}</p></article>)}
+            </div>
+          </div>
+        </section>
+
+        <section className="rmp-pool-types" id="pool-types">
+          <div className="rmp-shell">
+            <p className="rmp-eyebrow"><span /> CLASSIC SURVIVOR, DONE RIGHT</p>
+            <h2>ONE TEAM. EVERY WEEK.<br /><em>LAST ENTRY STANDING.</em></h2>
+            <p>Choose a team you haven&apos;t used. Win and advance. Lose and your run is over. Run My Pool keeps every entry, deadline, and result organized automatically.</p>
+            <Link href="/create-account" className="rmp-button rmp-primary">Create your survivor pool <span>→</span></Link>
+          </div>
+        </section>
       </main>
 
-      {/* Footer */}
-      <footer style={{ 
-        textAlign: 'center', 
-        padding: '2rem', 
-        background: 'rgba(255, 255, 255, 0.1)',
-        backdropFilter: 'blur(10px)',
-        color: 'rgba(255, 255, 255, 0.8)',
-        fontSize: '1rem'
-      }}>
-        © 2025 Run My Pool. Built for football fans, by football fans. 🏈
-      </footer>
+      <footer className="rmp-footer"><div className="rmp-shell"><Link href="/" className="rmp-brand"><FootballMark /><span>RUN MY <b>POOL</b></span></Link><p>Built for football fans, by football fans.</p><span>© 2026 Run My Pool</span></div></footer>
     </div>
   );
 }
