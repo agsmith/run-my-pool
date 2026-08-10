@@ -142,33 +142,52 @@ class TestAuditTrail:
 
     def test_create_pick_creates_audit(self, client, db_session):
         """Creating a pick should produce a CREATE_PICK audit log."""
-        token = _reg(client, "pick.create@audit.example.com")
+        email = "pick.create@audit.example.com"
+        token = _reg(client, email)
         pool = _create_pool(client, token)
-        entry = _create_entry(client, token, pool["id"])
+        entry = _create_entry(client, token, pool["id"], "Sunday Ticket")
         _create_pick(client, token, entry["id"])
-        assert len(_qlogs(db_session, "CREATE_PICK")) >= 1
+        event = _qlogs(db_session, "CREATE_PICK")[-1]
+        payload = json.loads(event.details)["additional_data"]
+        assert payload["team"] == "NE"
+        assert payload["team_name"] == "NE"
+        assert payload["username"] == email
+        assert payload["entry_name"] == "Sunday Ticket"
 
     def test_update_pick_creates_audit(self, client, db_session):
         """Updating a pick should produce an UPDATE_PICK audit log."""
-        token = _reg(client, "pick.update@audit.example.com")
+        email = "pick.update@audit.example.com"
+        token = _reg(client, email)
         pool = _create_pool(client, token)
-        entry = _create_entry(client, token, pool["id"])
+        entry = _create_entry(client, token, pool["id"], "Comeback Entry")
         pick = _create_pick(client, token, entry["id"], team="NE")
         resp = client.put(
             f"/picks/{pick['id']}", json={"team": "KC"}, headers=_h(token)
         )
         assert resp.status_code == 200, resp.text
-        assert len(_qlogs(db_session, "UPDATE_PICK")) >= 1
+        event = _qlogs(db_session, "UPDATE_PICK")[-1]
+        changes = json.loads(event.details)["additional_data"]["changes"]
+        assert changes["team"] == {"old": "NE", "new": "KC"}
+        assert changes["context"]["old_team_name"] == "NE"
+        assert changes["context"]["new_team_name"] == "KC"
+        assert changes["context"]["username"] == email
+        assert changes["context"]["entry_name"] == "Comeback Entry"
 
     def test_delete_pick_creates_audit(self, client, db_session):
         """Deleting a pick should produce a DELETE_PICK audit log."""
-        token = _reg(client, "pick.delete@audit.example.com")
+        email = "pick.delete@audit.example.com"
+        token = _reg(client, email)
         pool = _create_pool(client, token)
-        entry = _create_entry(client, token, pool["id"])
+        entry = _create_entry(client, token, pool["id"], "Delete Me")
         pick = _create_pick(client, token, entry["id"])
         resp = client.delete(f"/picks/{pick['id']}", headers=_h(token))
         assert resp.status_code == 200, resp.text
-        assert len(_qlogs(db_session, "DELETE_PICK")) >= 1
+        event = _qlogs(db_session, "DELETE_PICK")[-1]
+        payload = json.loads(event.details)["additional_data"]
+        assert payload["team"] == "NE"
+        assert payload["team_name"] == "NE"
+        assert payload["username"] == email
+        assert payload["entry_name"] == "Delete Me"
 
     def test_pick_audit_api_returns_pool_scoped_lifecycle(self, client):
         """The admin audit feed exposes create, update, and delete for one pool."""
@@ -219,10 +238,14 @@ class TestAuditTrail:
         details = json.loads(feed[0]["details"])["additional_data"]["changes"]
         assert details == {
             "old_team": "NE",
+            "old_team_name": "NE",
             "new_team": "KC",
+            "new_team_name": "KC",
             "week": 1,
             "entry_id": entry["id"],
+            "entry_name": "My Entry",
             "pool_id": pool["id"],
+            "username": "pick.upsert@audit.example.com",
         }
 
     def test_direct_pick_update_audit_includes_diff_and_context(self, client):
@@ -239,8 +262,12 @@ class TestAuditTrail:
         assert changes["team"] == {"old": "NE", "new": "KC"}
         assert changes["context"] == {
             "entry_id": entry["id"],
+            "entry_name": "My Entry",
             "pool_id": pool["id"],
             "week": 1,
+            "username": "pick.diff@audit.example.com",
+            "old_team_name": "NE",
+            "new_team_name": "KC",
         }
 
     def test_deleted_pick_audit_preserves_deleted_values(self, client):
@@ -256,9 +283,12 @@ class TestAuditTrail:
         payload = json.loads(event["details"])["additional_data"]
         assert payload == {
             "team": "KC",
+            "team_name": "KC",
             "week": 2,
             "entry_id": entry["id"],
+            "entry_name": "My Entry",
             "pool_id": pool["id"],
+            "username": "pick.deleted.payload@audit.example.com",
         }
 
     def test_audit_feed_isolates_pools(self, client):

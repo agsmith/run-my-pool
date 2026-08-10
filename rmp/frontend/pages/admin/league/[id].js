@@ -1602,6 +1602,15 @@ export default function AdminPortal() {
                 const details = parseAuditDetails(log.details);
                 const data = details?.additional_data || {};
                 const pickData = data.changes?.context || data;
+                const teamChange = data.changes?.team;
+                const pickedTeam = pickData.team_name || pickData.team;
+                const oldTeam = pickData.old_team_name || data.changes?.old_team_name || teamChange?.old || data.changes?.old_team;
+                const newTeam = pickData.new_team_name || data.changes?.new_team_name || teamChange?.new || data.changes?.new_team;
+                const pickSummary = log.action === 'UPDATE_PICK' && oldTeam && newTeam
+                  ? `Changed pick from ${oldTeam} to ${newTeam}`
+                  : pickedTeam
+                    ? `${log.action === 'DELETE_PICK' ? 'Deleted pick' : 'Picked'} ${pickedTeam}`
+                    : null;
                 return (
                 <div key={log.id} style={{
                   padding: '1rem',
@@ -1619,8 +1628,18 @@ export default function AdminPortal() {
                     </div>
                   </div>
                   <div style={{ fontSize: '0.875rem', color: '#4b5563', marginBottom: '0.25rem' }}>
-                    User: {log.user_id || 'System'}
+                    Username: {pickData.username || log.user_id || 'System'}
                   </div>
+                  {pickData.entry_name && (
+                    <div style={{ fontSize: '0.875rem', color: '#4b5563', marginBottom: '0.25rem' }}>
+                      Entry: {pickData.entry_name}
+                    </div>
+                  )}
+                  {pickSummary && (
+                    <div style={{ fontSize: '0.9rem', color: '#1f2937', fontWeight: '600', marginTop: '0.4rem' }}>
+                      {pickSummary}
+                    </div>
+                  )}
                   {details?.description && (
                     <div style={{ fontSize: '0.875rem', color: '#6b7280' }}>
                       {details.description}
@@ -1628,7 +1647,7 @@ export default function AdminPortal() {
                   )}
                   {pickData?.week && (
                     <div style={{ fontSize: '0.8rem', color: '#6b7280', marginTop: '0.4rem' }}>
-                      Week {pickData.week}{pickData.team ? ` · ${pickData.team}` : ''}{pickData.entry_id ? ` · Entry ${pickData.entry_id}` : ''}
+                      Week {pickData.week}
                     </div>
                   )}
                 </div>

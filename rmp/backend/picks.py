@@ -14,6 +14,22 @@ from admin import is_user_locked_in_pool
 router = APIRouter()
 
 
+def _team_name(db: Session, abbreviation: str):
+    """Return a display name for an audited team, falling back to its code."""
+    team = db.query(Team).filter(Team.abbrv == abbreviation).first()
+    return team.name if team else abbreviation
+
+
+def _pick_audit_context(entry: Entry, current_user):
+    """Capture labels that remain useful even if related records later change."""
+    return {
+        "entry_id": entry.id,
+        "entry_name": entry.name,
+        "pool_id": entry.pool_id,
+        "username": current_user.email,
+    }
+
+
 # ---------------------------------------------------------------------------
 # Lock enforcement helpers
 # ---------------------------------------------------------------------------
@@ -145,10 +161,11 @@ async def create_pick(
             user_id=current_user.id,
             changes={
                 "old_team": old_team,
+                "old_team_name": _team_name(db, old_team),
                 "new_team": pick.team,
+                "new_team_name": _team_name(db, pick.team),
                 "week": pick.week,
-                "entry_id": pick.entry_id,
-                "pool_id": entry.pool_id,
+                **_pick_audit_context(entry, current_user),
             },
         )
 
@@ -194,9 +211,9 @@ async def create_pick(
         user_id=current_user.id,
         entity_data={
             "team": pick.team,
+            "team_name": _team_name(db, pick.team),
             "week": pick.week,
-            "entry_id": pick.entry_id,
-            "pool_id": entry.pool_id,
+            **_pick_audit_context(entry, current_user),
         },
     )
 
@@ -308,10 +325,16 @@ async def update_pick(
     # Log pick update if there were changes
     if changes:
         changes["context"] = {
-            "entry_id": pick.entry_id,
-            "pool_id": entry.pool_id if entry else None,
             "week": pick.week,
+            **_pick_audit_context(entry, current_user),
         }
+        if "team" in changes:
+            changes["context"].update(
+                {
+                    "old_team_name": _team_name(db, changes["team"]["old"]),
+                    "new_team_name": _team_name(db, changes["team"]["new"]),
+                }
+            )
         log_update_operation(
             db=db,
             entity_type="pick",
@@ -349,6 +372,7 @@ async def delete_pick(
         )
 
     # Log pick deletion before deleting
+    entry = pick.entry
     log_delete_operation(
         db=db,
         entity_type="pick",
@@ -356,9 +380,9 @@ async def delete_pick(
         user_id=current_user.id,
         entity_data={
             "team": pick.team,
+            "team_name": _team_name(db, pick.team),
             "week": pick.week,
-            "entry_id": pick.entry_id,
-            "pool_id": pick.entry.pool_id,
+            **_pick_audit_context(entry, current_user),
         },
     )
 
