@@ -2,7 +2,10 @@
 Admin endpoints for administrative operations
 """
 
+import csv
+import io
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, func
 from datetime import datetime, timezone
@@ -222,6 +225,14 @@ def lock_week(
     )
     alive_ids = {e.id for e in alive_entries}
 
+    # Lock all existing week-N picks for alive entries before auto-picking
+    db.query(models.Pick).filter(
+        models.Pick.entry_id.in_(alive_ids),
+        models.Pick.week == week,
+        models.Pick.locked == False,  # noqa: E712
+    ).update({"locked": True}, synchronize_session="fetch")
+    db.flush()
+
     # Entries that already have a pick for this week
     existing_pick_entry_ids = {
         p.entry_id
@@ -377,3 +388,159 @@ def admin_update_pick(
     )
 
     return pick
+
+
+# ---------------------------------------------------------------------------
+# Pool user lock helpers and endpoints
+# ---------------------------------------------------------------------------
+
+
+def is_user_locked_in_pool(db: Session, pool_id: str, user_id: str) -> bool:
+    """Return True if the user has an active lock record for this pool."""
+    return (
+        db.query(models.PoolUserLock)
+        .filter(
+            models.PoolUserLock.pool_id == pool_id,
+            models.PoolUserLock.user_id == user_id,
+        )
+        .first()
+    ) is not None
+
+
+@router.post(
+    "/pools/{pool_id}/users/{user_id}/lock",
+    response_model=schemas.PoolUserLockOut,
+)
+def lock_user_in_pool(
+    pool_id: str,
+    user_id: str,
+    lock_data: schemas.PoolUserLockCreate,
+    db: Session = Depends(deps.get_db),
+    current_user: models.User = Depends(deps.get_current_user),
+):
+    """Lock a user within a specific pool (admin only). The user can still log in
+    and access other pools — only this pool's entries and picks are blocked."""
+    if not verify_admin_access(pool_id, current_user, db):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required"
+        )
+
+    # Check pool exists
+    pool = db.query(models.Pool).filter(models.Pool.id == pool_id).first()
+    if not pool:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Pool not found"
+        )
+
+    # Check user exists
+    target_user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not target_user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
+        )
+
+    # Check not already locked
+    if is_user_locked_in_pool(db, pool_id, user_id):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="User is already locked in this pool",
+        )
+
+    lock = models.PoolUserLock(
+        pool_id=pool_id,
+        user_id=user_id,
+        locked_at=datetime.now(timezone.utc).replace(tzinfo=None),
+        reason=lock_data.reason,
+    )
+    db.add(lock)
+    db.commit()
+    db.refresh(lock)
+
+    log_admin_action(
+        db=db,
+        action="LOCK_USER_IN_POOL",
+        admin_user_id=current_user.id,
+        details=f"Locked user {target_user.email} in pool {pool_id}",
+        target_entity_type="user",
+        target_entity_id=user_id,
+        additional_data={"pool_id": pool_id, "reason": lock_data.reason},
+    )
+
+    return lock
+
+
+@router.delete("/pools/{pool_id}/users/{user_id}/lock")
+def unlock_user_in_pool(
+    pool_id: str,
+    user_id: str,
+    db: Session = Depends(deps.get_db),
+    current_user: models.User = Depends(deps.get_current_user),
+):
+    """Remove a pool-scoped user lock (admin only)."""
+    if not verify_admin_access(pool_id, current_user, db):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required"
+        )
+
+    lock = (
+        db.query(models.PoolUserLock)
+        .filter(
+            models.PoolUserLock.pool_id == pool_id,
+            models.PoolUserLock.user_id == user_id,
+        )
+        .first()
+    )
+    if not lock:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User is not locked in this pool",
+        )
+
+    db.delete(lock)
+    db.commit()
+
+    log_admin_action(
+        db=db,
+        action="UNLOCK_USER_IN_POOL",
+        admin_user_id=current_user.id,
+        details=f"Unlocked user {user_id} in pool {pool_id}",
+        target_entity_type="user",
+        target_entity_id=user_id,
+        additional_data={"pool_id": pool_id},
+    )
+
+    return {"message": f"User {user_id} unlocked in pool {pool_id}"}
+
+
+@router.get("/pools/{pool_id}/export/entries.csv")
+def export_entries_csv(
+    pool_id: str,
+    db: Session = Depends(deps.get_db),
+    current_user: models.User = Depends(deps.get_current_user),
+):
+    """Download a CSV of all user emails and entry names for a pool (admin only)."""
+    if not verify_admin_access(pool_id, current_user, db):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required"
+        )
+
+    rows = (
+        db.query(models.User.email, models.Entry.name)
+        .join(models.Entry, models.Entry.user_id == models.User.id)
+        .filter(models.Entry.pool_id == pool_id)
+        .order_by(models.User.email, models.Entry.name)
+        .all()
+    )
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["email", "entry_name"])
+    for email, entry_name in rows:
+        writer.writerow([email, entry_name])
+
+    output.seek(0)
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=entries.csv"},
+    )

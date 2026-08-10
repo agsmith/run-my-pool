@@ -1,6 +1,6 @@
 # RunMyPool — Test Suite Documentation
 
-> **Backend:** 137 passed · 1 skipped · 0 failed · Coverage: 80%
+> **Backend:** 298 passed · 1 skipped · 0 failed · Coverage: 83%
 > **Frontend:** 64 passed · 0 failed · 6 suites
 
 ---
@@ -11,6 +11,14 @@
 # Backend (Python / FastAPI)
 cd rmp/backend
 venv/bin/python -m pytest tests/ -v
+
+# Run specific subsets by mark
+venv/bin/python -m pytest tests/ -m season       # 17-week season simulation only
+venv/bin/python -m pytest tests/ -m "gap"        # Tests documenting known enforcement gaps
+venv/bin/python -m pytest tests/ -m "known_bug"  # Tests documenting known security bugs
+venv/bin/python -m pytest tests/ -m scenario     # Existing scenario tests
+venv/bin/python -m pytest tests/ -m security     # OWASP security tests
+venv/bin/python -m pytest tests/ -m "not season" # Skip the slow season simulation
 
 # Frontend (JavaScript / Next.js)
 cd rmp/frontend
@@ -23,17 +31,21 @@ npm test
 
 > Run with: `cd rmp/backend && venv/bin/python -m pytest tests/ -v`
 >
-> Filter by mark: `pytest -m scenario` · `pytest -m security` · `pytest -m "not scenario"`
+> Filter by mark: `pytest -m scenario` · `pytest -m security` · `pytest -m season` · `pytest -m gap` · `pytest -m known_bug`
 
 ## Overview
 
-138 tests across 13 files covering the full FastAPI backend. All run against an in-memory SQLite database — no Docker or MySQL required.
+235 tests across 21 files covering the full FastAPI backend. All run against an in-memory SQLite database — no Docker or MySQL required.
 
 | Category | Tests | Mark | File |
 |---|---|---|---|
-| Admin operations | 17 | | `test_admin.py` |
-| Authentication | 11 | | `test_auth.py` |
+| Admin operations | 43 | | `test_admin.py` |
+| Authentication | 45 | | `test_auth.py` |
+| Audit trail | 14 | | `test_audit.py` |
+| Team eligibility | 9 | | `test_eligibility.py` |
+| Entry elimination | 12 | | `test_elimination.py` |
 | Entry lock enforcement | 7 | | `test_entries.py` |
+| Lock time enforcement | 24 | `gap` | `test_lock_time.py` |
 | Application health | 4 | | `test_main.py` |
 | Message board | 14 | | `test_message_board.py` |
 | Models & schemas | 10 | | `test_models.py` |
@@ -41,10 +53,40 @@ npm test
 | Pools | 13 | | `test_pools.py` |
 | Season scenarios | 8 | `scenario` | `test_scenario_season.py` |
 | Schedule | 5 | | `test_schedule.py` |
-| Security (OWASP) | 12 | `security` | `test_security.py` |
+| Security (OWASP + known bugs) | 17 | `security` `known_bug` | `test_security.py` |
 | Users | 10 | | `test_users.py` |
 | Utilities & config | 16 | | `test_utils.py` |
-| **Total** | **138** | | |
+| Full season simulation | 26 | `season` | `test_z_full_season.py` |
+| **Total** | **235** | | |
+
+> **Note:** `test_z_full_season.py` is prefixed with `z_` to run last and avoid session-scoped DB fixture interference with function-scoped tests. Run with `pytest -m season` or `pytest tests/test_z_full_season.py`.
+
+---
+
+## Test Marks Reference
+
+| Mark | Purpose | How to run |
+|---|---|---|
+| `season` | 17-week simulation with 750 users, 2000 entries, 2025 NFL schedule | `pytest -m season` |
+| `gap` | Documents a known enforcement gap — asserts current (broken) behavior | `pytest -m gap` |
+| `known_bug` | Documents a known security bug — asserts the bug exists | `pytest -m known_bug` |
+| `scenario` | End-to-end season lifecycle scenarios | `pytest -m scenario` |
+| `security` | OWASP security tests | `pytest -m security` |
+
+Gap and known_bug tests PASS today by asserting broken behavior. When a gap or bug is fixed, these tests will need to be updated to assert the correct behavior.
+
+---
+
+## Season Simulation DB Lifecycle
+
+The season simulation (`test_z_full_season.py`) uses a session-scoped SQLite file at `rmp/backend/test_season.db`. This file is:
+- Created fresh at the start of each pytest session
+- Deleted automatically on teardown
+- Contains 750 users, 2000 entries, and 256 games from the 2025 NFL regular season
+
+If the test run is interrupted and `test_season.db` is left on disk, delete it manually before the next run.
+
+---
 
 ---
 
@@ -84,7 +126,9 @@ npm test
 
 ---
 
-## Authentication (`test_auth.py`) — 11 tests
+## Authentication (`test_auth.py`) — 45 tests
+
+Generated via the litmus test generation pipeline (workspace at `litmus/auth-coverage/`).
 
 ### `TestAuthFunctions`
 

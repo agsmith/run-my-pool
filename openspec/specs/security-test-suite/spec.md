@@ -40,10 +40,55 @@ All security tests are marked `@pytest.mark.security` and run in CI on every pus
 - **WHEN** a valid password reset token is used to reset a password successfully
 - **THEN** using the same token a second time returns HTTP 400 with "Invalid or expired reset token"
 
-#### Scenario: A05 — User enumeration endpoint is unauthenticated (known gap)
-- **WHEN** `GET /users/` is called without a token
-- **THEN** the response returns HTTP 200 with the user list — this scenario documents a known security misconfiguration gap to be tracked
+#### Scenario: A05 — User enumeration endpoint requires admin role
+- **WHEN** `GET /users/` is called without a token or by a non-admin user
+- **THEN** the response returns HTTP 403
 
 #### Scenario: A01 — Cross-pool message access is blocked
 - **WHEN** a user with an entry in Pool A tries to read messages from Pool B (where they have no entry)
 - **THEN** the request returns HTTP 403
+
+### Requirement: Gap tests for lock enforcement become correctness tests
+Tests previously marked `@pytest.mark.gap` that documented missing pick lock enforcement SHALL be updated to assert the now-enforced behavior. Tests previously marked `@pytest.mark.known_bug` for the plaintext password and unauthenticated user list SHALL be updated to assert the corrected behavior.
+
+#### Scenario: test_lock_time.py gap test becomes passing correctness test
+- **WHEN** `test_lock_week_sets_existing_picks_to_locked` runs after this change
+- **THEN** it SHALL pass asserting `Pick.locked == True` on existing picks (removing the gap assertion)
+
+#### Scenario: test_lock_time.py per-game start_time gap test becomes correctness test
+- **WHEN** `test_thursday_pick_not_blocked_gap` runs after this change
+- **THEN** it SHALL pass asserting HTTP 423 for a pick submitted after Thursday kickoff (removing the gap assertion)
+
+#### Scenario: test_security.py known_bug tests become correctness tests
+- **WHEN** `test_get_users_accessible_without_auth_BUG` runs after this change
+- **THEN** it SHALL pass asserting HTTP 403 (not 200) for unauthenticated user list
+
+#### Scenario: Dead entry pick test becomes correctness test
+- **WHEN** `test_dead_entry_cannot_pick` runs after this change
+- **THEN** it SHALL pass asserting HTTP 403 "Entry has been eliminated" (not HTTP 200)
+
+### Requirement: New tests cover the wired admin password reset
+A new test SHALL verify the admin "Reset Password" button calls `POST /auth/forgot-password` and receives a success response.
+
+#### Scenario: Admin reset password button triggers forgot-password flow
+- **WHEN** a pool admin enters a user's email and clicks Reset Password in the admin UI
+- **THEN** `POST /auth/forgot-password` is called with that email and the UI shows a success message
+
+### Requirement: Auth flows have comprehensive pytest test coverage
+All auth endpoints (register, login, forgot-password, reset-password, me) SHALL have test coverage including happy paths, all documented failure paths, and known behavioral gaps documented with `# KNOWN GAP` comments.
+
+#### Scenario: GET /auth/me is covered
+- **WHEN** the auth test suite runs
+- **THEN** tests exist for: valid token → 200, expired token → 401, no token → 401/403, tampered token → 401, token for deleted user → 401, reset token used as access token → documented gap
+
+#### Scenario: Forgot-password flow is covered
+- **WHEN** the auth test suite runs
+- **THEN** tests exist for: registered email → 200, unregistered email → 200 (no info leak), invalid format → 422, token type claim is correct
+
+#### Scenario: Reset-password flow is covered
+- **WHEN** the auth test suite runs
+- **THEN** tests exist for: valid token + new password → 200, expired token → 400, malformed token → 400, access token used as reset token → 400, token reuse → documented gap (no blacklist), password updates correctly in DB
+
+#### Scenario: Known behavioral gaps are documented in TestKnownBehaviorGaps
+- **WHEN** the auth test suite runs
+- **THEN** tests marked `# KNOWN GAP` exist for: is_active not enforced at login, is_active not enforced at GET /auth/me, deleted-user token not revoked, no password complexity requirement, registration audit event, reset-password audit event

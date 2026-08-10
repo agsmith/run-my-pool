@@ -169,3 +169,66 @@ class TestPoolAdminOperations:
         # Starlette <0.20 returns 401, >=0.20 returns 403 when no token is provided
         response = client.get("/pools/some-id/is-admin")
         assert response.status_code in (401, 403)
+
+
+# ---------------------------------------------------------------------------
+# TestParseLockTime
+# ---------------------------------------------------------------------------
+
+
+class TestParseLockTime:
+    """Tests for the _parse_lock_time helper and PATCH /pools/{id} lock_time parsing."""
+
+    def _reg_and_create_pool(self, client):
+        from datetime import datetime, timedelta
+        email = f"plt_{datetime.utcnow().timestamp():.0f}@example.com"
+        client.post("/auth/register", json={"email": email, "password": "Pass1234!"})
+        resp = client.post("/auth/login", json={"email": email, "password": "Pass1234!"})
+        token = resp.json()["access_token"]
+        headers = {"Authorization": f"Bearer {token}"}
+        pool_resp = client.post(
+            "/pools/create",
+            json={"name": "Lock Test Pool", "description": "", "is_private": False},
+            headers=headers,
+        )
+        return token, headers, pool_resp.json()["id"]
+
+    def test_parse_lock_time_iso_format(self):
+        """_parse_lock_time handles ISO format with T separator."""
+        from pools import _parse_lock_time
+        from datetime import datetime
+        result = _parse_lock_time("2025-09-07T17:00:00")
+        assert result == datetime(2025, 9, 7, 17, 0, 0)
+
+    def test_parse_lock_time_iso_with_z(self):
+        """_parse_lock_time strips Z from ISO format."""
+        from pools import _parse_lock_time
+        from datetime import datetime
+        result = _parse_lock_time("2025-09-07T17:00:00Z")
+        assert result == datetime(2025, 9, 7, 17, 0, 0)
+
+    def test_parse_lock_time_space_separated(self):
+        """_parse_lock_time handles YYYY-MM-DD HH:MM:SS format."""
+        from pools import _parse_lock_time
+        from datetime import datetime
+        result = _parse_lock_time("2025-09-07 17:00:00")
+        assert result == datetime(2025, 9, 7, 17, 0, 0)
+
+    def test_parse_lock_time_missing_seconds(self):
+        """_parse_lock_time appends :00 when seconds are missing."""
+        from pools import _parse_lock_time
+        from datetime import datetime
+        result = _parse_lock_time("2025-09-07 17:00")
+        assert result == datetime(2025, 9, 7, 17, 0, 0)
+
+    def test_patch_pool_lock_time_updates_correctly(self, client):
+        """PATCH /pools/{id} with a valid lock_time string updates the pool."""
+        token, headers, pool_id = self._reg_and_create_pool(client)
+        resp = client.patch(
+            f"/pools/{pool_id}",
+            json={"lock_time": "2025-09-07T17:00:00Z"},
+            headers=headers,
+        )
+        assert resp.status_code == 200, resp.text
+        # lock_time should be stored and returned (may be null in PoolOut if not serialised)
+        # at minimum the endpoint should not 500

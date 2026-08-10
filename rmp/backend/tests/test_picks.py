@@ -365,18 +365,20 @@ class TestPickBreakdown:
 
         _seed_team(db_session, 10, "Kansas City Chiefs", "KC")
         _seed_team(db_session, 11, "Philadelphia Eagles", "PHI")
-        past_time = datetime.utcnow() - timedelta(hours=1)
+        # Seed with future start_time so picks are allowed
+        future_time = datetime.utcnow() + timedelta(hours=2)
         _seed_schedule(
             db_session,
             1002,
             week_num=6,
             home_team_id=10,
             away_team_id=11,
-            start_time=past_time,
+            start_time=future_time,
         )
 
         for entry_id, team_abbrv, team_id in [(entry1, "KC", 10), (entry2, "KC", 10)]:
             resp = _create_pick(client, headers, entry_id, week=6, team=team_abbrv)
+            assert resp.status_code == 200, f"Pick creation failed: {resp.text}"
             pick = (
                 db_session.query(models.Pick)
                 .filter(models.Pick.id == resp.json()["id"])
@@ -384,6 +386,15 @@ class TestPickBreakdown:
             )
             pick.team_id = team_id
             db_session.commit()
+
+        # Move game start_time to the past so breakdown reveals it
+        game = (
+            db_session.query(models.Schedule)
+            .filter(models.Schedule.game_id == 1002)
+            .first()
+        )
+        game.start_time = datetime.utcnow() - timedelta(hours=1)
+        db_session.commit()
 
         resp = client.get(f"/picks/pool/{pool_id}/week/6/breakdown", headers=headers)
         assert resp.status_code == 200
@@ -404,14 +415,14 @@ class TestPickBreakdown:
 
         _seed_team(db_session, 20, "Buffalo Bills", "BUF")
         _seed_team(db_session, 21, "Miami Dolphins", "MIA")
-        past_time = datetime.utcnow() - timedelta(hours=1)
+        future_time = datetime.utcnow() + timedelta(hours=2)
         _seed_schedule(
             db_session,
             1003,
             week_num=7,
             home_team_id=20,
             away_team_id=21,
-            start_time=past_time,
+            start_time=future_time,
         )
 
         for entry_id, team_abbrv, team_id in [
@@ -419,6 +430,7 @@ class TestPickBreakdown:
             (dead_entry, "BUF", 20),
         ]:
             resp = _create_pick(client, headers, entry_id, week=7, team=team_abbrv)
+            assert resp.status_code == 200, f"Pick creation failed: {resp.text}"
             pick = (
                 db_session.query(models.Pick)
                 .filter(models.Pick.id == resp.json()["id"])
@@ -432,6 +444,15 @@ class TestPickBreakdown:
             db_session.query(models.Entry).filter(models.Entry.id == dead_entry).first()
         )
         entry.alive = False
+        db_session.commit()
+
+        # Move game start_time to the past so breakdown reveals it
+        game = (
+            db_session.query(models.Schedule)
+            .filter(models.Schedule.game_id == 1003)
+            .first()
+        )
+        game.start_time = datetime.utcnow() - timedelta(hours=1)
         db_session.commit()
 
         resp = client.get(f"/picks/pool/{pool_id}/week/7/breakdown", headers=headers)
@@ -451,14 +472,14 @@ class TestPickBreakdown:
 
         _seed_team(db_session, 30, "Dallas Cowboys", "DAL")
         _seed_team(db_session, 31, "New York Giants", "NYG")
-        past_time = datetime.utcnow() - timedelta(hours=1)
+        future_time = datetime.utcnow() + timedelta(hours=2)
         _seed_schedule(
             db_session,
             1004,
             week_num=8,
             home_team_id=30,
             away_team_id=31,
-            start_time=past_time,
+            start_time=future_time,
         )
 
         # 2 entries pick DAL, 1 picks NYG
@@ -471,6 +492,7 @@ class TestPickBreakdown:
             headers_i = _authed(token_i)
             entry_id = _create_entry(client, headers_i, pool_id, name=f"Entry {i}")
             resp = _create_pick(client, headers_i, entry_id, week=8, team=team_abbrv)
+            assert resp.status_code == 200, f"Pick creation failed: {resp.text}"
             pick = (
                 db_session.query(models.Pick)
                 .filter(models.Pick.id == resp.json()["id"])
@@ -478,6 +500,15 @@ class TestPickBreakdown:
             )
             pick.team_id = team_id
             db_session.commit()
+
+        # Move game start_time to the past so breakdown reveals it
+        game = (
+            db_session.query(models.Schedule)
+            .filter(models.Schedule.game_id == 1004)
+            .first()
+        )
+        game.start_time = datetime.utcnow() - timedelta(hours=1)
+        db_session.commit()
 
         resp = client.get(f"/picks/pool/{pool_id}/week/8/breakdown", headers=headers)
         assert resp.status_code == 200

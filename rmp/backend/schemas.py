@@ -196,3 +196,17 @@ class MessageBoardOut(BaseModel):
 
     class Config:
         orm_mode = True
+
+
+class PoolUserLockCreate(BaseModel):
+    reason: Optional[str] = None
+
+
+class PoolUserLockOut(BaseModel):
+    pool_id: str
+    user_id: str
+    locked_at: datetime
+    reason: Optional[str] = None
+
+    class Config:
+        orm_mode = True

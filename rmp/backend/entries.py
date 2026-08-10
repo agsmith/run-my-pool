@@ -12,6 +12,7 @@ from audit_utils import (
     log_delete_operation,
     log_admin_action,
 )
+from admin import is_user_locked_in_pool
 
 router = APIRouter(prefix="/entries", tags=["entries"])
 
@@ -37,11 +38,21 @@ def create_entry(
                     lock_time = datetime.fromisoformat(lock_time)
                 except ValueError:
                     lock_time = None
-            if lock_time and lock_time < datetime.now(timezone.utc).replace(tzinfo=None):
+            if lock_time and lock_time < datetime.now(timezone.utc).replace(
+                tzinfo=None
+            ):
                 raise HTTPException(
                     status_code=423,
                     detail="Pool is locked. Entry creation is not allowed after the lock time.",
                 )
+
+        # Check if user already has an entry with this name in this pool
+        # Check pool-level user lock
+        if is_user_locked_in_pool(db, entry.pool_id, current_user.id):
+            raise HTTPException(
+                status_code=423,
+                detail="Your account is locked in this pool. Contact the pool admin.",
+            )
 
         # Check if user already has an entry with this name in this pool
         existing_entry = (
@@ -244,11 +255,21 @@ def delete_entry(
                     lock_time = datetime.fromisoformat(lock_time)
                 except ValueError:
                     lock_time = None
-            if lock_time and lock_time < datetime.now(timezone.utc).replace(tzinfo=None):
+            if lock_time and lock_time < datetime.now(timezone.utc).replace(
+                tzinfo=None
+            ):
                 raise HTTPException(
                     status_code=423,
                     detail="Pool is locked. Entry deletion is not allowed after the lock time.",
                 )
+
+        # Log entry deletion before deleting
+        # Check pool-level user lock
+        if is_user_locked_in_pool(db, entry.pool_id, current_user.id):
+            raise HTTPException(
+                status_code=423,
+                detail="Your account is locked in this pool. Contact the pool admin.",
+            )
 
         # Log entry deletion before deleting
         log_delete_operation(

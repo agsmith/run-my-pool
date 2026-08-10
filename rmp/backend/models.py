@@ -1,4 +1,14 @@
-from sqlalchemy import Column, String, Boolean, DateTime, ForeignKey, Enum, Text, Integer, Time
+from sqlalchemy import (
+    Column,
+    String,
+    Boolean,
+    DateTime,
+    ForeignKey,
+    Enum,
+    Text,
+    Integer,
+    Time,
+)
 from sqlalchemy.orm import relationship, declarative_base
 import enum
 
@@ -11,10 +21,12 @@ RULES_ID_FK = "rules.id"
 
 Base = declarative_base()
 
+
 class UserRole(enum.Enum):
     USER = "USER"
     POOL_ADMIN = "POOL_ADMIN"
     SUPER_ADMIN = "SUPER_ADMIN"
+
 
 class Team(Base):
     __tablename__ = "teams"
@@ -24,6 +36,7 @@ class Team(Base):
     logo = Column(String(255))
     # relationships
     picks = relationship("Pick", back_populates="team_obj")
+
 
 class User(Base):
     __tablename__ = "users"
@@ -39,6 +52,7 @@ class User(Base):
     # relationships
     pools = relationship("Pool", back_populates="owner")
     entries = relationship("Entry", back_populates="user")
+
 
 class Pool(Base):
     __tablename__ = "pools"
@@ -56,6 +70,7 @@ class Pool(Base):
     pool_rules = relationship("PoolRule", back_populates="pool")
     pool_rule_values = relationship("PoolRuleValue", back_populates="pool")
 
+
 class Rule(Base):
     __tablename__ = "rules"
     id = Column(String(36), primary_key=True, index=True)
@@ -68,6 +83,7 @@ class Rule(Base):
     pool_rules = relationship("PoolRule", back_populates="rule")
     pool_rule_values = relationship("PoolRuleValue", back_populates="rule")
 
+
 class PoolRule(Base):
     __tablename__ = "pool_rules"
     pool_id = Column(String(36), ForeignKey(POOLS_ID_FK), primary_key=True)
@@ -75,6 +91,7 @@ class PoolRule(Base):
     # relationships
     pool = relationship("Pool", back_populates="pool_rules")
     rule = relationship("Rule", back_populates="pool_rules")
+
 
 class PoolRuleValue(Base):
     __tablename__ = "pool_rules_values"
@@ -84,6 +101,7 @@ class PoolRuleValue(Base):
     # relationships
     pool = relationship("Pool", back_populates="pool_rule_values")
     rule = relationship("Rule", back_populates="pool_rule_values")
+
 
 class Entry(Base):
     __tablename__ = "entries"
@@ -98,6 +116,7 @@ class Entry(Base):
     user = relationship("User", back_populates="entries")
     pool = relationship("Pool", back_populates="entries")
     picks = relationship("Pick", back_populates="entry")
+
 
 class Pick(Base):
     __tablename__ = "picks"
@@ -114,6 +133,7 @@ class Pick(Base):
     entry = relationship("Entry", back_populates="picks")
     team_obj = relationship("Team", back_populates="picks")
 
+
 class AuditLog(Base):
     __tablename__ = "audit_logs"
     id = Column(String(36), primary_key=True, index=True)
@@ -121,6 +141,7 @@ class AuditLog(Base):
     action = Column(String(255))
     details = Column(Text)
     created_at = Column(DateTime)
+
 
 class MessageBoard(Base):
     __tablename__ = "message_board"
@@ -130,6 +151,7 @@ class MessageBoard(Base):
     message = Column(Text)
     created_at = Column(DateTime)
 
+
 class PoolAdmin(Base):
     __tablename__ = "pool_admins"
     pool_id = Column(String(36), ForeignKey(POOLS_ID_FK), primary_key=True)
@@ -137,6 +159,18 @@ class PoolAdmin(Base):
     # relationships
     pool = relationship("Pool")
     user = relationship("User")
+
+
+class PoolUserLock(Base):
+    __tablename__ = "pool_user_locks"
+    pool_id = Column(String(36), ForeignKey(POOLS_ID_FK), primary_key=True)
+    user_id = Column(String(36), ForeignKey(USERS_ID_FK), primary_key=True)
+    locked_at = Column(DateTime, nullable=False)
+    reason = Column(String(255), nullable=True)
+    # relationships
+    pool = relationship("Pool")
+    user = relationship("User")
+
 
 class Schedule(Base):
     __tablename__ = "schedule"
@@ -146,7 +180,7 @@ class Schedule(Base):
     away_team_id = Column(Integer, ForeignKey(TEAMS_ID_FK), nullable=False)
     start_time = Column(DateTime, nullable=False)
     winning_team_id = Column(Integer, nullable=True, default=99)
-    
+
     # relationships
     home_team = relationship("Team", foreign_keys=[home_team_id])
     away_team = relationship("Team", foreign_keys=[away_team_id])

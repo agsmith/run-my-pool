@@ -1,17 +1,14 @@
 """
 Tests for /users/* endpoints.
 
-Notable quirks documented here:
-- GET /users/ and GET /users/{user_id} require NO authentication (known security gap).
-- user_id path parameters are typed as `int` in the route handler even though
-  User.id is a string UUID. Passing a UUID string to these endpoints returns 422
-  (FastAPI path-param validation), not 404. Tests use integer 0 as a sentinel
-  "not found" value where a non-existent user is needed.
-- PATCH /users/{user_id}/password stores the supplied string directly into
-  hashed_password without hashing — a known security bug, tested explicitly.
+After the fix-security-gaps-and-lock-enforcement change:
+- GET /users/ and GET /users/{user_id} require POOL_ADMIN or SUPER_ADMIN role
+- user_id path parameters are now correctly typed as str (UUID)
+- PATCH /users/{user_id}/password has been removed
 """
 
 import pytest
+import models
 
 
 # ---------------------------------------------------------------------------
@@ -32,14 +29,20 @@ def _authed(token):
     return {"Authorization": f"Bearer {token}"}
 
 
-def _get_user_id(client, email):
-    """Retrieve a user's id by scanning the /users/ list."""
-    resp = client.get("/users/")
-    assert resp.status_code == 200
-    users = resp.json()
-    match = next((u for u in users if u["email"] == email), None)
-    assert match is not None, f"User {email} not found in /users/ response"
-    return match["id"]
+def _get_user_id(client, db_session, email):
+    """Retrieve a user's id directly from the DB (avoids HTTP auth requirement)."""
+    user = db_session.query(models.User).filter(models.User.email == email).first()
+    assert user is not None, f"User {email} not found in DB"
+    return user.id
+
+
+def _make_pool_admin(db_session, email):
+    """Promote a user to POOL_ADMIN role directly in the DB."""
+    user = db_session.query(models.User).filter(models.User.email == email).first()
+    assert user is not None, f"User {email} not found"
+    user.role = models.UserRole.POOL_ADMIN
+    db_session.commit()
+    db_session.expire_all()
 
 
 # ---------------------------------------------------------------------------
@@ -55,38 +58,56 @@ class TestUserEndpoints:
     # -----------------------------------------------------------------------
 
     def test_list_users_no_auth(self, client):
-        """
-        GET /users/ succeeds without authentication.
-
-        This is a known security gap — the endpoint is publicly accessible.
-        """
+        """GET /users/ without a token returns 401 or 403."""
         resp = client.get("/users/")
-        assert resp.status_code == 200
+        assert resp.status_code in (401, 403), (
+            f"Expected 401 or 403, got {resp.status_code}"
+        )
 
-    def test_list_users_returns_list(self, client):
-        """Registering a user and listing /users/ returns a list containing that user."""
-        _register_and_login(client, email="list_users@example.com")
+    def test_list_users_regular_user_forbidden(self, client):
+        """GET /users/ with a regular USER role token returns 403."""
+        token = _register_and_login(client, email="regular_user@users.example.com")
+        resp = client.get("/users/", headers=_authed(token))
+        assert resp.status_code == 403, (
+            f"Expected 403 for regular USER, got {resp.status_code}"
+        )
 
-        resp = client.get("/users/")
+    def test_list_users_returns_list_for_admin(self, client, db_session):
+        """POOL_ADMIN can list users and the list contains the registered user."""
+        _register_and_login(client, email="list_users@users.example.com")
+        token = _register_and_login(client, email="list_admin@users.example.com")
+        _make_pool_admin(db_session, "list_admin@users.example.com")
 
+        resp = client.get("/users/", headers=_authed(token))
         assert resp.status_code == 200
         data = resp.json()
         assert isinstance(data, list)
         emails = [u["email"] for u in data]
-        assert "list_users@example.com" in emails
+        assert "list_users@users.example.com" in emails
 
     # -----------------------------------------------------------------------
     # GET /users/{user_id}
     # -----------------------------------------------------------------------
 
-    def test_get_user_not_found(self, client):
-        """
-        GET /users/{user_id} with an integer id that does not exist returns 404.
+    def test_get_user_no_auth(self, client):
+        """GET /users/{user_id} without a token returns 401 or 403."""
+        resp = client.get("/users/00000000-0000-0000-0000-000000000000")
+        assert resp.status_code in (401, 403)
 
-        Note: The route declares user_id as int, so a UUID string would produce
-        a 422 validation error instead. Integer 0 is used as a non-existent sentinel.
+    def test_get_user_not_found(self, client, db_session):
         """
-        resp = client.get("/users/0")
+        GET /users/{user_id} with a valid admin token and a non-existent UUID returns 404.
+        user_id is now correctly typed as str.
+        """
+        token = _register_and_login(
+            client, email="get_notfound_admin@users.example.com"
+        )
+        _make_pool_admin(db_session, "get_notfound_admin@users.example.com")
+
+        resp = client.get(
+            "/users/00000000-0000-0000-0000-000000000000",
+            headers=_authed(token),
+        )
         assert resp.status_code == 404
 
     # -----------------------------------------------------------------------
@@ -95,40 +116,32 @@ class TestUserEndpoints:
 
     def test_delete_user_requires_auth(self, client):
         """DELETE /users/{user_id} without a token returns 401 or 403."""
-        # Use a syntactically valid integer id; auth check fires before DB lookup.
-        resp = client.delete("/users/1")
+        resp = client.delete("/users/00000000-0000-0000-0000-000000000000")
         assert resp.status_code in (401, 403)
 
     def test_delete_user_not_found(self, client):
-        """Authenticated DELETE for a non-existent user returns 404."""
-        token = _register_and_login(client, email="delete_notfound@example.com")
-
-        resp = client.delete("/users/0", headers=_authed(token))
-
+        """Authenticated DELETE for a non-existent UUID returns 404."""
+        token = _register_and_login(client, email="delete_notfound@users.example.com")
+        resp = client.delete(
+            "/users/00000000-0000-0000-0000-000000000000",
+            headers=_authed(token),
+        )
         assert resp.status_code == 404
 
-    def test_delete_user_success(self, client):
+    def test_delete_user_success(self, client, db_session):
         """
-        Documents a type-mismatch bug: User.id is a string UUID but the route
-        declares `user_id: int`.  Passing the real UUID string to DELETE
-        /users/{user_id} causes FastAPI to return 422 (path-param validation
-        fails) rather than performing the delete.
-
-        If the route signature is fixed to `user_id: str`, this test should be
-        updated to assert 200 and verify the user is removed.
+        Authenticated DELETE /users/{user_id} with the correct UUID removes the user.
+        user_id is now a str (UUID), matching User.id.
         """
-        # Primary actor — performs the delete
-        token = _register_and_login(client, email="delete_actor@example.com")
+        actor_token = _register_and_login(
+            client, email="delete_actor@users.example.com"
+        )
+        _register_and_login(client, email="delete_target@users.example.com")
+        target_id = _get_user_id(client, db_session, "delete_target@users.example.com")
 
-        # Target user to be deleted
-        _register_and_login(client, email="delete_target@example.com")
-        target_id = _get_user_id(client, "delete_target@example.com")
-
-        # BUG: route expects int, but User.id is a UUID string → 422
-        resp = client.delete(f"/users/{target_id}", headers=_authed(token))
-        assert resp.status_code == 422, (
-            "Expected 422 due to int/UUID type mismatch in route signature. "
-            f"Got {resp.status_code}: {resp.json()}"
+        resp = client.delete(f"/users/{target_id}", headers=_authed(actor_token))
+        assert resp.status_code == 200, (
+            f"Expected 200 for delete with UUID, got {resp.status_code}: {resp.json()}"
         )
 
     # -----------------------------------------------------------------------
@@ -137,78 +150,54 @@ class TestUserEndpoints:
 
     def test_update_email_requires_auth(self, client):
         """PATCH /users/{user_id}/email without a token returns 401 or 403."""
-        resp = client.patch("/users/1/email", params={"email": "new@test.com"})
+        resp = client.patch(
+            "/users/00000000-0000-0000-0000-000000000000/email",
+            params={"email": "new@test.com"},
+        )
         assert resp.status_code in (401, 403)
 
     def test_update_email_not_found(self, client):
-        """Authenticated PATCH email for a non-existent user returns 404."""
-        token = _register_and_login(client, email="email_notfound@example.com")
-
+        """Authenticated PATCH email for a non-existent UUID returns 404."""
+        token = _register_and_login(client, email="email_notfound@users.example.com")
         resp = client.patch(
-            "/users/0/email",
+            "/users/00000000-0000-0000-0000-000000000000/email",
             params={"email": "x@x.com"},
             headers=_authed(token),
         )
-
         assert resp.status_code == 404
 
-    def test_update_email_success(self, client):
+    def test_update_email_success(self, client, db_session):
         """
-        Documents a type-mismatch bug: User.id is a string UUID but the route
-        declares `user_id: int`.  Passing the real UUID string to
-        PATCH /users/{user_id}/email causes FastAPI to return 422 (path-param
-        validation fails) rather than updating the email.
-
-        If the route signature is fixed to `user_id: str`, this test should be
-        updated to assert 200 and verify the new email is returned.
+        PATCH /users/{user_id}/email with the correct UUID updates the email.
+        user_id is now correctly typed as str.
         """
-        token = _register_and_login(client, email="email_before@example.com")
-        user_id = _get_user_id(client, "email_before@example.com")
+        token = _register_and_login(client, email="email_before@users.example.com")
+        user_id = _get_user_id(client, db_session, "email_before@users.example.com")
 
-        # BUG: route expects int, but User.id is a UUID string → 422
         resp = client.patch(
             f"/users/{user_id}/email",
-            params={"email": "email_after@example.com"},
+            params={"email": "email_after@users.example.com"},
             headers=_authed(token),
         )
-        assert resp.status_code == 422, (
-            "Expected 422 due to int/UUID type mismatch in route signature. "
-            f"Got {resp.status_code}: {resp.json()}"
+        assert resp.status_code == 200, (
+            f"Expected 200 for email update with UUID, got {resp.status_code}: {resp.json()}"
         )
 
     # -----------------------------------------------------------------------
-    # PATCH /users/{user_id}/password
+    # PATCH /users/{user_id}/password — removed
     # -----------------------------------------------------------------------
 
-    def test_reset_password_security_bug(self, client):
+    def test_reset_password_endpoint_removed(self, client):
         """
-        Documents two compounding bugs:
-
-        1. TYPE MISMATCH — User.id is a string UUID but the route declares
-           `user_id: int`.  FastAPI rejects the UUID string with 422 before the
-           handler runs, so the password-storage bug cannot be exercised through
-           this route at all.
-
-        2. SECURITY BUG (latent) — If the type mismatch were fixed, the handler
-           assigns the plaintext password string directly to User.hashed_password
-           without hashing it (`user.hashed_password = password`).
-
-        This test asserts the currently observable behavior (422) and documents
-        the underlying security bug for future remediation.
+        PATCH /users/{user_id}/password has been removed.
+        Password reset is handled by POST /auth/forgot-password +
+        POST /auth/reset-password instead.
         """
-        token = _register_and_login(client, email="password_bug@example.com")
-        user_id = _get_user_id(client, "password_bug@example.com")
-
-        # BUG 1: route expects int, but User.id is a UUID string → 422
         resp = client.patch(
-            f"/users/{user_id}/password",
-            params={"password": "plaintextpass"},
-            headers=_authed(token),
+            "/users/00000000-0000-0000-0000-000000000000/password",
+            params={"password": "newpass"},
         )
-        assert resp.status_code == 422, (
-            "Expected 422 due to int/UUID type mismatch in route signature. "
-            f"Got {resp.status_code}: {resp.json()}"
+        # Route no longer exists — 404 or 405 expected
+        assert resp.status_code in (404, 405), (
+            f"Expected 404 or 405 for removed endpoint, got {resp.status_code}"
         )
-        # BUG 2 (latent): once the type mismatch is fixed, assert that
-        # User.hashed_password != hash("plaintextpass") to catch the missing
-        # hash step.

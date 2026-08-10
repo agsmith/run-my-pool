@@ -413,3 +413,315 @@ class TestAdminPickEdit:
             headers=_authed(token_a),
         )
         assert resp.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# TestCSVExport
+# ---------------------------------------------------------------------------
+
+
+class TestCSVExport:
+    """Tests for GET /admin/pools/{pool_id}/export/entries.csv"""
+
+    def test_admin_downloads_csv_200_and_correct_content_type(self, client, db_session):
+        """Admin can download entries CSV with correct Content-Type."""
+        token = _register_and_login(client, email="csv_admin@example.com")
+        pool_id = _create_pool(client, _authed(token))
+        _create_entry(client, _authed(token), pool_id, name="Entry A")
+
+        resp = client.get(
+            f"/admin/pools/{pool_id}/export/entries.csv",
+            headers=_authed(token),
+        )
+        assert resp.status_code == 200, resp.text
+        assert "text/csv" in resp.headers.get("content-type", "")
+
+    def test_csv_contains_all_entries(self, client, db_session):
+        """CSV includes every entry in the pool from all users."""
+        import models as m
+
+        token_a = _register_and_login(client, email="csv_a@example.com")
+        token_b = _register_and_login(client, email="csv_b@example.com")
+        pool_id = _create_pool(client, _authed(token_a))
+        # Admin needs to allow token_b user to create entry — pool has no lock
+        _create_entry(client, _authed(token_a), pool_id, name="A Entry")
+        _create_entry(client, _authed(token_b), pool_id, name="B Entry")
+
+        resp = client.get(
+            f"/admin/pools/{pool_id}/export/entries.csv",
+            headers=_authed(token_a),
+        )
+        assert resp.status_code == 200
+        body = resp.text
+        assert "csv_a@example.com" in body
+        assert "csv_b@example.com" in body
+        assert "A Entry" in body
+        assert "B Entry" in body
+
+    def test_csv_has_header_row(self, client, db_session):
+        """CSV always has a header row even for an empty pool."""
+        token = _register_and_login(client, email="csv_empty@example.com")
+        pool_id = _create_pool(client, _authed(token))
+
+        resp = client.get(
+            f"/admin/pools/{pool_id}/export/entries.csv",
+            headers=_authed(token),
+        )
+        assert resp.status_code == 200
+        lines = resp.text.strip().splitlines()
+        assert lines[0] == "email,entry_name"
+
+    def test_csv_sorted_by_email_then_entry_name(self, client, db_session):
+        """CSV rows are ordered by email then entry name."""
+        token_a = _register_and_login(client, email="aaa_csv@example.com")
+        token_b = _register_and_login(client, email="bbb_csv@example.com")
+        pool_id = _create_pool(client, _authed(token_a))
+        _create_entry(client, _authed(token_a), pool_id, name="Z Entry")
+        _create_entry(client, _authed(token_a), pool_id, name="A Entry")
+        _create_entry(client, _authed(token_b), pool_id, name="B Entry")
+
+        resp = client.get(
+            f"/admin/pools/{pool_id}/export/entries.csv",
+            headers=_authed(token_a),
+        )
+        assert resp.status_code == 200
+        lines = resp.text.strip().splitlines()
+        data_lines = lines[1:]  # skip header
+        emails = [ln.split(",")[0] for ln in data_lines]
+        assert emails == sorted(emails), "Rows not sorted by email"
+
+    def test_non_admin_csv_download_forbidden(self, client, db_session):
+        """Non-admin user cannot download the CSV — returns 403."""
+        token_owner = _register_and_login(client, email="csv_owner@example.com")
+        token_other = _register_and_login(client, email="csv_other@example.com")
+        pool_id = _create_pool(client, _authed(token_owner))
+
+        resp = client.get(
+            f"/admin/pools/{pool_id}/export/entries.csv",
+            headers=_authed(token_other),
+        )
+        assert resp.status_code == 403
+
+
+# ---------------------------------------------------------------------------
+# TestUserLock
+# ---------------------------------------------------------------------------
+
+
+class TestUserLock:
+    """Tests for POST/DELETE /admin/pools/{pool_id}/users/{user_id}/lock"""
+
+    def _get_user_id(self, db_session, email):
+        import models as m
+        user = db_session.query(m.User).filter(m.User.email == email).first()
+        assert user is not None
+        return user.id
+
+    def test_lock_creates_row_200(self, client, db_session):
+        """Admin can lock a user in a pool — returns 200 with lock record."""
+        token = _register_and_login(client, email="lock_admin@example.com")
+        target_token = _register_and_login(client, email="lock_target@example.com")
+        pool_id = _create_pool(client, _authed(token))
+        target_id = self._get_user_id(db_session, "lock_target@example.com")
+
+        resp = client.post(
+            f"/admin/pools/{pool_id}/users/{target_id}/lock",
+            json={},
+            headers=_authed(token),
+        )
+        assert resp.status_code == 200, resp.text
+        data = resp.json()
+        assert data["pool_id"] == pool_id
+        assert data["user_id"] == target_id
+
+    def test_duplicate_lock_returns_409(self, client, db_session):
+        """Locking an already-locked user returns 409."""
+        token = _register_and_login(client, email="lock_dup_admin@example.com")
+        _register_and_login(client, email="lock_dup_target@example.com")
+        pool_id = _create_pool(client, _authed(token))
+        target_id = self._get_user_id(db_session, "lock_dup_target@example.com")
+
+        client.post(f"/admin/pools/{pool_id}/users/{target_id}/lock", json={}, headers=_authed(token))
+        resp = client.post(f"/admin/pools/{pool_id}/users/{target_id}/lock", json={}, headers=_authed(token))
+        assert resp.status_code == 409
+
+    def test_unlock_removes_row_200(self, client, db_session):
+        """Admin can unlock a user — returns 200."""
+        token = _register_and_login(client, email="unlock_admin@example.com")
+        _register_and_login(client, email="unlock_target@example.com")
+        pool_id = _create_pool(client, _authed(token))
+        target_id = self._get_user_id(db_session, "unlock_target@example.com")
+
+        client.post(f"/admin/pools/{pool_id}/users/{target_id}/lock", json={}, headers=_authed(token))
+        resp = client.delete(f"/admin/pools/{pool_id}/users/{target_id}/lock", headers=_authed(token))
+        assert resp.status_code == 200
+
+    def test_unlock_when_not_locked_returns_404(self, client, db_session):
+        """Unlocking a user who is not locked returns 404."""
+        token = _register_and_login(client, email="unlock_noop_admin@example.com")
+        _register_and_login(client, email="unlock_noop_target@example.com")
+        pool_id = _create_pool(client, _authed(token))
+        target_id = self._get_user_id(db_session, "unlock_noop_target@example.com")
+
+        resp = client.delete(f"/admin/pools/{pool_id}/users/{target_id}/lock", headers=_authed(token))
+        assert resp.status_code == 404
+
+    def test_non_admin_cannot_lock_user(self, client, db_session):
+        """Non-admin cannot call the lock endpoint — returns 403."""
+        owner_token = _register_and_login(client, email="lock_ne_owner@example.com")
+        other_token = _register_and_login(client, email="lock_ne_other@example.com")
+        _register_and_login(client, email="lock_ne_target@example.com")
+        pool_id = _create_pool(client, _authed(owner_token))
+        target_id = self._get_user_id(db_session, "lock_ne_target@example.com")
+
+        resp = client.post(
+            f"/admin/pools/{pool_id}/users/{target_id}/lock",
+            json={},
+            headers=_authed(other_token),
+        )
+        assert resp.status_code == 403
+
+
+# ---------------------------------------------------------------------------
+# TestUserLockEnforcement
+# ---------------------------------------------------------------------------
+
+
+class TestUserLockEnforcement:
+    """Tests that locked users cannot create/modify entries or picks."""
+
+    def _lock_user(self, client, admin_token, pool_id, user_id):
+        resp = client.post(
+            f"/admin/pools/{pool_id}/users/{user_id}/lock",
+            json={},
+            headers=_authed(admin_token),
+        )
+        assert resp.status_code == 200, f"Lock failed: {resp.text}"
+
+    def _get_user_id(self, db_session, email):
+        import models as m
+        user = db_session.query(m.User).filter(m.User.email == email).first()
+        return user.id
+
+    def test_locked_user_cannot_create_entry(self, client, db_session):
+        """Locked user gets 423 when trying to create an entry in the locked pool."""
+        admin_token = _register_and_login(client, email="enf_admin@example.com")
+        user_token = _register_and_login(client, email="enf_user@example.com")
+        pool_id = _create_pool(client, _authed(admin_token))
+        user_id = self._get_user_id(db_session, "enf_user@example.com")
+
+        self._lock_user(client, admin_token, pool_id, user_id)
+
+        resp = client.post(
+            "/entries/create",
+            json={"pool_id": pool_id, "name": "Locked Entry"},
+            headers=_authed(user_token),
+        )
+        assert resp.status_code == 423, resp.text
+        assert "locked" in resp.json().get("detail", "").lower()
+
+    def test_locked_user_cannot_delete_entry(self, client, db_session):
+        """Locked user gets 423 when trying to delete an entry in the locked pool."""
+        admin_token = _register_and_login(client, email="enf_del_admin@example.com")
+        user_token = _register_and_login(client, email="enf_del_user@example.com")
+        pool_id = _create_pool(client, _authed(admin_token))
+
+        # Create entry before locking
+        entry_resp = client.post(
+            "/entries/create",
+            json={"pool_id": pool_id, "name": "Pre-lock Entry"},
+            headers=_authed(user_token),
+        )
+        assert entry_resp.status_code == 200
+        entry_id = entry_resp.json()["id"]
+
+        user_id = self._get_user_id(db_session, "enf_del_user@example.com")
+        self._lock_user(client, admin_token, pool_id, user_id)
+
+        resp = client.delete(f"/entries/{entry_id}", headers=_authed(user_token))
+        assert resp.status_code == 423, resp.text
+
+    def test_locked_user_cannot_create_pick(self, client, db_session):
+        """Locked user gets 423 when submitting a pick in the locked pool."""
+        admin_token = _register_and_login(client, email="enf_pick_admin@example.com")
+        user_token = _register_and_login(client, email="enf_pick_user@example.com")
+        pool_id = _create_pool(client, _authed(admin_token))
+
+        # Create entry before locking
+        entry_resp = client.post(
+            "/entries/create",
+            json={"pool_id": pool_id, "name": "Pick Entry"},
+            headers=_authed(user_token),
+        )
+        assert entry_resp.status_code == 200
+        entry_id = entry_resp.json()["id"]
+
+        user_id = self._get_user_id(db_session, "enf_pick_user@example.com")
+        self._lock_user(client, admin_token, pool_id, user_id)
+
+        resp = client.post(
+            "/picks/create",
+            json={"entry_id": entry_id, "week": 1, "team": "NE"},
+            headers=_authed(user_token),
+        )
+        assert resp.status_code == 423, resp.text
+
+    def test_locked_user_can_still_log_in(self, client, db_session):
+        """Locking a user in a pool does not affect their ability to log in."""
+        admin_token = _register_and_login(client, email="enf_login_admin@example.com")
+        _register_and_login(client, email="enf_login_user@example.com")
+        pool_id = _create_pool(client, _authed(admin_token))
+        user_id = self._get_user_id(db_session, "enf_login_user@example.com")
+        self._lock_user(client, admin_token, pool_id, user_id)
+
+        # Login should still succeed
+        login_resp = client.post(
+            "/auth/login",
+            json={"email": "enf_login_user@example.com", "password": "Test1234!"},
+        )
+        assert login_resp.status_code == 200
+        assert "access_token" in login_resp.json()
+
+    def test_locked_user_can_create_entry_in_other_pool(self, client, db_session):
+        """Lock in pool A does not affect pool B."""
+        admin_token = _register_and_login(client, email="enf_other_admin@example.com")
+        user_token = _register_and_login(client, email="enf_other_user@example.com")
+
+        pool_a = _create_pool(client, _authed(admin_token))
+        pool_b = _create_pool(client, _authed(admin_token))
+
+        user_id = self._get_user_id(db_session, "enf_other_user@example.com")
+        self._lock_user(client, admin_token, pool_a, user_id)
+
+        # Should succeed in pool B
+        resp = client.post(
+            "/entries/create",
+            json={"pool_id": pool_b, "name": "Pool B Entry"},
+            headers=_authed(user_token),
+        )
+        assert resp.status_code == 200, f"Expected 200 in unlocked pool, got {resp.status_code}: {resp.text}"
+
+    def test_admin_can_transfer_locked_users_entry(self, client, db_session):
+        """Admin transfer works even when the entry owner is locked in the pool."""
+        admin_token = _register_and_login(client, email="enf_xfr_admin@example.com")
+        user_token = _register_and_login(client, email="enf_xfr_user@example.com")
+        new_owner_token = _register_and_login(client, email="enf_xfr_newowner@example.com")
+        pool_id = _create_pool(client, _authed(admin_token))
+
+        entry_resp = client.post(
+            "/entries/create",
+            json={"pool_id": pool_id, "name": "Transfer Target"},
+            headers=_authed(user_token),
+        )
+        assert entry_resp.status_code == 200
+        entry_id = entry_resp.json()["id"]
+
+        user_id = self._get_user_id(db_session, "enf_xfr_user@example.com")
+        self._lock_user(client, admin_token, pool_id, user_id)
+
+        resp = client.post(
+            f"/admin/pools/{pool_id}/transfer-entry",
+            json={"entry_id": entry_id, "to_email": "enf_xfr_newowner@example.com"},
+            headers=_authed(admin_token),
+        )
+        assert resp.status_code == 200, f"Transfer should succeed: {resp.text}"

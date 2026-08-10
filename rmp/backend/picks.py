@@ -6,11 +6,75 @@ import uuid
 from datetime import datetime, timezone
 
 from deps import get_db, get_current_user
-from models import Pick, Entry, Schedule, Team
+from models import Pick, Entry, Schedule, Team, Pool
 from schemas import PickCreate, PickUpdate, PickOut, PickBreakdownItem
 from audit_utils import log_create_operation, log_update_operation, log_delete_operation
+from admin import is_user_locked_in_pool
 
 router = APIRouter()
+
+
+# ---------------------------------------------------------------------------
+# Lock enforcement helpers
+# ---------------------------------------------------------------------------
+
+
+def _get_effective_lock_time(db: Session, pool: Pool, team_abbrev: str, week: int):
+    """
+    Return the effective lock time for a pick on a given team/week combination.
+
+    For teams whose game kicks off before the pool lock_time (e.g. Thursday night
+    games before Sunday 1pm ET), the effective lock is the game's start_time.
+    For all other games the effective lock is pool.lock_time.
+
+    Returns None if neither a pool lock_time nor a game start_time is set.
+    """
+    team = db.query(Team).filter(Team.abbrv == team_abbrev).first()
+    game = None
+    if team:
+        game = (
+            db.query(Schedule)
+            .filter(
+                Schedule.week_num == week,
+                or_(
+                    Schedule.home_team_id == team.id,
+                    Schedule.away_team_id == team.id,
+                ),
+            )
+            .first()
+        )
+
+    candidates = []
+    if pool.lock_time is not None:
+        candidates.append(pool.lock_time)
+    if game is not None and game.start_time is not None:
+        candidates.append(game.start_time)
+
+    return min(candidates) if candidates else None
+
+
+def _check_pick_lock(db: Session, pool: Pool, team_abbrev: str, week: int) -> None:
+    """
+    Raise HTTP 423 if the effective lock time for this pick has already passed.
+
+    For updates, pass the *existing* pick's team — the slot is locked at the
+    kickoff of the game already selected, regardless of any new proposed team.
+    """
+    effective_lock = _get_effective_lock_time(db, pool, team_abbrev, week)
+    if effective_lock is None:
+        return  # no lock configured — allow the pick
+
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    if effective_lock <= now:
+        raise HTTPException(
+            status_code=423,
+            detail="This pick is locked. The game has started or the pool lock time has passed.",
+        )
+
+
+# ---------------------------------------------------------------------------
+# Routes
+# ---------------------------------------------------------------------------
 
 
 @router.post("/picks/create", response_model=PickOut)
@@ -31,7 +95,24 @@ async def create_pick(
             detail="Entry not found or doesn't belong to you",
         )
 
-    # Check if a pick already exists for this entry and week
+    # Reject picks on eliminated entries
+    if not entry.alive:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Entry has been eliminated",
+        )
+
+    # Reject picks if user is locked in this pool
+    if is_user_locked_in_pool(db, entry.pool_id, current_user.id):
+        raise HTTPException(
+            status_code=423,
+            detail="Your account is locked in this pool. Contact the pool admin.",
+        )
+
+    # Fetch the pool for lock time enforcement
+    pool = db.query(Pool).filter(Pool.id == entry.pool_id).first()
+
+    # Check if a pick already exists for this entry and week (upsert path)
     existing_pick = (
         db.query(Pick)
         .filter(and_(Pick.entry_id == pick.entry_id, Pick.week == pick.week))
@@ -39,6 +120,16 @@ async def create_pick(
     )
 
     if existing_pick:
+        # Lock check uses the EXISTING pick's team — the slot was locked at that
+        # game's kickoff regardless of what new team is proposed.
+        if existing_pick.locked:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Cannot update a locked pick",
+            )
+        if pool:
+            _check_pick_lock(db, pool, existing_pick.team, pick.week)
+
         # Update existing pick
         old_team = existing_pick.team
         existing_pick.team = pick.team
@@ -61,6 +152,10 @@ async def create_pick(
         )
 
         return existing_pick
+
+    # New pick — check pool lock time and per-game start_time
+    if pool:
+        _check_pick_lock(db, pool, pick.team, pick.week)
 
     # Check if the team has already been used in this entry
     team_already_used = (
@@ -143,12 +238,34 @@ async def update_pick(
             detail="Pick not found or doesn't belong to you",
         )
 
-    # Check if pick is locked
+    # Reject picks on eliminated entries
+    entry = db.query(Entry).filter(Entry.id == pick.entry_id).first()
+    if entry and not entry.alive:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Entry has been eliminated",
+        )
+
+    # Reject if user is locked in this pool
+    if entry and is_user_locked_in_pool(db, entry.pool_id, current_user.id):
+        raise HTTPException(
+            status_code=423,
+            detail="Your account is locked in this pool. Contact the pool admin.",
+        )
+
+    # Check if pick is locked (explicit flag)
     if pick.locked:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Cannot update a locked pick",
         )
+
+    # Lock check uses the EXISTING pick's team — the slot is locked at that
+    # game's kickoff regardless of any new proposed team.
+    if entry:
+        pool = db.query(Pool).filter(Pool.id == entry.pool_id).first()
+        if pool:
+            _check_pick_lock(db, pool, pick.team, pick.week)
 
     # If updating team, check if the new team is already used in this entry
     if pick_update.team and pick_update.team != pick.team:

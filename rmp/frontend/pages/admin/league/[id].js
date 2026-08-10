@@ -3,6 +3,44 @@ import { useRouter } from 'next/router';
 import ProtectedRoute from '../../../components/ProtectedRoute';
 import { useAuth } from '../../../context/AuthContext';
 
+const TIMEZONES = [
+  { label: 'Eastern Time (ET)',   iana: 'America/New_York' },
+  { label: 'Central Time (CT)',   iana: 'America/Chicago' },
+  { label: 'Mountain Time (MT)',  iana: 'America/Denver' },
+  { label: 'Pacific Time (PT)',   iana: 'America/Los_Angeles' },
+  { label: 'UTC',                 iana: 'UTC' },
+];
+
+function toUtcIso(dateStr, timeStr, ianaTimezone) {
+  // Build a local datetime string and convert to UTC using Intl
+  if (!dateStr || !timeStr) return null;
+  const localDt = new Date(`${dateStr}T${timeStr}:00`);
+  if (isNaN(localDt.getTime())) return null;
+  // Use the timezone to get the UTC offset at that moment
+  const utcMs = localDt.getTime();
+  // Get the local time in the target timezone
+  const fmt = new Intl.DateTimeFormat('en-CA', {
+    timeZone: ianaTimezone,
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+    hour12: false,
+  });
+  const parts = fmt.formatToParts(localDt);
+  const p = {};
+  parts.forEach(({ type, value }) => { p[type] = value; });
+  const tzLocalMs = new Date(`${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}:${p.second}`).getTime();
+  const offsetMs = utcMs - (tzLocalMs - utcMs + utcMs - tzLocalMs);
+  // Simpler: re-interpret the dateStr+timeStr as if it's in the given tz
+  // Build the ISO by asking what UTC time corresponds to this local time in the tz
+  const guessUtc = new Date(localDt.getTime());
+  const tzTime = new Date(localDt.toLocaleString('en-US', { timeZone: ianaTimezone }));
+  const diff = localDt - tzTime;
+  const utcDate = new Date(localDt.getTime() + diff);
+  // Format as YYYY-MM-DD HH:MM:SS
+  const pad = n => String(n).padStart(2, '0');
+  return `${utcDate.getUTCFullYear()}-${pad(utcDate.getUTCMonth()+1)}-${pad(utcDate.getUTCDate())} ${pad(utcDate.getUTCHours())}:${pad(utcDate.getUTCMinutes())}:${pad(utcDate.getUTCSeconds())}`;
+}
+
 export default function AdminPortal() {
   const [activeSection, setActiveSection] = useState('league-management');
   const [league, setLeague] = useState(null);
@@ -17,7 +55,16 @@ export default function AdminPortal() {
   const [leagueSearch, setLeagueSearch] = useState('');
   
   // User Management State
-  const [resetPasswordData, setResetPasswordData] = useState({ username: '', forceChange: false });
+  const [resetPasswordData, setResetPasswordData] = useState({ username: '' });
+  const [resetPasswordMessage, setResetPasswordMessage] = useState('');
+
+  // Lock time state
+  const [lockTimeData, setLockTimeData] = useState({ date: '', time: '13:00', timezone: 'America/New_York' });
+  const [lockTimeMessage, setLockTimeMessage] = useState('');
+  
+  // User lock state
+  const [lockMessage, setLockMessage] = useState('');
+
   const [updateEmailData, setUpdateEmailData] = useState({ username: '', newEmail: '' });
   const [deleteUserData, setDeleteUserData] = useState({ username: '' });
   const [assignAdminData, setAssignAdminData] = useState({ username: '' });
@@ -280,6 +327,50 @@ export default function AdminPortal() {
     </div>
   );
 
+  const handleSetLockTime = async () => {
+    const utcIso = toUtcIso(lockTimeData.date, lockTimeData.time, lockTimeData.timezone);
+    if (!utcIso) {
+      setLockTimeMessage('Please enter a valid date and time.');
+      return;
+    }
+    setLockTimeMessage('');
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(
+        process.env.NEXT_PUBLIC_API_URL + `/pools/${leagueId}`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ lock_time: utcIso }),
+        }
+      );
+      if (!res.ok) throw new Error('Failed to update lock time');
+      setLockTimeMessage(`Lock time set to ${utcIso} UTC`);
+    } catch {
+      setLockTimeMessage('Failed to set lock time.');
+    }
+  };
+
+  const handleToggleUserLock = async (userId, currentlyLocked) => {
+    setLockMessage('');
+    try {
+      const token = localStorage.getItem('token');
+      const method = currentlyLocked ? 'DELETE' : 'POST';
+      const res = await fetch(
+        process.env.NEXT_PUBLIC_API_URL + `/admin/pools/${leagueId}/users/${userId}/lock`,
+        {
+          method,
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: method === 'POST' ? JSON.stringify({ reason: 'Unpaid fees' }) : undefined,
+        }
+      );
+      if (!res.ok) throw new Error('Failed to toggle lock');
+      setLockMessage(currentlyLocked ? 'User unlocked.' : 'User locked.');
+    } catch {
+      setLockMessage('Failed to update lock status.');
+    }
+  };
+
   const renderLeagueManagement = () => (
     <div style={{ flex: 1 }}>
       <h3 style={{ color: '#1a202c', marginTop: 0, marginBottom: '2rem' }}>
@@ -347,6 +438,64 @@ export default function AdminPortal() {
               </div>
             ))}
           </div>
+        </div>
+      </div>
+
+      {/* Pool Lock Time */}
+      <div style={{ marginBottom: '3rem' }}>
+        <h4 style={{ color: '#2d3748', marginBottom: '1rem' }}>🔒 Pool Lock Time</h4>
+        <div style={{ backgroundColor: 'white', padding: '1.5rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+            <div>
+              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500', color: '#374151' }}>Date</label>
+              <input
+                type="date"
+                value={lockTimeData.date}
+                onChange={e => setLockTimeData({ ...lockTimeData, date: e.target.value })}
+                style={{ width: '100%', padding: '0.75rem', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '1rem' }}
+              />
+            </div>
+            <div>
+              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500', color: '#374151' }}>Time</label>
+              <select
+                value={lockTimeData.time}
+                onChange={e => setLockTimeData({ ...lockTimeData, time: e.target.value })}
+                style={{ width: '100%', padding: '0.75rem', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '1rem' }}
+              >
+                {Array.from({ length: 48 }, (_, i) => {
+                  const h = Math.floor(i / 2);
+                  const m = i % 2 === 0 ? '00' : '30';
+                  const hh = String(h).padStart(2, '0');
+                  const ampm = h < 12 ? 'AM' : 'PM';
+                  const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+                  return (
+                    <option key={i} value={`${hh}:${m}`}>
+                      {`${h12}:${m} ${ampm}`}
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
+            <div>
+              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500', color: '#374151' }}>Timezone</label>
+              <select
+                value={lockTimeData.timezone}
+                onChange={e => setLockTimeData({ ...lockTimeData, timezone: e.target.value })}
+                style={{ width: '100%', padding: '0.75rem', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '1rem' }}
+              >
+                {TIMEZONES.map(tz => (
+                  <option key={tz.iana} value={tz.iana}>{tz.label}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <button
+            onClick={handleSetLockTime}
+            style={{ backgroundColor: '#3b82f6', color: 'white', padding: '0.75rem 1.5rem', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '1rem', fontWeight: '500' }}
+          >
+            Set Lock Time
+          </button>
+          {lockTimeMessage && <p style={{ marginTop: '0.75rem', fontSize: '0.875rem', color: '#374151' }}>{lockTimeMessage}</p>}
         </div>
       </div>
 
@@ -545,6 +694,25 @@ export default function AdminPortal() {
     </div>
   );
 
+  const handleResetPassword = async () => {
+    if (!resetPasswordData.username.trim()) return;
+    setResetPasswordMessage('');
+    try {
+      const res = await fetch(
+        process.env.NEXT_PUBLIC_API_URL + '/auth/forgot-password',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: resetPasswordData.username.trim() }),
+        }
+      );
+      if (!res.ok) throw new Error('Failed');
+      setResetPasswordMessage('Password reset link sent. The user will receive an email with instructions.');
+    } catch {
+      setResetPasswordMessage('Failed to send reset link. Check that the email address is correct.');
+    }
+  };
+
   const renderUserManagement = () => (
     <div style={{ flex: 1 }}>
       <h3 style={{ color: '#1a202c', marginTop: 0, marginBottom: '2rem' }}>
@@ -578,19 +746,8 @@ export default function AdminPortal() {
               }}
             />
           </div>
-          <div style={{ marginBottom: '1rem' }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
-              <input
-                type="checkbox"
-                checked={resetPasswordData.forceChange}
-                onChange={(e) => setResetPasswordData({...resetPasswordData, forceChange: e.target.checked})}
-              />
-              <span style={{ fontWeight: '500', color: '#374151' }}>
-                Force user to change password on next login
-              </span>
-            </label>
-          </div>
           <button
+            onClick={handleResetPassword}
             style={{
               backgroundColor: '#3b82f6',
               color: 'white',
@@ -604,6 +761,11 @@ export default function AdminPortal() {
           >
             Reset Password
           </button>
+          {resetPasswordMessage && (
+            <p style={{ marginTop: '0.75rem', fontSize: '0.875rem', color: '#374151' }}>
+              {resetPasswordMessage}
+            </p>
+          )}
         </div>
       </div>
 
@@ -787,6 +949,35 @@ export default function AdminPortal() {
         Entry Management
       </h3>
       
+      {/* CSV Export */}
+      <div style={{ marginBottom: '3rem' }}>
+        <h4 style={{ color: '#2d3748', marginBottom: '1rem' }}>📥 Export Entries</h4>
+        <div style={{ backgroundColor: 'white', padding: '1.5rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+          <p style={{ color: '#4a5568', marginBottom: '1rem' }}>Download a CSV of all participant emails and entry names for this pool.</p>
+          <button
+            onClick={async () => {
+              const token = localStorage.getItem('token');
+              const res = await fetch(
+                process.env.NEXT_PUBLIC_API_URL + `/admin/pools/${leagueId}/export/entries.csv`,
+                { headers: { Authorization: `Bearer ${token}` } }
+              );
+              if (res.ok) {
+                const blob = await res.blob();
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'entries.csv';
+                a.click();
+                URL.revokeObjectURL(url);
+              }
+            }}
+            style={{ backgroundColor: '#059669', color: 'white', padding: '0.75rem 1.5rem', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '1rem', fontWeight: '500' }}
+          >
+            Export CSV
+          </button>
+        </div>
+      </div>
+
       {/* Entry ID Lookup */}
       <div style={{ marginBottom: '3rem' }}>
         <h4 style={{ color: '#2d3748', marginBottom: '1rem' }}>🔍 Entry ID Lookup</h4>
@@ -906,6 +1097,17 @@ export default function AdminPortal() {
                           <strong>Owner:</strong> {entry.user.username} ({entry.user.email})
                         </>
                       )}
+                      <div style={{ marginTop: '0.5rem' }}>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                          <input
+                            type="checkbox"
+                            checked={entry.locked || false}
+                            onChange={() => handleToggleUserLock(entry.user_id, entry.locked || false)}
+                          />
+                          <span style={{ fontSize: '0.875rem', color: '#374151' }}>Lock user in this pool</span>
+                        </label>
+                        {lockMessage && <p style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '0.25rem' }}>{lockMessage}</p>}
+                      </div>
                     </div>
                     <button
                       onClick={() => {
