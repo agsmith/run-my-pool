@@ -31,6 +31,8 @@ export default function NavBar() {
       background: '#080d0f',
       color: '#fff',
       position: 'relative',
+      borderBottom: '1px solid #2d3b3f',
+      boxShadow: '0 12px 30px rgba(0, 0, 0, 0.28)',
       display: 'flex',
       justifyContent: 'space-between',
       alignItems: 'center',
@@ -41,7 +43,9 @@ export default function NavBar() {
       fontWeight: '800',
       color: '#fff',
       textDecoration: 'none',
-      marginRight: '2rem'
+      marginRight: '2rem',
+      fontStyle: 'italic',
+      letterSpacing: '0.04em'
     },
     menuToggle: {
       display: isMobile ? 'block' : 'none',
@@ -99,7 +103,7 @@ export default function NavBar() {
     <nav style={navStyles.nav}>
       <div style={{ display: 'flex', alignItems: 'center', width: isMobile ? '100%' : 'auto', justifyContent: isMobile ? 'space-between' : 'flex-start' }}>
         <Link href="/" style={navStyles.brand} onClick={closeMobileMenu}>
-          ◈ RUN MY POOL
+          ◈ RUN MY <span style={{ color: '#9fefff' }}>POOL</span>
         </Link>
         
         <button 

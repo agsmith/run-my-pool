@@ -1,8 +1,12 @@
 import '../styles/globals.css'
 import { AuthProvider } from '../context/AuthContext'
 import Head from 'next/head'
+import { useRouter } from 'next/router'
 
 export default function MyApp({ Component, pageProps }) {
+  const router = useRouter()
+  const isLandingPage = router.pathname === '/'
+
   return (
     <>
       <Head>
@@ -30,7 +34,9 @@ export default function MyApp({ Component, pageProps }) {
         <title>Run My Pool - NFL Pick Pool Management</title>
       </Head>
       <AuthProvider>
-        <Component {...pageProps} />
+        <div className={isLandingPage ? '' : 'broadcast-app-shell'}>
+          <Component {...pageProps} />
+        </div>
       </AuthProvider>
     </>
   )
