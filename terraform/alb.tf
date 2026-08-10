@@ -134,7 +134,9 @@ resource "aws_lb_listener_rule" "backend_api_2" {
 
   condition {
     path_pattern {
-      values = ["/users/*", "/admin/*", "/schedule/*", "/teams/*", "/rules/*"]
+      # Keep frontend pages such as /admin/league/{id} on the frontend target.
+      # Every backend admin route is namespaced under /admin/pools/.
+      values = ["/users/*", "/admin/pools/*", "/schedule/*", "/teams/*", "/rules/*"]
     }
   }
 
