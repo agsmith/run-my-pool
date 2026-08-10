@@ -657,6 +657,36 @@ table {
 .broadcast-v2--community main { width:min(100% - 2rem,980px)!important; }
 .broadcast-v2--community main > div,.broadcast-v2--community main article { background:var(--surface)!important; border:1px solid var(--line)!important; border-left:3px solid var(--ice)!important; border-radius:12px!important; box-shadow:0 18px 50px rgba(0,0,0,.2)!important; }
 .broadcast-v2--community main > div:first-child { border-left-color:var(--lime)!important; }
+.broadcast-v2--community .message-composer {
+  color:var(--ink)!important;
+  background:linear-gradient(145deg,#162226,#10191c)!important;
+  border:1px solid #314449!important;
+}
+.broadcast-v2--community .message-composer h3 { color:var(--ink)!important; }
+.broadcast-v2--community .message-composer textarea {
+  color:var(--ink)!important;
+  caret-color:var(--lime);
+  background:#1a292d!important;
+  border-color:#42575c!important;
+}
+.broadcast-v2 .responsive-modal {
+  color:var(--ink)!important;
+  background:linear-gradient(155deg,#18272b,#10191c)!important;
+  border:1px solid #3a4c51!important;
+  box-shadow:0 32px 90px rgba(0,0,0,.58)!important;
+}
+.broadcast-v2 .responsive-modal__header { border-color:#314449!important; }
+.broadcast-v2 .responsive-modal__title { color:var(--ink)!important; }
+.broadcast-v2 .responsive-modal__content label { color:#dbe6e4!important; }
+.broadcast-v2 .responsive-modal__content input,
+.broadcast-v2 .responsive-modal__content textarea {
+  color:var(--ink)!important;
+  caret-color:var(--lime);
+  background:#1a292d!important;
+  border-color:#42575c!important;
+}
+.broadcast-v2 .responsive-modal__content input::placeholder,
+.broadcast-v2 .responsive-modal__content textarea::placeholder { color:#819194!important; }
 
 /* Admin: wide operational console. */
 .broadcast-v2--admin { background:radial-gradient(circle at 95% 0,rgba(159,239,255,.08),transparent 30rem),#080d0f; }
@@ -664,6 +694,48 @@ table {
 .broadcast-v2--admin table { width:100%; border-collapse:collapse; background:#0d1517!important; border:1px solid var(--line); }
 .broadcast-v2--admin th { color:var(--ice)!important; background:#111e22!important; text-transform:uppercase; font-size:.7rem; letter-spacing:.08em; }
 .broadcast-v2--admin td { color:#d7dfde!important; border-color:var(--line)!important; }
+.broadcast-v2--admin .admin-content {
+  background:rgba(13,21,23,.96)!important;
+  border:1px solid #314449!important;
+  box-shadow:0 24px 70px rgba(0,0,0,.28)!important;
+}
+.broadcast-v2--admin .admin-content [style*="background-color: white"] {
+  background:var(--surface)!important;
+  border-color:#314449!important;
+  box-shadow:0 12px 34px rgba(0,0,0,.16)!important;
+}
+.broadcast-v2--admin .admin-content h3,
+.broadcast-v2--admin .admin-content h4,
+.broadcast-v2--admin .admin-content h5 { color:var(--ink)!important; }
+.broadcast-v2--admin .admin-content label { color:#dbe6e4!important; }
+.broadcast-v2--admin .admin-content input:not([type="checkbox"]):not([type="radio"]),
+.broadcast-v2--admin .admin-content select,
+.broadcast-v2--admin .admin-content textarea {
+  color:var(--ink)!important;
+  caret-color:var(--lime);
+  background:linear-gradient(180deg,#1b292d,#162226)!important;
+  border:1px solid #42575c!important;
+  border-radius:6px!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.035),0 7px 18px rgba(0,0,0,.14)!important;
+  color-scheme:dark;
+}
+.broadcast-v2--admin .admin-content input::placeholder,
+.broadcast-v2--admin .admin-content textarea::placeholder { color:#7f9194!important; }
+.broadcast-v2--admin .admin-content input:focus,
+.broadcast-v2--admin .admin-content select:focus,
+.broadcast-v2--admin .admin-content textarea:focus {
+  background:#1d2d31!important;
+  border-color:var(--ice)!important;
+  box-shadow:0 0 0 3px rgba(159,239,255,.13),0 12px 26px rgba(0,0,0,.2)!important;
+}
+.broadcast-v2--admin .admin-content input:disabled,
+.broadcast-v2--admin .admin-content select:disabled,
+.broadcast-v2--admin .admin-content textarea:disabled {
+  color:#819093!important;
+  background:#10191c!important;
+  opacity:.72;
+}
+.broadcast-v2--admin .admin-content select option { color:var(--ink); background:#162226; }
 
 /* Utility/offline: deliberately minimal. */
 .broadcast-v2--utility > div { min-height:100vh; background:transparent!important; }

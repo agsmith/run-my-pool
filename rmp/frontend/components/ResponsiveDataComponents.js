@@ -125,7 +125,7 @@ const ResponsiveTable = ({
   );
 };
 
-const ResponsiveModal = ({ isOpen, onClose, title, children, ...props }) => {
+const ResponsiveModal = ({ isOpen, onClose, title, children, className = '', ...props }) => {
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
@@ -216,9 +216,9 @@ const ResponsiveModal = ({ isOpen, onClose, title, children, ...props }) => {
 
   return (
     <div style={overlayStyles} onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div style={modalStyles} {...props}>
-        <div style={headerStyles}>
-          <h2 style={titleStyles}>{title}</h2>
+      <div className={`responsive-modal ${className}`.trim()} style={modalStyles} {...props}>
+        <div className="responsive-modal__header" style={headerStyles}>
+          <h2 className="responsive-modal__title" style={titleStyles}>{title}</h2>
           <button
             style={closeButtonStyles}
             onClick={onClose}
@@ -228,7 +228,7 @@ const ResponsiveModal = ({ isOpen, onClose, title, children, ...props }) => {
             ✕
           </button>
         </div>
-        <div style={contentStyles}>
+        <div className="responsive-modal__content" style={contentStyles}>
           {children}
         </div>
       </div>
