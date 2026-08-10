@@ -65,6 +65,14 @@ function renderLogin() {
 // Tests
 // ---------------------------------------------------------------------------
 describe('LoginPage', () => {
+  test('uses the product brand without a football emoji', () => {
+    const { container } = renderLogin()
+    expect(screen.getByRole('heading', { name: /run my pool/i })).toBeInTheDocument()
+    expect(screen.getByText(/sign in to your account/i)).toBeInTheDocument()
+    expect(container).not.toHaveTextContent('🏈')
+    expect(container.querySelector('.product-football-mark')).toBeInTheDocument()
+  })
+
   test('renders an email input field', () => {
     renderLogin()
     expect(screen.getByPlaceholderText(/enter your email/i)).toBeInTheDocument()

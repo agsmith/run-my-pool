@@ -40,6 +40,13 @@ describe('NavBar', () => {
     expect(screen.getByRole('link', { name: /message board/i })).toBeInTheDocument()
   })
 
+  test('keeps administration out of the global navigation', () => {
+    useAuth.mockReturnValue({ user: { email: 'commissioner@example.com' }, logout: jest.fn() })
+    render(<NavBar />)
+
+    expect(screen.queryByRole('link', { name: /^admin$/i })).not.toBeInTheDocument()
+  })
+
   test('shows Login and Register links when user is not authenticated', () => {
     useAuth.mockReturnValue({ user: null, logout: jest.fn() })
 

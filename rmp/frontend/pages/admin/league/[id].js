@@ -263,102 +263,42 @@ export default function AdminPortal() {
   };
 
   const renderSidebar = () => (
-    <aside className="admin-sidebar" style={{
-      width: '300px',
-      backgroundColor: 'white',
-      borderRadius: '12px',
-      padding: '2rem',
-      boxShadow: '0 10px 25px rgba(0, 0, 0, 0.1)',
-      height: 'fit-content'
-    }}>
-      <h2 style={{ 
-        color: '#1a202c', 
-        marginTop: 0, 
-        marginBottom: '2rem',
-        fontSize: '1.5rem',
-        fontWeight: '700'
-      }}>
-        🛠️ Admin Portal
-      </h2>
+    <aside className="admin-sidebar">
+      <div className="admin-sidebar__heading">
+        <span className="admin-sidebar__eyebrow">Commissioner tools</span>
+        <h2>Admin Portal</h2>
+      </div>
       
       {league && (
-        <div style={{
-          backgroundColor: '#f7fafc',
-          padding: '1rem',
-          borderRadius: '8px',
-          marginBottom: '2rem',
-          border: '1px solid #e2e8f0'
-        }}>
-          <div style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '0.25rem' }}>
-            Managing League:
-          </div>
-          <div style={{ fontWeight: '600', color: '#1a202c' }}>
-            {league.name}
-          </div>
+        <div className="admin-sidebar__league">
+          <span>Managing league</span>
+          <strong>{league.name}</strong>
         </div>
       )}
       
-      <nav>
+      <nav aria-label="Admin sections">
         {[
-          { id: 'league-management', label: '🏈 League Management', icon: '🏈' },
-          { id: 'user-management', label: '👥 User Management', icon: '👥' },
-          { id: 'entry-management', label: '📝 Entry Management', icon: '📝' },
-          { id: 'audit-log', label: '📊 Audit Log', icon: '📊' }
+          { id: 'league-management', label: 'League Management', marker: 'LG' },
+          { id: 'user-management', label: 'User Management', marker: 'US' },
+          { id: 'entry-management', label: 'Entry Management', marker: 'EN' },
+          { id: 'audit-log', label: 'Audit Log', marker: 'AU' }
         ].map(section => (
           <button
             key={section.id}
             onClick={() => setActiveSection(section.id)}
-            style={{
-              width: '100%',
-              textAlign: 'left',
-              padding: '1rem',
-              marginBottom: '0.5rem',
-              backgroundColor: activeSection === section.id ? '#667eea' : 'transparent',
-              color: activeSection === section.id ? 'white' : '#4a5568',
-              border: 'none',
-              borderRadius: '8px',
-              cursor: 'pointer',
-              fontSize: '1rem',
-              fontWeight: '500',
-              transition: 'all 0.2s ease',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.75rem'
-            }}
-            onMouseEnter={(e) => {
-              if (activeSection !== section.id) {
-                e.target.style.backgroundColor = '#f7fafc';
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (activeSection !== section.id) {
-                e.target.style.backgroundColor = 'transparent';
-              }
-            }}
+            className={`admin-sidebar__item${activeSection === section.id ? ' admin-sidebar__item--active' : ''}`}
+            aria-current={activeSection === section.id ? 'page' : undefined}
           >
-            <span>{section.icon}</span>
-            {section.label.replace(section.icon + ' ', '')}
+            <span className="admin-sidebar__marker" aria-hidden="true">{section.marker}</span>
+            <span>{section.label}</span>
           </button>
         ))}
       </nav>
       
-      <div style={{ marginTop: '2rem', paddingTop: '2rem', borderTop: '1px solid #e2e8f0' }}>
+      <div className="admin-sidebar__footer">
         <button
           onClick={() => router.push('/dashboard')}
-          style={{
-            width: '100%',
-            backgroundColor: '#e2e8f0',
-            color: '#4a5568',
-            padding: '0.75rem',
-            border: 'none',
-            borderRadius: '8px',
-            cursor: 'pointer',
-            fontSize: '0.9rem',
-            fontWeight: '500',
-            transition: 'all 0.2s ease'
-          }}
-          onMouseEnter={(e) => e.target.style.backgroundColor = '#cbd5e0'}
-          onMouseLeave={(e) => e.target.style.backgroundColor = '#e2e8f0'}
+          className="admin-sidebar__back"
         >
           ← Back to Dashboard
         </button>

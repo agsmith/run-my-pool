@@ -80,24 +80,12 @@ export default function Login() {
     <main style={containerStyles}>
       <ResponsiveCard style={cardStyles}>
         {/* Logo/Brand area */}
-        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-          <h1 style={{ 
-            color: '#334155',
-            fontSize: isMobile ? '1.75rem' : '2rem',
-            fontWeight: '700',
-            margin: '0 0 0.5rem 0',
-            letterSpacing: '-0.025em'
-          }}>
-            🏈 Run My Pool
+        <div className="auth-brand">
+          <h1>
+            <span className="product-football-mark auth-brand__mark" aria-hidden="true"><i /><i /><i /></span>
+            <span>RUN MY <b>POOL</b></span>
           </h1>
-          <p style={{ 
-            color: '#64748b',
-            fontSize: isMobile ? '0.9rem' : '1rem',
-            margin: 0,
-            fontWeight: '400'
-          }}>
-            Sign in to your account
-          </p>
+          <p>Sign in to your account</p>
         </div>
 
         {/* Success Message */}

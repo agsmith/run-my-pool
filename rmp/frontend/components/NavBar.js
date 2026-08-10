@@ -140,16 +140,6 @@ export default function NavBar() {
         >
           Message Board
         </Link>
-        <Link 
-          href="/admin" 
-          style={navStyles.navLink}
-          onClick={closeMobileMenu}
-          onMouseEnter={handleLinkHover}
-          onMouseLeave={handleLinkLeave}
-        >
-          Admin
-        </Link>
-        
         {user ? (
           <>
             <Link 

@@ -435,7 +435,7 @@ export default function Dashboard() {
     
     if (!stats || stats.totalEntries === 0) {
       return (
-        <div style={{ 
+        <div className="pool-card__stats pool-card__stats--empty" style={{
           backgroundColor: '#f8f9fa',
           borderRadius: '8px',
           padding: '1rem',
@@ -450,14 +450,14 @@ export default function Dashboard() {
     }
 
     return (
-      <div style={{ 
+      <div className="pool-card__stats" style={{
         backgroundColor: '#f8f9fa',
         borderRadius: '8px',
         padding: '1rem',
         marginBottom: '1rem',
         border: '1px solid #e5e7eb'
       }}>
-        <h4 style={{ 
+        <h4 className="pool-card__stats-title" style={{
           margin: '0 0 0.75rem 0',
           fontSize: '0.875rem',
           fontWeight: '600',
@@ -466,12 +466,12 @@ export default function Dashboard() {
         }}>
           Pool Statistics
         </h4>
-        <div style={{ 
+        <div className="pool-card__stat-grid" style={{
           display: 'grid',
           gridTemplateColumns: '1fr 1fr',
           gap: '0.75rem'
         }}>
-          <div style={{
+          <div className="pool-card__stat pool-card__stat--surviving" style={{
             backgroundColor: '#dcfce7',
             borderRadius: '6px',
             padding: '0.75rem',
@@ -502,7 +502,7 @@ export default function Dashboard() {
               {stats.survivorsPercentage}%
             </div>
           </div>
-          <div style={{
+          <div className="pool-card__stat pool-card__stat--eliminated" style={{
             backgroundColor: '#fee2e2',
             borderRadius: '6px',
             padding: '0.75rem',
@@ -534,7 +534,7 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
-        <div style={{ 
+        <div className="pool-card__stat-total" style={{
           textAlign: 'center',
           marginTop: '0.75rem',
           fontSize: '0.75rem',
@@ -554,9 +554,9 @@ export default function Dashboard() {
     const allWeeks = Array.from({ length: 18 }, (_, i) => i + 1);
     
     return (
-      <div>
+      <div className="pool-card__week">
         {/* Week Selector Dropdown */}
-        <div style={{ 
+        <div className="pool-card__week-controls" style={{
           display: 'flex',
           alignItems: 'center',
           gap: '0.75rem',
@@ -613,7 +613,7 @@ export default function Dashboard() {
           </select>
           
           {/* Quick Navigation Buttons */}
-          <div style={{ display: 'flex', gap: '0.25rem' }}>
+          <div className="pool-card__week-nav" style={{ display: 'flex', gap: '0.25rem' }}>
             <button
               onClick={() => handleTabChange(league.id, Math.max(1, activeWeek - 1))}
               disabled={activeWeek === 1}
@@ -699,7 +699,7 @@ export default function Dashboard() {
         </div>
 
         {/* Team Counts for Active Week */}
-        <div style={{ 
+        <div className="pool-card__picks" style={{
           minHeight: '120px',
           maxHeight: '300px',
           backgroundColor: '#f8f9fa',
@@ -746,13 +746,13 @@ export default function Dashboard() {
     }
 
     return (
-      <div style={{ 
+      <div className="pool-card__pick-list" style={{
         display: 'flex',
         flexDirection: 'column',
         gap: '0.5rem'
       }}>
         {teamNames.map((team, index) => (
-          <div
+          <div className="pool-card__pick-row"
             key={team}
             style={{
               display: 'flex',
@@ -767,7 +767,7 @@ export default function Dashboard() {
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              <span style={{ 
+              <span className="pool-card__pick-rank" style={{
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -796,10 +796,10 @@ export default function Dashboard() {
                     }}
                   />
                 )}
-                <span style={{ fontWeight: '600', color: '#374151' }}>{team}</span>
+                <span className="pool-card__team-code" style={{ fontWeight: '600', color: '#374151' }}>{team}</span>
               </div>
             </div>
-            <span style={{ 
+            <span className="pool-card__pick-count" style={{
               backgroundColor: '#64748b',
               color: 'white',
               borderRadius: '12px',
@@ -812,7 +812,7 @@ export default function Dashboard() {
           </div>
         ))}
         {unlockedCount > 0 && (
-          <div
+          <div className={`pool-card__pick-row pool-card__pick-row--open${isWeekInPast ? ' pool-card__pick-row--missed' : ''}`}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -826,7 +826,7 @@ export default function Dashboard() {
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              <span style={{ 
+              <span className="pool-card__pick-rank" style={{
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -840,11 +840,11 @@ export default function Dashboard() {
               }}>
                 {teamNames.length + 1}
               </span>
-              <span style={{ fontWeight: '600', color: isWeekInPast ? '#dc2626' : '#475569' }}>
+              <span className="pool-card__team-code" style={{ fontWeight: '600', color: isWeekInPast ? '#dc2626' : '#475569' }}>
                 {isWeekInPast ? 'No Selection' : 'Unlocked'}
               </span>
             </div>
-            <span style={{ 
+            <span className="pool-card__pick-count" style={{
               backgroundColor: isWeekInPast ? '#ef4444' : '#64748b',
               color: 'white',
               borderRadius: '12px',
@@ -1126,7 +1126,7 @@ export default function Dashboard() {
                     💡 <strong>Tip:</strong> You can drag and drop the pool tiles to rearrange them in your preferred order!
                   </div>
                 )}
-                <div style={{ 
+                <div className="pool-card-grid" style={{
                   display: 'grid', 
                   gap: '2rem', 
                   gridTemplateColumns: 'repeat(auto-fit, minmax(min(350px, 100%), 1fr))',
@@ -1134,7 +1134,7 @@ export default function Dashboard() {
                   padding: '0'
                 }}>
                 {getOrderedPools().map(league => (
-                  <div className="pool-card"
+                  <div className={`pool-card${draggedPoolId === league.id ? ' pool-card--dragging' : ''}`}
                     key={league.id} 
                     draggable
                     onDragStart={(e) => handleDragStart(e, league.id)}
@@ -1170,7 +1170,7 @@ export default function Dashboard() {
                     }}
                   >
                     {/* Drag Handle - Top Left */}
-                    <div style={{ 
+                    <div className="pool-card__drag" style={{
                       position: 'absolute',
                       top: '0.75rem',
                       left: '0.75rem',
@@ -1201,7 +1201,7 @@ export default function Dashboard() {
                     </div>
 
                     {/* Privacy Badge - Top Right */}
-                    <span style={{ 
+                    <span className={`pool-card__privacy pool-card__privacy--${league.is_private ? 'private' : 'public'}`} style={{
                       position: 'absolute',
                       top: '1rem',
                       right: '1rem',
@@ -1215,7 +1215,7 @@ export default function Dashboard() {
                       {league.is_private ? 'Private' : 'Public'}
                     </span>
                     
-                    <h3 style={{ 
+                    <h3 className="pool-card__title" style={{
                       fontSize: '1.25rem', 
                       fontWeight: '700', 
                       marginBottom: '0.5rem', 
@@ -1225,13 +1225,13 @@ export default function Dashboard() {
                     </h3>
                     
                     {/* Action Buttons */}
-                    <div style={{ 
+                    <div className="pool-card__actions" style={{
                       display: 'grid', 
                       gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(auto-fit, minmax(120px, 1fr))', 
                       gap: '0.75rem', 
                       marginBottom: '1rem' 
                     }}>
-                      <button 
+                      <button className="pool-card__action pool-card__action--primary"
                         onClick={() => router.push(`/pool/${league.id}/entries`)}
                         style={{ 
                           backgroundColor: '#8b5cf6', 
@@ -1254,7 +1254,7 @@ export default function Dashboard() {
                       >
                         My Entries
                       </button>
-                      <button 
+                      <button className="pool-card__action"
                         onClick={() => router.push(`/pool/${league.id}`)}
                         style={{ 
                           backgroundColor: '#10b981', 
@@ -1277,7 +1277,7 @@ export default function Dashboard() {
                       >
                         View Pool
                       </button>
-                      <button 
+                      <button className="pool-card__action"
                         onClick={() => router.push(`/pool/${league.id}/messages`)}
                         style={{ 
                           backgroundColor: '#3b82f6', 
@@ -1301,7 +1301,7 @@ export default function Dashboard() {
                         Forum
                       </button>
                       {(poolAdminStatus[league.id]?.has_admin_access || league.created_by === user.id) && (
-                        <button 
+                        <button className="pool-card__action pool-card__action--admin"
                           onClick={() => router.push(`/admin/league/${league.id}`)}
                           style={{ 
                             backgroundColor: '#f59e0b', 
