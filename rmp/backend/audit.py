@@ -36,9 +36,33 @@ def list_audit_logs(
     if date_to:
         query = query.filter(models.AuditLog.created_at <= date_to)
 
-    return (
+    logs = (
         query.order_by(models.AuditLog.created_at.desc())
         .offset(skip)
         .limit(limit)
         .all()
     )
+
+    # Audit rows intentionally retain the immutable user ID. Resolve all users
+    # in one query so clients can display a useful account name for every event,
+    # including historical events whose JSON payload predates username context.
+    user_ids = {log.user_id for log in logs if log.user_id}
+    usernames = {}
+    if user_ids:
+        usernames = dict(
+            db.query(models.User.id, models.User.email)
+            .filter(models.User.id.in_(user_ids))
+            .all()
+        )
+
+    return [
+        schemas.AuditLogOut(
+            id=log.id,
+            user_id=log.user_id,
+            username=usernames.get(log.user_id),
+            action=log.action,
+            details=log.details,
+            created_at=log.created_at,
+        )
+        for log in logs
+    ]

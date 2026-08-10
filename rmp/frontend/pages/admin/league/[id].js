@@ -3,6 +3,7 @@ import { useRouter } from 'next/router';
 import ProtectedRoute from '../../../components/ProtectedRoute';
 import { useAuth } from '../../../context/AuthContext';
 import { PoolWorkspaceNav, WorkspaceHeader } from '../../../components/ProductWorkspace';
+import { getAuditUsername } from '../../../utils/auditDisplay';
 
 const TIMEZONES = [
   { label: 'Eastern Time (ET)',   iana: 'America/New_York' },
@@ -1629,7 +1630,7 @@ export default function AdminPortal() {
                     </div>
                   </div>
                   <div style={{ fontSize: '0.875rem', color: '#4b5563', marginBottom: '0.25rem' }}>
-                    Username: {pickData.username || log.user_id || 'System'}
+                    Username: {getAuditUsername(log, details)}
                   </div>
                   {pickData.entry_name && (
                     <div style={{ fontSize: '0.875rem', color: '#4b5563', marginBottom: '0.25rem' }}>

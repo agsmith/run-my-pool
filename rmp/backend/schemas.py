@@ -165,6 +165,7 @@ class PickOut(PickBase):
 class AuditLogOut(BaseModel):
     id: str
     user_id: Optional[str] = None
+    username: Optional[str] = None
     action: str
     details: str
     created_at: datetime

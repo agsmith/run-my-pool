@@ -215,6 +215,53 @@ class TestAuditTrail:
         ]
         assert all(event["created_at"] for event in events)
         assert all(pool["id"] in event["details"] for event in events)
+        assert all(event["username"] == "pick.feed@audit.example.com" for event in events)
+
+    def test_audit_feed_resolves_username_for_legacy_event(self, client, db_session):
+        """Rows without email context still resolve their user ID to an email."""
+        email = "legacy.audit@example.com"
+        token = _reg(client, email)
+        user = client.get("/auth/me", headers=_h(token)).json()
+        pool_id = str(uuid.uuid4())
+        db_session.add(AuditLog(
+            id=str(uuid.uuid4()),
+            user_id=user["id"],
+            action="UPDATE_PICK",
+            details=json.dumps({
+                "description": "Legacy event",
+                "additional_data": {"pool_id": pool_id},
+            }),
+            created_at=datetime.now(timezone.utc).replace(tzinfo=None),
+        ))
+        db_session.commit()
+
+        event = client.get(
+            f"/audit/?pool_id={pool_id}", headers=_h(token)
+        ).json()[0]
+        assert event["user_id"] == user["id"]
+        assert event["username"] == email
+
+    def test_audit_feed_handles_unknown_and_system_users(self, client, db_session):
+        """Deleted/unknown users and system events return a null username."""
+        token = _reg(client, "audit.unknown@example.com")
+        pool_id = str(uuid.uuid4())
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
+        db_session.add_all([
+            AuditLog(
+                id=str(uuid.uuid4()), user_id=str(uuid.uuid4()),
+                action="UNKNOWN_USER_EVENT",
+                details=json.dumps({"pool_id": pool_id}), created_at=now,
+            ),
+            AuditLog(
+                id=str(uuid.uuid4()), user_id=None, action="SYSTEM_EVENT",
+                details=json.dumps({"pool_id": pool_id}),
+                created_at=now - timedelta(seconds=1),
+            ),
+        ])
+        db_session.commit()
+
+        events = client.get(f"/audit/?pool_id={pool_id}", headers=_h(token)).json()
+        assert [event["username"] for event in events] == [None, None]
 
     def test_pick_upsert_audit_includes_before_after_and_pool(self, client):
         """POSTing the same week is an audited update with complete context."""
