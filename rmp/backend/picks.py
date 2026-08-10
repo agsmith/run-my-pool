@@ -148,6 +148,7 @@ async def create_pick(
                 "new_team": pick.team,
                 "week": pick.week,
                 "entry_id": pick.entry_id,
+                "pool_id": entry.pool_id,
             },
         )
 
@@ -191,7 +192,12 @@ async def create_pick(
         entity_type="pick",
         entity_id=db_pick.id,
         user_id=current_user.id,
-        entity_data={"team": pick.team, "week": pick.week, "entry_id": pick.entry_id},
+        entity_data={
+            "team": pick.team,
+            "week": pick.week,
+            "entry_id": pick.entry_id,
+            "pool_id": entry.pool_id,
+        },
     )
 
     return db_pick
@@ -301,6 +307,11 @@ async def update_pick(
 
     # Log pick update if there were changes
     if changes:
+        changes["context"] = {
+            "entry_id": pick.entry_id,
+            "pool_id": entry.pool_id if entry else None,
+            "week": pick.week,
+        }
         log_update_operation(
             db=db,
             entity_type="pick",
@@ -343,7 +354,12 @@ async def delete_pick(
         entity_type="pick",
         entity_id=pick.id,
         user_id=current_user.id,
-        entity_data={"team": pick.team, "week": pick.week, "entry_id": pick.entry_id},
+        entity_data={
+            "team": pick.team,
+            "week": pick.week,
+            "entry_id": pick.entry_id,
+            "pool_id": pick.entry.pool_id,
+        },
     )
 
     db.delete(pick)

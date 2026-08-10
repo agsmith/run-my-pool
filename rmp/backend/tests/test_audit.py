@@ -11,6 +11,9 @@ contend on the shared connection).
 """
 
 import pytest
+import json
+import uuid
+from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
 import models
@@ -166,6 +169,178 @@ class TestAuditTrail:
         resp = client.delete(f"/picks/{pick['id']}", headers=_h(token))
         assert resp.status_code == 200, resp.text
         assert len(_qlogs(db_session, "DELETE_PICK")) >= 1
+
+    def test_pick_audit_api_returns_pool_scoped_lifecycle(self, client):
+        """The admin audit feed exposes create, update, and delete for one pool."""
+        token = _reg(client, "pick.feed@audit.example.com")
+        pool = _create_pool(client, token)
+        entry = _create_entry(client, token, pool["id"])
+        pick = _create_pick(client, token, entry["id"], team="NE")
+
+        update = client.put(
+            f"/picks/{pick['id']}", json={"team": "KC"}, headers=_h(token)
+        )
+        assert update.status_code == 200, update.text
+        delete = client.delete(f"/picks/{pick['id']}", headers=_h(token))
+        assert delete.status_code == 200, delete.text
+
+        response = client.get(
+            f"/audit/?pool_id={pool['id']}&action=PICK", headers=_h(token)
+        )
+        assert response.status_code == 200, response.text
+        events = response.json()
+        assert [event["action"] for event in events] == [
+            "DELETE_PICK",
+            "UPDATE_PICK",
+            "CREATE_PICK",
+        ]
+        assert all(event["created_at"] for event in events)
+        assert all(pool["id"] in event["details"] for event in events)
+
+    def test_pick_upsert_audit_includes_before_after_and_pool(self, client):
+        """POSTing the same week is an audited update with complete context."""
+        token = _reg(client, "pick.upsert@audit.example.com")
+        pool = _create_pool(client, token)
+        entry = _create_entry(client, token, pool["id"])
+        pick = _create_pick(client, token, entry["id"], team="NE")
+
+        response = client.post(
+            "/picks/create",
+            json={"entry_id": entry["id"], "week": 1, "team": "KC"},
+            headers=_h(token),
+        )
+        assert response.status_code == 200, response.text
+        assert response.json()["id"] == pick["id"]
+
+        feed = client.get(
+            f"/audit/?pool_id={pool['id']}&action=UPDATE_PICK", headers=_h(token)
+        ).json()
+        assert len(feed) == 1
+        details = json.loads(feed[0]["details"])["additional_data"]["changes"]
+        assert details == {
+            "old_team": "NE",
+            "new_team": "KC",
+            "week": 1,
+            "entry_id": entry["id"],
+            "pool_id": pool["id"],
+        }
+
+    def test_direct_pick_update_audit_includes_diff_and_context(self, client):
+        token = _reg(client, "pick.diff@audit.example.com")
+        pool = _create_pool(client, token)
+        entry = _create_entry(client, token, pool["id"])
+        pick = _create_pick(client, token, entry["id"], team="NE")
+        client.put(f"/picks/{pick['id']}", json={"team": "KC"}, headers=_h(token))
+
+        event = client.get(
+            f"/audit/?pool_id={pool['id']}&action=UPDATE_PICK", headers=_h(token)
+        ).json()[0]
+        changes = json.loads(event["details"])["additional_data"]["changes"]
+        assert changes["team"] == {"old": "NE", "new": "KC"}
+        assert changes["context"] == {
+            "entry_id": entry["id"],
+            "pool_id": pool["id"],
+            "week": 1,
+        }
+
+    def test_deleted_pick_audit_preserves_deleted_values(self, client):
+        token = _reg(client, "pick.deleted.payload@audit.example.com")
+        pool = _create_pool(client, token)
+        entry = _create_entry(client, token, pool["id"])
+        pick = _create_pick(client, token, entry["id"], week=2, team="KC")
+        client.delete(f"/picks/{pick['id']}", headers=_h(token))
+
+        event = client.get(
+            f"/audit/?pool_id={pool['id']}&action=DELETE_PICK", headers=_h(token)
+        ).json()[0]
+        payload = json.loads(event["details"])["additional_data"]
+        assert payload == {
+            "team": "KC",
+            "week": 2,
+            "entry_id": entry["id"],
+            "pool_id": pool["id"],
+        }
+
+    def test_audit_feed_isolates_pools(self, client):
+        token = _reg(client, "pick.isolation@audit.example.com")
+        pool_a = _create_pool(client, token, "Pool A")
+        pool_b = _create_pool(client, token, "Pool B")
+        entry_a = _create_entry(client, token, pool_a["id"], "Entry A")
+        entry_b = _create_entry(client, token, pool_b["id"], "Entry B")
+        pick_a = _create_pick(client, token, entry_a["id"], team="NE")
+        _create_pick(client, token, entry_b["id"], team="KC")
+
+        events = client.get(
+            f"/audit/?pool_id={pool_a['id']}&action=PICK", headers=_h(token)
+        ).json()
+        assert [event["id"] for event in events]
+        assert len(events) == 1
+        assert pick_a["id"] in events[0]["details"]
+        assert pool_b["id"] not in events[0]["details"]
+
+    def test_audit_feed_requires_authentication(self, client):
+        response = client.get("/audit/")
+        assert response.status_code in (401, 403)
+
+    def test_audit_feed_filters_user_action_and_dates(self, client, db_session):
+        token = _reg(client, "pick.filters@audit.example.com")
+        current_user = client.get("/auth/me", headers=_h(token)).json()
+        pool = _create_pool(client, token)
+        entry = _create_entry(client, token, pool["id"])
+        _create_pick(client, token, entry["id"], team="NE")
+
+        response = client.get(
+            "/audit/",
+            params={
+                "pool_id": pool["id"],
+                "user_id": current_user["id"],
+                "action": "create_pick",
+                "date_from": (datetime.now(timezone.utc) - timedelta(minutes=1)).isoformat(),
+                "date_to": (datetime.now(timezone.utc) + timedelta(minutes=1)).isoformat(),
+            },
+            headers=_h(token),
+        )
+        assert response.status_code == 200, response.text
+        assert [event["action"] for event in response.json()] == ["CREATE_PICK"]
+
+        assert client.get(
+            "/audit/",
+            params={"pool_id": pool["id"], "user_id": str(uuid.uuid4())},
+            headers=_h(token),
+        ).json() == []
+        assert client.get(
+            "/audit/",
+            params={"pool_id": pool["id"], "date_from": "2999-01-01T00:00:00"},
+            headers=_h(token),
+        ).json() == []
+
+    def test_audit_feed_newest_first_and_honors_limit(self, client, db_session):
+        token = _reg(client, "pick.order@audit.example.com")
+        pool_id = str(uuid.uuid4())
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
+        for index in range(3):
+            db_session.add(AuditLog(
+                id=str(uuid.uuid4()),
+                user_id=None,
+                action=f"SYSTEM_PICK_{index}",
+                details=json.dumps({"pool_id": pool_id}),
+                created_at=now + timedelta(seconds=index),
+            ))
+        db_session.commit()
+
+        response = client.get(
+            f"/audit/?pool_id={pool_id}&action=PICK&limit=2", headers=_h(token)
+        )
+        assert response.status_code == 200, response.text
+        events = response.json()
+        assert [event["action"] for event in events] == ["SYSTEM_PICK_2", "SYSTEM_PICK_1"]
+        assert all(event["user_id"] is None for event in events)
+
+    @pytest.mark.parametrize("limit", [0, 501])
+    def test_audit_feed_rejects_invalid_limits(self, client, limit):
+        token = _reg(client, f"audit.limit.{limit}@example.com")
+        response = client.get(f"/audit/?limit={limit}", headers=_h(token))
+        assert response.status_code == 422
 
     def test_create_message_creates_audit(self, client, db_session):
         """Posting a pool message should produce a CREATE_MESSAGE audit log."""

@@ -84,6 +84,8 @@ export default function AdminPortal() {
     actionSearch: '' 
   });
   const [auditLogs, setAuditLogs] = useState([]);
+  const [auditLoading, setAuditLoading] = useState(false);
+  const [auditError, setAuditError] = useState('');
 
   useEffect(() => {
     if (leagueId) {
@@ -91,6 +93,41 @@ export default function AdminPortal() {
       fetchAllLeagues();
     }
   }, [leagueId]);
+
+  useEffect(() => {
+    if (activeSection === 'audit-log' && leagueId) {
+      fetchAuditLogs();
+    }
+  }, [activeSection, leagueId]);
+
+  const fetchAuditLogs = async (search = auditSearch) => {
+    setAuditLoading(true);
+    setAuditError('');
+    try {
+      const token = localStorage.getItem('access_token');
+      const params = new URLSearchParams({ pool_id: leagueId, limit: '500' });
+      if (search.userId) params.set('user_id', search.userId.trim());
+      if (search.actionSearch) params.set('action', search.actionSearch.trim());
+      if (search.dateFrom) params.set('date_from', `${search.dateFrom}T00:00:00`);
+      if (search.dateTo) params.set('date_to', `${search.dateTo}T23:59:59`);
+
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/audit/?${params}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!res.ok) throw new Error('Unable to load audit events');
+      setAuditLogs(await res.json());
+    } catch (err) {
+      setAuditLogs([]);
+      setAuditError(err.message || 'Unable to load audit events');
+    } finally {
+      setAuditLoading(false);
+    }
+  };
+
+  const parseAuditDetails = (details) => {
+    if (!details) return null;
+    try { return JSON.parse(details); } catch { return { description: details }; }
+  };
 
   const fetchLeagueData = async () => {
     try {
@@ -1498,6 +1535,8 @@ export default function AdminPortal() {
             </div>
           </div>
           <button
+            onClick={() => fetchAuditLogs()}
+            disabled={auditLoading}
             style={{
               backgroundColor: '#3b82f6',
               color: 'white',
@@ -1510,10 +1549,14 @@ export default function AdminPortal() {
               marginRight: '1rem'
             }}
           >
-            Search Audit Log
+            {auditLoading ? 'Searching…' : 'Search Audit Log'}
           </button>
           <button
-            onClick={() => setAuditSearch({ userId: '', dateFrom: '', dateTo: '', actionSearch: '' })}
+            onClick={() => {
+              const emptySearch = { userId: '', dateFrom: '', dateTo: '', actionSearch: '' };
+              setAuditSearch(emptySearch);
+              fetchAuditLogs(emptySearch);
+            }}
             style={{
               backgroundColor: '#6b7280',
               color: 'white',
@@ -1539,7 +1582,11 @@ export default function AdminPortal() {
           borderRadius: '8px',
           border: '1px solid #e2e8f0'
         }}>
-          {auditLogs.length === 0 ? (
+          {auditError ? (
+            <div style={{ padding: '1rem', color: '#ef4444' }}>{auditError}</div>
+          ) : auditLoading ? (
+            <div style={{ padding: '2rem', textAlign: 'center' }}>Loading audit events…</div>
+          ) : auditLogs.length === 0 ? (
             <div style={{
               textAlign: 'center',
               padding: '3rem',
@@ -1547,12 +1594,16 @@ export default function AdminPortal() {
             }}>
               <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📊</div>
               <h4 style={{ color: '#4a5568', marginBottom: '0.5rem' }}>No audit logs found</h4>
-              <p>Run a search to view audit log entries.</p>
+              <p>No pick activity matches this league and search.</p>
             </div>
           ) : (
             <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
-              {auditLogs.map((log, index) => (
-                <div key={index} style={{
+              {auditLogs.map((log) => {
+                const details = parseAuditDetails(log.details);
+                const data = details?.additional_data || {};
+                const pickData = data.changes?.context || data;
+                return (
+                <div key={log.id} style={{
                   padding: '1rem',
                   backgroundColor: '#f9fafb',
                   borderRadius: '6px',
@@ -1564,19 +1615,24 @@ export default function AdminPortal() {
                       {log.action || 'Unknown Action'}
                     </div>
                     <div style={{ fontSize: '0.875rem', color: '#6b7280' }}>
-                      {log.timestamp ? new Date(log.timestamp).toLocaleString() : 'Unknown Time'}
+                      {log.created_at ? new Date(log.created_at).toLocaleString() : 'Unknown Time'}
                     </div>
                   </div>
                   <div style={{ fontSize: '0.875rem', color: '#4b5563', marginBottom: '0.25rem' }}>
-                    User: {log.userId || 'Unknown User'}
+                    User: {log.user_id || 'System'}
                   </div>
-                  {log.details && (
+                  {details?.description && (
                     <div style={{ fontSize: '0.875rem', color: '#6b7280' }}>
-                      Details: {log.details}
+                      {details.description}
+                    </div>
+                  )}
+                  {pickData?.week && (
+                    <div style={{ fontSize: '0.8rem', color: '#6b7280', marginTop: '0.4rem' }}>
+                      Week {pickData.week}{pickData.team ? ` · ${pickData.team}` : ''}{pickData.entry_id ? ` · Entry ${pickData.entry_id}` : ''}
                     </div>
                   )}
                 </div>
-              ))}
+              )})}
             </div>
           )}
         </div>
