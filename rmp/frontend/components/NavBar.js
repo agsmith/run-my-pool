@@ -26,18 +26,6 @@ export default function NavBar() {
   };
 
   const navStyles = {
-    nav: {
-      padding: isMobile ? '1rem' : '1rem 2rem',
-      background: '#080d0f',
-      color: '#fff',
-      position: 'relative',
-      borderBottom: '1px solid #2d3b3f',
-      boxShadow: '0 12px 30px rgba(0, 0, 0, 0.28)',
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      flexWrap: 'wrap'
-    },
     brand: {
       fontSize: '1.25rem',
       fontWeight: '800',
@@ -67,13 +55,14 @@ export default function NavBar() {
       gap: isMobile ? '0' : '1rem'
     },
     navLink: {
-      color: '#fff',
+      color: '#b8c5c6',
       textDecoration: 'none',
       padding: isMobile ? '0.75rem 0' : '0.5rem 1rem',
-      borderRadius: '4px',
+      borderRadius: '999px',
       transition: 'background-color 0.2s ease',
       fontSize: isMobile ? '1rem' : '0.9rem',
-      fontWeight: '500',
+      fontWeight: '700',
+      letterSpacing: '0.02em',
       borderBottom: isMobile ? '1px solid #444' : 'none'
     },
     logoutButton: {
@@ -92,18 +81,20 @@ export default function NavBar() {
   };
 
   const handleLinkHover = (e) => {
-    e.target.style.backgroundColor = '#263337';
+    e.currentTarget.style.backgroundColor = '#1b282c';
+    e.currentTarget.style.color = '#d7ff3f';
   };
 
   const handleLinkLeave = (e) => {
-    e.target.style.backgroundColor = 'transparent';
+    e.currentTarget.style.backgroundColor = 'transparent';
+    e.currentTarget.style.color = '#b8c5c6';
   };
 
   return (
-    <nav style={navStyles.nav}>
+    <nav className="broadcast-nav">
       <div style={{ display: 'flex', alignItems: 'center', width: isMobile ? '100%' : 'auto', justifyContent: isMobile ? 'space-between' : 'flex-start' }}>
         <Link href="/" style={navStyles.brand} onClick={closeMobileMenu}>
-          ◈ RUN MY <span style={{ color: '#9fefff' }}>POOL</span>
+          <span className="broadcast-nav__mark">RMP</span> RUN MY <span style={{ color: '#d7ff3f' }}>POOL</span>
         </Link>
         
         <button 
