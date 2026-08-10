@@ -21,6 +21,7 @@ Boundary note (lock_time == utcnow):
 import uuid
 import pytest
 from datetime import datetime, timedelta, timezone
+from types import SimpleNamespace
 
 import models
 from models import Pick, Entry, Pool, Team, PoolAdmin, Schedule
@@ -670,6 +671,31 @@ class TestLockWeek:
         )
         assert auto_pick is not None
         assert auto_pick.locked is True
+
+    def test_lock_week_uses_frozen_spread_for_default_pick(
+        self, client, db_session, monkeypatch
+    ):
+        """The favorite at lock wins over popularity for a missing pick."""
+        token, pool_id, entry_ids = self._setup(
+            client, db_session, "lw_spread_default"
+        )
+        frozen = SimpleNamespace(
+            favorite_team=SimpleNamespace(abbrv="KC"),
+            favorite_team_id=12,
+            spread=7.5,
+        )
+        monkeypatch.setattr("admin.current_season_games", lambda db, week: [])
+        monkeypatch.setattr(
+            "admin.freeze_week_lines", lambda *args, **kwargs: [frozen]
+        )
+
+        response = client.post(
+            f"/admin/pools/{pool_id}/lock-week/1", headers=_h(token)
+        )
+        assert response.status_code == 200, response.text
+        pick = db_session.query(Pick).filter(Pick.entry_id == entry_ids[0]).one()
+        assert pick.team == "KC"
+        assert pick.locked is True
 
     def test_lock_week_auto_pick_skipped_when_all_teams_used(self, client, db_session):
         """

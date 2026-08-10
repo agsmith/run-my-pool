@@ -1,10 +1,57 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from typing import List
-from models import Schedule, Team
+from typing import List, Optional
+from models import Schedule, Team, PoolGameLine
 from deps import get_db
+from odds_service import fetch_week_lines
 
 router = APIRouter()
+
+
+def current_season_games(db: Session, week_num: int):
+    """Return only the newest NFL season when historical rows are retained."""
+    games = db.query(Schedule).filter(Schedule.week_num == week_num).all()
+    if not games:
+        return []
+    season = max(g.start_time.year if g.start_time.month >= 7 else g.start_time.year - 1 for g in games)
+    return sorted(
+        [g for g in games if (g.start_time.year if g.start_time.month >= 7 else g.start_time.year - 1) == season],
+        key=lambda game: game.start_time,
+    )
+
+
+@router.get("/week/{week_num}/matchups", response_model=List[dict])
+def get_week_matchups(
+    week_num: int, pool_id: Optional[str] = None, db: Session = Depends(get_db)
+):
+    """Current-season matchups with live and, when available, locked spreads."""
+    games = current_season_games(db, week_num)
+    live_lines = fetch_week_lines(games)
+    frozen = {}
+    if pool_id:
+        frozen = {
+            line.game_id: line
+            for line in db.query(PoolGameLine).filter(
+                PoolGameLine.pool_id == pool_id,
+                PoolGameLine.week_num == week_num,
+            )
+        }
+
+    return [{
+        "game_id": game.game_id,
+        "week_num": game.week_num,
+        "start_time": game.start_time.isoformat(),
+        "home_team": {"id": game.home_team.id, "name": game.home_team.name, "abbrv": game.home_team.abbrv, "logo": game.home_team.logo},
+        "away_team": {"id": game.away_team.id, "name": game.away_team.name, "abbrv": game.away_team.abbrv, "logo": game.away_team.logo},
+        "live_line": live_lines.get(game.game_id),
+        "official_line": ({
+            "favorite_team_id": frozen[game.game_id].favorite_team_id,
+            "spread": frozen[game.game_id].spread,
+            "details": frozen[game.game_id].details,
+            "provider": frozen[game.game_id].provider,
+            "captured_at": frozen[game.game_id].captured_at.isoformat(),
+        } if game.game_id in frozen else None),
+    } for game in games]
 
 @router.get("/week/{week_num}", response_model=List[dict])
 def get_schedule_for_week(week_num: int, db: Session = Depends(get_db)):

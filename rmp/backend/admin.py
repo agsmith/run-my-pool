@@ -16,6 +16,8 @@ import models
 import schemas
 import deps
 from audit_utils import log_admin_action
+from odds_service import freeze_week_lines
+from schedule import current_season_games
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -217,6 +219,19 @@ def lock_week(
     if pool.lock_time is None or pool.lock_time > now:
         pool.lock_time = now
 
+    # Freeze the same lines visible at lock time. These immutable snapshots,
+    # not later market movement, determine default picks for this pool/week.
+    games = current_season_games(db, week)
+    frozen_lines = freeze_week_lines(db, pool_id, week, games, captured_at=now)
+    line_ranked_teams = [
+        line.favorite_team.abbrv
+        for line in sorted(
+            frozen_lines,
+            key=lambda item: (-(item.spread or 0), item.favorite_team_id or 0),
+        )
+        if line.favorite_team is not None
+    ]
+
     # All alive entries in the pool
     alive_entries = (
         db.query(models.Entry)
@@ -267,10 +282,12 @@ def lock_week(
             .all()
         }
 
-        candidate = next(
-            (team for team, _ in ranked_teams if team not in used_teams),
-            None,
-        )
+        candidate = next((team for team in line_ranked_teams if team not in used_teams), None)
+        if candidate is None:
+            candidate = next(
+                (team for team, _ in ranked_teams if team not in used_teams),
+                None,
+            )
         if candidate is None:
             # No valid team available — skip
             log_admin_action(
@@ -309,6 +326,7 @@ def lock_week(
                 "week": week,
                 "team": candidate,
                 "reason": "no_pick_at_lock",
+                "selection_basis": "locked_spread" if candidate in line_ranked_teams else "pick_popularity_fallback",
             },
         )
         auto_picks_created += 1

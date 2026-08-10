@@ -118,3 +118,18 @@ class TestScheduleEndpoints:
 
         game_ids = [g["game_id"] for g in data]
         assert 1001 in game_ids
+
+    def test_matchups_only_returns_newest_season(self, client, db_session, monkeypatch):
+        ne = models.Team(id=71, name="New England", abbrv="NE2")
+        gb = models.Team(id=72, name="Green Bay", abbrv="GB2")
+        db_session.add_all([ne, gb])
+        db_session.add_all([
+            models.Schedule(game_id=7101, week_num=4, home_team_id=71, away_team_id=72, start_time=datetime(2025, 9, 1)),
+            models.Schedule(game_id=7102, week_num=4, home_team_id=71, away_team_id=72, start_time=datetime(2026, 9, 1)),
+        ])
+        db_session.commit()
+        monkeypatch.setattr("schedule.fetch_week_lines", lambda games: {})
+
+        response = client.get("/schedule/week/4/matchups")
+        assert response.status_code == 200
+        assert [game["game_id"] for game in response.json()] == [7102]

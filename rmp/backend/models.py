@@ -7,6 +7,7 @@ from sqlalchemy import (
     Enum,
     Text,
     Integer,
+    Float,
     Time,
 )
 from sqlalchemy.orm import relationship, declarative_base
@@ -184,3 +185,20 @@ class Schedule(Base):
     # relationships
     home_team = relationship("Team", foreign_keys=[home_team_id])
     away_team = relationship("Team", foreign_keys=[away_team_id])
+
+
+class PoolGameLine(Base):
+    """Official point spread frozen when a pool's weekly picks lock."""
+
+    __tablename__ = "pool_game_lines"
+    pool_id = Column(String(36), ForeignKey(POOLS_ID_FK), primary_key=True)
+    game_id = Column(Integer, ForeignKey("schedule.game_id"), primary_key=True)
+    week_num = Column(Integer, nullable=False)
+    favorite_team_id = Column(Integer, ForeignKey(TEAMS_ID_FK), nullable=True)
+    spread = Column(Float, nullable=True)
+    details = Column(String(64), nullable=True)
+    provider = Column(String(64), nullable=False)
+    captured_at = Column(DateTime, nullable=False)
+
+    game = relationship("Schedule")
+    favorite_team = relationship("Team")

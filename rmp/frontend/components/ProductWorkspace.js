@@ -24,6 +24,7 @@ export function PoolWorkspaceNav({ poolId, poolName, active, showAdmin = false }
   const items = [
     { id: 'overview', label: 'Pool Home', href: `/pool/${poolId}` },
     { id: 'entries', label: 'Picks & Entries', href: `/pool/${poolId}/entries` },
+    { id: 'matchups', label: 'Matchups & Lines', href: `/pool/${poolId}/matchups` },
     { id: 'messages', label: 'Pool Messages', href: `/pool/${poolId}/messages` },
   ];
 
