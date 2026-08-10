@@ -485,6 +485,48 @@ class TestPerGameStartTimeEnforcement:
             f"Expected 200 before game kickoff, got {resp.status_code}: {resp.text}"
         )
 
+    def test_current_season_game_used_when_prior_season_has_same_week(
+        self, client, db_session
+    ):
+        """An old season's kickoff must not lock the matching current-season pick."""
+        token = _reg(client, "per_game_multi_season@example.com")
+        pool_id = _create_pool(client, token)
+        _set_lock_time(db_session, pool_id, datetime.utcnow() + timedelta(days=7))
+
+        entry_resp = _create_entry(client, token, pool_id)
+        assert entry_resp.status_code == 200
+        entry_id = entry_resp.json()["id"]
+
+        _seed_team(db_session, 95, "Multi Season Team", "MST")
+        _seed_team(db_session, 94, "Old Opponent", "OLD")
+        _seed_team(db_session, 93, "Current Opponent", "CUR")
+
+        # The older row is inserted first, matching production's multi-season
+        # data shape that exposed the unordered .first() lookup.
+        _seed_schedule(
+            db_session,
+            game_id=9903,
+            week_num=1,
+            home_team_id=95,
+            away_team_id=94,
+            start_time=datetime.utcnow() - timedelta(days=365),
+        )
+        _seed_schedule(
+            db_session,
+            game_id=9904,
+            week_num=1,
+            home_team_id=95,
+            away_team_id=93,
+            start_time=datetime.utcnow() + timedelta(hours=2),
+        )
+
+        resp = client.post(
+            "/picks/create",
+            json={"entry_id": entry_id, "week": 1, "team": "MST"},
+            headers=_h(token),
+        )
+        assert resp.status_code == 200, resp.text
+
 
 # ---------------------------------------------------------------------------
 # TestLockWeek

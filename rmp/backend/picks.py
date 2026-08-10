@@ -57,6 +57,10 @@ def _get_effective_lock_time(db: Session, pool: Pool, team_abbrev: str, week: in
                     Schedule.away_team_id == team.id,
                 ),
             )
+            # Schedule rows are retained across seasons, while picks identify a
+            # week but not a season. Prefer the newest matching game so an old
+            # season's kickoff cannot incorrectly lock the current season.
+            .order_by(Schedule.start_time.desc())
             .first()
         )
 
