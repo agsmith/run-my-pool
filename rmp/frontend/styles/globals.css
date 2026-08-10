@@ -367,3 +367,79 @@ table {
   .broadcast-app-shell main { padding: 1rem !important; }
   .broadcast-app-shell table { font-size: .78rem; }
 }
+
+/* Broadcast Night V2 — explicit workflow archetypes, never color-string matching. */
+.broadcast-v2 {
+  --surface:#10191c; --raised:#162226; --soft:#1b292d; --line:#2b3b3f;
+  --ink:#f3f7f5; --muted:#94a4a6; --lime:#d7ff3f; --ice:#9fefff; --danger:#ff817a;
+  min-height:100vh; color:var(--ink);
+  background:radial-gradient(circle at 88% -10%,rgba(159,239,255,.13),transparent 27rem),radial-gradient(circle at 3% 92%,rgba(215,255,63,.07),transparent 23rem),#080d0f;
+  font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+}
+.broadcast-v2::before { content:''; position:fixed; inset:0; pointer-events:none; opacity:.14; background-image:linear-gradient(rgba(255,255,255,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.04) 1px,transparent 1px); background-size:48px 48px; mask-image:linear-gradient(to bottom,black,transparent 75%); }
+.broadcast-v2 > * { position:relative; z-index:1; }
+.broadcast-v2 main { width:min(100% - 2rem,1180px); margin-inline:auto!important; padding:3.25rem 0 4rem!important; background:transparent!important; }
+.broadcast-v2 h1,.broadcast-v2 h2,.broadcast-v2 h3,.broadcast-v2 h4 { color:var(--ink)!important; }
+.broadcast-v2 h1 { letter-spacing:-.045em; line-height:.98; }
+.broadcast-v2 h2,.broadcast-v2 h3 { letter-spacing:-.025em; }
+.broadcast-v2 p,.broadcast-v2 small,.broadcast-v2 li { color:var(--muted)!important; line-height:1.6; }
+.broadcast-v2 a { color:var(--ice); }
+.broadcast-v2 label { color:#d8e1df!important; font-weight:700!important; }
+.broadcast-v2 input:not([type="checkbox"]):not([type="radio"]),.broadcast-v2 select,.broadcast-v2 textarea { color:var(--ink)!important; background:#0c1416!important; border:1px solid #3a4b4f!important; border-radius:10px!important; min-height:46px; padding:.78rem .9rem!important; outline:none; }
+.broadcast-v2 textarea { min-height:108px; }
+.broadcast-v2 input:focus,.broadcast-v2 select:focus,.broadcast-v2 textarea:focus { border-color:var(--ice)!important; box-shadow:0 0 0 3px rgba(159,239,255,.12)!important; }
+.broadcast-v2 input::placeholder,.broadcast-v2 textarea::placeholder { color:#647477; }
+.broadcast-v2 input[type="checkbox"],.broadcast-v2 input[type="radio"] { accent-color:var(--lime); }
+.broadcast-v2 button,.broadcast-v2 [role="button"] { border-radius:999px!important; font-weight:800!important; letter-spacing:.01em; min-height:42px; transition:transform .16s ease,filter .16s ease,border-color .16s ease!important; }
+.broadcast-v2 button:hover,.broadcast-v2 [role="button"]:hover { transform:translateY(-1px); filter:brightness(1.08); }
+
+.broadcast-nav { position:sticky; top:0; z-index:40!important; min-height:66px; padding:.75rem clamp(1rem,4vw,3.5rem); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; color:#fff; background:rgba(8,13,15,.88); border-bottom:1px solid rgba(159,239,255,.18); backdrop-filter:blur(18px); box-shadow:0 12px 38px rgba(0,0,0,.24); }
+.broadcast-nav__mark { display:inline-grid; place-items:center; width:34px; height:24px; margin-right:.45rem; color:#081013; background:var(--lime,#d7ff3f); border-radius:4px; font-size:.66rem; font-style:normal; letter-spacing:.05em; transform:skew(-8deg); }
+
+/* Authentication: focused, editorial sign-in station. */
+.broadcast-v2--auth { background:radial-gradient(circle at 20% 25%,rgba(215,255,63,.1),transparent 25rem),radial-gradient(circle at 80% 65%,rgba(159,239,255,.11),transparent 31rem),#080d0f; }
+.broadcast-v2--auth main { width:min(100% - 2rem,1100px); min-height:100vh!important; display:grid!important; place-items:center!important; }
+.broadcast-v2--auth main::before { content:'YOUR POOL. YOUR PEOPLE. YOUR WEEK.'; position:fixed; left:clamp(1rem,6vw,6rem); top:50%; width:8ch; transform:translateY(-50%); color:rgba(243,247,245,.09); font-size:clamp(3rem,7vw,7rem); font-weight:950; font-style:italic; line-height:.8; letter-spacing:-.08em; }
+.broadcast-v2--auth main > div,.broadcast-v2--auth main > form { width:min(100%,470px)!important; margin-left:min(38vw,410px); padding:clamp(1.5rem,4vw,3rem)!important; background:rgba(16,25,28,.95)!important; border:1px solid var(--line)!important; border-top:3px solid var(--lime)!important; border-radius:18px!important; box-shadow:0 28px 80px rgba(0,0,0,.42)!important; }
+
+/* Setup: configuration reads like a multi-section control sheet. */
+.broadcast-v2--setup > div > header,.broadcast-v2--setup header { padding:1.25rem clamp(1rem,4vw,3.5rem)!important; background:#0d1517!important; border-bottom:1px solid var(--line)!important; }
+.broadcast-v2--setup main { width:min(100% - 2rem,920px); align-items:stretch!important; }
+.broadcast-v2--setup main > div { width:100%!important; max-width:none!important; padding:clamp(1.4rem,4vw,2.5rem)!important; background:var(--surface)!important; border:1px solid var(--line)!important; border-radius:16px!important; box-shadow:0 24px 70px rgba(0,0,0,.26)!important; }
+.broadcast-v2--setup form > div { border-color:var(--line)!important; }
+
+/* Dashboard: broad, glanceable cards. */
+.broadcast-v2--dashboard main,.broadcast-v2--account main { width:min(100% - 2rem,1240px); }
+.broadcast-v2--dashboard main > section,.broadcast-v2--dashboard main > div,.broadcast-v2--account main { border-color:var(--line)!important; }
+
+/* Competition and entries: dense scorebook surfaces. */
+.broadcast-v2--competition main,.broadcast-v2--entries main { width:min(100% - 2rem,1280px)!important; }
+.broadcast-v2--competition main > div:not(:first-child),.broadcast-v2--competition section,.broadcast-v2--entries main > form,.broadcast-v2--entries main > div:not(:first-child) { background:rgba(16,25,28,.94)!important; border:1px solid var(--line)!important; border-radius:14px!important; padding:clamp(1rem,3vw,2rem)!important; }
+.broadcast-v2--entries table,.broadcast-v2--competition table { width:100%; border-collapse:collapse; background:var(--surface)!important; }
+.broadcast-v2--entries th,.broadcast-v2--competition th { color:var(--ice)!important; background:#0c1416!important; text-transform:uppercase; letter-spacing:.08em; font-size:.72rem; }
+.broadcast-v2--entries td,.broadcast-v2--competition td { color:#dbe4e2!important; border-color:var(--line)!important; }
+
+/* Community: message cards read like a live marketplace ticker. */
+.broadcast-v2--community main { width:min(100% - 2rem,980px)!important; }
+.broadcast-v2--community main > div,.broadcast-v2--community main article { background:var(--surface)!important; border:1px solid var(--line)!important; border-left:3px solid var(--ice)!important; border-radius:12px!important; box-shadow:0 18px 50px rgba(0,0,0,.2)!important; }
+.broadcast-v2--community main > div:first-child { border-left-color:var(--lime)!important; }
+
+/* Admin: wide operational console. */
+.broadcast-v2--admin { background:radial-gradient(circle at 95% 0,rgba(159,239,255,.08),transparent 30rem),#080d0f; }
+.broadcast-v2--admin main { width:min(100% - 1.5rem,1500px)!important; }
+.broadcast-v2--admin table { width:100%; border-collapse:collapse; background:#0d1517!important; border:1px solid var(--line); }
+.broadcast-v2--admin th { color:var(--ice)!important; background:#111e22!important; text-transform:uppercase; font-size:.7rem; letter-spacing:.08em; }
+.broadcast-v2--admin td { color:#d7dfde!important; border-color:var(--line)!important; }
+
+/* Utility/offline: deliberately minimal. */
+.broadcast-v2--utility > div { min-height:100vh; background:transparent!important; }
+.broadcast-v2--utility > div::before { content:'OFF AIR'; color:var(--danger); border:1px solid rgba(255,129,122,.45); border-radius:999px; padding:.35rem .7rem; font-size:.72rem; font-weight:900; letter-spacing:.12em; }
+
+@media (max-width:760px) {
+  .broadcast-v2 main { width:min(100% - 1.25rem,100%); padding-block:1.5rem 3rem!important; }
+  .broadcast-v2--auth main::before { display:none; }
+  .broadcast-v2--auth main > div,.broadcast-v2--auth main > form { margin-left:0; }
+  .broadcast-v2 h1 { font-size:clamp(2rem,11vw,3rem)!important; }
+  .broadcast-v2--competition main > div:first-child { align-items:flex-start!important; flex-direction:column!important; }
+  .broadcast-v2--competition main > div:first-child > div { flex-wrap:wrap; }
+}

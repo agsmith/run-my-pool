@@ -7,6 +7,20 @@ export default function MyApp({ Component, pageProps }) {
   const router = useRouter()
   const isLandingPage = router.pathname === '/'
 
+  const getExperience = (pathname) => {
+    if (['/login', '/register', '/create-account', '/forgot-password', '/reset-password'].includes(pathname)) return 'auth'
+    if (pathname === '/offline') return 'utility'
+    if (pathname.startsWith('/admin')) return 'admin'
+    if (pathname.includes('/messages') || pathname === '/message-board') return 'community'
+    if (pathname.includes('/entries')) return 'entries'
+    if (pathname === '/create-league' || pathname === '/create-pool') return 'setup'
+    if (pathname.startsWith('/pool/') || pathname.startsWith('/league/')) return 'competition'
+    if (pathname === '/profile') return 'account'
+    return 'dashboard'
+  }
+
+  const experience = getExperience(router.pathname)
+
   return (
     <>
       <Head>
@@ -34,7 +48,10 @@ export default function MyApp({ Component, pageProps }) {
         <title>Run My Pool - NFL Pick Pool Management</title>
       </Head>
       <AuthProvider>
-        <div className={isLandingPage ? '' : 'broadcast-app-shell'}>
+        <div
+          className={isLandingPage ? '' : `broadcast-v2 broadcast-v2--${experience}`}
+          data-route={router.pathname}
+        >
           <Component {...pageProps} />
         </div>
       </AuthProvider>
