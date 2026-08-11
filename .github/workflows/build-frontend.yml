@@ -42,6 +42,14 @@ jobs:
       - name: Run tests
         run: npm test -- --ci --passWithNoTests
 
+      - name: Lint and build
+        run: |
+          npm run lint
+          npm run build
+
+      - name: Audit dependencies
+        run: npm audit
+
   build-and-deploy:
     name: Build, push, and deploy
     runs-on: ubuntu-latest

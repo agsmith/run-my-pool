@@ -24,6 +24,14 @@ from weekly_locks import lock_pool_week
 router = APIRouter(prefix="/admin", tags=["admin"])
 
 
+def _csv_safe(value: str) -> str:
+    """Prevent spreadsheet software from interpreting user data as formulas."""
+    text = str(value or "")
+    if text.lstrip().startswith(("=", "+", "-", "@", "\t", "\r")):
+        return f"'{text}"
+    return text
+
+
 def verify_admin_access(pool_id: str, current_user: models.User, db: Session) -> bool:
     """Verify if user has admin access to the pool"""
     pool = db.query(models.Pool).filter(models.Pool.id == pool_id).first()
@@ -898,7 +906,7 @@ def export_entries_csv(
     writer = csv.writer(output)
     writer.writerow(["email", "entry_name"])
     for email, entry_name in rows:
-        writer.writerow([email, entry_name])
+        writer.writerow([_csv_safe(email), _csv_safe(entry_name)])
 
     output.seek(0)
     return StreamingResponse(

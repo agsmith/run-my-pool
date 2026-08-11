@@ -10,14 +10,42 @@ export function AuthProvider({ children }) {
   const router = useRouter();
 
   useEffect(() => {
-    // Try to load user/token from localStorage on mount
-    const t = localStorage.getItem('access_token');
-    const u = localStorage.getItem('user');
-    if (t && u) {
-      setToken(t);
-      setUser(JSON.parse(u));
-    }
-    setLoading(false);
+    let cancelled = false;
+    const restoreSession = async () => {
+      const cachedUser = localStorage.getItem('user');
+      if (!cachedUser) {
+        localStorage.removeItem('access_token');
+        if (!cancelled) setLoading(false);
+        return;
+      }
+      try {
+        // The real credential is an HttpOnly cookie. The non-sensitive marker
+        // keeps legacy request helpers from persisting the bearer token.
+        localStorage.removeItem('access_token');
+        const response = await fetch(process.env.NEXT_PUBLIC_API_URL + '/auth/me', {
+          credentials: 'include',
+        });
+        if (!response.ok) throw new Error('No active session');
+        const userData = await response.json();
+        if (!cancelled) {
+          setToken('cookie');
+          setUser(userData);
+          localStorage.setItem('access_token', 'cookie');
+          localStorage.setItem('user', JSON.stringify(userData));
+        }
+      } catch {
+        if (!cancelled) {
+          setToken(null);
+          setUser(null);
+          localStorage.removeItem('access_token');
+          localStorage.removeItem('user');
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    restoreSession();
+    return () => { cancelled = true; };
   }, []);
 
   const login = async (email, password) => {
@@ -26,20 +54,21 @@ export function AuthProvider({ children }) {
       const res = await fetch(process.env.NEXT_PUBLIC_API_URL + '/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
+        body: JSON.stringify({ email, password }),
+        credentials: 'include',
       });
       if (!res.ok) throw new Error('Invalid credentials');
       
-      const data = await res.json();
-      const accessToken = data.access_token;
-      
-      // Store token
+      await res.json();
+
+      // Persist only a non-sensitive marker; the credential is HttpOnly.
+      const accessToken = 'cookie';
       setToken(accessToken);
       localStorage.setItem('access_token', accessToken);
       
       // Fetch full user info
       const userRes = await fetch(process.env.NEXT_PUBLIC_API_URL + '/auth/me', {
-        headers: { 'Authorization': `Bearer ${accessToken}` }
+        credentials: 'include',
       });
       
       if (userRes.ok) {
@@ -61,12 +90,19 @@ export function AuthProvider({ children }) {
     }
   };
 
-  const logout = () => {
-    setUser(null);
-    setToken(null);
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('user');
-    router.push('/login');
+  const logout = async () => {
+    try {
+      await fetch(process.env.NEXT_PUBLIC_API_URL + '/auth/logout', {
+        method: 'POST',
+        credentials: 'include',
+      });
+    } finally {
+      setUser(null);
+      setToken(null);
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('user');
+      router.push('/login');
+    }
   };
 
   return (

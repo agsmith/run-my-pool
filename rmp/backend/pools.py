@@ -1,5 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException, Response, status
-from sqlalchemy import func
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from sqlalchemy import func, or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from typing import List
@@ -269,8 +269,38 @@ def get_my_pools(
 
 
 @router.get("/", response_model=List[schemas.PoolOut])
-def list_pools(skip: int = 0, limit: int = 100, db: Session = Depends(deps.get_db)):
-    return db.query(models.Pool).offset(skip).limit(limit).all()
+def list_pools(
+    skip: int = Query(default=0, ge=0),
+    limit: int = Query(default=100, ge=1, le=100),
+    db: Session = Depends(deps.get_db),
+    current_user: models.User = Depends(deps.get_current_user),
+):
+    """List public leagues plus private leagues the caller may access."""
+    return (
+        db.query(models.Pool)
+        .outerjoin(
+            models.PoolMember,
+            (models.PoolMember.pool_id == models.Pool.id)
+            & (models.PoolMember.user_id == current_user.id),
+        )
+        .outerjoin(
+            models.PoolAdmin,
+            (models.PoolAdmin.pool_id == models.Pool.id)
+            & (models.PoolAdmin.user_id == current_user.id),
+        )
+        .filter(
+            or_(
+                models.Pool.is_private.is_(False),
+                models.Pool.owner_id == current_user.id,
+                models.PoolMember.user_id == current_user.id,
+                models.PoolAdmin.user_id == current_user.id,
+            )
+        )
+        .distinct()
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
 
 
 @router.get("/{pool_id}", response_model=schemas.PoolOut)

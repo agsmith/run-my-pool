@@ -116,6 +116,37 @@ class TestPoolEndpoints:
         assert len(pools) >= 1
         assert any(pool["name"] == test_pool_data["name"] for pool in pools)
 
+    def test_pool_discovery_requires_auth_and_hides_outsider_private_leagues(self, client):
+        owner = _register(client, "private.discovery.owner@example.com")
+        outsider = _register(client, "private.discovery.outsider@example.com")
+        private_pool = client.post(
+            "/pools/create",
+            json={
+                "name": "Hidden Discovery League",
+                "is_private": True,
+                "join_password": "Private123!",
+            },
+            headers=owner,
+        ).json()
+        public_pool = client.post(
+            "/pools/create",
+            json={"name": "Visible Discovery League", "is_private": False},
+            headers=owner,
+        ).json()
+
+        client.cookies.clear()
+        assert client.get("/pools/").status_code in (401, 403)
+
+        outsider_ids = {
+            pool["id"] for pool in client.get("/pools/", headers=outsider).json()
+        }
+        owner_ids = {
+            pool["id"] for pool in client.get("/pools/", headers=owner).json()
+        }
+        assert public_pool["id"] in outsider_ids
+        assert private_pool["id"] not in outsider_ids
+        assert private_pool["id"] in owner_ids
+
     def test_get_pool_by_id_success(self, authenticated_client, test_pool_data):
         """Test getting a specific pool by ID"""
         client, user_data = authenticated_client

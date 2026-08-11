@@ -11,6 +11,7 @@ from datetime import datetime, timezone
 os.environ.setdefault("DATABASE_URL", "sqlite:///./test.db")
 os.environ.setdefault("SECRET_KEY", "test-secret-key")
 os.environ.setdefault("DISABLE_WEEKLY_LOCK_WORKER", "1")
+os.environ.setdefault("ENVIRONMENT", "development")
 
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine

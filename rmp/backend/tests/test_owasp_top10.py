@@ -1,4 +1,4 @@
-"""Executable OWASP Top 10 security assessment for the RunMyPool API."""
+"""Executable OWASP Top 10:2025 security assessment for RunMyPool."""
 
 import base64
 import json
@@ -46,6 +46,15 @@ def _entry(client, token, pool_id, name="OWASP entry"):
 
 
 class TestA01BrokenAccessControl:
+    def test_upstream_urls_are_fixed_https_endpoints(self):
+        import odds_service
+        import sync_schedule
+
+        assert odds_service.ESPN_SUMMARY_URL.startswith("https://")
+        assert sync_schedule.ESPN_SCOREBOARD_URL.startswith("https://")
+        assert "{" not in odds_service.ESPN_SUMMARY_URL
+        assert "{" not in sync_schedule.ESPN_SCOREBOARD_URL
+
     def test_outsider_cannot_read_private_pool_details(self, client):
         owner = _register(client, "a01.owner@example.com")
         outsider = _register(client, "a01.outsider@example.com")
@@ -90,7 +99,7 @@ class TestA01BrokenAccessControl:
         assert response.status_code in (400, 403, 422)
 
 
-class TestA02CryptographicFailures:
+class TestA04CryptographicFailures:
     def test_password_is_hashed_and_never_serialized(self, client, db_session):
         password = "NeverStoreThis123!"
         response = client.post(
@@ -109,7 +118,7 @@ class TestA02CryptographicFailures:
         assert "supersecretkey" not in (backend / "deps.py").read_text()
 
 
-class TestA03Injection:
+class TestA05Injection:
     def test_sql_injection_is_treated_as_data(self, client):
         token = _register(client, "a03.sql@example.com")
         payload = "'; DROP TABLE users; --"
@@ -119,7 +128,7 @@ class TestA03Injection:
 
         assert response.status_code == 200
         assert response.json()["name"] == payload
-        assert client.get("/pools/").status_code == 200
+        assert client.get("/pools/", headers=_headers(token)).status_code == 200
 
     def test_xss_payload_is_returned_only_as_json_data(self, client):
         token = _register(client, "a03.xss@example.com")
@@ -132,7 +141,7 @@ class TestA03Injection:
         assert response.json()["name"] == payload
 
 
-class TestA04InsecureDesign:
+class TestA06InsecureDesign:
     def test_trivial_password_is_rejected(self, client):
         response = client.post(
             "/auth/register", json={"email": "a04.weak@example.com", "password": "x"}
@@ -153,7 +162,7 @@ class TestA04InsecureDesign:
         assert replay.status_code in (400, 401)
 
 
-class TestA05SecurityMisconfiguration:
+class TestA02SecurityMisconfiguration:
     def test_untrusted_origin_is_not_allowed_by_cors(self, client):
         response = client.options(
             "/auth/me",
@@ -174,8 +183,19 @@ class TestA05SecurityMisconfiguration:
     def test_api_documentation_is_not_public(self, client):
         assert client.get("/docs").status_code in (401, 403, 404)
 
+    def test_frontend_declares_security_headers(self):
+        config = (Path(__file__).resolve().parents[2] / "frontend" / "next.config.js").read_text()
+        for header in (
+            "Content-Security-Policy",
+            "Strict-Transport-Security",
+            "X-Content-Type-Options",
+            "X-Frame-Options",
+            "Referrer-Policy",
+        ):
+            assert header in config
 
-class TestA06VulnerableAndOutdatedComponents:
+
+class TestA03SoftwareSupplyChainFailures:
     def test_dependencies_are_reproducibly_locked(self):
         root = Path(__file__).resolve().parents[2]
         backend = root / "backend"
@@ -203,8 +223,15 @@ class TestA06VulnerableAndOutdatedComponents:
         lockfile = json.loads((frontend / "package-lock.json").read_text())
         assert lockfile["lockfileVersion"] >= 3
 
+        repository = root.parent
+        for lock_path in (
+            repository / "lambda" / "src" / "requirements.txt",
+            repository / "lambda" / "requirements-test.txt",
+        ):
+            assert "--hash=sha256:" in lock_path.read_text()
 
-class TestA07IdentificationAndAuthenticationFailures:
+
+class TestA07AuthenticationFailures:
     def test_inactive_user_token_is_rejected(self, client, db_session):
         email = "a07.inactive@example.com"
         token = _register(client, email)
@@ -239,7 +266,7 @@ class TestA08SoftwareAndDataIntegrityFailures:
         assert client.get("/auth/me", headers=_headers(token)).status_code == 401
 
 
-class TestA09SecurityLoggingAndMonitoringFailures:
+class TestA09SecurityLoggingAndAlertingFailures:
     def test_failed_login_is_audited(self, client, db_session):
         client.post(
             "/auth/login", json={"email": "a09.unknown@example.com", "password": "wrong"}
@@ -264,12 +291,19 @@ class TestA09SecurityLoggingAndMonitoringFailures:
         assert "reset-password?token=" not in output.lower()
 
 
-class TestA10ServerSideRequestForgery:
-    def test_upstream_urls_are_fixed_https_endpoints(self):
-        import odds_service
-        import sync_schedule
+class TestA10MishandlingExceptionalConditions:
+    def test_registration_failure_is_generic_and_does_not_log_exception(self, client, monkeypatch, capsys):
+        def fail_hash(_password):
+            raise RuntimeError("mysql://admin:secret-password@database.internal")
 
-        assert odds_service.ESPN_SUMMARY_URL.startswith("https://")
-        assert sync_schedule.ESPN_SCOREBOARD_URL.startswith("https://")
-        assert "{" not in odds_service.ESPN_SUMMARY_URL
-        assert "{" not in sync_schedule.ESPN_SCOREBOARD_URL
+        monkeypatch.setattr("auth.get_password_hash", fail_hash)
+        response = client.post(
+            "/auth/register",
+            json={"email": "exception@example.com", "password": "Pass1234!"},
+        )
+        output = capsys.readouterr().out
+
+        assert response.status_code == 500
+        assert response.json()["detail"] == "Unable to create account"
+        assert "secret-password" not in response.text
+        assert "secret-password" not in output

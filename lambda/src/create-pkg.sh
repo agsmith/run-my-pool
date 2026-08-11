@@ -1,43 +1,20 @@
 #!/bin/bash
+set -euo pipefail
 
-echo "Executing create_pkg.sh..."
-pip install virtualenv
+requirements_file="$path_cwd/src/requirements.txt"
+target_dir="$path_cwd/src"
 
-pwd
-
-cd $path_cwd
-cd src
-dir_name=lambda_dist_pkg/
-mkdir $dir_name
-
-# Create and activate virtual environment...
-virtualenv -p $runtime env_$function_name
-source $path_cwd/env_$function_name/bin/activate
-
-# Installing python dependencies...
-FILE=$path_cwd/requirements.txt
-cat $FILE
-if [ -f "$FILE" ]; then
-  echo "Installing dependencies..."
-  echo "From: requirement.txt file exists..."
-  pip download -r "$FILE" --platform manylinux2014_x86_64 --only-binary=:all:
-#  ls -altr
-  unzip "*.whl"
-  rm -rf *.whl
-
-else
-  echo "Error: requirement.txt does not exist!"
+if [ ! -f "$requirements_file" ]; then
+  echo "Missing Lambda requirements lock: $requirements_file" >&2
+  exit 1
 fi
 
-# Deactivate virtual environment...
-deactivate
-
-# Create deployment package...
-echo "Creating deployment package..."
-cp -r  env_$function_name/lib/$runtime/site-packages/* $path_cwd/
-#ls -altr
-# Removing virtual environment folder...
-echo "Removing virtual environment folder..."
-rm -rf $path_cwd/env_$function_name
-
-echo "Finished script execution!"
+echo "Installing hash-verified Lambda dependencies..."
+python3 -m pip install \
+  --require-hashes \
+  --platform manylinux2014_x86_64 \
+  --implementation cp \
+  --python-version 3.12 \
+  --only-binary=:all: \
+  --target "$target_dir" \
+  -r "$requirements_file"

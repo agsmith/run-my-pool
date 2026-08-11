@@ -400,9 +400,7 @@ class TestInputValidation:
         resp = _submit_pick(client, token, entry_id, week=0, team="NE")
         # No Pydantic constraint — current behaviour is 200 (accepted).
         # When a ge=1 constraint is added this should be 422.
-        assert resp.status_code in (200, 422), (
-            f"Unexpected status for week=0: {resp.status_code}: {resp.text}"
-        )
+        assert resp.status_code == 422, resp.text
 
     def test_pick_week_negative_rejected(self, client):
         """
@@ -415,9 +413,7 @@ class TestInputValidation:
         token, entry_id = self._setup(client, "wk_neg")
         resp = _submit_pick(client, token, entry_id, week=-1, team="GB")
         # No Pydantic constraint — current behaviour is 200 (accepted).
-        assert resp.status_code in (200, 422), (
-            f"Unexpected status for week=-1: {resp.status_code}: {resp.text}"
-        )
+        assert resp.status_code == 422, resp.text
 
     def test_pick_week_too_large_rejected(self, client):
         """
@@ -430,9 +426,7 @@ class TestInputValidation:
         token, entry_id = self._setup(client, "wk999")
         resp = _submit_pick(client, token, entry_id, week=999, team="BUF")
         # No upper-bound constraint — current behaviour is 200 (accepted).
-        assert resp.status_code in (200, 422), (
-            f"Unexpected status for week=999: {resp.status_code}: {resp.text}"
-        )
+        assert resp.status_code == 422, resp.text
 
     def test_sql_injection_in_pool_name_no_500(self, client):
         """

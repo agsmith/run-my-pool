@@ -103,6 +103,33 @@ class TestAuthEndpoints:
         assert "access_token" in data
         assert data["token_type"] == "bearer"
 
+    def test_login_sets_httponly_cookie_and_cookie_authenticates(self, client, test_user_data):
+        client.post("/auth/register", json=test_user_data)
+
+        login = client.post(
+            "/auth/login",
+            json={"email": test_user_data["email"], "password": test_user_data["password"]},
+        )
+
+        cookie = login.headers["set-cookie"].lower()
+        assert "rmp_access_token=" in cookie
+        assert "httponly" in cookie
+        assert "samesite=lax" in cookie
+        assert client.get("/auth/me").status_code == 200
+
+    def test_logout_clears_cookie_session(self, client, test_user_data):
+        client.post("/auth/register", json=test_user_data)
+        client.post(
+            "/auth/login",
+            json={"email": test_user_data["email"], "password": test_user_data["password"]},
+        )
+        assert client.get("/auth/me").status_code == 200
+
+        logout = client.post("/auth/logout")
+
+        assert logout.status_code == 204
+        assert client.get("/auth/me").status_code == 401
+
     def test_login_invalid_credentials(self, client, test_user_data):
         """Test login with invalid credentials"""
         # Register user first

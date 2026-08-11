@@ -857,6 +857,19 @@ class TestCSVExport:
         )
         assert resp.status_code == 403
 
+    def test_csv_neutralizes_spreadsheet_formulas(self, client, db_session):
+        token = _register_and_login(client, email="csv_formula@example.com")
+        pool_id = _create_pool(client, _authed(token))
+        _create_entry(client, _authed(token), pool_id, name="=HYPERLINK(\"https://evil.invalid\")")
+
+        resp = client.get(
+            f"/admin/pools/{pool_id}/export/entries.csv",
+            headers=_authed(token),
+        )
+
+        assert resp.status_code == 200
+        assert "'=HYPERLINK" in resp.text
+
 
 # ---------------------------------------------------------------------------
 # TestUserLock

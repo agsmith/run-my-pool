@@ -238,7 +238,7 @@ class EntryOut(BaseModel):
 
 
 class PickBase(BaseModel):
-    week: int
+    week: int = Field(ge=1, le=18)
     team: str
 
 

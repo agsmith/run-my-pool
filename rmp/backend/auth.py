@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.orm import Session
 from passlib.context import CryptContext
 import jwt
@@ -15,6 +15,7 @@ from audit_utils import log_create_operation, log_authentication_event, log_upda
 SECRET_KEY = os.environ["SECRET_KEY"]
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24
+ACCESS_TOKEN_COOKIE = "rmp_access_token"
 LOGIN_ATTEMPT_LIMIT = 5
 LOGIN_ATTEMPT_WINDOW = timedelta(minutes=15)
 
@@ -73,12 +74,18 @@ def register(user: schemas.UserCreate, db: Session = Depends(deps.get_db)):
         
         print("User created successfully")
         return db_user
-    except Exception as e:
-        print(f"Registration error: {str(e)}")
-        raise HTTPException(status_code=400, detail=str(e))
+    except HTTPException:
+        raise
+    except Exception:
+        print("Registration failed")
+        raise HTTPException(status_code=500, detail="Unable to create account")
 
 @router.post("/login")
-def login(user: schemas.LoginRequest, db: Session = Depends(deps.get_db)):
+def login(
+    user: schemas.LoginRequest,
+    response: Response,
+    db: Session = Depends(deps.get_db),
+):
     now = datetime.now(timezone.utc).replace(tzinfo=None)
     window_start = now - LOGIN_ATTEMPT_WINDOW
     recent_failures = db.query(models.LoginAttempt).filter(
@@ -113,7 +120,27 @@ def login(user: schemas.LoginRequest, db: Session = Depends(deps.get_db)):
     )
     
     access_token = create_access_token(data={"sub": db_user.email})
+    response.set_cookie(
+        key=ACCESS_TOKEN_COOKIE,
+        value=access_token,
+        max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        httponly=True,
+        secure=os.getenv("ENVIRONMENT", "production").lower() != "development",
+        samesite="lax",
+        path="/",
+    )
     return {"access_token": access_token, "token_type": "bearer"}
+
+
+@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
+def logout(response: Response):
+    response.delete_cookie(
+        key=ACCESS_TOKEN_COOKIE,
+        httponly=True,
+        secure=os.getenv("ENVIRONMENT", "production").lower() != "development",
+        samesite="lax",
+        path="/",
+    )
 
 @router.get("/me", response_model=schemas.UserOut)
 def get_current_user_info(current_user: models.User = Depends(deps.get_current_user)):
@@ -141,8 +168,8 @@ def forgot_password(request: schemas.ForgotPasswordRequest, db: Session = Depend
         
         # Always return success message regardless of whether email exists
         return {"message": "If an account with that email exists, you will receive a password reset link shortly."}
-    except Exception as e:
-        print(f"Forgot password error: {str(e)}")
+    except Exception:
+        print("Forgot-password request failed")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.post("/reset-password")
@@ -188,6 +215,6 @@ def reset_password(request: schemas.ResetPasswordRequest, db: Session = Depends(
         raise HTTPException(status_code=400, detail="Invalid or expired reset token")
     except HTTPException:
         raise
-    except Exception as e:
-        print(f"Reset password error: {str(e)}")
+    except Exception:
+        print("Password-reset request failed")
         raise HTTPException(status_code=500, detail="Internal server error")
