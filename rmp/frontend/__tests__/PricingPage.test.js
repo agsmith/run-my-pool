@@ -10,7 +10,7 @@ describe('PricingPage', () => {
   test('shows the recommended plans and prices', () => {
     render(<PricingPage />);
     expect(screen.getByRole('heading', { name: 'Free' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Commissioner' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Commish' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Pro' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Club' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Club Unlimited' })).toBeInTheDocument();

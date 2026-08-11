@@ -14,7 +14,8 @@ const plans = [
     cta: 'Start free',
   },
   {
-    name: 'Commissioner',
+    name: 'Commish',
+    slug: 'commissioner',
     price: '$39',
     cadence: 'per pool / season',
     description: 'The complete toolkit for a serious friends, family, or office pool.',
