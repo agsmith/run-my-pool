@@ -229,6 +229,82 @@ class TestAdminEndpoints:
         assert revoke_owner.status_code == 400
         assert "owner access cannot be revoked" in revoke_owner.json()["detail"]
 
+    def test_owner_transfers_ownership_and_remains_league_admin(self, client, db_session):
+        import models as m
+
+        old_owner_token = _register_and_login(client, "transfer.owner@example.com")
+        new_owner_token = _register_and_login(client, "transfer.new@example.com")
+        pool_id = _create_pool(client, _authed(old_owner_token))
+        old_owner = db_session.query(m.User).filter(m.User.email == "transfer.owner@example.com").one()
+        new_owner = db_session.query(m.User).filter(m.User.email == "transfer.new@example.com").one()
+        db_session.add(m.PoolMember(pool_id=pool_id, user_id=new_owner.id, joined_at=datetime.utcnow()))
+        db_session.commit()
+
+        response = client.put(
+            f"/admin/pools/{pool_id}/owner",
+            json={"email": "TRANSFER.NEW@example.com"},
+            headers=_authed(old_owner_token),
+        )
+
+        assert response.status_code == 200, response.text
+        assert response.json() == {
+            "pool_id": pool_id,
+            "previous_owner_id": old_owner.id,
+            "previous_owner_email": old_owner.email,
+            "owner_id": new_owner.id,
+            "owner_email": new_owner.email,
+        }
+        db_session.expire_all()
+        assert db_session.get(m.Pool, pool_id).owner_id == new_owner.id
+        old_status = client.get(f"/pools/{pool_id}/is-admin", headers=_authed(old_owner_token)).json()
+        new_status = client.get(f"/pools/{pool_id}/is-admin", headers=_authed(new_owner_token)).json()
+        assert old_status == {
+            "pool_id": pool_id,
+            "is_owner": False,
+            "is_admin": True,
+            "has_admin_access": True,
+        }
+        assert new_status["is_owner"] is True
+        overview = client.get(
+            f"/admin/pools/{pool_id}/users-overview?week=1",
+            headers=_authed(old_owner_token),
+        ).json()
+        roles = {user["email"]: user["admin_role"] for user in overview["users"]}
+        assert roles[old_owner.email] == "League admin"
+        assert roles[new_owner.email] == "Owner"
+        assert "ADMIN_TRANSFER_LEAGUE_OWNERSHIP" in {
+            log.action for log in db_session.query(m.AuditLog).all()
+        }
+
+    def test_ownership_transfer_requires_current_owner_and_participant(self, client):
+        owner_email = "transfer.guard.owner@example.com"
+        owner_token = _register_and_login(client, owner_email)
+        member_token = _register_and_login(client, "transfer.guard.member@example.com")
+        _register_and_login(client, "transfer.guard.outsider@example.com")
+        pool_id = _create_pool(client, _authed(owner_token))
+
+        delegated = client.put(
+            f"/admin/pools/{pool_id}/owner",
+            json={"email": owner_email},
+            headers=_authed(member_token),
+        )
+        nonmember = client.put(
+            f"/admin/pools/{pool_id}/owner",
+            json={"email": "transfer.guard.outsider@example.com"},
+            headers=_authed(owner_token),
+        )
+        same_owner = client.put(
+            f"/admin/pools/{pool_id}/owner",
+            json={"email": owner_email},
+            headers=_authed(owner_token),
+        )
+
+        assert delegated.status_code == 403
+        assert nonmember.status_code == 400
+        assert "join the league" in nonmember.json()["detail"]
+        assert same_owner.status_code == 400
+        assert "already owns" in same_owner.json()["detail"]
+
     def test_admin_searches_entries_with_owner_email(self, client):
         owner_token = _register_and_login(client, "search.owner@example.com")
         headers = _authed(owner_token)

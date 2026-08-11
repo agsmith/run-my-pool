@@ -1246,6 +1246,16 @@ table {
 .broadcast-v2--admin .admin-access-control__actions button.is-secondary { color:var(--ice)!important; background:transparent!important; border-color:#4b6268!important; }
 .broadcast-v2--admin .admin-access-control__actions button:disabled { cursor:not-allowed; opacity:.55; }
 .admin-access-control__message { margin:.8rem 0 0!important; color:var(--ice)!important; font-weight:800; }
+.ownership-transfer-control { margin:0 0 2rem; padding:1.25rem; color:var(--ink); background:#171414; border:1px solid #57413f; border-top:3px solid var(--danger); }
+.ownership-transfer-control > span { color:#ffaaa3; font-size:.65rem; font-weight:900; letter-spacing:.14em; text-transform:uppercase; }
+.broadcast-v2--admin .ownership-transfer-control h4 { margin:.3rem 0; color:var(--ink)!important; font-family:Impact,'Arial Narrow',sans-serif; font-size:1.75rem; font-style:italic; font-weight:400; text-transform:uppercase; }
+.ownership-transfer-control > p { max-width:760px; margin:.25rem 0 1rem; color:#bcaeac; font-size:.82rem; line-height:1.55; }
+.ownership-transfer-control__fields { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.75rem; max-width:820px; }
+.ownership-transfer-control label { display:block; margin-bottom:.38rem; color:#b9aaa8; font-size:.65rem; font-weight:900; letter-spacing:.08em; text-transform:uppercase; }
+.broadcast-v2--admin .ownership-transfer-control input { width:100%; margin:0!important; color:var(--ink)!important; background:#211b1b!important; border:1px solid #644b49!important; }
+.broadcast-v2--admin .ownership-transfer-control > button { margin:.85rem 0 0!important; color:#160b0a!important; background:#ff817a!important; border-color:#ff817a!important; }
+.broadcast-v2--admin .ownership-transfer-control > button:disabled { cursor:not-allowed; opacity:.45; }
+.ownership-transfer-control__message { margin:.8rem 0 0!important; color:#ffc0bb!important; font-weight:800; }
 
 @media (max-width:760px) {
   .admin-user-overview__head { align-items:stretch; flex-direction:column; }
@@ -1258,6 +1268,8 @@ table {
   .admin-user-overview__table td::before { content:attr(data-label); color:#839294; font-size:.61rem; font-weight:900; letter-spacing:.08em; text-transform:uppercase; }
   .admin-access-control__actions { display:grid; grid-template-columns:1fr; }
   .broadcast-v2--admin .admin-access-control__actions button { width:100%; }
+  .ownership-transfer-control__fields { grid-template-columns:1fr; }
+  .broadcast-v2--admin .ownership-transfer-control > button { width:100%; }
 }
 
 /* Utility/offline: deliberately minimal. */

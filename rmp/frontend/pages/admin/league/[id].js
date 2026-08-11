@@ -5,6 +5,7 @@ import { useAuth } from '../../../context/AuthContext';
 import { PoolWorkspaceNav, WorkspaceHeader } from '../../../components/ProductWorkspace';
 import AdminUserOverview from '../../../components/AdminUserOverview';
 import AdminAccessControl from '../../../components/AdminAccessControl';
+import OwnershipTransferControl from '../../../components/OwnershipTransferControl';
 import { getAuditUsername } from '../../../utils/auditDisplay';
 
 const TIMEZONES = [
@@ -1077,7 +1078,14 @@ export default function AdminPortal() {
         </div>
       </div>
 
-      <AdminAccessControl poolId={leagueId} onChanged={fetchUserOverview} />
+      {league?.owner_id === user?.id && <>
+        <AdminAccessControl poolId={leagueId} onChanged={fetchUserOverview} />
+        <OwnershipTransferControl
+          poolId={leagueId}
+          poolName={league.name}
+          onTransferred={async () => { await fetchLeagueData(); await fetchUserOverview(); }}
+        />
+      </>}
     </div>
   );
 

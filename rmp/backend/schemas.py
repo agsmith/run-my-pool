@@ -81,6 +81,18 @@ class LeagueAdminAssignmentOut(BaseModel):
     changed: bool
 
 
+class LeagueOwnershipTransfer(BaseModel):
+    email: EmailStr
+
+
+class LeagueOwnershipTransferOut(BaseModel):
+    pool_id: str
+    previous_owner_id: str
+    previous_owner_email: EmailStr
+    owner_id: str
+    owner_email: EmailStr
+
+
 class PoolRuleValueCreate(BaseModel):
     rule_id: str
     rule_value: str

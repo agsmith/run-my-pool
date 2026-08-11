@@ -143,6 +143,69 @@ def revoke_pool_admin(
     return {"pool_id": pool_id, "user_id": user.id, "email": user.email, "is_admin": False, "changed": True}
 
 
+@router.put(
+    "/pools/{pool_id}/owner",
+    response_model=schemas.LeagueOwnershipTransferOut,
+)
+def transfer_pool_ownership(
+    pool_id: str,
+    transfer: schemas.LeagueOwnershipTransfer,
+    db: Session = Depends(deps.get_db),
+    current_user: models.User = Depends(deps.get_current_user),
+):
+    """Transfer sole league ownership and retain the previous owner as an admin."""
+    pool = require_pool_owner(pool_id, current_user, db)
+    new_owner = find_user_by_email(transfer.email, db)
+    if new_owner.id == pool.owner_id:
+        raise HTTPException(status_code=400, detail="This user already owns the league")
+
+    is_participant = db.query(models.PoolMember).filter(
+        models.PoolMember.pool_id == pool_id,
+        models.PoolMember.user_id == new_owner.id,
+    ).first() or db.query(models.Entry).filter(
+        models.Entry.pool_id == pool_id,
+        models.Entry.user_id == new_owner.id,
+    ).first()
+    if not is_participant:
+        raise HTTPException(status_code=400, detail="New owner must join the league before ownership can be transferred")
+
+    previous_owner_id = pool.owner_id
+    previous_owner_email = current_user.email
+    for user_id in (previous_owner_id, new_owner.id):
+        existing_admin = db.query(models.PoolAdmin).filter(
+            models.PoolAdmin.pool_id == pool_id,
+            models.PoolAdmin.user_id == user_id,
+        ).first()
+        if not existing_admin:
+            db.add(models.PoolAdmin(pool_id=pool_id, user_id=user_id))
+
+    pool.owner_id = new_owner.id
+    pool.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
+    db.commit()
+    log_admin_action(
+        db=db,
+        action="TRANSFER_LEAGUE_OWNERSHIP",
+        admin_user_id=current_user.id,
+        details=f"Transferred league ownership from {previous_owner_email} to {new_owner.email}",
+        target_entity_type="pool",
+        target_entity_id=pool_id,
+        additional_data={
+            "pool_id": pool_id,
+            "previous_owner_id": previous_owner_id,
+            "previous_owner_email": previous_owner_email,
+            "owner_id": new_owner.id,
+            "owner_email": new_owner.email,
+        },
+    )
+    return {
+        "pool_id": pool_id,
+        "previous_owner_id": previous_owner_id,
+        "previous_owner_email": previous_owner_email,
+        "owner_id": new_owner.id,
+        "owner_email": new_owner.email,
+    }
+
+
 @router.get(
     "/pools/{pool_id}/users-overview",
     response_model=schemas.LeagueAdminUserOverview,
