@@ -54,6 +54,20 @@ variable "jwt_secret_arn" {
   default     = "arn:aws:secretsmanager:us-east-1:739444271939:secret:runmypool/jwt-secret-s2S9FU"
 }
 
+variable "stripe_secret_key_secret_arn" {
+  description = "ARN of the Secrets Manager secret holding the Stripe secret API key"
+  type        = string
+  default     = null
+  nullable    = true
+}
+
+variable "stripe_webhook_secret_arn" {
+  description = "ARN of the Secrets Manager secret holding the Stripe webhook signing secret"
+  type        = string
+  default     = null
+  nullable    = true
+}
+
 # ──────────────────────────────────────────────────────────────────────────────
 # Application
 # ──────────────────────────────────────────────────────────────────────────────
@@ -62,6 +76,36 @@ variable "cors_origins" {
   description = "Allowed CORS origins for the backend (comma-separated or full URL)"
   type        = string
   default     = "https://runmypool.net"
+}
+
+variable "stripe_price_commissioner" {
+  description = "Stripe one-time Price ID for the Commissioner seasonal plan"
+  type        = string
+  default     = ""
+}
+
+variable "stripe_price_pro" {
+  description = "Stripe one-time Price ID for the Pro seasonal plan"
+  type        = string
+  default     = ""
+}
+
+variable "stripe_price_club" {
+  description = "Stripe one-time Price ID for the Club seasonal plan"
+  type        = string
+  default     = ""
+}
+
+variable "stripe_price_club_unlimited" {
+  description = "Stripe one-time Price ID for the Club Unlimited seasonal plan"
+  type        = string
+  default     = ""
+}
+
+variable "stripe_automatic_tax" {
+  description = "Enable Stripe Tax in Checkout after tax registrations are configured"
+  type        = bool
+  default     = false
 }
 
 variable "backend_image_tag" {

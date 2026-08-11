@@ -53,6 +53,8 @@ class User(Base):
     # relationships
     pools = relationship("Pool", back_populates="owner")
     entries = relationship("Entry", back_populates="user")
+    billing_orders = relationship("BillingOrder", back_populates="user")
+    commissioner_entitlements = relationship("CommissionerEntitlement", back_populates="user")
 
 
 class Pool(Base):
@@ -218,3 +220,53 @@ class PoolGameLine(Base):
 
     game = relationship("Schedule")
     favorite_team = relationship("Team")
+
+
+class BillingOrder(Base):
+    """A Stripe Checkout attempt and its fulfillment status."""
+
+    __tablename__ = "billing_orders"
+    id = Column(String(36), primary_key=True)
+    user_id = Column(String(36), ForeignKey(USERS_ID_FK), nullable=False, index=True)
+    plan = Column(String(32), nullable=False)
+    season = Column(Integer, nullable=False)
+    status = Column(String(24), nullable=False, default="pending", index=True)
+    stripe_checkout_session_id = Column(String(255), unique=True, nullable=True)
+    stripe_payment_intent_id = Column(String(255), unique=True, nullable=True)
+    stripe_customer_id = Column(String(255), nullable=True)
+    amount_total = Column(Integer, nullable=True)
+    currency = Column(String(8), nullable=True)
+    created_at = Column(DateTime, nullable=False)
+    updated_at = Column(DateTime, nullable=False)
+    paid_at = Column(DateTime, nullable=True)
+
+    user = relationship("User", back_populates="billing_orders")
+
+
+class CommissionerEntitlement(Base):
+    """Highest commissioner plan granted to a user for a football season."""
+
+    __tablename__ = "commissioner_entitlements"
+    id = Column(String(36), primary_key=True)
+    user_id = Column(String(36), ForeignKey(USERS_ID_FK), nullable=False, index=True)
+    season = Column(Integer, nullable=False)
+    plan = Column(String(32), nullable=False)
+    status = Column(String(24), nullable=False, default="active")
+    included_entries = Column(Integer, nullable=True)
+    max_pools = Column(Integer, nullable=True)
+    unlimited_entries = Column(Boolean, nullable=False, default=False)
+    stripe_customer_id = Column(String(255), nullable=True)
+    source_order_id = Column(String(36), ForeignKey("billing_orders.id"), nullable=False)
+    activated_at = Column(DateTime, nullable=False)
+    updated_at = Column(DateTime, nullable=False)
+
+    user = relationship("User", back_populates="commissioner_entitlements")
+
+
+class StripeWebhookEvent(Base):
+    """Stripe event IDs already processed by the webhook."""
+
+    __tablename__ = "stripe_webhook_events"
+    id = Column(String(255), primary_key=True)
+    event_type = Column(String(100), nullable=False)
+    processed_at = Column(DateTime, nullable=False)

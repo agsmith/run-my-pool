@@ -50,6 +50,43 @@ class AdminUserDashboardOut(BaseModel):
     users: List[AdminUserOut]
 
 
+class CheckoutSessionCreate(BaseModel):
+    plan: str
+    season: int = Field(ge=2020, le=2100)
+
+
+class CheckoutSessionOut(BaseModel):
+    checkout_url: str
+    session_id: str
+    order_id: str
+
+
+class BillingOrderOut(BaseModel):
+    id: str
+    plan: str
+    season: int
+    status: str
+    amount_total: Optional[int] = None
+    currency: Optional[str] = None
+    paid_at: Optional[datetime] = None
+
+    class Config:
+        orm_mode = True
+
+
+class CommissionerEntitlementOut(BaseModel):
+    plan: str
+    season: int
+    status: str
+    included_entries: Optional[int] = None
+    max_pools: Optional[int] = None
+    unlimited_entries: bool = False
+    activated_at: datetime
+
+    class Config:
+        orm_mode = True
+
+
 class PoolRuleValueCreate(BaseModel):
     rule_id: str
     rule_value: str

@@ -23,6 +23,7 @@ export default function CreateAccount() {
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const selectedPlan = typeof router.query?.plan === 'string' ? router.query.plan : '';
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -48,8 +49,10 @@ export default function CreateAccount() {
         body: JSON.stringify({ email, password })
       });
       if (!res.ok) throw new Error('Account creation failed.');
-      // Redirect to login page with success message
-      router.push('/login?message=Account created successfully! Please sign in with your new credentials.');
+      const checkoutNext = selectedPlan && selectedPlan !== 'free'
+        ? `/pricing?checkout=${encodeURIComponent(selectedPlan)}`
+        : '/dashboard';
+      router.push(`/login?message=${encodeURIComponent('Account created successfully! Please sign in with your new credentials.')}&next=${encodeURIComponent(checkoutNext)}`);
     } catch (err) {
       setError('Account creation failed.');
     }
@@ -226,7 +229,7 @@ export default function CreateAccount() {
           borderTop: '1px solid #e5e7eb'
         }}>
           <Link 
-            href="/login" 
+            href={selectedPlan && selectedPlan !== 'free' ? `/login?next=${encodeURIComponent(`/pricing?checkout=${selectedPlan}`)}` : '/login'}
             style={{ 
               color: '#6b7280',
               textDecoration: 'none',

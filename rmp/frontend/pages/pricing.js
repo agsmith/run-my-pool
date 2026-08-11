@@ -1,4 +1,7 @@
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/router';
+import { useAuth } from '../context/AuthContext';
 import Seo from '../components/Seo';
 
 const plans = [
@@ -53,6 +56,42 @@ function FootballMark() {
 }
 
 export default function PricingPage() {
+  const auth = useAuth();
+  const router = useRouter();
+  const [checkoutPlan, setCheckoutPlan] = useState('');
+  const [checkoutError, setCheckoutError] = useState('');
+  const continuedCheckout = useRef(false);
+
+  const beginCheckout = useCallback(async (planSlug) => {
+    const token = auth?.token || (typeof window !== 'undefined' ? localStorage.getItem('access_token') : null);
+    if (!token) return false;
+    setCheckoutPlan(planSlug);
+    setCheckoutError('');
+    try {
+      const season = Number(process.env.NEXT_PUBLIC_NFL_SEASON) || new Date().getFullYear();
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/billing/checkout-session`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ plan: planSlug, season }),
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body.detail || 'Unable to start secure checkout.');
+      window.location.assign(body.checkout_url);
+      return true;
+    } catch (error) {
+      setCheckoutError(error.message || 'Unable to start secure checkout.');
+      setCheckoutPlan('');
+      return false;
+    }
+  }, [auth?.token]);
+
+  useEffect(() => {
+    const plan = typeof router.query.checkout === 'string' ? router.query.checkout : '';
+    if (!router.isReady || !auth?.token || continuedCheckout.current || !plans.some((item) => (item.slug || item.name.toLowerCase()) === plan)) return;
+    continuedCheckout.current = true;
+    beginCheckout(plan);
+  }, [auth?.token, beginCheckout, router.isReady, router.query.checkout]);
+
   return (
     <div className="rmp-landing pricing-page">
       <Seo
@@ -101,6 +140,8 @@ export default function PricingPage() {
         </section>
 
         <section className="pricing-grid rmp-shell" aria-label="Pricing plans">
+          {router.query.checkout === 'cancelled' && <div className="pricing-checkout-notice">Checkout was canceled. No payment was taken.</div>}
+          {checkoutError && <div className="pricing-checkout-notice pricing-checkout-notice--error">{checkoutError}</div>}
           {plans.map((plan, index) => (
             <article className={`pricing-card${plan.featured ? ' pricing-card--featured' : ''}`} key={plan.name}>
               <div className="pricing-card__head">
@@ -113,7 +154,16 @@ export default function PricingPage() {
               <ul>
                 {plan.features.map((feature) => <li key={feature}><span>✓</span>{feature}</li>)}
               </ul>
-              <Link href={`/create-account?plan=${plan.slug || plan.name.toLowerCase()}`} className="pricing-card__cta">{plan.cta}<span>→</span></Link>
+              <Link
+                href={`/create-account?plan=${plan.slug || plan.name.toLowerCase()}`}
+                className={`pricing-card__cta${checkoutPlan === (plan.slug || plan.name.toLowerCase()) ? ' is-loading' : ''}`}
+                aria-disabled={Boolean(checkoutPlan)}
+                onClick={(event) => {
+                  if (plan.name === 'Free' || !auth?.token) return;
+                  event.preventDefault();
+                  if (!checkoutPlan) beginCheckout(plan.slug || plan.name.toLowerCase());
+                }}
+              >{checkoutPlan === (plan.slug || plan.name.toLowerCase()) ? 'Opening secure checkout…' : plan.cta}<span>→</span></Link>
             </article>
           ))}
         </section>

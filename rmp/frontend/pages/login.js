@@ -53,7 +53,11 @@ export default function Login() {
       return;
     }
     try {
-      await login(email, password);
+      const next = typeof router.query.next === 'string' && router.query.next.startsWith('/') && !router.query.next.startsWith('//')
+        ? router.query.next
+        : null;
+      if (next) await login(email, password, next);
+      else await login(email, password);
       // Cookie/session handling is done in backend and AuthContext
     } catch (err) {
       setError(err.message || 'Login failed');

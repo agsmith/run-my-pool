@@ -14,3 +14,4 @@ pytest-cov
 pytest-asyncio
 httpx
 pytest-mock
+stripe>=11.0.0,<15.0.0

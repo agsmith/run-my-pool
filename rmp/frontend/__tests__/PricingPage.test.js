@@ -2,6 +2,10 @@ import '@testing-library/jest-dom';
 import { render, screen } from '@testing-library/react';
 import PricingPage from '../pages/pricing';
 
+const mockRouter = { query: {}, isReady: true };
+jest.mock('next/router', () => ({ useRouter: () => mockRouter }));
+jest.mock('../context/AuthContext', () => ({ useAuth: () => ({ user: null, token: null }) }));
+
 describe('PricingPage', () => {
   test('shows the recommended plans and prices', () => {
     render(<PricingPage />);
