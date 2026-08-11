@@ -72,6 +72,7 @@ class TestScheduleEndpoints:
         assert game["home_team"]["abbrv"] == "NE"
         assert game["away_team"]["abbrv"] == "GB"
         assert game["winning_team_id"] == 99
+        assert game["start_time"].endswith("Z")
 
     def test_get_schedule_for_week_empty(self, client):
         """A week with no games returns an empty list, not an error."""
@@ -133,3 +134,20 @@ class TestScheduleEndpoints:
         response = client.get("/schedule/week/4/matchups")
         assert response.status_code == 200
         assert [game["game_id"] for game in response.json()] == [7102]
+
+    def test_week_endpoints_exclude_preseason_games(self, client, db_session, monkeypatch):
+        home = models.Team(id=81, name="Home", abbrv="HME")
+        away = models.Team(id=82, name="Away", abbrv="AWY")
+        db_session.add_all([home, away])
+        db_session.add_all([
+            models.Schedule(game_id=8101, week_num=2, home_team_id=81, away_team_id=82, start_time=datetime(2026, 8, 16, 17, 0)),
+            models.Schedule(game_id=8102, week_num=2, home_team_id=81, away_team_id=82, start_time=datetime(2026, 9, 13, 17, 0)),
+        ])
+        db_session.commit()
+        monkeypatch.setattr("schedule.fetch_week_lines", lambda games: {})
+
+        schedule_response = client.get("/schedule/week/2")
+        matchup_response = client.get("/schedule/week/2/matchups")
+
+        assert [game["game_id"] for game in schedule_response.json()] == [8102]
+        assert [game["game_id"] for game in matchup_response.json()] == [8102]

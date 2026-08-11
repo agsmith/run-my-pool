@@ -67,7 +67,7 @@ export default function MatchupsPage() {
     {loading ? <div className="matchup-empty">Loading live lines…</div> : games.length === 0 ?
       <div className="matchup-empty">No matchups are scheduled for this week.</div> :
       <section className="matchup-board">{games.map((game) => <article className="matchup-card" key={game.game_id}>
-        <time>{new Date(game.start_time).toLocaleString([], { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</time>
+        <time>{new Date(game.start_time).toLocaleString('en-US', { timeZone: 'America/New_York', timeZoneName: 'short', weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</time>
         <div className="matchup-card__teams"><Team team={game.away_team} /><span className="matchup-at">@</span><Team team={game.home_team} /></div>
         <Line game={game} />
       </article>)}</section>}

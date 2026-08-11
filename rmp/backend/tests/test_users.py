@@ -85,6 +85,23 @@ class TestUserEndpoints:
         emails = [u["email"] for u in data]
         assert "list_users@users.example.com" in emails
 
+    def test_admin_dashboard_lists_and_searches_users(self, client, db_session):
+        _register_and_login(client, email="directory_target@users.example.com")
+        token = _register_and_login(client, email="directory_admin@users.example.com")
+        _make_pool_admin(db_session, "directory_admin@users.example.com")
+
+        response = client.get(
+            "/users/admin-dashboard?search=DIRECTORY_TARGET&limit=500",
+            headers=_authed(token),
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total"] == 2
+        assert data["active"] == 2
+        assert data["pool_admins"] == 1
+        assert [user["email"] for user in data["users"]] == ["directory_target@users.example.com"]
+
     # -----------------------------------------------------------------------
     # GET /users/{user_id}
     # -----------------------------------------------------------------------

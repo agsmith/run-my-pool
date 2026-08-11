@@ -575,7 +575,7 @@ export default function LeagueEntries() {
 
     // Use real schedule data instead of mock data
     const weekSchedule = scheduleData[selectedWeek] || [];
-    const { currentPick, usedInOtherWeeks } = getPickAvailability(
+    const { currentPick, usedInOtherWeeks, usedWeekByTeam } = getPickAvailability(
       allPicks[selectedEntry.id] || [],
       selectedWeek
     );
@@ -586,10 +586,11 @@ export default function LeagueEntries() {
       
       try {
         const gameDate = new Date(startTime);
-        const date = gameDate.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit' });
+        const date = gameDate.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', timeZone: 'America/New_York' });
         const time = gameDate.toLocaleTimeString('en-US', { 
           hour: 'numeric', 
           minute: '2-digit',
+          timeZone: 'America/New_York',
           timeZoneName: 'short'
         });
         return { date, time };
@@ -662,6 +663,7 @@ export default function LeagueEntries() {
                     }}>
                       <div className="entries-overlay__teams" style={{ display: 'flex', gap: '1rem', alignItems: 'center', flex: 1 }}>
                         <button
+                          className={`entries-team-option${awayUsed ? ' entries-team-option--used' : ''}${awayCurrent ? ' entries-team-option--current' : ''}${selectedTeam === awayTeam.abbrv ? ' entries-team-option--selected' : ''}`}
                           onClick={() => handleTeamSelect(awayTeam.abbrv)}
                           disabled={awayUsed}
                           aria-label={`${awayTeam.name}${awayUsed ? ', used in another week' : awayCurrent ? ', current week pick' : ''}`}
@@ -676,10 +678,12 @@ export default function LeagueEntries() {
                             <div style={{ fontWeight: 'bold', fontSize: '14px' }}>{awayTeam.abbrv}</div>
                             <div style={{ fontSize: '12px', color: '#666' }}>{awayTeam.name}</div>
                             {awayCurrent && <div style={{ fontSize: '11px', color: '#526900', fontWeight: 800 }}>CURRENT PICK</div>}
+                            {awayUsed && <div className="entries-team-option__used">USED · WEEK {usedWeekByTeam.get(awayTeam.abbrv)}</div>}
                           </div>
                         </button>
                         <span style={{ color: '#666', fontWeight: 'bold' }}>@</span>
                         <button
+                          className={`entries-team-option${homeUsed ? ' entries-team-option--used' : ''}${homeCurrent ? ' entries-team-option--current' : ''}${selectedTeam === homeTeam.abbrv ? ' entries-team-option--selected' : ''}`}
                           onClick={() => handleTeamSelect(homeTeam.abbrv)}
                           disabled={homeUsed}
                           aria-label={`${homeTeam.name}${homeUsed ? ', used in another week' : homeCurrent ? ', current week pick' : ''}`}
@@ -694,6 +698,7 @@ export default function LeagueEntries() {
                             <div style={{ fontWeight: 'bold', fontSize: '14px' }}>{homeTeam.abbrv}</div>
                             <div style={{ fontSize: '12px', color: '#666' }}>{homeTeam.name}</div>
                             {homeCurrent && <div style={{ fontSize: '11px', color: '#526900', fontWeight: 800 }}>CURRENT PICK</div>}
+                            {homeUsed && <div className="entries-team-option__used">USED · WEEK {usedWeekByTeam.get(homeTeam.abbrv)}</div>}
                           </div>
                         </button>
                       </div>

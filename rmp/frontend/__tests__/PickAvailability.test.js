@@ -8,8 +8,10 @@ describe('getPickAvailability', () => {
   ];
 
   it('keeps teams from other weeks unavailable', () => {
-    const { usedInOtherWeeks } = getPickAvailability(picks, 2);
+    const { usedInOtherWeeks, usedWeekByTeam } = getPickAvailability(picks, 2);
     expect([...usedInOtherWeeks]).toEqual(['BUF', 'PHI']);
+    expect(usedWeekByTeam.get('BUF')).toBe(1);
+    expect(usedWeekByTeam.get('PHI')).toBe(3);
   });
 
   it('separates the current saved pick from previously used teams', () => {

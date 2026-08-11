@@ -36,6 +36,20 @@ class UserOut(UserBase):
         orm_mode = True
 
 
+class AdminUserOut(UserOut):
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+
+class AdminUserDashboardOut(BaseModel):
+    total: int
+    active: int
+    locked: int
+    pool_admins: int
+    super_admins: int
+    users: List[AdminUserOut]
+
+
 class PoolRuleValueCreate(BaseModel):
     rule_id: str
     rule_value: str

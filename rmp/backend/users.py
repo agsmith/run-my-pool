@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 import models
 import schemas
 import deps
@@ -19,6 +20,33 @@ def _require_admin(current_user: models.User) -> None:
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Admin access required",
         )
+
+
+@router.get("/admin-dashboard", response_model=schemas.AdminUserDashboardOut)
+def admin_user_dashboard(
+    search: str = "",
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(deps.get_db),
+    current_user: models.User = Depends(deps.get_current_user),
+):
+    """Platform-wide user directory and account summary for administrators."""
+    _require_admin(current_user)
+    safe_limit = min(max(limit, 1), 500)
+    safe_skip = max(skip, 0)
+    query = db.query(models.User)
+    if search.strip():
+        query = query.filter(func.lower(models.User.email).contains(search.strip().lower()))
+
+    users = query.order_by(models.User.created_at.desc(), models.User.email.asc()).offset(safe_skip).limit(safe_limit).all()
+    return {
+        "total": db.query(models.User).count(),
+        "active": db.query(models.User).filter(models.User.is_active.is_(True)).count(),
+        "locked": db.query(models.User).filter(models.User.is_active.is_(False)).count(),
+        "pool_admins": db.query(models.User).filter(models.User.role == models.UserRole.POOL_ADMIN).count(),
+        "super_admins": db.query(models.User).filter(models.User.role == models.UserRole.SUPER_ADMIN).count(),
+        "users": users,
+    }
 
 
 @router.get("/", response_model=List[schemas.UserOut])
