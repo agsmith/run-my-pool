@@ -222,7 +222,7 @@ class TestAuditTrail:
         email = "legacy.audit@example.com"
         token = _reg(client, email)
         user = client.get("/auth/me", headers=_h(token)).json()
-        pool_id = str(uuid.uuid4())
+        pool_id = _create_pool(client, token, "Legacy Audit Pool")["id"]
         db_session.add(AuditLog(
             id=str(uuid.uuid4()),
             user_id=user["id"],
@@ -244,7 +244,7 @@ class TestAuditTrail:
     def test_audit_feed_handles_unknown_and_system_users(self, client, db_session):
         """Deleted/unknown users and system events return a null username."""
         token = _reg(client, "audit.unknown@example.com")
-        pool_id = str(uuid.uuid4())
+        pool_id = _create_pool(client, token, "Unknown Audit Pool")["id"]
         now = datetime.now(timezone.utc).replace(tzinfo=None)
         db_session.add_all([
             AuditLog(
@@ -417,7 +417,7 @@ class TestAuditTrail:
 
     def test_audit_feed_newest_first_and_honors_limit(self, client, db_session):
         token = _reg(client, "pick.order@audit.example.com")
-        pool_id = str(uuid.uuid4())
+        pool_id = _create_pool(client, token, "Ordered Audit Pool")["id"]
         now = datetime.now(timezone.utc).replace(tzinfo=None)
         for index in range(3):
             db_session.add(AuditLog(
@@ -436,6 +436,23 @@ class TestAuditTrail:
         events = response.json()
         assert [event["action"] for event in events] == ["SYSTEM_PICK_2", "SYSTEM_PICK_1"]
         assert all(event["user_id"] is None for event in events)
+
+    def test_audit_feed_rejects_admin_for_another_league(self, client):
+        owner_a = _reg(client, "audit.scope.a@example.com")
+        owner_b = _reg(client, "audit.scope.b@example.com")
+        _create_pool(client, owner_a, "Audit Scope A")
+        pool_b = _create_pool(client, owner_b, "Audit Scope B")
+
+        response = client.get(
+            f"/audit/?pool_id={pool_b['id']}", headers=_h(owner_a)
+        )
+
+        assert response.status_code == 403
+
+    def test_non_super_admin_must_select_a_league_for_audit_feed(self, client):
+        token = _reg(client, "audit.scope.required@example.com")
+        response = client.get("/audit/", headers=_h(token))
+        assert response.status_code == 403
 
     @pytest.mark.parametrize("limit", [0, 501])
     def test_audit_feed_rejects_invalid_limits(self, client, limit):
@@ -491,6 +508,10 @@ class TestAuditTrail:
         token_b = _reg(client, "transferB@audit.example.com")
         user_b_email = client.get("/auth/me", headers=_h(token_b)).json()["email"]
         pool = _create_pool(client, token_a)
+        joined = client.post(
+            f"/pools/{pool['id']}/join", json={}, headers=_h(token_b)
+        )
+        assert joined.status_code == 200, joined.text
         entry = _create_entry(client, token_a, pool["id"])
         resp = client.post(
             f"/admin/pools/{pool['id']}/transfer-entry",

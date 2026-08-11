@@ -21,6 +21,7 @@ export default function CreateLeague() {
   });
   const [availableRules, setAvailableRules] = useState([]);
   const [error, setError] = useState('');
+  const [nameSuggestions, setNameSuggestions] = useState([]);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
@@ -49,6 +50,9 @@ export default function CreateLeague() {
       ...prev,
       [name]: type === 'checkbox' ? checked : value
     }));
+    if (name === 'name') {
+      setNameSuggestions([]);
+    }
   };
 
   const handleRuleChange = (ruleId, value) => {
@@ -61,6 +65,7 @@ export default function CreateLeague() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setNameSuggestions([]);
     setLoading(true);
 
     try {
@@ -87,7 +92,13 @@ export default function CreateLeague() {
 
       if (!res.ok) {
         const errorData = await res.json();
-        throw new Error(errorData.detail || 'Failed to create league');
+        if (errorData.detail?.code === 'league_name_taken') {
+          setNameSuggestions(errorData.detail.suggestions || []);
+          throw new Error(errorData.detail.message);
+        }
+        throw new Error(
+          typeof errorData.detail === 'string' ? errorData.detail : 'Failed to create league'
+        );
       }
 
       const league = await res.json();
@@ -467,7 +478,35 @@ export default function CreateLeague() {
 
               {error && (
                 <div style={baseStyles.errorAlert}>
-                  {error}
+                  <div>{error}</div>
+                  {nameSuggestions.length > 0 && (
+                    <div style={{ marginTop: '0.75rem' }}>
+                      <strong>Available names:</strong>
+                      <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.5rem' }}>
+                        {nameSuggestions.map((suggestion) => (
+                          <button
+                            key={suggestion}
+                            type="button"
+                            onClick={() => {
+                              setFormData(prev => ({ ...prev, name: suggestion }));
+                              setError('');
+                              setNameSuggestions([]);
+                            }}
+                            style={{
+                              border: '1px solid currentColor',
+                              borderRadius: '999px',
+                              padding: '0.35rem 0.75rem',
+                              background: 'white',
+                              color: 'inherit',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            Use {suggestion}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 

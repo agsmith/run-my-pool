@@ -90,9 +90,13 @@ describe('AuthProvider', () => {
     expect(screen.getByTestId('token')).toHaveTextContent('null')
   })
 
-  test('rehydrates user and token from localStorage on mount', async () => {
+  test('rehydrates a valid cookie session without restoring a bearer token', async () => {
     localStorage.setItem('access_token', 'test-token')
     localStorage.setItem('user', JSON.stringify({ id: '1', email: 'a@b.com' }))
+    fetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ id: '1', email: 'a@b.com' }),
+    })
 
     renderWithAuth()
 
@@ -101,7 +105,8 @@ describe('AuthProvider', () => {
     })
 
     expect(screen.getByTestId('user')).toHaveTextContent('a@b.com')
-    expect(screen.getByTestId('token')).toHaveTextContent('test-token')
+    expect(screen.getByTestId('token')).toHaveTextContent('cookie')
+    expect(localStorage.getItem('access_token')).toBe('cookie')
   })
 
   test('loading transitions to false after mount', async () => {
@@ -119,7 +124,7 @@ describe('AuthProvider', () => {
 // describe: login function
 // ---------------------------------------------------------------------------
 describe('login function', () => {
-  test('calls /auth/login then /auth/me and stores token in localStorage', async () => {
+  test('calls /auth/login then /auth/me without storing the bearer token', async () => {
     fetch
       .mockResolvedValueOnce({
         ok: true,
@@ -137,7 +142,7 @@ describe('login function', () => {
     })
 
     await waitFor(() => {
-      expect(localStorage.getItem('access_token')).toBe('tok')
+      expect(localStorage.getItem('access_token')).toBe('cookie')
     })
 
     expect(fetch).toHaveBeenCalledTimes(2)
@@ -260,6 +265,12 @@ describe('logout function', () => {
   test('logout clears access_token from localStorage', async () => {
     localStorage.setItem('access_token', 'test-token')
     localStorage.setItem('user', JSON.stringify({ id: '1', email: 'a@b.com' }))
+    fetch
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ id: '1', email: 'a@b.com' }),
+      })
+      .mockResolvedValueOnce({ ok: true })
 
     renderWithAuth(<LogoutConsumer />)
 
@@ -278,6 +289,12 @@ describe('logout function', () => {
   test('logout navigates to /login', async () => {
     localStorage.setItem('access_token', 'test-token')
     localStorage.setItem('user', JSON.stringify({ id: '1', email: 'a@b.com' }))
+    fetch
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ id: '1', email: 'a@b.com' }),
+      })
+      .mockResolvedValueOnce({ ok: true })
 
     renderWithAuth(<LogoutConsumer />)
 

@@ -39,7 +39,7 @@ class TestAuthFunctions:
     def test_create_access_token(self):
         """Test JWT token creation"""
         from auth import create_access_token
-        from jose import jwt
+        import jwt
 
         test_data = {"sub": "test@example.com"}
         token = create_access_token(test_data)
@@ -102,6 +102,33 @@ class TestAuthEndpoints:
         data = response.json()
         assert "access_token" in data
         assert data["token_type"] == "bearer"
+
+    def test_login_sets_httponly_cookie_and_cookie_authenticates(self, client, test_user_data):
+        client.post("/auth/register", json=test_user_data)
+
+        login = client.post(
+            "/auth/login",
+            json={"email": test_user_data["email"], "password": test_user_data["password"]},
+        )
+
+        cookie = login.headers["set-cookie"].lower()
+        assert "rmp_access_token=" in cookie
+        assert "httponly" in cookie
+        assert "samesite=lax" in cookie
+        assert client.get("/auth/me").status_code == 200
+
+    def test_logout_clears_cookie_session(self, client, test_user_data):
+        client.post("/auth/register", json=test_user_data)
+        client.post(
+            "/auth/login",
+            json={"email": test_user_data["email"], "password": test_user_data["password"]},
+        )
+        assert client.get("/auth/me").status_code == 200
+
+        logout = client.post("/auth/logout")
+
+        assert logout.status_code == 204
+        assert client.get("/auth/me").status_code == 401
 
     def test_login_invalid_credentials(self, client, test_user_data):
         """Test login with invalid credentials"""
@@ -218,7 +245,7 @@ class TestGetMe:
 
     def test_get_me_tampered_token(self, client, test_user_data):
         """T-04: Token with payload modified but original signature returns 401"""
-        from jose import jwt
+        import jwt
 
         client.post("/auth/register", json=test_user_data)
         token = _register_and_login(
@@ -241,14 +268,12 @@ class TestGetMe:
         assert response.status_code in (401, 403)
 
     def test_get_me_reset_token_rejected(self, client, test_user_data):
-        """T-06: Reset token used as Bearer token — documents known gap"""
+        """T-06: Reset tokens cannot be used as API bearer tokens."""
         client.post("/auth/register", json=test_user_data)
         reset_token = _make_reset_token(test_user_data["email"])
         response = client.get("/auth/me", headers=_auth_header(reset_token))
 
-        # KNOWN GAP: reset tokens should not be valid access tokens because
-        # get_current_user does not check the "type" claim; currently returns 200.
-        assert response.status_code == 200  # KNOWN GAP
+        assert response.status_code == 401
 
 
 # ---------------------------------------------------------------------------
@@ -370,7 +395,7 @@ class TestResetPassword:
         )
 
     def test_reset_password_wrong_type(self, client, test_user_data):
-        """T-15: Regular access token (no type=password_reset) used as reset token — documents known gap"""
+        """T-15: Regular access token is rejected as a reset token."""
         client.post("/auth/register", json=test_user_data)
         access_token = create_access_token(
             {"sub": test_user_data["email"]},
@@ -381,11 +406,8 @@ class TestResetPassword:
             json={"token": access_token, "new_password": "NewPass456!"},
         )
 
-        # KNOWN GAP: the bare `except Exception` in reset_password() catches the
-        # HTTPException(400) raised for wrong token type and re-raises it as 500.
-        # Desired behavior: 400 with "Invalid reset token".
-        # Current behavior: 500 Internal Server Error.
-        assert response.status_code == 500  # KNOWN GAP: should be 400
+        assert response.status_code == 400
+        assert response.json()["detail"] == "Invalid reset token"
 
     def test_reset_password_invalid_token_string(self, client):
         """T-16: Garbage token string returns 400"""
@@ -397,17 +419,15 @@ class TestResetPassword:
         assert response.status_code == 400
 
     def test_reset_password_unknown_email(self, client):
-        """T-17: Valid reset token for unknown user — documents known gap"""
+        """T-17: A reset token for an unknown user is rejected cleanly."""
         reset_token = _make_reset_token("unknown@example.com")
         response = client.post(
             "/auth/reset-password",
             json={"token": reset_token, "new_password": "NewPass456!"},
         )
 
-        # KNOWN GAP: same bare `except Exception` bug as T-15 — HTTPException(400) for
-        # "User not found" is caught and re-raised as 500.
-        # Desired behavior: 400 with "User not found".
-        assert response.status_code == 500  # KNOWN GAP: should be 400
+        assert response.status_code == 400
+        assert response.json()["detail"] == "User not found"
 
     def test_reset_password_missing_fields(self, client):
         """T-18: Empty body returns 422"""
@@ -442,21 +462,18 @@ class TestRegisterExtended:
 
         assert response.status_code == 422
 
-    def test_register_role_field_accepted(self, client):
-        """T-22: Role field in registration body is silently ignored — server defaults to USER"""
+    def test_register_role_field_rejected(self, client):
+        """T-22: Registration rejects a client-controlled role."""
         response = client.post(
             "/auth/register",
             json={
                 "email": "admin@example.com",
-                "password": "pass123",
+                "password": "Pass1234!",
                 "role": "POOL_ADMIN",
             },
         )
 
-        assert response.status_code == 200
-        # The server ignores the role field and always defaults to USER.
-        # Role escalation via registration is NOT possible.
-        assert response.json()["role"] == "USER"
+        assert response.status_code == 422
 
     def test_register_response_has_no_hashed_password(self, client, test_user_data):
         """T-23: Registration response must not expose hashed_password"""
@@ -494,7 +511,7 @@ class TestLoginExtended:
 
     def test_login_token_is_decodable(self, client, test_user_data):
         """T-27: Returned JWT is decodable; sub == email; exp present; HS256"""
-        from jose import jwt
+        import jwt
 
         client.post("/auth/register", json=test_user_data)
         response = client.post(
@@ -531,8 +548,8 @@ class TestLoginExtended:
 class TestKnownBehaviorGaps:
     """Tests documenting known gaps and bugs (G-01 to G-06)"""
 
-    def test_inactive_user_login_not_blocked(self, client, db_session, test_user_data):
-        """G-01: Inactive users are not blocked at login — documents known gap"""
+    def test_inactive_user_login_is_blocked(self, client, db_session, test_user_data):
+        """G-01: Inactive users are blocked at login."""
         from models import User
 
         client.post("/auth/register", json=test_user_data)
@@ -553,12 +570,10 @@ class TestKnownBehaviorGaps:
             },
         )
 
-        assert (
-            response.status_code == 200
-        )  # KNOWN GAP: inactive users should be rejected at login
+        assert response.status_code == 401
 
-    def test_inactive_user_me_not_blocked(self, client, db_session, test_user_data):
-        """G-02: Inactive users can still call /auth/me — documents known gap"""
+    def test_inactive_user_me_is_blocked(self, client, db_session, test_user_data):
+        """G-02: Existing tokens stop working when a user is deactivated."""
         from models import User
 
         token = _register_and_login(
@@ -575,9 +590,7 @@ class TestKnownBehaviorGaps:
 
         response = client.get("/auth/me", headers=_auth_header(token))
 
-        assert (
-            response.status_code == 200
-        )  # KNOWN GAP: inactive users should be rejected by get_current_user
+        assert response.status_code == 401
 
     def test_deleted_user_token_rejected(self, client, db_session, test_user_data):
         """G-03: Deleted user's valid token returns 401 — asserts correct behavior stays correct"""
@@ -597,12 +610,12 @@ class TestKnownBehaviorGaps:
         response = client.get("/auth/me", headers=_auth_header(token))
 
         assert response.status_code == 401
-        assert "not found" in response.json()["detail"].lower()
+        assert "unavailable" in response.json()["detail"].lower()
 
-    def test_reset_password_new_password_no_complexity_requirement(
+    def test_reset_password_rejects_too_short_password(
         self, client, test_user_data
     ):
-        """G-04: Single-char password accepted — documents known gap (no complexity enforcement)"""
+        """G-04: Password reset enforces the account password policy."""
         client.post("/auth/register", json=test_user_data)
         reset_token = _make_reset_token(test_user_data["email"])
         response = client.post(
@@ -610,9 +623,7 @@ class TestKnownBehaviorGaps:
             json={"token": reset_token, "new_password": "a"},
         )
 
-        assert (
-            response.status_code == 200
-        )  # KNOWN GAP: no minimum password length or complexity enforced
+        assert response.status_code == 422
 
     @patch("auth.log_create_operation")
     def test_register_audit_event_fired(self, mock_create, client, test_user_data):

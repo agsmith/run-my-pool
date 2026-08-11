@@ -45,6 +45,28 @@ def _make_pool_admin(db_session, email):
     db_session.expire_all()
 
 
+def _make_super_admin(db_session, email):
+    user = db_session.query(models.User).filter(models.User.email == email).first()
+    user.role = models.UserRole.SUPER_ADMIN
+    db_session.commit()
+    db_session.expire_all()
+
+
+def _create_pool(client, token, name):
+    response = client.post(
+        "/pools/create",
+        json={"name": name, "is_private": False},
+        headers=_authed(token),
+    )
+    assert response.status_code == 200, response.text
+    return response.json()["id"]
+
+
+def _join_pool(client, token, pool_id):
+    response = client.post(f"/pools/{pool_id}/join", json={}, headers=_authed(token))
+    assert response.status_code == 200, response.text
+
+
 # ---------------------------------------------------------------------------
 # Test class
 # ---------------------------------------------------------------------------
@@ -74,9 +96,12 @@ class TestUserEndpoints:
 
     def test_list_users_returns_list_for_admin(self, client, db_session):
         """POOL_ADMIN can list users and the list contains the registered user."""
-        _register_and_login(client, email="list_users@users.example.com")
+        member_token = _register_and_login(client, email="list_users@users.example.com")
         token = _register_and_login(client, email="list_admin@users.example.com")
         _make_pool_admin(db_session, "list_admin@users.example.com")
+        pool_id = _create_pool(client, token, "List Users League")
+        _join_pool(client, member_token, pool_id)
+        _register_and_login(client, email="list_outsider@users.example.com")
 
         resp = client.get("/users/", headers=_authed(token))
         assert resp.status_code == 200
@@ -84,11 +109,16 @@ class TestUserEndpoints:
         assert isinstance(data, list)
         emails = [u["email"] for u in data]
         assert "list_users@users.example.com" in emails
+        assert "list_admin@users.example.com" in emails
+        assert "list_outsider@users.example.com" not in emails
 
     def test_admin_dashboard_lists_and_searches_users(self, client, db_session):
-        _register_and_login(client, email="directory_target@users.example.com")
+        target_token = _register_and_login(client, email="directory_target@users.example.com")
+        _register_and_login(client, email="directory_outsider@users.example.com")
         token = _register_and_login(client, email="directory_admin@users.example.com")
         _make_pool_admin(db_session, "directory_admin@users.example.com")
+        pool_id = _create_pool(client, token, "Directory League")
+        _join_pool(client, target_token, pool_id)
 
         response = client.get(
             "/users/admin-dashboard?search=DIRECTORY_TARGET&limit=500",
@@ -101,6 +131,28 @@ class TestUserEndpoints:
         assert data["active"] == 2
         assert data["pool_admins"] == 1
         assert [user["email"] for user in data["users"]] == ["directory_target@users.example.com"]
+
+        outsider_search = client.get(
+            "/users/admin-dashboard?search=DIRECTORY_OUTSIDER&limit=500",
+            headers=_authed(token),
+        ).json()
+        assert outsider_search["total"] == 2
+        assert outsider_search["users"] == []
+
+    def test_super_admin_dashboard_remains_platform_wide(self, client, db_session):
+        _register_and_login(client, email="platform_target@users.example.com")
+        token = _register_and_login(client, email="platform_admin@users.example.com")
+        _make_super_admin(db_session, "platform_admin@users.example.com")
+
+        data = client.get(
+            "/users/admin-dashboard?limit=500", headers=_authed(token)
+        ).json()
+
+        assert data["total"] == 2
+        assert {user["email"] for user in data["users"]} == {
+            "platform_target@users.example.com",
+            "platform_admin@users.example.com",
+        }
 
     # -----------------------------------------------------------------------
     # GET /users/{user_id}
@@ -143,7 +195,7 @@ class TestUserEndpoints:
             "/users/00000000-0000-0000-0000-000000000000",
             headers=_authed(token),
         )
-        assert resp.status_code == 404
+        assert resp.status_code == 403
 
     def test_delete_user_success(self, client, db_session):
         """
@@ -153,13 +205,27 @@ class TestUserEndpoints:
         actor_token = _register_and_login(
             client, email="delete_actor@users.example.com"
         )
-        _register_and_login(client, email="delete_target@users.example.com")
+        target_token = _register_and_login(client, email="delete_target@users.example.com")
+        _make_pool_admin(db_session, "delete_actor@users.example.com")
+        pool_id = _create_pool(client, actor_token, "Delete User League")
+        _join_pool(client, target_token, pool_id)
         target_id = _get_user_id(client, db_session, "delete_target@users.example.com")
 
         resp = client.delete(f"/users/{target_id}", headers=_authed(actor_token))
         assert resp.status_code == 200, (
             f"Expected 200 for delete with UUID, got {resp.status_code}: {resp.json()}"
         )
+
+    def test_pool_admin_cannot_delete_user_from_another_league(self, client, db_session):
+        actor_token = _register_and_login(client, "delete.scoped.admin@example.com")
+        _make_pool_admin(db_session, "delete.scoped.admin@example.com")
+        _create_pool(client, actor_token, "Delete Scoped League")
+        _register_and_login(client, "delete.scoped.outsider@example.com")
+        outsider_id = _get_user_id(client, db_session, "delete.scoped.outsider@example.com")
+
+        response = client.delete(f"/users/{outsider_id}", headers=_authed(actor_token))
+
+        assert response.status_code == 404
 
     # -----------------------------------------------------------------------
     # PATCH /users/{user_id}/email
@@ -181,14 +247,18 @@ class TestUserEndpoints:
             params={"email": "x@x.com"},
             headers=_authed(token),
         )
-        assert resp.status_code == 404
+        assert resp.status_code == 403
 
     def test_update_email_success(self, client, db_session):
         """
         PATCH /users/{user_id}/email with the correct UUID updates the email.
         user_id is now correctly typed as str.
         """
-        token = _register_and_login(client, email="email_before@users.example.com")
+        token = _register_and_login(client, email="email_admin@users.example.com")
+        target_token = _register_and_login(client, email="email_before@users.example.com")
+        _make_pool_admin(db_session, "email_admin@users.example.com")
+        pool_id = _create_pool(client, token, "Update Email League")
+        _join_pool(client, target_token, pool_id)
         user_id = _get_user_id(client, db_session, "email_before@users.example.com")
 
         resp = client.patch(

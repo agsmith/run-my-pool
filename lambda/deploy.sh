@@ -32,7 +32,7 @@ cp requirements.txt $DEPLOY_DIR/
 # Install dependencies
 echo -e "${YELLOW}Installing dependencies...${NC}"
 cd $DEPLOY_DIR
-pip install -r requirements.txt -t .
+pip install --require-hashes -r requirements.txt -t .
 
 # Remove unnecessary files to reduce package size
 echo -e "${YELLOW}Cleaning up package...${NC}"

@@ -72,6 +72,7 @@ export default function PricingPage() {
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/billing/checkout-session`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        credentials: 'include',
         body: JSON.stringify({ plan: planSlug, season }),
       });
       const body = await response.json().catch(() => ({}));

@@ -22,7 +22,7 @@ import os
 from datetime import datetime, timedelta, timezone
 
 import pytest
-from jose import jwt as jose_jwt
+import jwt
 from auth import create_access_token
 
 
@@ -119,7 +119,7 @@ class TestJWT:
     def test_expired_jwt_returns_401(self, client):
         """A JWT whose 'exp' claim is in the past must be rejected with 401."""
         secret = os.environ.get("SECRET_KEY", "test-secret-key")
-        expired_token = jose_jwt.encode(
+        expired_token = jwt.encode(
             {
                 "sub": "test@example.com",
                 "exp": datetime.utcnow() - timedelta(hours=1),
@@ -400,9 +400,7 @@ class TestInputValidation:
         resp = _submit_pick(client, token, entry_id, week=0, team="NE")
         # No Pydantic constraint — current behaviour is 200 (accepted).
         # When a ge=1 constraint is added this should be 422.
-        assert resp.status_code in (200, 422), (
-            f"Unexpected status for week=0: {resp.status_code}: {resp.text}"
-        )
+        assert resp.status_code == 422, resp.text
 
     def test_pick_week_negative_rejected(self, client):
         """
@@ -415,9 +413,7 @@ class TestInputValidation:
         token, entry_id = self._setup(client, "wk_neg")
         resp = _submit_pick(client, token, entry_id, week=-1, team="GB")
         # No Pydantic constraint — current behaviour is 200 (accepted).
-        assert resp.status_code in (200, 422), (
-            f"Unexpected status for week=-1: {resp.status_code}: {resp.text}"
-        )
+        assert resp.status_code == 422, resp.text
 
     def test_pick_week_too_large_rejected(self, client):
         """
@@ -430,9 +426,7 @@ class TestInputValidation:
         token, entry_id = self._setup(client, "wk999")
         resp = _submit_pick(client, token, entry_id, week=999, team="BUF")
         # No upper-bound constraint — current behaviour is 200 (accepted).
-        assert resp.status_code in (200, 422), (
-            f"Unexpected status for week=999: {resp.status_code}: {resp.text}"
-        )
+        assert resp.status_code == 422, resp.text
 
     def test_sql_injection_in_pool_name_no_500(self, client):
         """
@@ -541,14 +535,7 @@ class TestPasswordReset:
             f"First reset-password call failed: {resp1.status_code}: {resp1.text}"
         )
 
-        # Second use — should fail (400/401) but currently succeeds (200)
-        # because there is no token blacklist.
+        # Second use must be rejected.
         resp2 = client.post("/auth/reset-password", json=payload_first)
 
-        # Current (broken) behaviour: 200 — token reuse is not blocked.
-        # When a blacklist is added, update this assertion to:
-        #   assert resp2.status_code in (400, 401)
-        assert resp2.status_code == 200, (
-            "BUG changed: reset token reuse is now rejected. "
-            "Update this test to assert 400 or 401 on second use."
-        )
+        assert resp2.status_code in (400, 401)

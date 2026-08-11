@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 from typing import Optional, List
 from datetime import datetime, time
 import enum
@@ -16,7 +16,26 @@ class UserBase(BaseModel):
     is_active: bool = True
 
 
-class UserCreate(UserBase):
+def validate_account_password(value: str) -> str:
+    if len(value) < 8:
+        raise ValueError("Password must be at least 8 characters")
+    return value
+
+
+class UserCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    email: EmailStr
+    password: str
+
+    @field_validator("password")
+    @classmethod
+    def validate_password(cls, value: str) -> str:
+        return validate_account_password(value)
+
+
+class LoginRequest(BaseModel):
+    email: EmailStr
     password: str
 
 
@@ -27,6 +46,11 @@ class ForgotPasswordRequest(BaseModel):
 class ResetPasswordRequest(BaseModel):
     token: str
     new_password: str
+
+    @field_validator("new_password")
+    @classmethod
+    def validate_new_password(cls, value: str) -> str:
+        return validate_account_password(value)
 
 
 class UserOut(UserBase):
@@ -85,6 +109,49 @@ class CommissionerEntitlementOut(BaseModel):
 
     class Config:
         orm_mode = True
+
+
+class LeagueAdminUserSummary(BaseModel):
+    id: str
+    email: EmailStr
+    total_entries: int
+    surviving_entries: int
+    picked_entries: int
+    has_current_week_pick: bool
+    all_surviving_entries_picked: bool
+    is_admin: bool
+    admin_role: str
+
+
+class LeagueAdminUserOverview(BaseModel):
+    pool_id: str
+    current_week: int
+    total_users: int
+    users: List[LeagueAdminUserSummary]
+
+
+class LeagueAdminAssignment(BaseModel):
+    email: EmailStr
+
+
+class LeagueAdminAssignmentOut(BaseModel):
+    pool_id: str
+    user_id: str
+    email: EmailStr
+    is_admin: bool
+    changed: bool
+
+
+class LeagueOwnershipTransfer(BaseModel):
+    email: EmailStr
+
+
+class LeagueOwnershipTransferOut(BaseModel):
+    pool_id: str
+    previous_owner_id: str
+    previous_owner_email: EmailStr
+    owner_id: str
+    owner_email: EmailStr
 
 
 class PoolRuleValueCreate(BaseModel):
@@ -208,7 +275,7 @@ class EntryOut(BaseModel):
 
 
 class PickBase(BaseModel):
-    week: int
+    week: int = Field(ge=1, le=18)
     team: str
 
 
@@ -217,10 +284,9 @@ class PickCreate(PickBase):
 
 
 class PickUpdate(BaseModel):
-    week: Optional[int] = None
+    model_config = ConfigDict(extra="forbid")
+
     team: Optional[str] = None
-    locked: Optional[bool] = None
-    result: Optional[str] = None
 
 
 class PickOut(PickBase):

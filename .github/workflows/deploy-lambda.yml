@@ -37,7 +37,10 @@ jobs:
           cache-dependency-path: lambda/requirements-test.txt
 
       - name: Install test dependencies
-        run: pip install -r requirements-test.txt
+        run: pip install --require-hashes -r requirements-test.txt
+
+      - name: Audit dependencies
+        run: pip-audit --require-hashes -r requirements-test.txt
 
       - name: Run tests
         run: python -m pytest tests/ -q --tb=short

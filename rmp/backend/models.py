@@ -9,6 +9,7 @@ from sqlalchemy import (
     Integer,
     Float,
     Time,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import relationship, declarative_base
 import enum
@@ -59,6 +60,7 @@ class User(Base):
 
 class Pool(Base):
     __tablename__ = "pools"
+    __table_args__ = (UniqueConstraint("name", name="uq_pools_name"),)
     id = Column(String(36), primary_key=True, index=True)
     name = Column(String(255), nullable=False)
     description = Column(Text)
@@ -69,6 +71,7 @@ class Pool(Base):
     join_lock_time = Column(DateTime, nullable=True)
     is_private = Column(Boolean, default=False)
     join_password_hash = Column(String(255), nullable=True)
+    join_password_encrypted = Column(Text, nullable=True)
     owner_id = Column(String(36), ForeignKey(USERS_ID_FK))
     created_at = Column(DateTime)
     updated_at = Column(DateTime)
@@ -150,6 +153,19 @@ class AuditLog(Base):
     action = Column(String(255))
     details = Column(Text)
     created_at = Column(DateTime)
+
+
+class UsedPasswordResetToken(Base):
+    __tablename__ = "used_password_reset_tokens"
+    token_digest = Column(String(64), primary_key=True)
+    used_at = Column(DateTime, nullable=False)
+
+
+class LoginAttempt(Base):
+    __tablename__ = "login_attempts"
+    id = Column(String(36), primary_key=True)
+    email = Column(String(255), index=True, nullable=False)
+    attempted_at = Column(DateTime, index=True, nullable=False)
 
 
 class MessageBoard(Base):

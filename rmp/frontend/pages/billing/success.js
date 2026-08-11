@@ -19,6 +19,7 @@ export default function BillingSuccess() {
         const token = localStorage.getItem('access_token');
         const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/billing/session/${encodeURIComponent(router.query.session_id)}`, {
           headers: { Authorization: `Bearer ${token}` },
+          credentials: 'include',
         });
         if (!response.ok) throw new Error('Unable to confirm this payment.');
         const nextOrder = await response.json();

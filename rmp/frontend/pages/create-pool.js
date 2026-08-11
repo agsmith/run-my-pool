@@ -20,6 +20,7 @@ export default function CreatePool() {
   });
   const [availableRules, setAvailableRules] = useState([]);
   const [error, setError] = useState('');
+  const [nameSuggestions, setNameSuggestions] = useState([]);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
@@ -48,6 +49,9 @@ export default function CreatePool() {
       ...prev,
       [name]: type === 'checkbox' ? checked : value
     }));
+    if (name === 'name') {
+      setNameSuggestions([]);
+    }
   };
 
   const handleRuleChange = (ruleId, value) => {
@@ -60,6 +64,7 @@ export default function CreatePool() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setNameSuggestions([]);
     setLoading(true);
 
     try {
@@ -86,7 +91,13 @@ export default function CreatePool() {
 
       if (!res.ok) {
         const errorData = await res.json();
-        throw new Error(errorData.detail || 'Failed to create pool');
+        if (errorData.detail?.code === 'league_name_taken') {
+          setNameSuggestions(errorData.detail.suggestions || []);
+          throw new Error(errorData.detail.message);
+        }
+        throw new Error(
+          typeof errorData.detail === 'string' ? errorData.detail : 'Failed to create pool'
+        );
       }
 
       const league = await res.json();
@@ -652,7 +663,35 @@ export default function CreatePool() {
                   color: '#dc2626',
                   fontSize: '0.875rem'
                 }}>
-                  {error}
+                  <div>{error}</div>
+                  {nameSuggestions.length > 0 && (
+                    <div style={{ marginTop: '0.75rem' }}>
+                      <strong>Available names:</strong>
+                      <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.5rem' }}>
+                        {nameSuggestions.map((suggestion) => (
+                          <button
+                            key={suggestion}
+                            type="button"
+                            onClick={() => {
+                              setFormData(prev => ({ ...prev, name: suggestion }));
+                              setError('');
+                              setNameSuggestions([]);
+                            }}
+                            style={{
+                              border: '1px solid #dc2626',
+                              borderRadius: '999px',
+                              padding: '0.35rem 0.75rem',
+                              background: 'white',
+                              color: '#991b1b',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            Use {suggestion}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 

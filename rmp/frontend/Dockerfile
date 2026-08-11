@@ -1,5 +1,5 @@
 # Multi-stage build for Next.js frontend
-FROM node:18-alpine AS base
+FROM node:22-alpine AS base
 
 # Install dependencies only when needed
 FROM base AS deps
@@ -9,7 +9,7 @@ WORKDIR /app
 
 # Install dependencies based on the preferred package manager
 COPY package.json package-lock.json* ./
-RUN npm ci --only=production
+RUN npm ci
 
 # Rebuild the source code only when needed
 FROM base AS builder
@@ -45,10 +45,6 @@ RUN mkdir .next && \
 # https://nextjs.org/docs/advanced-features/output-file-tracing
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-
-# next.config.js requires @ducanh2912/next-pwa at runtime but it is not
-# included in the standalone output trace. Copy it explicitly.
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@ducanh2912 ./node_modules/@ducanh2912
 
 # Health check script — avoids hostname resolution issues in Fargate awsvpc
 COPY --chown=nextjs:nodejs healthcheck.js ./healthcheck.js

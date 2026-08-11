@@ -20,8 +20,7 @@ help:
 # Install test dependencies
 install:
 	@echo "📦 Installing test dependencies..."
-	pip install pytest pytest-cov pytest-asyncio httpx pytest-mock
-	pip install black isort flake8 mypy
+	pip install --require-hashes -r requirements-dev.txt
 
 # Run all tests
 test:

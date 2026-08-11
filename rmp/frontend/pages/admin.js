@@ -46,7 +46,7 @@ export default function Admin() {
 
   return <ProtectedRoute><main className="platform-admin-page">
     <header className="platform-admin-hero">
-      <p>Platform operations</p>
+      <p>{user?.role === 'SUPER_ADMIN' ? 'Platform operations' : 'League operations'}</p>
       <h1>ADMIN DASHBOARD</h1>
       <span>Signed in as {user?.email}</span>
     </header>
@@ -62,7 +62,7 @@ export default function Admin() {
 
     <section className="platform-admin-directory">
       <div className="platform-admin-directory__head">
-        <div><p>User management</p><h2>ALL USERS</h2></div>
+        <div><p>User management</p><h2>{user?.role === 'SUPER_ADMIN' ? 'ALL USERS' : 'YOUR LEAGUE USERS'}</h2></div>
         <form onSubmit={submitSearch} role="search">
           <label htmlFor="admin-user-search">Search by email</label>
           <div><input id="admin-user-search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="name@example.com" /><button type="submit">Search</button></div>

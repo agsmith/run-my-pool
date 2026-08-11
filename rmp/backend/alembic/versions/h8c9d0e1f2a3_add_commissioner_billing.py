@@ -1,14 +1,14 @@
 """add commissioner billing and entitlements
 
-Revision ID: e5f6a7b8c9d0
-Revises: d4e5f6a7b8c9
+Revision ID: h8c9d0e1f2a3
+Revises: g7b8c9d0e1f2
 """
 
 from alembic import op
 import sqlalchemy as sa
 
-revision = "e5f6a7b8c9d0"
-down_revision = "d4e5f6a7b8c9"
+revision = "h8c9d0e1f2a3"
+down_revision = "g7b8c9d0e1f2"
 branch_labels = None
 depends_on = None
 

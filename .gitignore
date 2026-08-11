@@ -2,6 +2,8 @@
 rmp/backend/__pycache__/
 rmp/frontend/node_modules/
 rmp/frontend/.next/
+rmp/frontend/public/sw.js
+rmp/frontend/public/swe-worker-*.js
 rmp/backend/tests/__pycache__/
 # dependencies
 /node_modules

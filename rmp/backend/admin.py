@@ -15,11 +15,21 @@ import uuid
 import models
 import schemas
 import deps
+import auth
 from audit_utils import log_admin_action
 from odds_service import freeze_week_lines
-from schedule import current_season_games
+from schedule import current_season_games, current_season_week
+from weekly_locks import lock_pool_week
 
 router = APIRouter(prefix="/admin", tags=["admin"])
+
+
+def _csv_safe(value: str) -> str:
+    """Prevent spreadsheet software from interpreting user data as formulas."""
+    text = str(value or "")
+    if text.lstrip().startswith(("=", "+", "-", "@", "\t", "\r")):
+        return f"'{text}"
+    return text
 
 
 def verify_admin_access(pool_id: str, current_user: models.User, db: Session) -> bool:
@@ -36,6 +46,281 @@ def verify_admin_access(pool_id: str, current_user: models.User, db: Session) ->
         .first()
     )
     return pool_admin is not None
+
+
+def require_pool_owner(pool_id: str, current_user: models.User, db: Session) -> models.Pool:
+    """Return the pool when the caller owns it; delegated admins cannot grant access."""
+    pool = db.query(models.Pool).filter(models.Pool.id == pool_id).first()
+    if not pool:
+        raise HTTPException(status_code=404, detail="Pool not found")
+    if pool.owner_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Only the league owner can manage administrators")
+    return pool
+
+
+def find_user_by_email(email: str, db: Session) -> models.User:
+    user = (
+        db.query(models.User)
+        .filter(func.lower(models.User.email) == email.strip().lower())
+        .first()
+    )
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return user
+
+
+def is_pool_participant(db: Session, pool_id: str, user_id: str) -> bool:
+    """Include owners, delegated admins, members, and users with entries."""
+    return bool(
+        db.query(models.Pool).filter(
+            models.Pool.id == pool_id,
+            models.Pool.owner_id == user_id,
+        ).first()
+        or db.query(models.PoolAdmin).filter(
+            models.PoolAdmin.pool_id == pool_id,
+            models.PoolAdmin.user_id == user_id,
+        ).first()
+        or db.query(models.PoolMember).filter(
+            models.PoolMember.pool_id == pool_id,
+            models.PoolMember.user_id == user_id,
+        ).first()
+        or db.query(models.Entry).filter(
+            models.Entry.pool_id == pool_id,
+            models.Entry.user_id == user_id,
+        ).first()
+    )
+
+
+def require_pool_participant_by_email(
+    db: Session, pool_id: str, email: str
+) -> models.User:
+    user = find_user_by_email(email, db)
+    if not is_pool_participant(db, pool_id, user.id):
+        raise HTTPException(status_code=404, detail="User not found in this league")
+    return user
+
+
+def require_pool_participant_by_id(
+    db: Session, pool_id: str, user_id: str
+) -> models.User:
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user or not is_pool_participant(db, pool_id, user.id):
+        raise HTTPException(status_code=404, detail="User not found in this league")
+    return user
+
+
+@router.put(
+    "/pools/{pool_id}/admins",
+    response_model=schemas.LeagueAdminAssignmentOut,
+)
+def grant_pool_admin(
+    pool_id: str,
+    assignment: schemas.LeagueAdminAssignment,
+    db: Session = Depends(deps.get_db),
+    current_user: models.User = Depends(deps.get_current_user),
+):
+    """Grant league-specific administrator access to an existing participant."""
+    pool = require_pool_owner(pool_id, current_user, db)
+    user = require_pool_participant_by_email(db, pool_id, assignment.email)
+    if user.id == pool.owner_id:
+        raise HTTPException(status_code=400, detail="The league owner already has administrator access")
+
+    existing = db.query(models.PoolAdmin).filter(
+        models.PoolAdmin.pool_id == pool_id,
+        models.PoolAdmin.user_id == user.id,
+    ).first()
+    if existing:
+        return {"pool_id": pool_id, "user_id": user.id, "email": user.email, "is_admin": True, "changed": False}
+
+    db.add(models.PoolAdmin(pool_id=pool_id, user_id=user.id))
+    db.commit()
+    log_admin_action(
+        db=db,
+        action="GRANT_LEAGUE_ADMIN",
+        admin_user_id=current_user.id,
+        details=f"Granted league administrator access to {user.email}",
+        target_entity_type="user",
+        target_entity_id=user.id,
+        additional_data={"pool_id": pool_id, "username": user.email, "admin_email": current_user.email},
+    )
+    return {"pool_id": pool_id, "user_id": user.id, "email": user.email, "is_admin": True, "changed": True}
+
+
+@router.delete(
+    "/pools/{pool_id}/admins",
+    response_model=schemas.LeagueAdminAssignmentOut,
+)
+def revoke_pool_admin(
+    pool_id: str,
+    email: str,
+    db: Session = Depends(deps.get_db),
+    current_user: models.User = Depends(deps.get_current_user),
+):
+    """Revoke delegated administrator access without changing membership."""
+    pool = require_pool_owner(pool_id, current_user, db)
+    user = require_pool_participant_by_email(db, pool_id, email)
+    if user.id == pool.owner_id:
+        raise HTTPException(status_code=400, detail="League owner access cannot be revoked")
+
+    existing = db.query(models.PoolAdmin).filter(
+        models.PoolAdmin.pool_id == pool_id,
+        models.PoolAdmin.user_id == user.id,
+    ).first()
+    if not existing:
+        return {"pool_id": pool_id, "user_id": user.id, "email": user.email, "is_admin": False, "changed": False}
+
+    db.delete(existing)
+    db.commit()
+    log_admin_action(
+        db=db,
+        action="REVOKE_LEAGUE_ADMIN",
+        admin_user_id=current_user.id,
+        details=f"Revoked league administrator access from {user.email}",
+        target_entity_type="user",
+        target_entity_id=user.id,
+        additional_data={"pool_id": pool_id, "username": user.email, "admin_email": current_user.email},
+    )
+    return {"pool_id": pool_id, "user_id": user.id, "email": user.email, "is_admin": False, "changed": True}
+
+
+@router.put(
+    "/pools/{pool_id}/owner",
+    response_model=schemas.LeagueOwnershipTransferOut,
+)
+def transfer_pool_ownership(
+    pool_id: str,
+    transfer: schemas.LeagueOwnershipTransfer,
+    db: Session = Depends(deps.get_db),
+    current_user: models.User = Depends(deps.get_current_user),
+):
+    """Transfer sole league ownership and retain the previous owner as an admin."""
+    pool = require_pool_owner(pool_id, current_user, db)
+    new_owner = require_pool_participant_by_email(db, pool_id, transfer.email)
+    if new_owner.id == pool.owner_id:
+        raise HTTPException(status_code=400, detail="This user already owns the league")
+
+    previous_owner_id = pool.owner_id
+    previous_owner_email = current_user.email
+    for user_id in (previous_owner_id, new_owner.id):
+        existing_admin = db.query(models.PoolAdmin).filter(
+            models.PoolAdmin.pool_id == pool_id,
+            models.PoolAdmin.user_id == user_id,
+        ).first()
+        if not existing_admin:
+            db.add(models.PoolAdmin(pool_id=pool_id, user_id=user_id))
+
+    pool.owner_id = new_owner.id
+    pool.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
+    db.commit()
+    log_admin_action(
+        db=db,
+        action="TRANSFER_LEAGUE_OWNERSHIP",
+        admin_user_id=current_user.id,
+        details=f"Transferred league ownership from {previous_owner_email} to {new_owner.email}",
+        target_entity_type="pool",
+        target_entity_id=pool_id,
+        additional_data={
+            "pool_id": pool_id,
+            "previous_owner_id": previous_owner_id,
+            "previous_owner_email": previous_owner_email,
+            "owner_id": new_owner.id,
+            "owner_email": new_owner.email,
+        },
+    )
+    return {
+        "pool_id": pool_id,
+        "previous_owner_id": previous_owner_id,
+        "previous_owner_email": previous_owner_email,
+        "owner_id": new_owner.id,
+        "owner_email": new_owner.email,
+    }
+
+
+@router.get(
+    "/pools/{pool_id}/users-overview",
+    response_model=schemas.LeagueAdminUserOverview,
+)
+def pool_users_overview(
+    pool_id: str,
+    week: Optional[int] = None,
+    db: Session = Depends(deps.get_db),
+    current_user: models.User = Depends(deps.get_current_user),
+):
+    """Return commissioner-level participation totals without exposing picks."""
+    if not verify_admin_access(pool_id, current_user, db):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    pool = db.query(models.Pool).filter(models.Pool.id == pool_id).first()
+    if not pool:
+        raise HTTPException(status_code=404, detail="Pool not found")
+
+    selected_week = week if week is not None else current_season_week(db)
+    if selected_week < 1 or selected_week > 18:
+        raise HTTPException(status_code=400, detail="Week must be between 1 and 18")
+
+    entries = db.query(models.Entry).filter(models.Entry.pool_id == pool_id).all()
+    member_ids = {
+        user_id for (user_id,) in db.query(models.PoolMember.user_id)
+        .filter(models.PoolMember.pool_id == pool_id).all()
+    }
+    member_ids.update(entry.user_id for entry in entries)
+    admin_ids = {
+        user_id for (user_id,) in db.query(models.PoolAdmin.user_id)
+        .filter(models.PoolAdmin.pool_id == pool_id).all()
+    }
+    member_ids.update(admin_ids)
+    if pool.owner_id:
+        member_ids.add(pool.owner_id)
+
+    users = (
+        db.query(models.User)
+        .filter(models.User.id.in_(member_ids or [""]))
+        .order_by(models.User.email)
+        .all()
+    )
+    entries_by_user = {}
+    alive_entry_ids = set()
+    for entry in entries:
+        entries_by_user.setdefault(entry.user_id, []).append(entry)
+        if entry.alive:
+            alive_entry_ids.add(entry.id)
+    picked_entry_ids = {
+        entry_id for (entry_id,) in db.query(models.Pick.entry_id)
+        .filter(
+            models.Pick.entry_id.in_(alive_entry_ids or [""]),
+            models.Pick.week == selected_week,
+        )
+        .distinct()
+        .all()
+    }
+
+    result = []
+    for user in users:
+        user_entries = entries_by_user.get(user.id, [])
+        surviving = [entry for entry in user_entries if entry.alive]
+        picked_count = sum(entry.id in picked_entry_ids for entry in surviving)
+        if user.id == pool.owner_id:
+            admin_role = "Owner"
+        elif user.id in admin_ids:
+            admin_role = "League admin"
+        else:
+            admin_role = "Member"
+        result.append({
+            "id": user.id,
+            "email": user.email,
+            "total_entries": len(user_entries),
+            "surviving_entries": len(surviving),
+            "picked_entries": picked_count,
+            "has_current_week_pick": picked_count > 0,
+            "all_surviving_entries_picked": bool(surviving) and picked_count == len(surviving),
+            "is_admin": admin_role != "Member",
+            "admin_role": admin_role,
+        })
+    return {
+        "pool_id": pool_id,
+        "current_week": selected_week,
+        "total_users": len(result),
+        "users": result,
+    }
 
 
 @router.post("/pools/{pool_id}/transfer-entry")
@@ -74,16 +359,9 @@ def transfer_entry(
             detail="Current entry owner not found",
         )
 
-    new_owner = (
-        db.query(models.User)
-        .filter(models.User.email == transfer_data.to_email)
-        .first()
+    new_owner = require_pool_participant_by_email(
+        db, pool_id, transfer_data.to_email
     )
-    if not new_owner:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"User '{transfer_data.to_email}' not found",
-        )
 
     existing_entry = (
         db.query(models.Entry)
@@ -266,131 +544,20 @@ def lock_week(
             status_code=status.HTTP_404_NOT_FOUND, detail="Pool not found"
         )
 
-    # Lock the pool if not already locked in the past
     now = datetime.now(timezone.utc).replace(tzinfo=None)
     if pool.lock_time is None or pool.lock_time > now:
         pool.lock_time = now
-
-    # Freeze the same lines visible at lock time. These immutable snapshots,
-    # not later market movement, determine default picks for this pool/week.
-    games = current_season_games(db, week)
-    frozen_lines = freeze_week_lines(db, pool_id, week, games, captured_at=now)
-    line_ranked_teams = [
-        line.favorite_team.abbrv
-        for line in sorted(
-            frozen_lines,
-            key=lambda item: (-(item.spread or 0), item.favorite_team_id or 0),
-        )
-        if line.favorite_team is not None
-    ]
-
-    # All alive entries in the pool
-    alive_entries = (
-        db.query(models.Entry)
-        .filter(models.Entry.pool_id == pool_id, models.Entry.alive == True)  # noqa: E712
-        .all()
+    auto_picks_created = lock_pool_week(
+        db, pool, week, current_user.id, now,
+        games_provider=current_season_games,
+        line_freezer=freeze_week_lines,
     )
-    alive_ids = {e.id for e in alive_entries}
-
-    # Lock all existing week-N picks for alive entries before auto-picking
-    db.query(models.Pick).filter(
-        models.Pick.entry_id.in_(alive_ids),
-        models.Pick.week == week,
-        models.Pick.locked == False,  # noqa: E712
-    ).update({"locked": True}, synchronize_session="fetch")
-    db.flush()
-
-    # Entries that already have a pick for this week
-    existing_pick_entry_ids = {
-        p.entry_id
-        for p in db.query(models.Pick)
-        .filter(models.Pick.entry_id.in_(alive_ids), models.Pick.week == week)
-        .all()
-    }
-
-    entries_needing_pick = [
-        e for e in alive_entries if e.id not in existing_pick_entry_ids
-    ]
-
-    # Popularity map: team → count of alive picks this week
-    popularity: dict[str, int] = {}
-    for p in (
-        db.query(models.Pick)
-        .filter(models.Pick.entry_id.in_(alive_ids), models.Pick.week == week)
-        .all()
-    ):
-        popularity[p.team] = popularity.get(p.team, 0) + 1
-
-    # Stable sort: descending popularity, then alphabetical for tie-breaking
-    ranked_teams = sorted(popularity.items(), key=lambda x: (-x[1], x[0]))
-
-    auto_picks_created = 0
-    for entry in entries_needing_pick:
-        # Teams already used by this entry across all weeks
-        used_teams = {
-            p.team
-            for p in db.query(models.Pick)
-            .filter(models.Pick.entry_id == entry.id)
-            .all()
-        }
-
-        candidate = next((team for team in line_ranked_teams if team not in used_teams), None)
-        if candidate is None:
-            candidate = next(
-                (team for team, _ in ranked_teams if team not in used_teams),
-                None,
-            )
-        if candidate is None:
-            # No valid team available — skip
-            log_admin_action(
-                db=db,
-                action="AUTO_PICK_SKIPPED",
-                admin_user_id=current_user.id,
-                details=f"No available team for entry {entry.id} in week {week} — all popular teams already used",
-                target_entity_type="entry",
-                target_entity_id=entry.id,
-                additional_data={"pool_id": pool_id, "week": week},
-            )
-            continue
-
-        db_pick = models.Pick(
-            id=str(uuid.uuid4()),
-            entry_id=entry.id,
-            week=week,
-            team=candidate,
-            locked=True,
-            created_at=now,
-            updated_at=now,
-        )
-        db.add(db_pick)
-        db.flush()  # get the id before logging
-
-        log_admin_action(
-            db=db,
-            action="AUTO_PICK",
-            admin_user_id=current_user.id,
-            details=f"Auto-picked {candidate} for entry {entry.id} in week {week}",
-            target_entity_type="pick",
-            target_entity_id=db_pick.id,
-            additional_data={
-                "pool_id": pool_id,
-                "entry_id": entry.id,
-                "week": week,
-                "team": candidate,
-                "reason": "no_pick_at_lock",
-                "selection_basis": "locked_spread" if candidate in line_ranked_teams else "pick_popularity_fallback",
-            },
-        )
-        auto_picks_created += 1
-
-    db.commit()
 
     return {
         "message": f"Week {week} locked",
         "pool_id": pool_id,
         "auto_picks_created": auto_picks_created,
     }
-
 
 @router.patch("/pools/{pool_id}/picks/{pick_id}", response_model=schemas.PickOut)
 def admin_update_pick(
@@ -549,9 +716,7 @@ def get_user_lock_by_email(
 ):
     if not verify_admin_access(pool_id, current_user, db):
         raise HTTPException(status_code=403, detail="Admin access required")
-    user = db.query(models.User).filter(models.User.email == email.strip()).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+    user = require_pool_participant_by_email(db, pool_id, email)
     lock = db.query(models.PoolUserLock).filter(
         models.PoolUserLock.pool_id == pool_id,
         models.PoolUserLock.user_id == user.id,
@@ -564,6 +729,20 @@ def get_user_lock_by_email(
     }
 
 
+@router.post("/pools/{pool_id}/users/password-reset")
+def send_pool_user_password_reset(
+    pool_id: str,
+    request: schemas.ForgotPasswordRequest,
+    db: Session = Depends(deps.get_db),
+    current_user: models.User = Depends(deps.get_current_user),
+):
+    """Send a reset link only for a participant in the admin's selected league."""
+    if not verify_admin_access(pool_id, current_user, db):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    require_pool_participant_by_email(db, pool_id, request.email)
+    return auth.forgot_password(request, db)
+
+
 @router.put("/pools/{pool_id}/user-lock")
 def set_user_lock_by_email(
     pool_id: str,
@@ -573,9 +752,7 @@ def set_user_lock_by_email(
 ):
     if not verify_admin_access(pool_id, current_user, db):
         raise HTTPException(status_code=403, detail="Admin access required")
-    user = db.query(models.User).filter(models.User.email == request.email).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+    user = require_pool_participant_by_email(db, pool_id, request.email)
     lock = db.query(models.PoolUserLock).filter(
         models.PoolUserLock.pool_id == pool_id,
         models.PoolUserLock.user_id == user.id,
@@ -630,12 +807,7 @@ def lock_user_in_pool(
             status_code=status.HTTP_404_NOT_FOUND, detail="Pool not found"
         )
 
-    # Check user exists
-    target_user = db.query(models.User).filter(models.User.id == user_id).first()
-    if not target_user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
-        )
+    target_user = require_pool_participant_by_id(db, pool_id, user_id)
 
     # Check not already locked
     if is_user_locked_in_pool(db, pool_id, user_id):
@@ -734,7 +906,7 @@ def export_entries_csv(
     writer = csv.writer(output)
     writer.writerow(["email", "entry_name"])
     for email, entry_name in rows:
-        writer.writerow([email, entry_name])
+        writer.writerow([_csv_safe(email), _csv_safe(entry_name)])
 
     output.seek(0)
     return StreamingResponse(

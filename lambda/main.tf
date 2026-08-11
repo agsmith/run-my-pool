@@ -23,14 +23,18 @@ data "aws_db_instance" "runmypool_db" {
 
 
 resource "null_resource" "install_python_dependencies" {
+  triggers = {
+    requirements_sha256 = filesha256("${path.module}/src/requirements.txt")
+  }
+
   provisioner "local-exec" {
     command = "bash ${path.module}/src/create-pkg.sh"
 
     environment = {
       source_code_path = "${path.module}"
-      function_name = "nfl-game-updater"
-      runtime = "python3.12"
-      path_cwd = "${path.module}"
+      function_name    = "nfl-game-updater"
+      runtime          = "python3.12"
+      path_cwd         = "${path.module}"
     }
   }
 }
@@ -40,27 +44,27 @@ data "archive_file" "function_zip" {
   source_dir  = "src"
   type        = "zip"
   output_path = "${path.module}/nfl-game-updater.zip"
-  depends_on = [ null_resource.install_python_dependencies ]
+  depends_on  = [null_resource.install_python_dependencies]
 }
 
 resource "aws_s3_object" "file_upload" {
-  bucket = "nfl-game-updater-us-east-1-lambda"
-  key    = "nfl-game-updater.zip"
-  source = "nfl-game-updater.zip"
-  depends_on = [ data.archive_file.function_zip ]
+  bucket     = "nfl-game-updater-us-east-1-lambda"
+  key        = "nfl-game-updater.zip"
+  source     = "nfl-game-updater.zip"
+  depends_on = [data.archive_file.function_zip]
 }
 
 resource "aws_lambda_function" "function" {
-  s3_bucket                       = "nfl-game-updater-us-east-1-lambda"
-  s3_key                          = "nfl-game-updater.zip"
-  function_name                   = "nfl-game-updater"
-  handler                        = "nfl_game_updater.lambda_handler"
-  runtime                        = "python3.12"
-  timeout                        = 900
-  memory_size                    = 128
-  role                           = "arn:aws:iam::739444271939:role/nfl-game-updater-lambda-role"
-  depends_on = [ aws_s3_object.file_upload  ]
-  
+  s3_bucket     = "nfl-game-updater-us-east-1-lambda"
+  s3_key        = "nfl-game-updater.zip"
+  function_name = "nfl-game-updater"
+  handler       = "nfl_game_updater.lambda_handler"
+  runtime       = "python3.12"
+  timeout       = 900
+  memory_size   = 128
+  role          = "arn:aws:iam::739444271939:role/nfl-game-updater-lambda-role"
+  depends_on    = [aws_s3_object.file_upload]
+
   vpc_config {
     subnet_ids         = toset(["subnet-07d85747fe7504912", "subnet-080737ebc3b299dcd"])
     security_group_ids = toset(["sg-022ad503e1afbef4a"])

@@ -11,6 +11,7 @@ import pytest
 from datetime import datetime
 
 import models
+from schedule import current_season_week
 
 
 # ---------------------------------------------------------------------------
@@ -151,3 +152,18 @@ class TestScheduleEndpoints:
 
         assert [game["game_id"] for game in schedule_response.json()] == [8102]
         assert [game["game_id"] for game in matchup_response.json()] == [8102]
+
+    def test_current_season_week_uses_newest_schedule_boundaries(self, client, db_session):
+        home = models.Team(id=91, name="Home", abbrv="H91")
+        away = models.Team(id=92, name="Away", abbrv="A92")
+        db_session.add_all([home, away])
+        db_session.add_all([
+            models.Schedule(game_id=9101, week_num=1, home_team_id=91, away_team_id=92, start_time=datetime(2025, 9, 8)),
+            models.Schedule(game_id=9201, week_num=1, home_team_id=91, away_team_id=92, start_time=datetime(2026, 9, 14)),
+            models.Schedule(game_id=9202, week_num=2, home_team_id=91, away_team_id=92, start_time=datetime(2026, 9, 21)),
+        ])
+        db_session.commit()
+
+        assert current_season_week(db_session, datetime(2026, 8, 15)) == 1
+        assert current_season_week(db_session, datetime(2026, 9, 16)) == 2
+        assert current_season_week(db_session, datetime(2027, 2, 1)) == 2

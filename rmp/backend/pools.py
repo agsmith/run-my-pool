@@ -1,6 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from sqlalchemy import func, or_
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from typing import List
+import base64
+import hashlib
 import models
 import schemas
 import deps
@@ -8,11 +12,88 @@ from datetime import datetime, time, timezone
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 import uuid
 from audit_utils import log_create_operation, log_update_operation, log_delete_operation
-from auth import get_password_hash, verify_password
+from auth import SECRET_KEY, get_password_hash, verify_password
+from pool_access import is_pool_participant
+from schedule import current_season_games
+from weekly_locks import pool_week_lock_time
+from cryptography.fernet import Fernet, InvalidToken
 
 router = APIRouter(prefix="/pools", tags=["pools"])
 
 MIN_JOIN_PASSWORD_LENGTH = 6
+MAX_POOL_NAME_LENGTH = 255
+
+
+def _password_cipher() -> Fernet:
+    key = base64.urlsafe_b64encode(hashlib.sha256(SECRET_KEY.encode("utf-8")).digest())
+    return Fernet(key)
+
+
+def _encrypt_join_password(password: str) -> str:
+    return _password_cipher().encrypt(password.encode("utf-8")).decode("ascii")
+
+
+def _decrypt_join_password(encrypted_password: str) -> str:
+    try:
+        return _password_cipher().decrypt(encrypted_password.encode("ascii")).decode("utf-8")
+    except (InvalidToken, ValueError, UnicodeDecodeError):
+        raise HTTPException(
+            status_code=409,
+            detail="The stored league password cannot be displayed. Set a new password.",
+        )
+
+
+def _normalize_pool_name(name: str) -> str:
+    """Store a clean display name and reject names with no visible characters."""
+    normalized = (name or "").strip()
+    if not normalized:
+        raise HTTPException(status_code=400, detail="League name is required")
+    if len(normalized) > MAX_POOL_NAME_LENGTH:
+        raise HTTPException(
+            status_code=400,
+            detail=f"League name must be {MAX_POOL_NAME_LENGTH} characters or fewer",
+        )
+    return normalized
+
+
+def _pool_name_taken(db: Session, name: str, exclude_pool_id: str = None) -> bool:
+    query = db.query(models.Pool.id).filter(
+        func.lower(func.trim(models.Pool.name)) == name.casefold()
+    )
+    if exclude_pool_id is not None:
+        query = query.filter(models.Pool.id != exclude_pool_id)
+    return query.first() is not None
+
+
+def _suggest_pool_names(db: Session, requested_name: str, limit: int = 3) -> List[str]:
+    """Return deterministic, immediately available alternatives."""
+    def with_suffix(suffix: str) -> str:
+        return f"{requested_name[:MAX_POOL_NAME_LENGTH - len(suffix)]}{suffix}"
+
+    candidates = [
+        with_suffix(" 2026"),
+        with_suffix(" Survivor"),
+        with_suffix(" League"),
+    ]
+    candidates.extend(with_suffix(f" {number}") for number in range(2, 100))
+    suggestions = []
+    for candidate in candidates:
+        if not _pool_name_taken(db, candidate):
+            suggestions.append(candidate)
+        if len(suggestions) == limit:
+            break
+    return suggestions
+
+
+def _raise_name_conflict(db: Session, requested_name: str) -> None:
+    raise HTTPException(
+        status_code=status.HTTP_409_CONFLICT,
+        detail={
+            "code": "league_name_taken",
+            "message": "That league name is already in use. Choose a unique name.",
+            "suggestions": _suggest_pool_names(db, requested_name),
+        },
+    )
 
 
 def _validate_join_password(password: str) -> str:
@@ -80,6 +161,10 @@ def create_pool(
 ):
     """Create a new pool with the current user as the owner/admin."""
     try:
+        pool_name = _normalize_pool_name(pool.name)
+        if _pool_name_taken(db, pool_name):
+            _raise_name_conflict(db, pool_name)
+
         # Parse lock_time if provided
         lock_time = None
         if pool.lock_time:
@@ -92,10 +177,11 @@ def create_pool(
                 )
 
         join_password_hash = None
+        join_password_encrypted = None
         if pool.is_private:
-            join_password_hash = get_password_hash(
-                _validate_join_password(pool.join_password)
-            )
+            validated_password = _validate_join_password(pool.join_password)
+            join_password_hash = get_password_hash(validated_password)
+            join_password_encrypted = _encrypt_join_password(validated_password)
 
         recurring_time = _parse_time_of_day(pool.lock_time_of_day) if pool.lock_time_of_day else None
         recurring_timezone = _validate_timezone(pool.lock_timezone) if pool.lock_timezone else None
@@ -105,7 +191,7 @@ def create_pool(
 
         db_pool = models.Pool(
             id=str(uuid.uuid4()),
-            name=pool.name,
+            name=pool_name,
             description=pool.description,
             lock_time=lock_time,
             lock_day_of_week=pool.lock_day_of_week,
@@ -114,13 +200,18 @@ def create_pool(
             join_lock_time=join_lock_time,
             is_private=pool.is_private,
             join_password_hash=join_password_hash,
+            join_password_encrypted=join_password_encrypted,
             owner_id=current_user.id,
             created_at=datetime.now(timezone.utc).replace(tzinfo=None),
             updated_at=datetime.now(timezone.utc).replace(tzinfo=None),
         )
 
         db.add(db_pool)
-        db.commit()
+        try:
+            db.commit()
+        except IntegrityError:
+            db.rollback()
+            _raise_name_conflict(db, pool_name)
         db.refresh(db_pool)
 
         # Add the pool creator as a pool admin
@@ -140,7 +231,7 @@ def create_pool(
             entity_id=db_pool.id,
             user_id=current_user.id,
             entity_data={
-                "name": pool.name,
+                "name": pool_name,
                 "description": pool.description,
                 "is_private": pool.is_private,
                 "owner_email": current_user.email,
@@ -178,8 +269,38 @@ def get_my_pools(
 
 
 @router.get("/", response_model=List[schemas.PoolOut])
-def list_pools(skip: int = 0, limit: int = 100, db: Session = Depends(deps.get_db)):
-    return db.query(models.Pool).offset(skip).limit(limit).all()
+def list_pools(
+    skip: int = Query(default=0, ge=0),
+    limit: int = Query(default=100, ge=1, le=100),
+    db: Session = Depends(deps.get_db),
+    current_user: models.User = Depends(deps.get_current_user),
+):
+    """List public leagues plus private leagues the caller may access."""
+    return (
+        db.query(models.Pool)
+        .outerjoin(
+            models.PoolMember,
+            (models.PoolMember.pool_id == models.Pool.id)
+            & (models.PoolMember.user_id == current_user.id),
+        )
+        .outerjoin(
+            models.PoolAdmin,
+            (models.PoolAdmin.pool_id == models.Pool.id)
+            & (models.PoolAdmin.user_id == current_user.id),
+        )
+        .filter(
+            or_(
+                models.Pool.is_private.is_(False),
+                models.Pool.owner_id == current_user.id,
+                models.PoolMember.user_id == current_user.id,
+                models.PoolAdmin.user_id == current_user.id,
+            )
+        )
+        .distinct()
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
 
 
 @router.get("/{pool_id}", response_model=schemas.PoolOut)
@@ -195,8 +316,8 @@ def get_pool(
         if not pool:
             raise HTTPException(status_code=404, detail="Pool not found")
 
-        # TODO: Check if user has access to this pool (owner or member)
-        # For now, allow access to any pool
+        if not is_pool_participant(db, pool_id, current_user.id):
+            raise HTTPException(status_code=403, detail="League membership required")
 
         return pool
     except HTTPException:
@@ -204,6 +325,28 @@ def get_pool(
     except Exception as e:
         print(f"Get pool error: {str(e)}")
         raise HTTPException(status_code=500, detail="Failed to retrieve pool")
+
+
+@router.get("/{pool_id}/lock-status")
+def get_pool_lock_status(
+    pool_id: str,
+    db: Session = Depends(deps.get_db),
+    current_user: models.User = Depends(deps.get_current_user),
+):
+    pool = db.query(models.Pool).filter(models.Pool.id == pool_id).first()
+    if not pool:
+        raise HTTPException(status_code=404, detail="Pool not found")
+    if not is_pool_participant(db, pool_id, current_user.id):
+        raise HTTPException(status_code=403, detail="League membership required")
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    weeks = {}
+    for week in range(1, 19):
+        deadline = pool_week_lock_time(pool, current_season_games(db, week))
+        weeks[str(week)] = {
+            "locked": bool(deadline and deadline <= now),
+            "deadline": f"{deadline.isoformat()}Z" if deadline else None,
+        }
+    return {"weeks": weeks}
 
 
 @router.patch("/{pool_id}", response_model=schemas.PoolOut)
@@ -227,7 +370,10 @@ def update_pool(
 
         # Update fields if provided
         if pool_update.name is not None:
-            pool.name = pool_update.name
+            pool_name = _normalize_pool_name(pool_update.name)
+            if _pool_name_taken(db, pool_name, exclude_pool_id=pool.id):
+                _raise_name_conflict(db, pool_name)
+            pool.name = pool_name
         if pool_update.description is not None:
             pool.description = pool_update.description
         if pool_update.lock_time is not None:
@@ -255,9 +401,9 @@ def update_pool(
         )
         if target_is_private:
             if pool_update.join_password is not None:
-                pool.join_password_hash = get_password_hash(
-                    _validate_join_password(pool_update.join_password)
-                )
+                validated_password = _validate_join_password(pool_update.join_password)
+                pool.join_password_hash = get_password_hash(validated_password)
+                pool.join_password_encrypted = _encrypt_join_password(validated_password)
             elif pool_update.is_private is True and not pool.join_password_hash:
                 raise HTTPException(
                     status_code=400,
@@ -265,11 +411,16 @@ def update_pool(
                 )
         else:
             pool.join_password_hash = None
+            pool.join_password_encrypted = None
         pool.is_private = target_is_private
 
         pool.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
 
-        db.commit()
+        try:
+            db.commit()
+        except IntegrityError:
+            db.rollback()
+            _raise_name_conflict(db, pool.name)
         db.refresh(pool)
 
         log_update_operation(
@@ -348,6 +499,30 @@ def join_pool(
         },
     )
     return {"message": "Pool joined successfully", "pool_id": pool_id}
+
+
+@router.get("/{pool_id}/join-password")
+def get_pool_join_password(
+    pool_id: str,
+    response: Response,
+    db: Session = Depends(deps.get_db),
+    current_user: models.User = Depends(deps.get_current_user),
+):
+    """Reveal a private league password only to that league's administrators."""
+    pool = db.query(models.Pool).filter(models.Pool.id == pool_id).first()
+    if not pool:
+        raise HTTPException(status_code=404, detail="Pool not found")
+    if not _has_admin_access(db, pool, current_user.id):
+        raise HTTPException(status_code=403, detail="Only league admins can view the password")
+    if not pool.is_private:
+        raise HTTPException(status_code=400, detail="Public leagues do not have a join password")
+    response.headers["Cache-Control"] = "no-store"
+    if not pool.join_password_encrypted:
+        return {"available": False, "password": None}
+    return {
+        "available": True,
+        "password": _decrypt_join_password(pool.join_password_encrypted),
+    }
 
 
 @router.delete("/{pool_id}")

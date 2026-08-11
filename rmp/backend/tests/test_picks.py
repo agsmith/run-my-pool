@@ -321,6 +321,19 @@ def _seed_schedule(db, game_id, week_num, home_team_id, away_team_id, start_time
 
 
 class TestPickBreakdown:
+    def test_requires_pool_membership(self, client):
+        owner_token = _register_and_login(client, email="breakdown_owner@example.com")
+        outsider_token = _register_and_login(client, email="breakdown_outsider@example.com")
+        pool_id = _create_pool(client, _authed(owner_token))
+
+        response = client.get(
+            f"/picks/pool/{pool_id}/week/1/breakdown",
+            headers=_authed(outsider_token),
+        )
+
+        assert response.status_code == 403
+        assert response.json()["detail"] == "League membership required"
+
     def test_empty_when_no_games_started(self, client, db_session):
         """Returns empty list when no games have started yet."""
         from datetime import datetime, timedelta

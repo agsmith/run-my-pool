@@ -11,6 +11,7 @@ from models import Pick, Entry, Schedule, Team, Pool
 from schemas import PickCreate, PickUpdate, PickOut, PickBreakdownItem
 from audit_utils import log_create_operation, log_update_operation, log_delete_operation
 from admin import is_user_locked_in_pool
+from pool_access import is_pool_participant
 
 router = APIRouter()
 
@@ -435,6 +436,8 @@ def get_pick_breakdown(
     Only includes teams whose game has already kicked off (Schedule.start_time < now).
     Returns an empty list if no games have started yet.
     """
+    if not is_pool_participant(db, pool_id, current_user.id):
+        raise HTTPException(status_code=403, detail="League membership required")
     now = datetime.now(timezone.utc).replace(tzinfo=None)
 
     # Subquery: team IDs with a game that has already started this week

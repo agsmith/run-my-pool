@@ -75,7 +75,8 @@ class TestUtilities:
     def test_jwt_utilities(self):
         """Test JWT token utilities"""
         from auth import create_access_token, SECRET_KEY
-        from jose import jwt, JWTError
+        import jwt
+        from jwt import InvalidTokenError
 
         # Test token creation
         data = {"sub": "test@example.com"}
@@ -88,7 +89,7 @@ class TestUtilities:
         try:
             decoded = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
             assert decoded["sub"] == "test@example.com"
-        except JWTError:
+        except InvalidTokenError:
             pytest.fail("Token decoding failed")
 
 
@@ -97,18 +98,11 @@ class TestDatabaseConnection:
 
     def test_database_url_configuration(self):
         """Test database URL configuration"""
-        try:
-            from database import SQLALCHEMY_DATABASE_URL, engine
+        from database import DATABASE_URL, engine
 
-            # Test that database URL is configured
-            assert SQLALCHEMY_DATABASE_URL is not None
-            assert len(SQLALCHEMY_DATABASE_URL) > 0
-
-            # Test that engine is created
-            assert engine is not None
-
-        except ImportError:
-            pytest.skip("database module not available")
+        assert DATABASE_URL
+        assert engine is not None
+        assert str(engine.url) == DATABASE_URL
 
     def test_session_creation(self):
         """Test database session creation"""
