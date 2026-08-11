@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
-import { baseStyles, createHoverHandlers, hoverEffects, createFocusHandlers } from '../styles/globalStyles';
+import { baseStyles } from '../styles/globalStyles';
+import PasswordVisibilityButton from '../components/PasswordVisibilityButton';
 
 function validateEmail(email) {
   return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email);
@@ -16,6 +17,8 @@ export default function CreateAccount() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
@@ -54,21 +57,20 @@ export default function CreateAccount() {
   };
 
   return (
-    <main style={baseStyles.authPageContainer}>
-      <div style={baseStyles.authCard}>
+    <main className="auth-page" style={baseStyles.authPageContainer}>
+      <div className="auth-card auth-card--create" style={baseStyles.authCard}>
         {/* Logo/Brand area */}
-        <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
-          <h1 style={baseStyles.brandTitle}>
-            🏈 Run My Pool
+        <div className="auth-brand">
+          <h1>
+            <span className="product-football-mark auth-brand__mark" aria-hidden="true"><i /><i /><i /></span>
+            <span>RUN MY <b>POOL</b></span>
           </h1>
-          <p style={baseStyles.subtitle}>
-            Create your new account
-          </p>
+          <p>Create your new account</p>
         </div>
 
         {/* Error Message */}
         {error && (
-          <div style={{ 
+          <div className="auth-notice auth-notice--error" style={{
             backgroundColor: '#fed7d7',
             color: '#742a2a',
             padding: '0.75rem 1rem',
@@ -83,7 +85,7 @@ export default function CreateAccount() {
 
         {/* Success Message */}
         {success && (
-          <div style={{ 
+          <div className="auth-notice auth-notice--success" style={{
             backgroundColor: '#f0fff4',
             color: '#22543d',
             padding: '0.75rem 1rem',
@@ -97,7 +99,7 @@ export default function CreateAccount() {
         )}
 
         <form onSubmit={handleSubmit} style={{ width: '100%' }}>
-          <div style={{ marginBottom: '1.5rem' }}>
+          <div className="auth-form-field" style={{ marginBottom: '1.5rem' }}>
             <label style={{ 
               display: 'block',
               fontSize: '0.875rem',
@@ -136,7 +138,7 @@ export default function CreateAccount() {
             />
           </div>
 
-          <div style={{ marginBottom: '1.5rem' }}>
+          <div className="auth-form-field" style={{ marginBottom: '1.5rem' }}>
             <label style={{ 
               display: 'block',
               fontSize: '0.875rem',
@@ -146,36 +148,19 @@ export default function CreateAccount() {
             }}>
               Password
             </label>
-            <input 
-              type="password" 
-              value={password} 
-              onChange={e => setPassword(e.target.value)} 
-              required 
-              style={{
-                width: '100%',
-                padding: '0.75rem 1rem',
-                border: '2px solid #e5e7eb',
-                borderRadius: '8px',
-                fontSize: '1rem',
-                transition: 'all 0.2s ease',
-                outline: 'none',
-                backgroundColor: '#fafafa'
-              }}
-              onFocus={(e) => {
-                e.target.style.borderColor = '#667eea';
-                e.target.style.backgroundColor = 'white';
-                e.target.style.boxShadow = '0 0 0 3px rgba(102, 126, 234, 0.1)';
-              }}
-              onBlur={(e) => {
-                e.target.style.borderColor = '#e5e7eb';
-                e.target.style.backgroundColor = '#fafafa';
-                e.target.style.boxShadow = 'none';
-              }}
-              placeholder="Enter your password"
-            />
+            <div className="password-visibility-field">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                required
+                placeholder="Enter your password"
+              />
+              <PasswordVisibilityButton visible={showPassword} onToggle={() => setShowPassword((current) => !current)} fieldName="new account password" />
+            </div>
           </div>
 
-          <div style={{ marginBottom: '1.5rem' }}>
+          <div className="auth-form-field" style={{ marginBottom: '1.5rem' }}>
             <label style={{ 
               display: 'block',
               fontSize: '0.875rem',
@@ -185,36 +170,19 @@ export default function CreateAccount() {
             }}>
               Confirm Password
             </label>
-            <input 
-              type="password" 
-              value={confirmPassword} 
-              onChange={e => setConfirmPassword(e.target.value)} 
-              required 
-              style={{
-                width: '100%',
-                padding: '0.75rem 1rem',
-                border: '2px solid #e5e7eb',
-                borderRadius: '8px',
-                fontSize: '1rem',
-                transition: 'all 0.2s ease',
-                outline: 'none',
-                backgroundColor: '#fafafa'
-              }}
-              onFocus={(e) => {
-                e.target.style.borderColor = '#667eea';
-                e.target.style.backgroundColor = 'white';
-                e.target.style.boxShadow = '0 0 0 3px rgba(102, 126, 234, 0.1)';
-              }}
-              onBlur={(e) => {
-                e.target.style.borderColor = '#e5e7eb';
-                e.target.style.backgroundColor = '#fafafa';
-                e.target.style.boxShadow = 'none';
-              }}
-              placeholder="Confirm your password"
-            />
+            <div className="password-visibility-field">
+              <input
+                type={showConfirmPassword ? 'text' : 'password'}
+                value={confirmPassword}
+                onChange={e => setConfirmPassword(e.target.value)}
+                required
+                placeholder="Confirm your password"
+              />
+              <PasswordVisibilityButton visible={showConfirmPassword} onToggle={() => setShowConfirmPassword((current) => !current)} fieldName="password confirmation" />
+            </div>
           </div>
 
-          <button 
+          <button className="auth-submit"
             type="submit" 
             disabled={loading} 
             style={{ 
@@ -251,7 +219,7 @@ export default function CreateAccount() {
         </form>
 
         {/* Footer Links */}
-        <div style={{ 
+        <div className="auth-footer" style={{
           marginTop: '2rem', 
           textAlign: 'center',
           paddingTop: '1.5rem',

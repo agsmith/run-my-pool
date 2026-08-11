@@ -822,6 +822,15 @@ table {
 .broadcast-v2--auth .auth-brand h1 b { color:var(--ice); font-weight:inherit; }
 .broadcast-v2--auth .auth-brand__mark { width:31px; height:34px; color:var(--lime); border-width:2px; }
 .broadcast-v2--auth .auth-brand p { margin:0!important; color:#aab8b9!important; font-family:Inter,ui-sans-serif,system-ui,sans-serif; font-size:.78rem!important; font-weight:800!important; letter-spacing:.12em; text-transform:uppercase; }
+.broadcast-v2--auth .auth-card--create { max-width:500px!important; }
+.broadcast-v2--auth .auth-form-field label { color:#d8e1df!important; font-size:.76rem!important; font-weight:850!important; letter-spacing:.07em; text-transform:uppercase; }
+.broadcast-v2--auth .auth-form-field input { width:100%!important; color:var(--ink)!important; background:#0c1416!important; border:1px solid #3a4b4f!important; border-radius:2px!important; }
+.broadcast-v2--auth .auth-submit { color:#091012!important; background:var(--lime)!important; border:1px solid var(--lime)!important; border-radius:2px!important; box-shadow:0 10px 26px rgba(215,255,63,.13)!important; font-size:.78rem!important; font-weight:950!important; letter-spacing:.075em!important; text-transform:uppercase; }
+.broadcast-v2--auth .auth-submit:hover:not(:disabled) { background:#e1ff68!important; filter:none; }
+.broadcast-v2--auth .auth-submit:disabled { color:#718083!important; background:#26363a!important; border-color:#35484c!important; }
+.broadcast-v2--auth .auth-footer { border-color:#314449!important; }
+.broadcast-v2--auth .auth-footer a { color:var(--ice)!important; font-size:.78rem!important; font-weight:850; letter-spacing:.035em; text-transform:uppercase; }
+.broadcast-v2--auth .auth-notice { border-radius:2px!important; }
 .password-visibility-field { position:relative; width:100%; }
 .password-visibility-field > input { width:100%; padding-right:3.25rem!important; }
 .password-visibility-toggle {
