@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from passlib.context import CryptContext
 from jose import jwt, JWTError
 from datetime import datetime, timedelta, timezone
+import hashlib
 import models
 import schemas
 import deps
@@ -10,14 +11,11 @@ import os
 import uuid
 from audit_utils import log_create_operation, log_authentication_event, log_update_operation
 
-SECRET_KEY = os.getenv("SECRET_KEY", "supersecretkey")
+SECRET_KEY = os.environ["SECRET_KEY"]
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24
-
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
-router = APIRouter(prefix="/auth", tags=["auth"])
-ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24
+LOGIN_ATTEMPT_LIMIT = 5
+LOGIN_ATTEMPT_WINDOW = timedelta(minutes=15)
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -31,6 +29,7 @@ def get_password_hash(password):
 
 def create_access_token(data: dict, expires_delta: timedelta = None):
     to_encode = data.copy()
+    to_encode.setdefault("type", "access")
     expire = datetime.now(timezone.utc).replace(tzinfo=None) + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
@@ -78,9 +77,20 @@ def register(user: schemas.UserCreate, db: Session = Depends(deps.get_db)):
         raise HTTPException(status_code=400, detail=str(e))
 
 @router.post("/login")
-def login(user: schemas.UserCreate, db: Session = Depends(deps.get_db)):
+def login(user: schemas.LoginRequest, db: Session = Depends(deps.get_db)):
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    window_start = now - LOGIN_ATTEMPT_WINDOW
+    recent_failures = db.query(models.LoginAttempt).filter(
+        models.LoginAttempt.email == str(user.email),
+        models.LoginAttempt.attempted_at >= window_start,
+    ).count()
+    if recent_failures >= LOGIN_ATTEMPT_LIMIT:
+        raise HTTPException(status_code=429, detail="Too many login attempts. Try again later.")
+
     db_user = db.query(models.User).filter(models.User.email == user.email).first()
-    if not db_user or not verify_password(user.password, db_user.hashed_password):
+    if not db_user or not db_user.is_active or not verify_password(user.password, db_user.hashed_password):
+        db.add(models.LoginAttempt(id=str(uuid.uuid4()), email=str(user.email), attempted_at=now))
+        db.commit()
         # Log failed login attempt
         log_authentication_event(
             db=db,
@@ -89,6 +99,9 @@ def login(user: schemas.UserCreate, db: Session = Depends(deps.get_db)):
             additional_info={"reason": "invalid_credentials"}
         )
         raise HTTPException(status_code=401, detail="Invalid credentials")
+
+    db.query(models.LoginAttempt).filter(models.LoginAttempt.email == str(user.email)).delete()
+    db.commit()
     
     # Log successful login
     log_authentication_event(
@@ -121,10 +134,9 @@ def forgot_password(request: schemas.ForgotPasswordRequest, db: Session = Depend
                 expires_delta=timedelta(hours=1)
             )
             
-            # In a real application, you would send an email here
-            # For now, we'll just log the reset token
-            print(f"Password reset token for {request.email}: {reset_token}")
-            print(f"Reset URL would be: {os.getenv('FRONTEND_URL', 'http://localhost:3000')}/reset-password?token={reset_token}")
+            # Token delivery belongs in the configured email provider. Never
+            # expose bearer reset credentials through application logs.
+            _ = reset_token
         
         # Always return success message regardless of whether email exists
         return {"message": "If an account with that email exists, you will receive a password reset link shortly."}
@@ -145,6 +157,10 @@ def reset_password(request: schemas.ResetPasswordRequest, db: Session = Depends(
         
         if not email or token_type != "password_reset":
             raise HTTPException(status_code=400, detail="Invalid reset token")
+
+        token_digest = hashlib.sha256(request.token.encode("utf-8")).hexdigest()
+        if db.query(models.UsedPasswordResetToken).filter_by(token_digest=token_digest).first():
+            raise HTTPException(status_code=400, detail="Reset token has already been used")
         
         # Find the user
         db_user = db.query(models.User).filter(models.User.email == email).first()
@@ -154,7 +170,7 @@ def reset_password(request: schemas.ResetPasswordRequest, db: Session = Depends(
         # Update the password
         db_user.hashed_password = get_password_hash(request.new_password)
         db_user.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
-        
+        db.add(models.UsedPasswordResetToken(token_digest=token_digest, used_at=db_user.updated_at))
         db.commit()
         
         # Log password reset
@@ -169,6 +185,8 @@ def reset_password(request: schemas.ResetPasswordRequest, db: Session = Depends(
         return {"message": "Password reset successfully"}
     except JWTError:
         raise HTTPException(status_code=400, detail="Invalid or expired reset token")
+    except HTTPException:
+        raise
     except Exception as e:
         print(f"Reset password error: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal server error")

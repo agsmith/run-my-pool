@@ -1,5 +1,6 @@
 import pytest
 from fastapi.testclient import TestClient
+from main import app
 
 
 def test_read_root(client):
@@ -19,11 +20,9 @@ def test_health_check(client):
 class TestApplication:
     """Test application configuration"""
     
-    def test_app_title(self, client):
+    def test_app_title(self):
         """Test that the app has correct title"""
-        response = client.get("/docs")
-        assert response.status_code == 200
-        # The docs page should be accessible (indicates FastAPI is configured correctly)
+        assert app.title == "RunMyPool API"
     
     def test_cors_headers(self, client):
         """Test that CORS headers are present"""

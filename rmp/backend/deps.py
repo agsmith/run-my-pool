@@ -6,7 +6,7 @@ from database import SessionLocal
 import models
 import os
 
-SECRET_KEY = os.getenv("SECRET_KEY", "supersecretkey")
+SECRET_KEY = os.environ["SECRET_KEY"]
 ALGORITHM = "HS256"
 
 security = HTTPBearer()
@@ -27,18 +27,19 @@ def get_current_user(
         token = credentials.credentials
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         email = payload.get("sub")
+        token_type = payload.get("type")
         
-        if not email:
+        if not email or token_type != "access":
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid authentication credentials"
             )
         
         user = db.query(models.User).filter(models.User.email == email).first()
-        if not user:
+        if not user or not user.is_active:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="User not found"
+                detail="User is unavailable"
             )
         
         return user

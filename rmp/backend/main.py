@@ -14,7 +14,24 @@ from weekly_locks import process_due_weekly_locks
 # Database schema is managed by Alembic migrations.
 # Run `alembic upgrade head` before starting the server to apply any pending migrations.
 
-app = FastAPI(title="RunMyPool API")
+docs_enabled = os.getenv("ENABLE_API_DOCS", "0") == "1"
+app = FastAPI(
+    title="RunMyPool API",
+    docs_url="/docs" if docs_enabled else None,
+    redoc_url="/redoc" if docs_enabled else None,
+    openapi_url="/openapi.json" if docs_enabled else None,
+)
+
+
+@app.middleware("http")
+async def add_security_headers(request, call_next):
+    response = await call_next(request)
+    response.headers["Content-Security-Policy"] = "default-src 'none'; frame-ancestors 'none'"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+    return response
 
 # Get CORS origins from environment variable
 cors_origins = os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")

@@ -153,6 +153,19 @@ class AuditLog(Base):
     created_at = Column(DateTime)
 
 
+class UsedPasswordResetToken(Base):
+    __tablename__ = "used_password_reset_tokens"
+    token_digest = Column(String(64), primary_key=True)
+    used_at = Column(DateTime, nullable=False)
+
+
+class LoginAttempt(Base):
+    __tablename__ = "login_attempts"
+    id = Column(String(36), primary_key=True)
+    email = Column(String(255), index=True, nullable=False)
+    attempted_at = Column(DateTime, index=True, nullable=False)
+
+
 class MessageBoard(Base):
     __tablename__ = "message_board"
     id = Column(String(36), primary_key=True, index=True)

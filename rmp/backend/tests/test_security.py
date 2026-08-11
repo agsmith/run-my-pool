@@ -541,14 +541,7 @@ class TestPasswordReset:
             f"First reset-password call failed: {resp1.status_code}: {resp1.text}"
         )
 
-        # Second use — should fail (400/401) but currently succeeds (200)
-        # because there is no token blacklist.
+        # Second use must be rejected.
         resp2 = client.post("/auth/reset-password", json=payload_first)
 
-        # Current (broken) behaviour: 200 — token reuse is not blocked.
-        # When a blacklist is added, update this assertion to:
-        #   assert resp2.status_code in (400, 401)
-        assert resp2.status_code == 200, (
-            "BUG changed: reset token reuse is now rejected. "
-            "Update this test to assert 400 or 401 on second use."
-        )
+        assert resp2.status_code in (400, 401)
