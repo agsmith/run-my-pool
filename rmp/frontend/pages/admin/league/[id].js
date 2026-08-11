@@ -6,46 +6,8 @@ import { PoolWorkspaceNav, WorkspaceHeader } from '../../../components/ProductWo
 import AdminUserOverview from '../../../components/AdminUserOverview';
 import AdminAccessControl from '../../../components/AdminAccessControl';
 import OwnershipTransferControl from '../../../components/OwnershipTransferControl';
+import LeagueLockSettings from '../../../components/LeagueLockSettings';
 import { getAuditUsername } from '../../../utils/auditDisplay';
-
-const TIMEZONES = [
-  { label: 'Eastern Time (ET)',   iana: 'America/New_York' },
-  { label: 'Central Time (CT)',   iana: 'America/Chicago' },
-  { label: 'Mountain Time (MT)',  iana: 'America/Denver' },
-  { label: 'Pacific Time (PT)',   iana: 'America/Los_Angeles' },
-  { label: 'UTC',                 iana: 'UTC' },
-];
-const DAYS_OF_WEEK = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-
-function toUtcIso(dateStr, timeStr, ianaTimezone) {
-  // Build a local datetime string and convert to UTC using Intl
-  if (!dateStr || !timeStr) return null;
-  const localDt = new Date(`${dateStr}T${timeStr}:00`);
-  if (isNaN(localDt.getTime())) return null;
-  // Use the timezone to get the UTC offset at that moment
-  const utcMs = localDt.getTime();
-  // Get the local time in the target timezone
-  const fmt = new Intl.DateTimeFormat('en-CA', {
-    timeZone: ianaTimezone,
-    year: 'numeric', month: '2-digit', day: '2-digit',
-    hour: '2-digit', minute: '2-digit', second: '2-digit',
-    hour12: false,
-  });
-  const parts = fmt.formatToParts(localDt);
-  const p = {};
-  parts.forEach(({ type, value }) => { p[type] = value; });
-  const tzLocalMs = new Date(`${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}:${p.second}`).getTime();
-  const offsetMs = utcMs - (tzLocalMs - utcMs + utcMs - tzLocalMs);
-  // Simpler: re-interpret the dateStr+timeStr as if it's in the given tz
-  // Build the ISO by asking what UTC time corresponds to this local time in the tz
-  const guessUtc = new Date(localDt.getTime());
-  const tzTime = new Date(localDt.toLocaleString('en-US', { timeZone: ianaTimezone }));
-  const diff = localDt - tzTime;
-  const utcDate = new Date(localDt.getTime() + diff);
-  // Format as YYYY-MM-DD HH:MM:SS
-  const pad = n => String(n).padStart(2, '0');
-  return `${utcDate.getUTCFullYear()}-${pad(utcDate.getUTCMonth()+1)}-${pad(utcDate.getUTCDate())} ${pad(utcDate.getUTCHours())}:${pad(utcDate.getUTCMinutes())}:${pad(utcDate.getUTCSeconds())}`;
-}
 
 export default function AdminPortal() {
   const [activeSection, setActiveSection] = useState('league-management');
@@ -73,11 +35,6 @@ export default function AdminPortal() {
   const [userOverviewLoading, setUserOverviewLoading] = useState(false);
   const [userOverviewError, setUserOverviewError] = useState('');
 
-  // Lock time state
-  const [lockTimeData, setLockTimeData] = useState({ day: 6, time: '13:00', timezone: 'America/New_York' });
-  const [joinLockData, setJoinLockData] = useState({ date: '', time: '13:00', timezone: 'America/New_York' });
-  const [lockTimeMessage, setLockTimeMessage] = useState('');
-  
   // User lock state
   const [lockMessage, setLockMessage] = useState('');
 
@@ -178,13 +135,6 @@ export default function AdminPortal() {
         const data = await res.json();
         setLeague(data);
         setAccessSettings({ is_private: data.is_private, join_password: '' });
-        if (data.lock_day_of_week !== null && data.lock_day_of_week !== undefined) {
-          setLockTimeData({
-            day: data.lock_day_of_week,
-            time: (data.lock_time_of_day || '13:00').slice(0, 5),
-            timezone: data.lock_timezone || 'America/New_York',
-          });
-        }
       } else {
         setError('Failed to load league details');
       }
@@ -347,35 +297,17 @@ export default function AdminPortal() {
     </aside>
   );
 
-  const handleSetLockTime = async () => {
-    const joinUtcIso = joinLockData.date
-      ? toUtcIso(joinLockData.date, joinLockData.time, joinLockData.timezone)
-      : null;
-    if (joinLockData.date && !joinUtcIso) {
-      setLockTimeMessage('Please enter a valid league lock date and time.');
-      return;
-    }
-    setLockTimeMessage('');
-    try {
-      const token = localStorage.getItem('access_token');
-      const res = await fetch(
-        process.env.NEXT_PUBLIC_API_URL + `/pools/${leagueId}`,
-        {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-          body: JSON.stringify({
-            lock_day_of_week: Number(lockTimeData.day),
-            lock_time_of_day: lockTimeData.time,
-            lock_timezone: lockTimeData.timezone,
-            ...(joinUtcIso ? { join_lock_time: joinUtcIso } : {}),
-          }),
-        }
-      );
-      if (!res.ok) throw new Error('Failed to update lock time');
-      setLockTimeMessage('Weekly pick lock and league registration deadline saved.');
-    } catch {
-      setLockTimeMessage('Failed to set lock time.');
-    }
+  const handleSaveLockSettings = async (updates) => {
+    const token = localStorage.getItem('access_token');
+    const res = await fetch(process.env.NEXT_PUBLIC_API_URL + `/pools/${leagueId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify(updates),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.detail || 'Unable to update lock settings.');
+    setLeague(data);
+    return data;
   };
 
   const handleDeleteEntry = async () => {
@@ -555,84 +487,7 @@ export default function AdminPortal() {
         </div>
       </div>
 
-      {/* Weekly Pick and League Join Locks */}
-      <div style={{ marginBottom: '3rem' }}>
-        <h4 style={{ color: '#2d3748', marginBottom: '1rem' }}>Pool Lock Time</h4>
-        <div style={{ backgroundColor: 'white', padding: '1.5rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
-            <div>
-              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500', color: '#374151' }}>Day of Week</label>
-              <select
-                value={lockTimeData.day}
-                onChange={e => setLockTimeData({ ...lockTimeData, day: Number(e.target.value) })}
-                style={{ width: '100%', padding: '0.75rem', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '1rem' }}
-              >
-                {DAYS_OF_WEEK.map((day, index) => <option key={day} value={index}>{day}</option>)}
-              </select>
-            </div>
-            <div>
-              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500', color: '#374151' }}>Time</label>
-              <select
-                value={lockTimeData.time}
-                onChange={e => setLockTimeData({ ...lockTimeData, time: e.target.value })}
-                style={{ width: '100%', padding: '0.75rem', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '1rem' }}
-              >
-                {Array.from({ length: 48 }, (_, i) => {
-                  const h = Math.floor(i / 2);
-                  const m = i % 2 === 0 ? '00' : '30';
-                  const hh = String(h).padStart(2, '0');
-                  const ampm = h < 12 ? 'AM' : 'PM';
-                  const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
-                  return (
-                    <option key={i} value={`${hh}:${m}`}>
-                      {`${h12}:${m} ${ampm}`}
-                    </option>
-                  );
-                })}
-              </select>
-            </div>
-            <div>
-              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500', color: '#374151' }}>Timezone</label>
-              <select
-                value={lockTimeData.timezone}
-                onChange={e => setLockTimeData({ ...lockTimeData, timezone: e.target.value })}
-                style={{ width: '100%', padding: '0.75rem', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '1rem' }}
-              >
-                {TIMEZONES.map(tz => (
-                  <option key={tz.iana} value={tz.iana}>{tz.label}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-          <div style={{ marginTop: '1.4rem', paddingTop: '1.2rem', borderTop: '1px solid #314449' }}>
-            <h4 style={{ margin: '0 0 .35rem' }}>League Lock Time</h4>
-            <p style={{ margin: '0 0 1rem' }}>After this registration deadline, no new users may join or create their first entry.</p>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
-              <div>
-                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Date</label>
-                <input type="date" value={joinLockData.date} onChange={e => setJoinLockData({ ...joinLockData, date: e.target.value })} />
-              </div>
-              <div>
-                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Time</label>
-                <input type="time" value={joinLockData.time} onChange={e => setJoinLockData({ ...joinLockData, time: e.target.value })} />
-              </div>
-              <div>
-                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Timezone</label>
-                <select value={joinLockData.timezone} onChange={e => setJoinLockData({ ...joinLockData, timezone: e.target.value })}>
-                  {TIMEZONES.map(tz => <option key={tz.iana} value={tz.iana}>{tz.label}</option>)}
-                </select>
-              </div>
-            </div>
-          </div>
-          <button
-            onClick={handleSetLockTime}
-            style={{ backgroundColor: '#3b82f6', color: 'white', padding: '0.75rem 1.5rem', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '1rem', fontWeight: '500' }}
-          >
-            Save Lock Settings
-          </button>
-          {lockTimeMessage && <p style={{ marginTop: '0.75rem', fontSize: '0.875rem', color: '#374151' }}>{lockTimeMessage}</p>}
-        </div>
-      </div>
+      <LeagueLockSettings league={league} onSave={handleSaveLockSettings} />
 
       {/* Create League */}
       <div style={{ marginBottom: '3rem' }}>
