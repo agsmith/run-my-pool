@@ -131,6 +131,15 @@ export default function NavBar() {
         >
           Leagues
         </Link>
+        <Link
+          href="/install"
+          style={navStyles.navLink}
+          onClick={closeMobileMenu}
+          onMouseEnter={handleLinkHover}
+          onMouseLeave={handleLinkLeave}
+        >
+          Install App
+        </Link>
         {user ? (
           <>
             <Link 

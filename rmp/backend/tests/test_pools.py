@@ -1,5 +1,6 @@
 import pytest
 from unittest.mock import Mock, patch
+from datetime import datetime, timedelta, timezone
 import models
 
 
@@ -182,6 +183,36 @@ class TestPoolAdminOperations:
 
 
 class TestPoolJoining:
+    def test_join_rejected_after_league_lock_time(self, client):
+        owner = _register(client, "deadline.owner@example.com")
+        past = (datetime.now(timezone.utc) - timedelta(minutes=5)).strftime("%Y-%m-%d %H:%M:%S")
+        pool = client.post(
+            "/pools/create",
+            json={"name": "Closed Pool", "is_private": False, "join_lock_time": past},
+            headers=owner,
+        ).json()
+        member = _register(client, "deadline.member@example.com")
+
+        response = client.post(f"/pools/{pool['id']}/join", json={}, headers=member)
+        assert response.status_code == 423
+        assert response.json()["detail"] == "League registration is closed. Contact the league admin."
+
+    def test_owner_can_save_recurring_weekly_lock(self, client):
+        owner = _register(client, "recurring.owner@example.com")
+        pool = client.post(
+            "/pools/create", json={"name": "Weekly Pool", "is_private": False}, headers=owner
+        ).json()
+
+        response = client.patch(
+            f"/pools/{pool['id']}",
+            json={"lock_day_of_week": 6, "lock_time_of_day": "13:00", "lock_timezone": "America/New_York"},
+            headers=owner,
+        )
+        assert response.status_code == 200, response.text
+        assert response.json()["lock_day_of_week"] == 6
+        assert response.json()["lock_time_of_day"].startswith("13:00")
+        assert response.json()["lock_timezone"] == "America/New_York"
+
     def test_private_pool_creation_requires_password(self, client):
         headers = _register(client, "private.no.password@example.com")
         response = client.post(

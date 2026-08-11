@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/router';
 import ProtectedRoute from '../components/ProtectedRoute';
+import PasswordVisibilityButton from '../components/PasswordVisibilityButton';
 
 export default function Leagues() {
   const router = useRouter();
@@ -11,8 +12,10 @@ export default function Leagues() {
   const [visibility, setVisibility] = useState('all');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [membershipError, setMembershipError] = useState('');
   const [joiningId, setJoiningId] = useState(null);
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [joinError, setJoinError] = useState('');
   const [joinErrorId, setJoinErrorId] = useState(null);
   const [submittingId, setSubmittingId] = useState(null);
@@ -26,10 +29,15 @@ export default function Leagues() {
           fetch(`${process.env.NEXT_PUBLIC_API_URL}/pools/`, { headers }),
           fetch(`${process.env.NEXT_PUBLIC_API_URL}/pools/my-pools`, { headers }),
         ]);
-        if (!allResponse.ok || !mineResponse.ok) throw new Error('Unable to load pools');
-        const [allPools, myPools] = await Promise.all([allResponse.json(), mineResponse.json()]);
+        if (!allResponse.ok) throw new Error('Unable to load pools');
+        const allPools = await allResponse.json();
         setPools(allPools);
-        setJoinedIds(new Set(myPools.map((pool) => pool.id)));
+        if (mineResponse.ok) {
+          const myPools = await mineResponse.json();
+          setJoinedIds(new Set(myPools.map((pool) => pool.id)));
+        } else {
+          setMembershipError('Unable to load your pool memberships. Please try again.');
+        }
       } catch (err) {
         setError(err.message || 'Unable to load pools');
       } finally {
@@ -51,6 +59,7 @@ export default function Leagues() {
     if (pool.is_private && joiningId !== pool.id) {
       setJoiningId(pool.id);
       setPassword('');
+      setShowPassword(false);
       setJoinError('');
       setJoinErrorId(null);
       return;
@@ -74,6 +83,7 @@ export default function Leagues() {
       setJoinedIds((current) => new Set([...current, pool.id]));
       setJoiningId(null);
       setPassword('');
+      setShowPassword(false);
     } catch (err) {
       setJoinError(err.message || 'Unable to join pool');
       setJoinErrorId(pool.id);
@@ -139,6 +149,8 @@ export default function Leagues() {
           <div className="league-directory__state">Loading pools…</div>
         ) : error ? (
           <div className="league-directory__state league-directory__state--error">{error}</div>
+        ) : activeView === 'mine' && membershipError ? (
+          <div className="league-directory__state league-directory__state--error">{membershipError}</div>
         ) : filteredPools.length === 0 ? (
           <div className="league-directory__state">
             {activeView === 'mine' ? 'You have not joined any pools that match these filters.' : 'No pools match this search.'}
@@ -162,16 +174,23 @@ export default function Leagues() {
                   {enteringPassword && !joined && (
                     <div className="league-directory__password">
                       <label htmlFor={`pool-password-${pool.id}`}>Pool password</label>
-                      <input
-                        id={`pool-password-${pool.id}`}
-                        type="password"
-                        value={password}
-                        maxLength={72}
-                        onChange={(event) => setPassword(event.target.value)}
-                        onKeyDown={(event) => event.key === 'Enter' && joinPool(pool)}
-                        autoComplete="off"
-                        autoFocus
-                      />
+                      <div className="password-visibility-field">
+                        <input
+                          id={`pool-password-${pool.id}`}
+                          type={showPassword ? 'text' : 'password'}
+                          value={password}
+                          maxLength={72}
+                          onChange={(event) => setPassword(event.target.value)}
+                          onKeyDown={(event) => event.key === 'Enter' && joinPool(pool)}
+                          autoComplete="off"
+                          autoFocus
+                        />
+                        <PasswordVisibilityButton
+                          visible={showPassword}
+                          onToggle={() => setShowPassword((current) => !current)}
+                          fieldName="pool password"
+                        />
+                      </div>
                       {joinError && <span role="alert">{joinError}</span>}
                     </div>
                   )}
@@ -196,7 +215,7 @@ export default function Leagues() {
                       </button>
                     )}
                     {enteringPassword && !joined && (
-                      <button type="button" onClick={() => { setJoiningId(null); setJoinError(''); setJoinErrorId(null); }}>
+                      <button type="button" onClick={() => { setJoiningId(null); setJoinError(''); setJoinErrorId(null); setShowPassword(false); }}>
                         Cancel
                       </button>
                     )}

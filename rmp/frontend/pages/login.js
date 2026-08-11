@@ -4,6 +4,7 @@ import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { baseStyles, createHoverHandlers, hoverEffects, createFocusHandlers, mobileStyles, getResponsiveStyle } from '../styles/globalStyles';
 import { ResponsiveInput, ResponsiveButton, ResponsiveCard } from '../components/ResponsiveComponents';
+import PasswordVisibilityButton from '../components/PasswordVisibilityButton';
 
 function validateEmail(email) {
   return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email);
@@ -17,6 +18,7 @@ function validatePassword(password) {
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [isMobile, setIsMobile] = useState(false);
@@ -148,13 +150,20 @@ export default function Login() {
             }}>
               Password
             </label>
-            <ResponsiveInput 
-              type="password" 
-              value={password} 
-              onChange={e => setPassword(e.target.value)} 
-              required 
-              placeholder="Enter your password"
-            />
+            <div className="password-visibility-field">
+              <ResponsiveInput
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                required
+                placeholder="Enter your password"
+              />
+              <PasswordVisibilityButton
+                visible={showPassword}
+                onToggle={() => setShowPassword((current) => !current)}
+                fieldName="login password"
+              />
+            </div>
           </div>
 
           <ResponsiveButton 

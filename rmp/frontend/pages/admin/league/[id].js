@@ -12,6 +12,7 @@ const TIMEZONES = [
   { label: 'Pacific Time (PT)',   iana: 'America/Los_Angeles' },
   { label: 'UTC',                 iana: 'UTC' },
 ];
+const DAYS_OF_WEEK = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
 function toUtcIso(dateStr, timeStr, ianaTimezone) {
   // Build a local datetime string and convert to UTC using Intl
@@ -62,9 +63,13 @@ export default function AdminPortal() {
   // User Management State
   const [resetPasswordData, setResetPasswordData] = useState({ username: '' });
   const [resetPasswordMessage, setResetPasswordMessage] = useState('');
+  const [userLockData, setUserLockData] = useState({ email: '', reason: '' });
+  const [userLockStatus, setUserLockStatus] = useState(null);
+  const [userLockMessage, setUserLockMessage] = useState('');
 
   // Lock time state
-  const [lockTimeData, setLockTimeData] = useState({ date: '', time: '13:00', timezone: 'America/New_York' });
+  const [lockTimeData, setLockTimeData] = useState({ day: 6, time: '13:00', timezone: 'America/New_York' });
+  const [joinLockData, setJoinLockData] = useState({ date: '', time: '13:00', timezone: 'America/New_York' });
   const [lockTimeMessage, setLockTimeMessage] = useState('');
   
   // User lock state
@@ -77,9 +82,10 @@ export default function AdminPortal() {
   // Entry Management State
   const [transferEntryData, setTransferEntryData] = useState({ entryId: '', fromUser: '', toUser: '' });
   const [deleteEntryData, setDeleteEntryData] = useState({ entryId: '', username: '' });
-  const [correctPickData, setCorrectPickData] = useState({ username: '', weekNum: '', teamAbbr: '', reason: '' });
+  const [correctPickData, setCorrectPickData] = useState({ entryId: '', weekNum: '', teamAbbr: '', reason: '' });
   const [entryLookupData, setEntryLookupData] = useState({ username: '', entryName: '' });
   const [lookupResults, setLookupResults] = useState([]);
+  const [entryActionMessage, setEntryActionMessage] = useState('');
   
   // Audit Log State
   const [auditSearch, setAuditSearch] = useState({ 
@@ -145,6 +151,13 @@ export default function AdminPortal() {
         const data = await res.json();
         setLeague(data);
         setAccessSettings({ is_private: data.is_private, join_password: '' });
+        if (data.lock_day_of_week !== null && data.lock_day_of_week !== undefined) {
+          setLockTimeData({
+            day: data.lock_day_of_week,
+            time: (data.lock_time_of_day || '13:00').slice(0, 5),
+            timezone: data.lock_timezone || 'America/New_York',
+          });
+        }
       } else {
         setError('Failed to load league details');
       }
@@ -179,54 +192,22 @@ export default function AdminPortal() {
 
     try {
       const token = localStorage.getItem('access_token');
-      // Get all entries for this league
-      const res = await fetch(process.env.NEXT_PUBLIC_API_URL + `/entries/pool/${leagueId}`, {
+      const params = new URLSearchParams();
+      if (entryLookupData.username.trim()) params.set('username', entryLookupData.username.trim());
+      if (entryLookupData.entryName.trim()) params.set('entry_name', entryLookupData.entryName.trim());
+      const res = await fetch(process.env.NEXT_PUBLIC_API_URL + `/admin/pools/${leagueId}/entries?${params}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       
       if (res.ok) {
-        const entries = await res.json();
-        
-        // Filter entries based on search criteria
-        let filteredEntries = entries;
-        
-        if (entryLookupData.username) {
-          // Need to get user data for each entry to match username
-          const entriesWithUsers = await Promise.all(
-            entries.map(async (entry) => {
-              try {
-                const userRes = await fetch(process.env.NEXT_PUBLIC_API_URL + `/users/${entry.user_id}`, {
-                  headers: { 'Authorization': `Bearer ${token}` }
-                });
-                if (userRes.ok) {
-                  const userData = await userRes.json();
-                  return { ...entry, user: userData };
-                }
-                return { ...entry, user: null };
-              } catch {
-                return { ...entry, user: null };
-              }
-            })
-          );
-          
-          filteredEntries = entriesWithUsers.filter(entry => 
-            entry.user && entry.user.username && 
-            entry.user.username.toLowerCase().includes(entryLookupData.username.toLowerCase())
-          );
-        }
-        
-        if (entryLookupData.entryName) {
-          filteredEntries = filteredEntries.filter(entry =>
-            entry.name.toLowerCase().includes(entryLookupData.entryName.toLowerCase())
-          );
-        }
-        
-        setLookupResults(filteredEntries);
+        setLookupResults(await res.json());
+        setEntryActionMessage('Search complete.');
       } else {
-        setError('Failed to fetch entries');
+        const data = await res.json();
+        setEntryActionMessage(data.detail || 'Failed to fetch entries');
       }
     } catch (err) {
-      setError('Error performing lookup');
+      setEntryActionMessage('Error performing lookup');
       console.error('Entry lookup error:', err);
     }
   };
@@ -262,7 +243,7 @@ export default function AdminPortal() {
 
   const handleTransferEntry = async () => {
     if (!transferEntryData.entryId || !transferEntryData.toUser) {
-      setError('Please enter both entry ID and new owner username');
+      setEntryActionMessage('Please enter both entry ID and new owner email');
       return;
     }
 
@@ -276,21 +257,21 @@ export default function AdminPortal() {
         },
         body: JSON.stringify({
           entry_id: transferEntryData.entryId,
-          to_username: transferEntryData.toUser
+          to_email: transferEntryData.toUser
         })
       });
       
       if (res.ok) {
         const result = await res.json();
-        alert(`Success: ${result.message}`);
+        setEntryActionMessage(result.message);
         // Clear the form
         setTransferEntryData({ entryId: '', fromUser: '', toUser: '' });
       } else {
         const errorData = await res.json();
-        setError(`Transfer failed: ${errorData.detail}`);
+        setEntryActionMessage(`Transfer failed: ${errorData.detail}`);
       }
     } catch (err) {
-      setError('Error transferring entry');
+      setEntryActionMessage('Error transferring entry');
       console.error('Transfer error:', err);
     }
   };
@@ -340,27 +321,71 @@ export default function AdminPortal() {
   );
 
   const handleSetLockTime = async () => {
-    const utcIso = toUtcIso(lockTimeData.date, lockTimeData.time, lockTimeData.timezone);
-    if (!utcIso) {
-      setLockTimeMessage('Please enter a valid date and time.');
+    const joinUtcIso = joinLockData.date
+      ? toUtcIso(joinLockData.date, joinLockData.time, joinLockData.timezone)
+      : null;
+    if (joinLockData.date && !joinUtcIso) {
+      setLockTimeMessage('Please enter a valid league lock date and time.');
       return;
     }
     setLockTimeMessage('');
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('access_token');
       const res = await fetch(
         process.env.NEXT_PUBLIC_API_URL + `/pools/${leagueId}`,
         {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-          body: JSON.stringify({ lock_time: utcIso }),
+          body: JSON.stringify({
+            lock_day_of_week: Number(lockTimeData.day),
+            lock_time_of_day: lockTimeData.time,
+            lock_timezone: lockTimeData.timezone,
+            ...(joinUtcIso ? { join_lock_time: joinUtcIso } : {}),
+          }),
         }
       );
       if (!res.ok) throw new Error('Failed to update lock time');
-      setLockTimeMessage(`Lock time set to ${utcIso} UTC`);
+      setLockTimeMessage('Weekly pick lock and league registration deadline saved.');
     } catch {
       setLockTimeMessage('Failed to set lock time.');
     }
+  };
+
+  const handleDeleteEntry = async () => {
+    if (!deleteEntryData.entryId.trim()) {
+      setEntryActionMessage('Enter an entry ID to delete.');
+      return;
+    }
+    try {
+      const token = localStorage.getItem('access_token');
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/pools/${leagueId}/entries/${deleteEntryData.entryId.trim()}`, {
+        method: 'DELETE', headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || 'Unable to delete entry');
+      setEntryActionMessage(data.message);
+      setDeleteEntryData({ entryId: '', username: '' });
+      setLookupResults((current) => current.filter((entry) => entry.id !== deleteEntryData.entryId.trim()));
+    } catch (err) { setEntryActionMessage(err.message || 'Unable to delete entry'); }
+  };
+
+  const handleCorrectPick = async () => {
+    if (!correctPickData.entryId.trim() || !correctPickData.weekNum || !correctPickData.teamAbbr.trim()) {
+      setEntryActionMessage('Entry ID, week, and team are required.');
+      return;
+    }
+    try {
+      const token = localStorage.getItem('access_token');
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/pools/${leagueId}/entries/${correctPickData.entryId.trim()}/weeks/${correctPickData.weekNum}/pick`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ team: correctPickData.teamAbbr.trim().toUpperCase(), reason: correctPickData.reason.trim() || null }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || 'Unable to correct pick');
+      setEntryActionMessage(`Week ${data.week} pick corrected to ${data.team}.`);
+      setCorrectPickData({ entryId: '', weekNum: '', teamAbbr: '', reason: '' });
+    } catch (err) { setEntryActionMessage(err.message || 'Unable to correct pick'); }
   };
 
   const handleToggleUserLock = async (userId, currentlyLocked) => {
@@ -503,19 +528,20 @@ export default function AdminPortal() {
         </div>
       </div>
 
-      {/* Pool Lock Time */}
+      {/* Weekly Pick and League Join Locks */}
       <div style={{ marginBottom: '3rem' }}>
         <h4 style={{ color: '#2d3748', marginBottom: '1rem' }}>Pool Lock Time</h4>
         <div style={{ backgroundColor: 'white', padding: '1.5rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
             <div>
-              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500', color: '#374151' }}>Date</label>
-              <input
-                type="date"
-                value={lockTimeData.date}
-                onChange={e => setLockTimeData({ ...lockTimeData, date: e.target.value })}
+              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500', color: '#374151' }}>Day of Week</label>
+              <select
+                value={lockTimeData.day}
+                onChange={e => setLockTimeData({ ...lockTimeData, day: Number(e.target.value) })}
                 style={{ width: '100%', padding: '0.75rem', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '1rem' }}
-              />
+              >
+                {DAYS_OF_WEEK.map((day, index) => <option key={day} value={index}>{day}</option>)}
+              </select>
             </div>
             <div>
               <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500', color: '#374151' }}>Time</label>
@@ -551,11 +577,31 @@ export default function AdminPortal() {
               </select>
             </div>
           </div>
+          <div style={{ marginTop: '1.4rem', paddingTop: '1.2rem', borderTop: '1px solid #314449' }}>
+            <h4 style={{ margin: '0 0 .35rem' }}>League Lock Time</h4>
+            <p style={{ margin: '0 0 1rem' }}>After this registration deadline, no new users may join or create their first entry.</p>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+              <div>
+                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Date</label>
+                <input type="date" value={joinLockData.date} onChange={e => setJoinLockData({ ...joinLockData, date: e.target.value })} />
+              </div>
+              <div>
+                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Time</label>
+                <input type="time" value={joinLockData.time} onChange={e => setJoinLockData({ ...joinLockData, time: e.target.value })} />
+              </div>
+              <div>
+                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Timezone</label>
+                <select value={joinLockData.timezone} onChange={e => setJoinLockData({ ...joinLockData, timezone: e.target.value })}>
+                  {TIMEZONES.map(tz => <option key={tz.iana} value={tz.iana}>{tz.label}</option>)}
+                </select>
+              </div>
+            </div>
+          </div>
           <button
             onClick={handleSetLockTime}
             style={{ backgroundColor: '#3b82f6', color: 'white', padding: '0.75rem 1.5rem', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '1rem', fontWeight: '500' }}
           >
-            Set Lock Time
+            Save Lock Settings
           </button>
           {lockTimeMessage && <p style={{ marginTop: '0.75rem', fontSize: '0.875rem', color: '#374151' }}>{lockTimeMessage}</p>}
         </div>
@@ -775,11 +821,65 @@ export default function AdminPortal() {
     }
   };
 
+  const handleUserLockLookup = async () => {
+    if (!userLockData.email.trim()) return;
+    setUserLockMessage('');
+    try {
+      const token = localStorage.getItem('access_token');
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/pools/${leagueId}/user-lock?email=${encodeURIComponent(userLockData.email.trim())}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || 'Unable to find user');
+      setUserLockStatus(data);
+      setUserLockData((current) => ({ ...current, email: data.email, reason: data.reason || '' }));
+      setUserLockMessage(data.locked ? 'This user is locked in this league.' : 'This user is active in this league.');
+    } catch (err) { setUserLockStatus(null); setUserLockMessage(err.message || 'Unable to find user'); }
+  };
+
+  const handleSetUserLock = async (locked) => {
+    try {
+      const token = localStorage.getItem('access_token');
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/pools/${leagueId}/user-lock`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ email: userLockData.email.trim(), locked, reason: userLockData.reason.trim() || null }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || 'Unable to update user lock');
+      setUserLockStatus(data);
+      setUserLockMessage(locked ? 'User locked in this league.' : 'User unlocked in this league.');
+    } catch (err) { setUserLockMessage(err.message || 'Unable to update user lock'); }
+  };
+
   const renderUserManagement = () => (
     <div className="admin-section admin-section--users" style={{ flex: 1 }}>
       <h3 style={{ color: '#1a202c', marginTop: 0, marginBottom: '2rem' }}>
         User Management
       </h3>
+
+      <div style={{ marginBottom: '3rem' }}>
+        <h4>Lock User Account</h4>
+        <div>
+          <p>Prevent a user from creating, deleting, or changing entries and picks in this league. Their login and other leagues remain available.</p>
+          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+            <div>
+              <label>Email Address</label>
+              <input type="email" value={userLockData.email} onChange={(e) => { setUserLockData({ ...userLockData, email: e.target.value }); setUserLockStatus(null); }} placeholder="player@example.com" />
+            </div>
+            <div>
+              <label>Reason</label>
+              <input type="text" value={userLockData.reason} onChange={(e) => setUserLockData({ ...userLockData, reason: e.target.value })} placeholder="Optional reason" />
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: '.6rem', flexWrap: 'wrap' }}>
+            <button type="button" onClick={handleUserLockLookup}>Find User</button>
+            <button type="button" disabled={!userLockStatus || userLockStatus.locked} onClick={() => handleSetUserLock(true)}>Lock User</button>
+            <button type="button" disabled={!userLockStatus || !userLockStatus.locked} onClick={() => handleSetUserLock(false)}>Unlock User</button>
+          </div>
+          {userLockMessage && <p role="status" style={{ marginTop: '.8rem' }}>{userLockMessage}</p>}
+        </div>
+      </div>
       
       {/* Reset User Password */}
       <div style={{ marginBottom: '3rem' }}>
@@ -1010,6 +1110,7 @@ export default function AdminPortal() {
       <h3 style={{ color: '#1a202c', marginTop: 0, marginBottom: '2rem' }}>
         Entry Management
       </h3>
+      {entryActionMessage && <div className="admin-entry-feedback" role="status">{entryActionMessage}</div>}
       
       {/* CSV Export */}
       <div style={{ marginBottom: '3rem' }}>
@@ -1018,7 +1119,8 @@ export default function AdminPortal() {
           <p style={{ color: '#4a5568', marginBottom: '1rem' }}>Download a CSV of all participant emails and entry names for this pool.</p>
           <button
             onClick={async () => {
-              const token = localStorage.getItem('token');
+              setEntryActionMessage('Preparing export…');
+              const token = localStorage.getItem('access_token');
               const res = await fetch(
                 process.env.NEXT_PUBLIC_API_URL + `/admin/pools/${leagueId}/export/entries.csv`,
                 { headers: { Authorization: `Bearer ${token}` } }
@@ -1031,6 +1133,10 @@ export default function AdminPortal() {
                 a.download = 'entries.csv';
                 a.click();
                 URL.revokeObjectURL(url);
+                setEntryActionMessage('Entries CSV downloaded.');
+              } else {
+                const data = await res.json();
+                setEntryActionMessage(data.detail || 'Unable to export entries.');
               }
             }}
             style={{ backgroundColor: '#059669', color: 'white', padding: '0.75rem 1.5rem', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '1rem', fontWeight: '500' }}
@@ -1154,11 +1260,7 @@ export default function AdminPortal() {
                     <div>
                       <strong>Entry ID:</strong> <code style={{ backgroundColor: '#f3f4f6', padding: '2px 6px', borderRadius: '3px' }}>{entry.id}</code><br/>
                       <strong>Entry Name:</strong> {entry.name}<br/>
-                      {entry.user && (
-                        <>
-                          <strong>Owner:</strong> {entry.user.username} ({entry.user.email})
-                        </>
-                      )}
+                      <strong>Owner:</strong> {entry.owner_email}
                       <div style={{ marginTop: '0.5rem' }}>
                         <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
                           <input
@@ -1238,7 +1340,7 @@ export default function AdminPortal() {
             </div>
             <div>
               <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500', color: '#374151' }}>
-                From User
+                Current Owner (reference)
               </label>
               <input
                 type="text"
@@ -1256,13 +1358,13 @@ export default function AdminPortal() {
             </div>
             <div>
               <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500', color: '#374151' }}>
-                To User
+                New Owner Email
               </label>
               <input
                 type="text"
                 value={transferEntryData.toUser}
                 onChange={(e) => setTransferEntryData({...transferEntryData, toUser: e.target.value})}
-                placeholder="New owner username"
+                placeholder="new-owner@example.com"
                 style={{
                   width: '100%',
                   padding: '0.75rem',
@@ -1321,7 +1423,7 @@ export default function AdminPortal() {
             </div>
             <div>
               <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500', color: '#374151' }}>
-                Username
+                Owner Email (reference)
               </label>
               <input
                 type="text"
@@ -1346,9 +1448,10 @@ export default function AdminPortal() {
             marginBottom: '1rem',
             fontSize: '0.875rem'
           }}>
-            ⚠️ Warning: This will permanently delete the entry and all associated picks. This action cannot be undone.
+            Warning: This will permanently delete the entry and all associated picks. This action cannot be undone.
           </div>
           <button
+            onClick={handleDeleteEntry}
             style={{
               backgroundColor: '#dc2626',
               color: 'white',
@@ -1377,13 +1480,13 @@ export default function AdminPortal() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
             <div>
               <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500', color: '#374151' }}>
-                Username
+                Entry ID
               </label>
               <input
                 type="text"
-                value={correctPickData.username}
-                onChange={(e) => setCorrectPickData({...correctPickData, username: e.target.value})}
-                placeholder="Enter username"
+                value={correctPickData.entryId}
+                onChange={(e) => setCorrectPickData({...correctPickData, entryId: e.target.value})}
+                placeholder="Enter entry ID"
                 style={{
                   width: '100%',
                   padding: '0.75rem',
@@ -1452,6 +1555,7 @@ export default function AdminPortal() {
             />
           </div>
           <button
+            onClick={handleCorrectPick}
             style={{
               backgroundColor: '#f59e0b',
               color: 'white',

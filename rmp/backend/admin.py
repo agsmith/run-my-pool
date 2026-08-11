@@ -143,6 +143,45 @@ def transfer_entry(
     }
 
 
+@router.get("/pools/{pool_id}/entries")
+def search_entries_admin(
+    pool_id: str,
+    username: Optional[str] = None,
+    entry_name: Optional[str] = None,
+    db: Session = Depends(deps.get_db),
+    current_user: models.User = Depends(deps.get_current_user),
+):
+    """Search pool entries with owner information for commissioner workflows."""
+    if not verify_admin_access(pool_id, current_user, db):
+        raise HTTPException(status_code=403, detail="Admin access required")
+
+    query = (
+        db.query(models.Entry, models.User)
+        .join(models.User, models.User.id == models.Entry.user_id)
+        .filter(models.Entry.pool_id == pool_id)
+    )
+    if username:
+        query = query.filter(models.User.email.ilike(f"%{username.strip()}%"))
+    if entry_name:
+        query = query.filter(models.Entry.name.ilike(f"%{entry_name.strip()}%"))
+
+    rows = query.order_by(models.User.email, models.Entry.name).limit(200).all()
+    locked_users = {
+        item.user_id
+        for item in db.query(models.PoolUserLock).filter(models.PoolUserLock.pool_id == pool_id).all()
+    }
+    return [
+        {
+            "id": entry.id,
+            "name": entry.name,
+            "user_id": user.id,
+            "owner_email": user.email,
+            "locked": user.id in locked_users,
+        }
+        for entry, user in rows
+    ]
+
+
 @router.delete("/pools/{pool_id}/entries/{entry_id}")
 def delete_entry_admin(
     pool_id: str,
@@ -177,6 +216,9 @@ def delete_entry_admin(
     entry_name = entry.name
     entry_user_id = entry.user_id
 
+    db.query(models.Pick).filter(models.Pick.entry_id == entry_id).delete(
+        synchronize_session=False
+    )
     db.delete(entry)
     db.commit()
 
@@ -418,6 +460,69 @@ def admin_update_pick(
     return pick
 
 
+@router.patch("/pools/{pool_id}/entries/{entry_id}/weeks/{week}/pick", response_model=schemas.PickOut)
+def correct_entry_pick(
+    pool_id: str,
+    entry_id: str,
+    week: int,
+    correction: schemas.AdminPickCorrection,
+    db: Session = Depends(deps.get_db),
+    current_user: models.User = Depends(deps.get_current_user),
+):
+    """Correct the existing pick for an entry/week without requiring its pick ID."""
+    if not verify_admin_access(pool_id, current_user, db):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    if week not in range(1, 19):
+        raise HTTPException(status_code=400, detail="Week must be between 1 and 18")
+
+    entry = db.query(models.Entry).filter(
+        models.Entry.id == entry_id,
+        models.Entry.pool_id == pool_id,
+    ).first()
+    if not entry:
+        raise HTTPException(status_code=404, detail="Entry not found in this pool")
+    pick = db.query(models.Pick).filter(
+        models.Pick.entry_id == entry_id,
+        models.Pick.week == week,
+    ).first()
+    if not pick:
+        raise HTTPException(status_code=404, detail="No pick exists for this entry and week")
+
+    conflict = db.query(models.Pick).filter(
+        models.Pick.entry_id == entry_id,
+        models.Pick.team == correction.team.upper(),
+        models.Pick.id != pick.id,
+    ).first()
+    if conflict:
+        raise HTTPException(status_code=400, detail=f"Team {correction.team.upper()} already used in week {conflict.week}")
+
+    old_team = pick.team
+    pick.team = correction.team.upper()
+    pick.locked = True
+    pick.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
+    db.commit()
+    db.refresh(pick)
+    log_admin_action(
+        db=db,
+        action="ADMIN_PICK_EDIT",
+        admin_user_id=current_user.id,
+        details=f"Changed pick from {old_team} to {pick.team} for entry {entry.name} week {week}",
+        target_entity_type="pick",
+        target_entity_id=pick.id,
+        additional_data={
+            "pool_id": pool_id,
+            "entry_id": entry_id,
+            "entry_name": entry.name,
+            "week": week,
+            "old_team": old_team,
+            "new_team": pick.team,
+            "reason": correction.reason,
+            "admin_email": current_user.email,
+        },
+    )
+    return pick
+
+
 # ---------------------------------------------------------------------------
 # Pool user lock helpers and endpoints
 # ---------------------------------------------------------------------------
@@ -433,6 +538,71 @@ def is_user_locked_in_pool(db: Session, pool_id: str, user_id: str) -> bool:
         )
         .first()
     ) is not None
+
+
+@router.get("/pools/{pool_id}/user-lock")
+def get_user_lock_by_email(
+    pool_id: str,
+    email: str,
+    db: Session = Depends(deps.get_db),
+    current_user: models.User = Depends(deps.get_current_user),
+):
+    if not verify_admin_access(pool_id, current_user, db):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    user = db.query(models.User).filter(models.User.email == email.strip()).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    lock = db.query(models.PoolUserLock).filter(
+        models.PoolUserLock.pool_id == pool_id,
+        models.PoolUserLock.user_id == user.id,
+    ).first()
+    return {
+        "user_id": user.id,
+        "email": user.email,
+        "locked": lock is not None,
+        "reason": lock.reason if lock else None,
+    }
+
+
+@router.put("/pools/{pool_id}/user-lock")
+def set_user_lock_by_email(
+    pool_id: str,
+    request: schemas.PoolUserLockByEmail,
+    db: Session = Depends(deps.get_db),
+    current_user: models.User = Depends(deps.get_current_user),
+):
+    if not verify_admin_access(pool_id, current_user, db):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    user = db.query(models.User).filter(models.User.email == request.email).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    lock = db.query(models.PoolUserLock).filter(
+        models.PoolUserLock.pool_id == pool_id,
+        models.PoolUserLock.user_id == user.id,
+    ).first()
+    if request.locked and not lock:
+        lock = models.PoolUserLock(
+            pool_id=pool_id,
+            user_id=user.id,
+            locked_at=datetime.now(timezone.utc).replace(tzinfo=None),
+            reason=request.reason,
+        )
+        db.add(lock)
+    elif request.locked and lock:
+        lock.reason = request.reason
+    elif not request.locked and lock:
+        db.delete(lock)
+    db.commit()
+    log_admin_action(
+        db=db,
+        action="LOCK_USER_IN_POOL" if request.locked else "UNLOCK_USER_IN_POOL",
+        admin_user_id=current_user.id,
+        details=f"{'Locked' if request.locked else 'Unlocked'} user {user.email} in pool {pool_id}",
+        target_entity_type="user",
+        target_entity_id=user.id,
+        additional_data={"pool_id": pool_id, "reason": request.reason, "admin_email": current_user.email},
+    )
+    return {"user_id": user.id, "email": user.email, "locked": request.locked, "reason": request.reason if request.locked else None}
 
 
 @router.post(

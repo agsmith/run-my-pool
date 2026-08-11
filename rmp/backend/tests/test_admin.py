@@ -88,6 +88,81 @@ def _create_pick(db_session, entry_id, week, team, locked=False):
 class TestAdminEndpoints:
     """Integration tests for the admin router."""
 
+    def test_admin_searches_entries_with_owner_email(self, client):
+        owner_token = _register_and_login(client, "search.owner@example.com")
+        headers = _authed(owner_token)
+        pool_id = _create_pool(client, headers)
+        entry_id = _create_entry(client, headers, pool_id, "Alpha Entry")
+
+        response = client.get(
+            f"/admin/pools/{pool_id}/entries?username=search.owner&entry_name=Alpha",
+            headers=headers,
+        )
+        assert response.status_code == 200, response.text
+        assert response.json() == [{
+            "id": entry_id,
+            "name": "Alpha Entry",
+            "user_id": response.json()[0]["user_id"],
+            "owner_email": "search.owner@example.com",
+            "locked": False,
+        }]
+
+    def test_admin_corrects_pick_by_entry_and_week(self, client, db_session):
+        owner_token = _register_and_login(client, "correct.owner@example.com")
+        headers = _authed(owner_token)
+        pool_id = _create_pool(client, headers)
+        entry_id = _create_entry(client, headers, pool_id, "Correction Entry")
+        _create_pick(db_session, entry_id, 3, "DAL", locked=True)
+
+        response = client.patch(
+            f"/admin/pools/{pool_id}/entries/{entry_id}/weeks/3/pick",
+            json={"team": "phi", "reason": "Commissioner correction"},
+            headers=headers,
+        )
+        assert response.status_code == 200, response.text
+        assert response.json()["team"] == "PHI"
+
+    def test_admin_delete_entry_removes_its_picks(self, client, db_session):
+        import models as m
+
+        owner_token = _register_and_login(client, "cascade.owner@example.com")
+        headers = _authed(owner_token)
+        pool_id = _create_pool(client, headers)
+        entry_id = _create_entry(client, headers, pool_id, "Delete With Picks")
+        pick = _create_pick(db_session, entry_id, 2, "BUF")
+
+        response = client.delete(f"/admin/pools/{pool_id}/entries/{entry_id}", headers=headers)
+        assert response.status_code == 200, response.text
+        assert db_session.query(m.Entry).filter(m.Entry.id == entry_id).first() is None
+        assert db_session.query(m.Pick).filter(m.Pick.id == pick.id).first() is None
+
+    def test_admin_locks_and_unlocks_user_by_email(self, client):
+        owner_token = _register_and_login(client, "email.lock.owner@example.com")
+        _register_and_login(client, "email.lock.target@example.com")
+        headers = _authed(owner_token)
+        pool_id = _create_pool(client, headers)
+
+        locked = client.put(
+            f"/admin/pools/{pool_id}/user-lock",
+            json={"email": "email.lock.target@example.com", "locked": True, "reason": "Unpaid"},
+            headers=headers,
+        )
+        assert locked.status_code == 200, locked.text
+        assert locked.json()["locked"] is True
+        status_response = client.get(
+            f"/admin/pools/{pool_id}/user-lock?email=email.lock.target%40example.com",
+            headers=headers,
+        )
+        assert status_response.json()["reason"] == "Unpaid"
+
+        unlocked = client.put(
+            f"/admin/pools/{pool_id}/user-lock",
+            json={"email": "email.lock.target@example.com", "locked": False},
+            headers=headers,
+        )
+        assert unlocked.status_code == 200
+        assert unlocked.json()["locked"] is False
+
     # ------------------------------------------------------------------
     # POST /admin/pools/{pool_id}/transfer-entry — auth & access guards
     # ------------------------------------------------------------------

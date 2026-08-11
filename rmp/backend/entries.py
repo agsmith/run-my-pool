@@ -52,8 +52,11 @@ def create_entry(
                 joined_at=datetime.now(timezone.utc).replace(tzinfo=None),
             ))
 
-        # Enforce pool lock time — coerce to datetime if SQLite returned a string
-        lock_time = pool.lock_time
+        # League registration closes at its own deadline. Existing pools keep
+        # their legacy absolute lock until a recurring weekly lock is saved.
+        lock_time = pool.join_lock_time
+        if lock_time is None and pool.lock_day_of_week is None:
+            lock_time = pool.lock_time
         if lock_time is not None:
             if isinstance(lock_time, str):
                 try:
@@ -270,8 +273,8 @@ def delete_entry(
 
         # Enforce pool lock time — coerce to datetime if SQLite returned a string
         pool = db.query(models.Pool).filter(models.Pool.id == entry.pool_id).first()
-        if pool and pool.lock_time is not None:
-            lock_time = pool.lock_time
+        if pool and (pool.join_lock_time is not None or (pool.lock_day_of_week is None and pool.lock_time is not None)):
+            lock_time = pool.join_lock_time if pool.join_lock_time is not None else pool.lock_time
             if isinstance(lock_time, str):
                 try:
                     lock_time = datetime.fromisoformat(lock_time)

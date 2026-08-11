@@ -52,6 +52,20 @@ describe('Join a Pool', () => {
     expect(screen.queryByRole('heading', { name: 'Public Pool' })).not.toBeInTheDocument();
   });
 
+  test('keeps Browse Pools available when memberships fail to load', async () => {
+    global.fetch = jest.fn()
+      .mockImplementationOnce(() => response(pools))
+      .mockImplementationOnce(() => response({ detail: 'Failed' }, false));
+    const user = userEvent.setup();
+    render(<Leagues />);
+
+    expect(await screen.findByRole('heading', { name: 'Public Pool' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Private Pool' })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /my pools/i }));
+    expect(screen.getByText('Unable to load your pool memberships. Please try again.')).toBeInTheDocument();
+  });
+
   test('joins a public pool without requesting a password', async () => {
     global.fetch.mockImplementationOnce(() => response({ message: 'Pool joined successfully' }));
     const user = userEvent.setup();
@@ -74,11 +88,16 @@ describe('Join a Pool', () => {
 
     const privateCard = screen.getByRole('heading', { name: 'Private Pool' }).closest('article');
     await user.click(privateCard.querySelector('button'));
-    const password = screen.getByLabelText(/pool password/i);
+    const password = screen.getByLabelText(/^pool password$/i);
     expect(password).toBeInTheDocument();
+    expect(password).toHaveAttribute('type', 'password');
     expect(global.fetch).toHaveBeenCalledTimes(2);
 
     await user.type(password, 'huddle42');
+    await user.click(screen.getByRole('button', { name: /show pool password/i }));
+    expect(password).toHaveAttribute('type', 'text');
+    await user.click(screen.getByRole('button', { name: /hide pool password/i }));
+    expect(password).toHaveAttribute('type', 'password');
     await user.click(screen.getByRole('button', { name: /unlock & join/i }));
     await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(3));
     expect(JSON.parse(global.fetch.mock.calls[2][1].body)).toEqual({ password: 'huddle42' });
@@ -91,7 +110,7 @@ describe('Join a Pool', () => {
     await screen.findByRole('heading', { name: 'Private Pool' });
     const privateCard = screen.getByRole('heading', { name: 'Private Pool' }).closest('article');
     await user.click(privateCard.querySelector('button'));
-    await user.type(screen.getByLabelText(/pool password/i), 'incorrect');
+    await user.type(screen.getByLabelText(/^pool password$/i), 'incorrect');
     await user.click(screen.getByRole('button', { name: /unlock & join/i }));
     expect(await screen.findByRole('alert')).toHaveTextContent('Invalid pool password');
   });

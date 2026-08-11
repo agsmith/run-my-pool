@@ -83,6 +83,18 @@ describe('LoginPage', () => {
     expect(screen.getByPlaceholderText(/enter your password/i)).toBeInTheDocument()
   })
 
+  test('can show and hide the login password', async () => {
+    const user = userEvent.setup()
+    renderLogin()
+    const password = screen.getByPlaceholderText(/enter your password/i)
+
+    expect(password).toHaveAttribute('type', 'password')
+    await user.click(screen.getByRole('button', { name: /show login password/i }))
+    expect(password).toHaveAttribute('type', 'text')
+    await user.click(screen.getByRole('button', { name: /hide login password/i }))
+    expect(password).toHaveAttribute('type', 'password')
+  })
+
   test('renders the Sign In submit button', () => {
     renderLogin()
     expect(screen.getByRole('button', { name: /sign in/i })).toBeInTheDocument()
