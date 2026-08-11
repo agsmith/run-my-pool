@@ -97,18 +97,11 @@ class TestDatabaseConnection:
 
     def test_database_url_configuration(self):
         """Test database URL configuration"""
-        try:
-            from database import SQLALCHEMY_DATABASE_URL, engine
+        from database import DATABASE_URL, engine
 
-            # Test that database URL is configured
-            assert SQLALCHEMY_DATABASE_URL is not None
-            assert len(SQLALCHEMY_DATABASE_URL) > 0
-
-            # Test that engine is created
-            assert engine is not None
-
-        except ImportError:
-            pytest.skip("database module not available")
+        assert DATABASE_URL
+        assert engine is not None
+        assert str(engine.url) == DATABASE_URL
 
     def test_session_creation(self):
         """Test database session creation"""
