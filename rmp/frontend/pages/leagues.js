@@ -222,7 +222,7 @@ export default function Leagues() {
                         disabled={submittingId === pool.id || (enteringPassword && password.length === 0)}
                         onClick={() => joinPool(pool)}
                       >
-                        {submittingId === pool.id ? 'Joining…' : enteringPassword ? 'Unlock & join' : 'Join pool'}
+                        {submittingId === pool.id ? 'Joining…' : enteringPassword ? 'Join Private Pool' : 'Join pool'}
                       </button>
                     )}
                     {enteringPassword && !joined && !registrationClosed && (
