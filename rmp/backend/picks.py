@@ -3,7 +3,8 @@ from sqlalchemy.orm import Session
 from sqlalchemy import and_, func, or_
 from typing import List
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from deps import get_db, get_current_user
 from models import Pick, Entry, Schedule, Team, Pool
@@ -65,7 +66,31 @@ def _get_effective_lock_time(db: Session, pool: Pool, team_abbrev: str, week: in
         )
 
     candidates = []
-    if pool.lock_time is not None:
+    recurring_lock = None
+    if (
+        game is not None
+        and pool.lock_day_of_week is not None
+        and pool.lock_time_of_day is not None
+        and pool.lock_timezone
+    ):
+        try:
+            pool_tz = ZoneInfo(pool.lock_timezone)
+            kickoff_utc = game.start_time.replace(tzinfo=timezone.utc)
+            kickoff_local = kickoff_utc.astimezone(pool_tz)
+            # An NFL week runs Tuesday through Monday. Anchor the configured
+            # weekday inside the same football week as this matchup.
+            week_start = kickoff_local.date() - timedelta(days=(kickoff_local.weekday() - 1) % 7)
+            target_date = week_start + timedelta(days=(pool.lock_day_of_week - 1) % 7)
+            recurring_local = datetime.combine(target_date, pool.lock_time_of_day, tzinfo=pool_tz)
+            recurring_lock = recurring_local.astimezone(timezone.utc).replace(tzinfo=None)
+        except ZoneInfoNotFoundError:
+            recurring_lock = None
+
+    if recurring_lock is not None:
+        candidates.append(recurring_lock)
+    elif pool.lock_time is not None:
+        # Existing pools retain their absolute lock until recurring settings
+        # are saved by an admin.
         candidates.append(pool.lock_time)
     if game is not None and game.start_time is not None:
         candidates.append(game.start_time)

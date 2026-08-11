@@ -65,18 +65,19 @@ const MOCK_MATCHUPS = {
 };
 
 function PickBreakdownPanel({ data, week }) {
+  if (!data || data.length === 0) return null;
   const total = data.reduce((sum, item) => sum + item.count, 0);
-  if (!data || data.length === 0 || total === 0) return null;
+  if (total === 0) return null;
 
   return (
-    <div style={{
+    <div className="entries-breakdown" style={{
       backgroundColor: '#f8f9fa',
       border: '1px solid #dee2e6',
       borderRadius: '8px',
       padding: '1rem 1.25rem',
       marginBottom: '1.5rem',
     }}>
-      <div style={{ display: 'flex', alignItems: 'center', marginBottom: '0.75rem', gap: '0.5rem', flexWrap: 'wrap' }}>
+      <div className="entries-breakdown__header" style={{ display: 'flex', alignItems: 'center', marginBottom: '0.75rem', gap: '0.5rem', flexWrap: 'wrap' }}>
         <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: '600' }}>
           Week {week} Pick Breakdown
         </h3>
@@ -98,7 +99,7 @@ function PickBreakdownPanel({ data, week }) {
       {data.map((item) => {
         const pct = Math.round((item.count / total) * 100);
         return (
-          <div key={item.team_id} style={{ marginBottom: '0.4rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <div className="entries-breakdown__row" key={item.team_id} style={{ marginBottom: '0.4rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <img
               src={`/nfl/${item.team_abbrv.toLowerCase()}.svg`}
               alt={item.team_abbrv}
@@ -593,7 +594,7 @@ export default function LeagueEntries() {
     };
 
     return (
-      <div style={{
+      <div className="entries-overlay" style={{
         position: 'fixed',
         top: 0,
         left: 0,
@@ -605,7 +606,7 @@ export default function LeagueEntries() {
         justifyContent: 'center',
         zIndex: 1000
       }}>
-        <div style={{
+        <div className="entries-overlay__dialog" style={{
           backgroundColor: 'white',
           borderRadius: '12px',
           maxWidth: '600px',
@@ -616,7 +617,7 @@ export default function LeagueEntries() {
           overflow: 'hidden'
         }}>
           {/* Header */}
-          <div style={{ padding: '2rem 2rem 1rem 2rem' }}>
+          <div className="entries-overlay__header" style={{ padding: '2rem 2rem 1rem 2rem' }}>
             <h2>Week {selectedWeek} Matchups - {selectedEntry.name}</h2>
             <p style={{ color: '#666', marginBottom: '0' }}>
               Teams used in other weeks are unavailable. Your saved pick for this week is highlighted in lime.
@@ -624,7 +625,7 @@ export default function LeagueEntries() {
           </div>
 
           {/* Scrollable Content */}
-          <div style={{ 
+          <div className="entries-overlay__content" style={{
             flex: 1, 
             overflowY: 'auto', 
             padding: '0 2rem',
@@ -646,7 +647,7 @@ export default function LeagueEntries() {
                   const homeCurrent = currentPick?.team === homeTeam.abbrv;
                   
                   return (
-                    <div key={game.game_id} style={{
+                    <div className="entries-overlay__game" key={game.game_id} style={{
                       border: '1px solid #ddd',
                       borderRadius: '8px',
                       padding: '1rem',
@@ -654,7 +655,7 @@ export default function LeagueEntries() {
                       justifyContent: 'space-between',
                       alignItems: 'center'
                     }}>
-                      <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flex: 1 }}>
+                      <div className="entries-overlay__teams" style={{ display: 'flex', gap: '1rem', alignItems: 'center', flex: 1 }}>
                         <button
                           onClick={() => handleTeamSelect(awayTeam.abbrv)}
                           disabled={awayUsed}
@@ -691,7 +692,7 @@ export default function LeagueEntries() {
                           </div>
                         </button>
                       </div>
-                      <div style={{ marginLeft: '1rem', color: '#666', fontSize: '14px', textAlign: 'right' }}>
+                      <div className="entries-overlay__kickoff" style={{ marginLeft: '1rem', color: '#666', fontSize: '14px', textAlign: 'right' }}>
                         <div>{gameTime.date}</div>
                         <div>{gameTime.time}</div>
                       </div>
@@ -703,7 +704,7 @@ export default function LeagueEntries() {
           </div>
 
           {/* Sticky Footer with Buttons */}
-          <div style={{ 
+          <div className="entries-overlay__footer" style={{
             padding: '1rem 2rem 2rem 2rem',
             borderTop: '1px solid #e5e7eb',
             backgroundColor: 'white',
@@ -1142,13 +1143,13 @@ export default function LeagueEntries() {
         ) : (
           <>
             <PickBreakdownPanel data={breakdownData} week={selectedWeek} />
-            <div style={{ 
+            <div className="entries-table-scroll" style={{
               overflowX: 'auto',
               borderRadius: '12px',
             boxShadow: '0 8px 32px rgba(102, 126, 234, 0.15)',
             backgroundColor: 'white'
           }}>
-            <table style={{ 
+            <table className="entries-season-table" style={{
               width: '100%', 
               borderCollapse: 'collapse',
               backgroundColor: 'white',
@@ -1160,7 +1161,7 @@ export default function LeagueEntries() {
                   background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                   color: 'white'
                 }}>
-                  <th style={{ 
+                  <th className="entries-season-table__name" style={{
                     padding: '16px 20px', 
                     textAlign: 'left', 
                     fontWeight: '600',
@@ -1169,7 +1170,7 @@ export default function LeagueEntries() {
                     textTransform: 'uppercase'
                   }}>Entry Name</th>
                   {Array.from({ length: 18 }, (_, i) => i + 1).map(week => (
-                    <th key={week} style={{ 
+                    <th className="entries-season-table__week" key={week} style={{
                       padding: '16px 12px', 
                       textAlign: 'center', 
                       fontWeight: '600',
@@ -1200,14 +1201,14 @@ export default function LeagueEntries() {
                     e.currentTarget.style.backgroundColor = index % 2 === 0 ? '#ffffff' : '#fafbfc';
                     e.currentTarget.style.transform = 'scale(1)';
                   }}>
-                    <td style={{ 
+                    <td className="entries-season-table__name" style={{
                       padding: '16px 20px', 
                       fontWeight: '600',
                       color: '#2d3748',
                       fontSize: '15px'
                     }}>
                       {editingEntryId === entry.id ? (
-                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                        <div className="entries-name-editor" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                           <input
                             type="text"
                             value={editingEntryName}
@@ -1262,7 +1263,7 @@ export default function LeagueEntries() {
                           </button>
                         </div>
                       ) : (
-                        <button 
+                        <button className="entries-name-button"
                           onClick={() => handleStartEditingEntryName(entry)}
                           style={{ 
                             background: 'none',
@@ -1308,7 +1309,7 @@ export default function LeagueEntries() {
                       )}
                     </td>
                     {Array.from({ length: 18 }, (_, i) => i + 1).map(week => (
-                      <td key={week} style={{ 
+                      <td className="entries-season-table__week" key={week} style={{
                         padding: '12px 8px', 
                         textAlign: 'center',
                         borderLeft: '1px solid #f1f3f4',

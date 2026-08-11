@@ -4,7 +4,8 @@ from typing import List
 import models
 import schemas
 import deps
-from datetime import datetime, timezone
+from datetime import datetime, time, timezone
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 import uuid
 from audit_utils import log_create_operation, log_update_operation, log_delete_operation
 from auth import get_password_hash, verify_password
@@ -56,6 +57,21 @@ def _parse_lock_time(time_str: str):
     return datetime.strptime(time_str, "%Y-%m-%d %H:%M:%S")
 
 
+def _parse_time_of_day(value: str) -> time:
+    try:
+        return time.fromisoformat(value)
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=400, detail="Lock time must use HH:MM format")
+
+
+def _validate_timezone(value: str) -> str:
+    try:
+        ZoneInfo(value)
+    except (ZoneInfoNotFoundError, TypeError):
+        raise HTTPException(status_code=400, detail="Invalid lock timezone")
+    return value
+
+
 @router.post("/create", response_model=schemas.PoolOut)
 def create_pool(
     pool: schemas.PoolCreate,
@@ -81,11 +97,21 @@ def create_pool(
                 _validate_join_password(pool.join_password)
             )
 
+        recurring_time = _parse_time_of_day(pool.lock_time_of_day) if pool.lock_time_of_day else None
+        recurring_timezone = _validate_timezone(pool.lock_timezone) if pool.lock_timezone else None
+        if pool.lock_day_of_week is not None and pool.lock_day_of_week not in range(7):
+            raise HTTPException(status_code=400, detail="Lock day must be between 0 and 6")
+        join_lock_time = _parse_lock_time(pool.join_lock_time) if pool.join_lock_time else None
+
         db_pool = models.Pool(
             id=str(uuid.uuid4()),
             name=pool.name,
             description=pool.description,
             lock_time=lock_time,
+            lock_day_of_week=pool.lock_day_of_week,
+            lock_time_of_day=recurring_time,
+            lock_timezone=recurring_timezone,
+            join_lock_time=join_lock_time,
             is_private=pool.is_private,
             join_password_hash=join_password_hash,
             owner_id=current_user.id,
@@ -212,6 +238,16 @@ def update_pool(
                     status_code=400,
                     detail=f"Invalid lock_time format. Use YYYY-MM-DD HH:MM:SS or ISO format: {str(e)}",
                 )
+        if pool_update.lock_day_of_week is not None:
+            if pool_update.lock_day_of_week not in range(7):
+                raise HTTPException(status_code=400, detail="Lock day must be between 0 and 6")
+            pool.lock_day_of_week = pool_update.lock_day_of_week
+        if pool_update.lock_time_of_day is not None:
+            pool.lock_time_of_day = _parse_time_of_day(pool_update.lock_time_of_day)
+        if pool_update.lock_timezone is not None:
+            pool.lock_timezone = _validate_timezone(pool_update.lock_timezone)
+        if pool_update.join_lock_time is not None:
+            pool.join_lock_time = _parse_lock_time(pool_update.join_lock_time)
         target_is_private = (
             pool_update.is_private
             if pool_update.is_private is not None
@@ -275,6 +311,13 @@ def join_pool(
     ).first()
     if existing or pool.owner_id == current_user.id:
         return {"message": "Already joined", "pool_id": pool_id}
+
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    if pool.join_lock_time is not None and pool.join_lock_time <= now:
+        raise HTTPException(
+            status_code=423,
+            detail="League registration is closed. Contact the league admin.",
+        )
 
     if pool.is_private:
         if not pool.join_password_hash:

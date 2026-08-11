@@ -1,6 +1,6 @@
 from pydantic import BaseModel, EmailStr, Field
 from typing import Optional, List
-from datetime import datetime
+from datetime import datetime, time
 import enum
 
 
@@ -45,6 +45,10 @@ class PoolBase(BaseModel):
     name: str
     description: Optional[str] = None
     lock_time: Optional[str] = None
+    lock_day_of_week: Optional[int] = None
+    lock_time_of_day: Optional[str] = None
+    lock_timezone: Optional[str] = None
+    join_lock_time: Optional[str] = None
     is_private: bool = False
 
 
@@ -58,6 +62,10 @@ class PoolUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
     lock_time: Optional[str] = None
+    lock_day_of_week: Optional[int] = None
+    lock_time_of_day: Optional[str] = None
+    lock_timezone: Optional[str] = None
+    join_lock_time: Optional[str] = None
     is_private: Optional[bool] = None
     join_password: Optional[str] = None
     rule_values: Optional[List[PoolRuleValueCreate]] = None
@@ -93,6 +101,10 @@ class PoolOut(BaseModel):
     name: str
     description: Optional[str] = None
     lock_time: Optional[datetime] = None
+    lock_day_of_week: Optional[int] = None
+    lock_time_of_day: Optional[time] = None
+    lock_timezone: Optional[str] = None
+    join_lock_time: Optional[datetime] = None
     is_private: bool = False
     owner_id: str
     created_at: Optional[datetime] = None
@@ -123,6 +135,11 @@ class EntryTransfer(BaseModel):
 
 class AdminPickUpdate(BaseModel):
     team: str  # Team abbreviation, e.g. "NE", "KC"
+
+
+class AdminPickCorrection(BaseModel):
+    team: str
+    reason: Optional[str] = None
 
 
 class EntryOut(BaseModel):
@@ -207,6 +224,12 @@ class MessageBoardOut(BaseModel):
 
 
 class PoolUserLockCreate(BaseModel):
+    reason: Optional[str] = None
+
+
+class PoolUserLockByEmail(BaseModel):
+    email: EmailStr
+    locked: bool
     reason: Optional[str] = None
 
 
