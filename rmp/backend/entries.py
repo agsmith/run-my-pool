@@ -30,6 +30,28 @@ def create_entry(
         if not pool:
             raise HTTPException(status_code=404, detail="Pool not found")
 
+        membership = db.query(models.PoolMember).filter(
+            models.PoolMember.pool_id == entry.pool_id,
+            models.PoolMember.user_id == current_user.id,
+        ).first()
+        admin = db.query(models.PoolAdmin).filter(
+            models.PoolAdmin.pool_id == entry.pool_id,
+            models.PoolAdmin.user_id == current_user.id,
+        ).first()
+        if not membership and not admin and pool.owner_id != current_user.id:
+            if pool.is_private:
+                raise HTTPException(
+                    status_code=403,
+                    detail="Join this private pool with its password before creating an entry",
+                )
+            # Creating the first entry remains a compatible public-pool join
+            # path. Private pools never reach this branch.
+            db.add(models.PoolMember(
+                pool_id=entry.pool_id,
+                user_id=current_user.id,
+                joined_at=datetime.now(timezone.utc).replace(tzinfo=None),
+            ))
+
         # Enforce pool lock time — coerce to datetime if SQLite returned a string
         lock_time = pool.lock_time
         if lock_time is not None:

@@ -1,5 +1,15 @@
 import pytest
 from unittest.mock import Mock, patch
+import models
+
+
+def _register(client, email):
+    password = "Pass1234!"
+    client.post("/auth/register", json={"email": email, "password": password})
+    token = client.post(
+        "/auth/login", json={"email": email, "password": password}
+    ).json()["access_token"]
+    return {"Authorization": f"Bearer {token}"}
 
 
 class TestPoolEndpoints:
@@ -169,6 +179,149 @@ class TestPoolAdminOperations:
         # Starlette <0.20 returns 401, >=0.20 returns 403 when no token is provided
         response = client.get("/pools/some-id/is-admin")
         assert response.status_code in (401, 403)
+
+
+class TestPoolJoining:
+    def test_private_pool_creation_requires_password(self, client):
+        headers = _register(client, "private.no.password@example.com")
+        response = client.post(
+            "/pools/create",
+            json={"name": "Private", "is_private": True},
+            headers=headers,
+        )
+        assert response.status_code == 400
+        assert "at least 6 characters" in response.json()["detail"]
+
+    def test_private_password_is_hashed_and_never_returned(self, client, db_session):
+        headers = _register(client, "private.hash@example.com")
+        response = client.post(
+            "/pools/create",
+            json={"name": "Private", "is_private": True, "join_password": "huddle42"},
+            headers=headers,
+        )
+        assert response.status_code == 200, response.text
+        assert "join_password" not in response.json()
+        pool = db_session.query(models.Pool).filter(models.Pool.id == response.json()["id"]).first()
+        assert pool.join_password_hash
+        assert pool.join_password_hash != "huddle42"
+
+    def test_public_pool_joins_without_password_and_appears_in_my_pools(self, client):
+        owner = _register(client, "public.owner@example.com")
+        pool = client.post(
+            "/pools/create", json={"name": "Open Pool", "is_private": False}, headers=owner
+        ).json()
+        member = _register(client, "public.member@example.com")
+
+        joined = client.post(f"/pools/{pool['id']}/join", json={}, headers=member)
+        assert joined.status_code == 200, joined.text
+        my_pools = client.get("/pools/my-pools", headers=member).json()
+        assert [item["id"] for item in my_pools] == [pool["id"]]
+
+    def test_private_pool_rejects_missing_and_wrong_password(self, client):
+        owner = _register(client, "private.owner@example.com")
+        pool = client.post(
+            "/pools/create",
+            json={"name": "Locked Pool", "is_private": True, "join_password": "correct7"},
+            headers=owner,
+        ).json()
+        member = _register(client, "private.member@example.com")
+
+        missing = client.post(f"/pools/{pool['id']}/join", json={}, headers=member)
+        wrong = client.post(
+            f"/pools/{pool['id']}/join", json={"password": "wrong77"}, headers=member
+        )
+        assert missing.status_code == 403
+        assert wrong.status_code == 403
+        assert missing.json()["detail"] == "Invalid pool password"
+        assert wrong.json()["detail"] == "Invalid pool password"
+
+    def test_private_pool_accepts_correct_password_idempotently(self, client):
+        owner = _register(client, "private.owner2@example.com")
+        pool = client.post(
+            "/pools/create",
+            json={"name": "Locked Pool", "is_private": True, "join_password": "correct7"},
+            headers=owner,
+        ).json()
+        member = _register(client, "private.member2@example.com")
+
+        first = client.post(
+            f"/pools/{pool['id']}/join", json={"password": "correct7"}, headers=member
+        )
+        second = client.post(
+            f"/pools/{pool['id']}/join", json={"password": "correct7"}, headers=member
+        )
+        assert first.status_code == 200
+        assert first.json()["message"] == "Pool joined successfully"
+        assert second.status_code == 200
+        assert second.json()["message"] == "Already joined"
+
+    def test_private_pool_password_cannot_be_bypassed_by_creating_entry(self, client):
+        owner = _register(client, "private.entry.owner@example.com")
+        pool = client.post(
+            "/pools/create",
+            json={"name": "No Bypass", "is_private": True, "join_password": "secret77"},
+            headers=owner,
+        ).json()
+        outsider = _register(client, "private.entry.outsider@example.com")
+
+        response = client.post(
+            "/entries/create",
+            json={"pool_id": pool["id"], "name": "Unauthorized Entry"},
+            headers=outsider,
+        )
+        assert response.status_code == 403
+        assert "Join this private pool" in response.json()["detail"]
+
+    def test_owner_can_flip_public_private_and_must_set_password(self, client, db_session):
+        owner = _register(client, "flip.owner@example.com")
+        pool = client.post(
+            "/pools/create", json={"name": "Flip Pool", "is_private": False}, headers=owner
+        ).json()
+
+        missing = client.patch(
+            f"/pools/{pool['id']}", json={"is_private": True}, headers=owner
+        )
+        assert missing.status_code == 400
+
+        private = client.patch(
+            f"/pools/{pool['id']}",
+            json={"is_private": True, "join_password": "switch88"},
+            headers=owner,
+        )
+        assert private.status_code == 200
+        assert private.json()["is_private"] is True
+
+        public = client.patch(
+            f"/pools/{pool['id']}", json={"is_private": False}, headers=owner
+        )
+        assert public.status_code == 200
+        db_session.expire_all()
+        stored = db_session.query(models.Pool).filter(models.Pool.id == pool["id"]).first()
+        assert stored.is_private is False
+        assert stored.join_password_hash is None
+
+    def test_delegated_admin_can_change_access_non_admin_cannot(self, client, db_session):
+        owner = _register(client, "admin.owner@example.com")
+        owner_data = client.get("/auth/me", headers=owner).json()
+        pool = client.post(
+            "/pools/create", json={"name": "Admin Pool", "is_private": False}, headers=owner
+        ).json()
+        admin = _register(client, "admin.delegate@example.com")
+        admin_data = client.get("/auth/me", headers=admin).json()
+        outsider = _register(client, "admin.outsider@example.com")
+        db_session.add(models.PoolAdmin(pool_id=pool["id"], user_id=admin_data["id"]))
+        db_session.commit()
+
+        changed = client.patch(
+            f"/pools/{pool['id']}",
+            json={"is_private": True, "join_password": "delegate9"},
+            headers=admin,
+        )
+        denied = client.patch(
+            f"/pools/{pool['id']}", json={"is_private": False}, headers=outsider
+        )
+        assert changed.status_code == 200, changed.text
+        assert denied.status_code == 403
 
 
 # ---------------------------------------------------------------------------

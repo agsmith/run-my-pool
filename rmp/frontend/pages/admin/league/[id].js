@@ -55,6 +55,9 @@ export default function AdminPortal() {
   // League Management State
   const [leagues, setLeagues] = useState([]);
   const [leagueSearch, setLeagueSearch] = useState('');
+  const [accessSettings, setAccessSettings] = useState({ is_private: false, join_password: '' });
+  const [accessMessage, setAccessMessage] = useState('');
+  const [savingAccess, setSavingAccess] = useState(false);
   
   // User Management State
   const [resetPasswordData, setResetPasswordData] = useState({ username: '' });
@@ -141,6 +144,7 @@ export default function AdminPortal() {
       if (res.ok) {
         const data = await res.json();
         setLeague(data);
+        setAccessSettings({ is_private: data.is_private, join_password: '' });
       } else {
         setError('Failed to load league details');
       }
@@ -224,6 +228,35 @@ export default function AdminPortal() {
     } catch (err) {
       setError('Error performing lookup');
       console.error('Entry lookup error:', err);
+    }
+  };
+
+  const handleSaveAccess = async () => {
+    setSavingAccess(true);
+    setAccessMessage('');
+    try {
+      const token = localStorage.getItem('access_token');
+      const payload = { is_private: accessSettings.is_private };
+      if (accessSettings.is_private && accessSettings.join_password) {
+        payload.join_password = accessSettings.join_password;
+      }
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/pools/${leagueId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.detail || 'Unable to update pool access');
+      setLeague(data);
+      setAccessSettings({ is_private: data.is_private, join_password: '' });
+      setAccessMessage(data.is_private ? 'Private access saved.' : 'Pool is now public. No password is required.');
+    } catch (err) {
+      setAccessMessage(err.message || 'Unable to update pool access');
+    } finally {
+      setSavingAccess(false);
     }
   };
 
@@ -355,6 +388,56 @@ export default function AdminPortal() {
       <h3 style={{ color: '#1a202c', marginTop: 0, marginBottom: '2rem' }}>
         League Management
       </h3>
+
+      <div className="admin-access-panel">
+        <div>
+          <span>Player access</span>
+          <h4>Pool Visibility</h4>
+          <p>Public pools can be joined by anyone. Private pools require the commissioner password.</p>
+        </div>
+        <div className="admin-access-panel__options">
+          <label className={!accessSettings.is_private ? 'is-selected' : ''}>
+            <input
+              type="radio"
+              name="pool-visibility"
+              checked={!accessSettings.is_private}
+              onChange={() => setAccessSettings((current) => ({ ...current, is_private: false, join_password: '' }))}
+            />
+            <span><strong>Public</strong><small>No password required</small></span>
+          </label>
+          <label className={accessSettings.is_private ? 'is-selected' : ''}>
+            <input
+              type="radio"
+              name="pool-visibility"
+              checked={accessSettings.is_private}
+              onChange={() => setAccessSettings((current) => ({ ...current, is_private: true }))}
+            />
+            <span><strong>Private</strong><small>Password required</small></span>
+          </label>
+        </div>
+        {accessSettings.is_private && (
+          <div className="admin-access-panel__password">
+            <label htmlFor="admin-join-password">Join password</label>
+            <input
+              id="admin-join-password"
+              type="password"
+              minLength={6}
+              maxLength={72}
+              value={accessSettings.join_password}
+              onChange={(event) => setAccessSettings((current) => ({ ...current, join_password: event.target.value }))}
+              placeholder={league?.is_private ? 'Leave blank to keep current password' : 'At least 6 characters'}
+              autoComplete="new-password"
+            />
+            <small>{league?.is_private ? 'Enter a value only when you want to replace the current password.' : 'A password is required when switching from public to private.'}</small>
+          </div>
+        )}
+        <div className="admin-access-panel__footer">
+          <button type="button" onClick={handleSaveAccess} disabled={savingAccess}>
+            {savingAccess ? 'Saving…' : 'Save access settings'}
+          </button>
+          {accessMessage && <span role="status">{accessMessage}</span>}
+        </div>
+      </div>
       
       {/* View/Search Leagues */}
       <div style={{ marginBottom: '3rem' }}>

@@ -49,6 +49,7 @@ class PoolBase(BaseModel):
 
 
 class PoolCreate(PoolBase):
+    join_password: Optional[str] = None
     # Optional rule values for enhanced pool settings
     rule_values: Optional[List[PoolRuleValueCreate]] = []
 
@@ -58,7 +59,12 @@ class PoolUpdate(BaseModel):
     description: Optional[str] = None
     lock_time: Optional[str] = None
     is_private: Optional[bool] = None
+    join_password: Optional[str] = None
     rule_values: Optional[List[PoolRuleValueCreate]] = None
+
+
+class PoolJoin(BaseModel):
+    password: Optional[str] = None
 
 
 class RuleOut(BaseModel):

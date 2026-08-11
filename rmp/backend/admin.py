@@ -104,6 +104,16 @@ def transfer_entry(
     old_email = current_owner.email
 
     entry.user_id = new_owner.id
+    membership = db.query(models.PoolMember).filter(
+        models.PoolMember.pool_id == pool_id,
+        models.PoolMember.user_id == new_owner.id,
+    ).first()
+    if not membership:
+        db.add(models.PoolMember(
+            pool_id=pool_id,
+            user_id=new_owner.id,
+            joined_at=datetime.now(timezone.utc).replace(tzinfo=None),
+        ))
     db.commit()
     db.refresh(entry)
 

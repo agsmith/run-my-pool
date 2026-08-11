@@ -7,8 +7,35 @@ import deps
 from datetime import datetime, timezone
 import uuid
 from audit_utils import log_create_operation, log_update_operation, log_delete_operation
+from auth import get_password_hash, verify_password
 
 router = APIRouter(prefix="/pools", tags=["pools"])
+
+MIN_JOIN_PASSWORD_LENGTH = 6
+
+
+def _validate_join_password(password: str) -> str:
+    password = (password or "").strip()
+    if len(password) < MIN_JOIN_PASSWORD_LENGTH:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Private pool passwords must be at least {MIN_JOIN_PASSWORD_LENGTH} characters",
+        )
+    if len(password.encode("utf-8")) > 72:
+        raise HTTPException(
+            status_code=400,
+            detail="Private pool passwords must be 72 bytes or fewer",
+        )
+    return password
+
+
+def _has_admin_access(db: Session, pool: models.Pool, user_id: str) -> bool:
+    if pool.owner_id == user_id:
+        return True
+    return db.query(models.PoolAdmin).filter(
+        models.PoolAdmin.pool_id == pool.id,
+        models.PoolAdmin.user_id == user_id,
+    ).first() is not None
 
 
 def _parse_lock_time(time_str: str):
@@ -48,12 +75,19 @@ def create_pool(
                     detail=f"Invalid lock_time format. Use YYYY-MM-DD HH:MM:SS or ISO format: {str(e)}",
                 )
 
+        join_password_hash = None
+        if pool.is_private:
+            join_password_hash = get_password_hash(
+                _validate_join_password(pool.join_password)
+            )
+
         db_pool = models.Pool(
             id=str(uuid.uuid4()),
             name=pool.name,
             description=pool.description,
             lock_time=lock_time,
             is_private=pool.is_private,
+            join_password_hash=join_password_hash,
             owner_id=current_user.id,
             created_at=datetime.now(timezone.utc).replace(tzinfo=None),
             updated_at=datetime.now(timezone.utc).replace(tzinfo=None),
@@ -65,7 +99,12 @@ def create_pool(
 
         # Add the pool creator as a pool admin
         pool_admin = models.PoolAdmin(pool_id=db_pool.id, user_id=current_user.id)
-        db.add(pool_admin)
+        pool_member = models.PoolMember(
+            pool_id=db_pool.id,
+            user_id=current_user.id,
+            joined_at=datetime.now(timezone.utc).replace(tzinfo=None),
+        )
+        db.add_all([pool_admin, pool_member])
         db.commit()
 
         # Log pool creation
@@ -83,6 +122,8 @@ def create_pool(
         )
 
         return db_pool
+    except HTTPException:
+        raise
     except Exception as e:
         print(f"Create pool error: {str(e)}")
         raise HTTPException(status_code=500, detail="Failed to create pool")
@@ -95,15 +136,16 @@ def get_my_pools(
 ):
     """Get all pools where the current user is the owner or a member."""
     try:
-        # Get pools where user is the owner
-        owned_pools = (
-            db.query(models.Pool).filter(models.Pool.owner_id == current_user.id).all()
+        return (
+            db.query(models.Pool)
+            .outerjoin(models.PoolMember, models.PoolMember.pool_id == models.Pool.id)
+            .filter(
+                (models.Pool.owner_id == current_user.id)
+                | (models.PoolMember.user_id == current_user.id)
+            )
+            .distinct()
+            .all()
         )
-
-        # TODO: Add pools where user is a member (requires pool membership table)
-        # For now, just return owned pools
-
-        return owned_pools
     except Exception as e:
         print(f"Get my pools error: {str(e)}")
         raise HTTPException(status_code=500, detail="Failed to retrieve pools")
@@ -152,9 +194,9 @@ def update_pool(
         if not pool:
             raise HTTPException(status_code=404, detail="Pool not found")
 
-        if pool.owner_id != current_user.id:
+        if not _has_admin_access(db, pool, current_user.id):
             raise HTTPException(
-                status_code=403, detail="Only pool owner can update the pool"
+                status_code=403, detail="Only pool admins can update the pool"
             )
 
         # Update fields if provided
@@ -170,13 +212,42 @@ def update_pool(
                     status_code=400,
                     detail=f"Invalid lock_time format. Use YYYY-MM-DD HH:MM:SS or ISO format: {str(e)}",
                 )
-        if pool_update.is_private is not None:
-            pool.is_private = pool_update.is_private
+        target_is_private = (
+            pool_update.is_private
+            if pool_update.is_private is not None
+            else pool.is_private
+        )
+        if target_is_private:
+            if pool_update.join_password is not None:
+                pool.join_password_hash = get_password_hash(
+                    _validate_join_password(pool_update.join_password)
+                )
+            elif pool_update.is_private is True and not pool.join_password_hash:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Set a join password before making this pool private",
+                )
+        else:
+            pool.join_password_hash = None
+        pool.is_private = target_is_private
 
         pool.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
 
         db.commit()
         db.refresh(pool)
+
+        log_update_operation(
+            db=db,
+            entity_type="pool_access",
+            entity_id=pool.id,
+            user_id=current_user.id,
+            changes={
+                "pool_id": pool.id,
+                "is_private": pool.is_private,
+                "join_password_changed": pool_update.join_password is not None,
+                "username": current_user.email,
+            },
+        )
 
         return pool
     except HTTPException:
@@ -184,6 +255,56 @@ def update_pool(
     except Exception as e:
         print(f"Update pool error: {str(e)}")
         raise HTTPException(status_code=500, detail="Failed to update pool")
+
+
+@router.post("/{pool_id}/join")
+def join_pool(
+    pool_id: str,
+    join: schemas.PoolJoin,
+    db: Session = Depends(deps.get_db),
+    current_user: models.User = Depends(deps.get_current_user),
+):
+    """Join a public pool, or a private pool with its join password."""
+    pool = db.query(models.Pool).filter(models.Pool.id == pool_id).first()
+    if not pool:
+        raise HTTPException(status_code=404, detail="Pool not found")
+
+    existing = db.query(models.PoolMember).filter(
+        models.PoolMember.pool_id == pool_id,
+        models.PoolMember.user_id == current_user.id,
+    ).first()
+    if existing or pool.owner_id == current_user.id:
+        return {"message": "Already joined", "pool_id": pool_id}
+
+    if pool.is_private:
+        if not pool.join_password_hash:
+            raise HTTPException(
+                status_code=409,
+                detail="This private pool is not accepting members until its admin sets a password",
+            )
+        supplied_password = (join.password or "").strip()
+        if not supplied_password or not verify_password(supplied_password, pool.join_password_hash):
+            raise HTTPException(status_code=403, detail="Invalid pool password")
+
+    db.add(models.PoolMember(
+        pool_id=pool_id,
+        user_id=current_user.id,
+        joined_at=datetime.now(timezone.utc).replace(tzinfo=None),
+    ))
+    db.commit()
+
+    log_create_operation(
+        db=db,
+        entity_type="pool_membership",
+        entity_id=f"{pool_id}:{current_user.id}",
+        user_id=current_user.id,
+        entity_data={
+            "pool_id": pool_id,
+            "pool_name": pool.name,
+            "username": current_user.email,
+        },
+    )
+    return {"message": "Pool joined successfully", "pool_id": pool_id}
 
 
 @router.delete("/{pool_id}")

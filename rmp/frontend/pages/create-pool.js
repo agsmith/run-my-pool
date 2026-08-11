@@ -7,6 +7,7 @@ export default function CreatePool() {
     name: '',
     description: '',
     is_private: false,
+    join_password: '',
     lock_time: ''
   });
   const [ruleValues, setRuleValues] = useState({
@@ -611,10 +612,33 @@ export default function CreatePool() {
                           Private Pool
                         </label>
                         <small style={{ color: '#64748b', fontSize: '0.875rem', lineHeight: '1.4' }}>
-                          Private pools require an invitation to join. Public pools are open to all users.
+                          Private pools require a join password. Public pools are open to all users.
                         </small>
                       </div>
                     </div>
+                    {formData.is_private && (
+                      <div style={{ padding: '1rem', backgroundColor: 'white', border: '1px solid #e2e8f0' }}>
+                        <label htmlFor="join_password" style={{ fontWeight: '600', color: '#1e293b', display: 'block', marginBottom: '0.5rem' }}>
+                          Join Password
+                        </label>
+                        <input
+                          id="join_password"
+                          type="password"
+                          name="join_password"
+                          value={formData.join_password}
+                          onChange={handleChange}
+                          minLength={6}
+                          maxLength={72}
+                          required
+                          autoComplete="new-password"
+                          placeholder="At least 6 characters"
+                          style={{ width: '100%', padding: '0.75rem', border: '1px solid #d1d5db', fontSize: '1rem' }}
+                        />
+                        <small style={{ color: '#64748b', display: 'block', marginTop: '0.5rem' }}>
+                          Players must enter this password before they can join the pool.
+                        </small>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

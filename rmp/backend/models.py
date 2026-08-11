@@ -62,6 +62,7 @@ class Pool(Base):
     description = Column(Text)
     lock_time = Column(DateTime)
     is_private = Column(Boolean, default=False)
+    join_password_hash = Column(String(255), nullable=True)
     owner_id = Column(String(36), ForeignKey(USERS_ID_FK))
     created_at = Column(DateTime)
     updated_at = Column(DateTime)
@@ -70,6 +71,7 @@ class Pool(Base):
     entries = relationship("Entry", back_populates="pool")
     pool_rules = relationship("PoolRule", back_populates="pool")
     pool_rule_values = relationship("PoolRuleValue", back_populates="pool")
+    members = relationship("PoolMember", back_populates="pool", cascade="all, delete-orphan")
 
 
 class Rule(Base):
@@ -159,6 +161,16 @@ class PoolAdmin(Base):
     user_id = Column(String(36), ForeignKey(USERS_ID_FK), primary_key=True)
     # relationships
     pool = relationship("Pool")
+    user = relationship("User")
+
+
+class PoolMember(Base):
+    __tablename__ = "pool_members"
+    pool_id = Column(String(36), ForeignKey(POOLS_ID_FK, ondelete="CASCADE"), primary_key=True)
+    user_id = Column(String(36), ForeignKey(USERS_ID_FK), primary_key=True)
+    joined_at = Column(DateTime, nullable=False)
+
+    pool = relationship("Pool", back_populates="members")
     user = relationship("User")
 
 
