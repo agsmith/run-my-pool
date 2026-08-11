@@ -19,6 +19,7 @@ import auth
 from audit_utils import log_admin_action
 from odds_service import freeze_week_lines
 from schedule import current_season_games, current_season_week
+from weekly_locks import lock_pool_week
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -535,131 +536,20 @@ def lock_week(
             status_code=status.HTTP_404_NOT_FOUND, detail="Pool not found"
         )
 
-    # Lock the pool if not already locked in the past
     now = datetime.now(timezone.utc).replace(tzinfo=None)
     if pool.lock_time is None or pool.lock_time > now:
         pool.lock_time = now
-
-    # Freeze the same lines visible at lock time. These immutable snapshots,
-    # not later market movement, determine default picks for this pool/week.
-    games = current_season_games(db, week)
-    frozen_lines = freeze_week_lines(db, pool_id, week, games, captured_at=now)
-    line_ranked_teams = [
-        line.favorite_team.abbrv
-        for line in sorted(
-            frozen_lines,
-            key=lambda item: (-(item.spread or 0), item.favorite_team_id or 0),
-        )
-        if line.favorite_team is not None
-    ]
-
-    # All alive entries in the pool
-    alive_entries = (
-        db.query(models.Entry)
-        .filter(models.Entry.pool_id == pool_id, models.Entry.alive == True)  # noqa: E712
-        .all()
+    auto_picks_created = lock_pool_week(
+        db, pool, week, current_user.id, now,
+        games_provider=current_season_games,
+        line_freezer=freeze_week_lines,
     )
-    alive_ids = {e.id for e in alive_entries}
-
-    # Lock all existing week-N picks for alive entries before auto-picking
-    db.query(models.Pick).filter(
-        models.Pick.entry_id.in_(alive_ids),
-        models.Pick.week == week,
-        models.Pick.locked == False,  # noqa: E712
-    ).update({"locked": True}, synchronize_session="fetch")
-    db.flush()
-
-    # Entries that already have a pick for this week
-    existing_pick_entry_ids = {
-        p.entry_id
-        for p in db.query(models.Pick)
-        .filter(models.Pick.entry_id.in_(alive_ids), models.Pick.week == week)
-        .all()
-    }
-
-    entries_needing_pick = [
-        e for e in alive_entries if e.id not in existing_pick_entry_ids
-    ]
-
-    # Popularity map: team → count of alive picks this week
-    popularity: dict[str, int] = {}
-    for p in (
-        db.query(models.Pick)
-        .filter(models.Pick.entry_id.in_(alive_ids), models.Pick.week == week)
-        .all()
-    ):
-        popularity[p.team] = popularity.get(p.team, 0) + 1
-
-    # Stable sort: descending popularity, then alphabetical for tie-breaking
-    ranked_teams = sorted(popularity.items(), key=lambda x: (-x[1], x[0]))
-
-    auto_picks_created = 0
-    for entry in entries_needing_pick:
-        # Teams already used by this entry across all weeks
-        used_teams = {
-            p.team
-            for p in db.query(models.Pick)
-            .filter(models.Pick.entry_id == entry.id)
-            .all()
-        }
-
-        candidate = next((team for team in line_ranked_teams if team not in used_teams), None)
-        if candidate is None:
-            candidate = next(
-                (team for team, _ in ranked_teams if team not in used_teams),
-                None,
-            )
-        if candidate is None:
-            # No valid team available — skip
-            log_admin_action(
-                db=db,
-                action="AUTO_PICK_SKIPPED",
-                admin_user_id=current_user.id,
-                details=f"No available team for entry {entry.id} in week {week} — all popular teams already used",
-                target_entity_type="entry",
-                target_entity_id=entry.id,
-                additional_data={"pool_id": pool_id, "week": week},
-            )
-            continue
-
-        db_pick = models.Pick(
-            id=str(uuid.uuid4()),
-            entry_id=entry.id,
-            week=week,
-            team=candidate,
-            locked=True,
-            created_at=now,
-            updated_at=now,
-        )
-        db.add(db_pick)
-        db.flush()  # get the id before logging
-
-        log_admin_action(
-            db=db,
-            action="AUTO_PICK",
-            admin_user_id=current_user.id,
-            details=f"Auto-picked {candidate} for entry {entry.id} in week {week}",
-            target_entity_type="pick",
-            target_entity_id=db_pick.id,
-            additional_data={
-                "pool_id": pool_id,
-                "entry_id": entry.id,
-                "week": week,
-                "team": candidate,
-                "reason": "no_pick_at_lock",
-                "selection_basis": "locked_spread" if candidate in line_ranked_teams else "pick_popularity_fallback",
-            },
-        )
-        auto_picks_created += 1
-
-    db.commit()
 
     return {
         "message": f"Week {week} locked",
         "pool_id": pool_id,
         "auto_picks_created": auto_picks_created,
     }
-
 
 @router.patch("/pools/{pool_id}/picks/{pick_id}", response_model=schemas.PickOut)
 def admin_update_pick(

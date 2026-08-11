@@ -148,6 +148,32 @@ class TestPoolEndpoints:
         # FastAPI HTTPBearer returns 403 when no credentials are provided
         assert response.status_code in (401, 403)
 
+    def test_get_pool_requires_membership(self, client):
+        owner = _register(client, "pool.access.owner@example.com")
+        outsider = _register(client, "pool.access.outsider@example.com")
+        pool = client.post(
+            "/pools/create", json={"name": "Members Only Details"}, headers=owner
+        ).json()
+
+        response = client.get(f"/pools/{pool['id']}", headers=outsider)
+
+        assert response.status_code == 403
+        assert response.json()["detail"] == "League membership required"
+
+    def test_lock_status_requires_membership(self, client):
+        owner = _register(client, "lock.status.owner@example.com")
+        outsider = _register(client, "lock.status.outsider@example.com")
+        pool = client.post(
+            "/pools/create", json={"name": "Private Lock Status"}, headers=owner
+        ).json()
+
+        denied = client.get(f"/pools/{pool['id']}/lock-status", headers=outsider)
+        allowed = client.get(f"/pools/{pool['id']}/lock-status", headers=owner)
+
+        assert denied.status_code == 403
+        assert allowed.status_code == 200
+        assert len(allowed.json()["weeks"]) == 18
+
     def test_pool_validation_missing_name(self, authenticated_client):
         """Test pool creation with missing name"""
         client, user_data = authenticated_client

@@ -13,6 +13,9 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 import uuid
 from audit_utils import log_create_operation, log_update_operation, log_delete_operation
 from auth import SECRET_KEY, get_password_hash, verify_password
+from pool_access import is_pool_participant
+from schedule import current_season_games
+from weekly_locks import pool_week_lock_time
 from cryptography.fernet import Fernet, InvalidToken
 
 router = APIRouter(prefix="/pools", tags=["pools"])
@@ -283,8 +286,8 @@ def get_pool(
         if not pool:
             raise HTTPException(status_code=404, detail="Pool not found")
 
-        # TODO: Check if user has access to this pool (owner or member)
-        # For now, allow access to any pool
+        if not is_pool_participant(db, pool_id, current_user.id):
+            raise HTTPException(status_code=403, detail="League membership required")
 
         return pool
     except HTTPException:
@@ -292,6 +295,28 @@ def get_pool(
     except Exception as e:
         print(f"Get pool error: {str(e)}")
         raise HTTPException(status_code=500, detail="Failed to retrieve pool")
+
+
+@router.get("/{pool_id}/lock-status")
+def get_pool_lock_status(
+    pool_id: str,
+    db: Session = Depends(deps.get_db),
+    current_user: models.User = Depends(deps.get_current_user),
+):
+    pool = db.query(models.Pool).filter(models.Pool.id == pool_id).first()
+    if not pool:
+        raise HTTPException(status_code=404, detail="Pool not found")
+    if not is_pool_participant(db, pool_id, current_user.id):
+        raise HTTPException(status_code=403, detail="League membership required")
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    weeks = {}
+    for week in range(1, 19):
+        deadline = pool_week_lock_time(pool, current_season_games(db, week))
+        weeks[str(week)] = {
+            "locked": bool(deadline and deadline <= now),
+            "deadline": f"{deadline.isoformat()}Z" if deadline else None,
+        }
+    return {"weeks": weeks}
 
 
 @router.patch("/{pool_id}", response_model=schemas.PoolOut)

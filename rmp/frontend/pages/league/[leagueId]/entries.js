@@ -279,27 +279,29 @@ export default function LeagueEntries() {
     let cursor = 'pointer';
     let borderWidth = '1px';
     let opacity = 0.5;
-    if (!isEntryAlive) {
+    if (pick?.result === 'win') {
+      backgroundColor = '#e8f5e9';
+      borderColor = '#4caf50';
+      textColor = '#1b5e20';
+      cursor = 'not-allowed';
+      borderWidth = '2px';
+      opacity = 1;
+    } else if (pick?.result === 'loss') {
+      backgroundColor = '#ffebee';
+      borderColor = '#f44336';
+      textColor = '#b71c1c';
+      cursor = 'not-allowed';
+      borderWidth = '2px';
+      opacity = 1;
+    } else if (!isEntryAlive) {
       borderColor = '#fbeaea'; // faint red
       textColor = '#fbeaea';
       cursor = 'not-allowed';
       borderWidth = '1px';
       opacity = 0.4;
     } else if (hasTeam) {
-      if (pick.result === 'win') {
-        borderColor = '#e6f4ea'; // faint green
-        textColor = '#aee9c1';
-        borderWidth = '1.2px';
-        opacity = 0.7;
-      } else if (pick.result === 'loss') {
-        borderColor = '#fbeaea';
-        textColor = '#f5b5b5';
-        borderWidth = '1.2px';
-        opacity = 0.7;
-      } else {
-        borderColor = '#eee';
-        textColor = '#bbb';
-      }
+      borderColor = '#eee';
+      textColor = '#bbb';
     }
 
     return (
@@ -324,7 +326,11 @@ export default function LeagueEntries() {
           margin: '2px',
           opacity: opacity
         }}
-        title={!isEntryAlive ? 'Entry eliminated - no more picks allowed' : (pick?.result ? `${pick.team} - ${pick.result}` : '')}
+        title={pick?.result
+          ? `${pick.team} - ${pick.result}`
+          : !isEntryAlive
+            ? 'Entry eliminated - no remaining picks available'
+            : ''}
       >
         {hasTeam ? pick.team : week}
       </button>

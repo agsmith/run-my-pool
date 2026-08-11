@@ -138,6 +138,7 @@ export default function LeagueEntries() {
   const [league, setLeague] = useState(null);
   const [entries, setEntries] = useState([]);
   const [allPicks, setAllPicks] = useState({});
+  const [weekLockStatus, setWeekLockStatus] = useState({});
   const [scheduleData, setScheduleData] = useState({}); // Store schedule data by week
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -222,6 +223,15 @@ export default function LeagueEntries() {
       } else {
         setError('Failed to load league details');
         return;
+      }
+
+      const lockStatusRes = await fetch(
+        process.env.NEXT_PUBLIC_API_URL + `/pools/${id}/lock-status`,
+        { headers: { 'Authorization': `Bearer ${token}` } }
+      );
+      if (lockStatusRes.ok) {
+        const lockStatus = await lockStatusRes.json();
+        setWeekLockStatus(lockStatus.weeks || {});
       }
 
       // Fetch user's entries for this league
@@ -334,6 +344,10 @@ export default function LeagueEntries() {
   }, [selectedWeek, id]);
 
   const handlePickClick = async (entry, week) => {
+    if (weekLockStatus[String(week)]?.locked) {
+      setError(`Week ${week} is locked. Picks can no longer be added or changed.`);
+      return;
+    }
     setSelectedEntry(entry);
     setSelectedWeek(week);
     const { currentPick } = getPickAvailability(allPicks[entry.id] || [], week);
@@ -462,6 +476,7 @@ export default function LeagueEntries() {
     const pick = getPickForEntryWeek(entry.id, week);
     const hasTeam = pick && pick.team;
     const isEntryAlive = entry.alive !== false; // Default to true if undefined
+    const isWeekLocked = Boolean(weekLockStatus[String(week)]?.locked || pick?.locked);
     
     // More visible outlined style for pick circles
     let backgroundColor = '#fff';
@@ -470,34 +485,41 @@ export default function LeagueEntries() {
     let cursor = 'pointer';
     let borderWidth = '2px';
     let opacity = 1;
-    if (!isEntryAlive) {
+    if (pick?.result === 'win') {
+      backgroundColor = '#e8f5e9';
+      borderColor = '#4caf50';
+      textColor = '#1b5e20';
+      borderWidth = '2.5px';
+      cursor = 'not-allowed';
+      opacity = 1;
+    } else if (pick?.result === 'loss') {
+      backgroundColor = '#ffebee';
+      borderColor = '#f44336';
+      textColor = '#b71c1c';
+      borderWidth = '2.5px';
+      cursor = 'not-allowed';
+      opacity = 1;
+    } else if (!isEntryAlive) {
       borderColor = '#f19999';
       textColor = '#d32f2f';
       cursor = 'not-allowed';
       borderWidth = '2px';
       opacity = 0.7;
+    } else if (isWeekLocked) {
+      borderColor = '#66757a';
+      textColor = '#66757a';
+      cursor = 'not-allowed';
+      opacity = 0.72;
     } else if (hasTeam) {
-      if (pick.result === 'win') {
-        borderColor = '#4caf50';
-        textColor = '#388e3c';
-        borderWidth = '2.5px';
-        opacity = 1;
-      } else if (pick.result === 'loss') {
-        borderColor = '#f44336';
-        textColor = '#d32f2f';
-        borderWidth = '2.5px';
-        opacity = 1;
-      } else {
-        borderColor = '#bbb';
-        textColor = '#666';
-      }
+      borderColor = '#bbb';
+      textColor = '#666';
     }
 
     return (
       <button
         key={week}
-        onClick={() => isEntryAlive ? handlePickClick(entry, week) : null}
-        disabled={!isEntryAlive}
+        onClick={() => isEntryAlive && !isWeekLocked ? handlePickClick(entry, week) : null}
+        disabled={!isEntryAlive || isWeekLocked}
         style={{
           width: '36px',
           height: '36px',
@@ -517,7 +539,13 @@ export default function LeagueEntries() {
           overflow: 'hidden',
           opacity: opacity
         }}
-        title={!isEntryAlive ? 'Entry eliminated - no more picks allowed' : (pick?.result ? `${pick.team} - ${pick.result}` : '')}
+        title={pick?.result
+          ? `${pick.team} - ${pick.result}`
+          : !isEntryAlive
+          ? 'Entry eliminated - no remaining picks available'
+          : isWeekLocked
+            ? `Week ${week} is locked${hasTeam ? ` — ${pick.team}` : ''}`
+            : (pick?.result ? `${pick.team} - ${pick.result}` : '')}
       >
         {hasTeam ? (
           <img
@@ -534,6 +562,12 @@ export default function LeagueEntries() {
           />
         ) : (
           week
+        )}
+        {isWeekLocked && !pick?.result && (
+          <span aria-hidden="true" style={{
+            position: 'absolute', right: '-1px', bottom: '-2px', fontSize: '11px',
+            lineHeight: 1, background: '#fff', borderRadius: '50%'
+          }}>🔒</span>
         )}
       </button>
     );
@@ -1062,6 +1096,11 @@ export default function LeagueEntries() {
             )}
 
             {/* Action Buttons */}
+            {Object.values(weekLockStatus).some((week) => week.locked) && (
+              <div className="entries-lock-notice" role="status">
+                Locked weeks are read-only. A lock icon means picks can no longer be added or changed.
+              </div>
+            )}
             <div className="entries-action-bar">
               <div className="entries-action-bar__primary">
                 {!isPoolLocked() && (
