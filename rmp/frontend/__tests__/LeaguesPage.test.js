@@ -114,4 +114,16 @@ describe('Join a Pool', () => {
     await user.click(screen.getByRole('button', { name: /unlock & join/i }));
     expect(await screen.findByRole('alert')).toHaveTextContent('Invalid pool password');
   });
+
+  test('removes the join button after league registration closes', async () => {
+    const closedPool = { ...pools[0], id: 'closed-pool', name: 'Closed Pool', join_lock_time: '2020-01-01T00:00:00' };
+    global.fetch = jest.fn()
+      .mockImplementationOnce(() => response([closedPool]))
+      .mockImplementationOnce(() => response([]));
+
+    render(<Leagues />);
+    const card = (await screen.findByRole('heading', { name: 'Closed Pool' })).closest('article');
+    expect(card).toHaveTextContent('Registration closed');
+    expect(card.querySelector('button')).toBeNull();
+  });
 });

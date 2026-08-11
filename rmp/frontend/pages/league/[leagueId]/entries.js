@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import ProtectedRoute from '../../../components/ProtectedRoute';
 import { useAuth } from '../../../context/AuthContext';
+import { isLeagueJoinLocked } from '../../../utils/leagueLock';
 
 // Mock NFL team data - in production this would come from an API
 const NFL_TEAMS = {
@@ -64,18 +65,22 @@ const MOCK_MATCHUPS = {
 export default function LeagueEntries() {
   // Helper to check if pool lock time is in the past
   const isPoolLocked = () => {
-    if (!league || !league.lock_time) return false;
-    const lockTime = new Date(league.lock_time);
-    return isNaN(lockTime) ? false : lockTime < new Date();
+    return isLeagueJoinLocked(league, new Date(lockClock));
   };
   const [league, setLeague] = useState(null);
   const [entries, setEntries] = useState([]);
   const [allPicks, setAllPicks] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [lockClock, setLockClock] = useState(() => Date.now());
   const [selectedWeek, setSelectedWeek] = useState(null);
   const [selectedEntry, setSelectedEntry] = useState(null);
   const [showMatchupOverlay, setShowMatchupOverlay] = useState(false);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setLockClock(Date.now()), 30000);
+    return () => window.clearInterval(timer);
+  }, []);
   const [selectedTeam, setSelectedTeam] = useState(null);
   const [editingEntryId, setEditingEntryId] = useState(null);
   const [editingEntryName, setEditingEntryName] = useState('');

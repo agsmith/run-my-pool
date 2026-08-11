@@ -885,6 +885,7 @@ table {
 .league-directory__actions { display:flex; gap:.5rem; }
 .league-directory__actions button { flex:1; min-height:44px; color:var(--ice); background:transparent; border:1px solid #3a5055; border-radius:0!important; text-transform:uppercase; }
 .league-directory__actions .league-directory__primary { color:#091012; background:var(--lime); border-color:var(--lime); }
+.league-directory__closed { display:flex; align-items:center; min-height:44px; color:var(--danger); font-size:.7rem; font-weight:900; letter-spacing:.1em; text-transform:uppercase; }
 .league-directory__actions button:disabled { opacity:.5; cursor:not-allowed; transform:none; }
 .league-directory__state { padding:3rem; color:var(--muted); background:#10191c; border:1px dashed #3a4c50; text-align:center; }
 .league-directory__state--error { color:var(--danger); border-color:rgba(255,129,122,.45); }

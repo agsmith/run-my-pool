@@ -5,6 +5,7 @@ import ProtectedRoute from '../../../components/ProtectedRoute';
 import { useAuth } from '../../../context/AuthContext';
 import { PoolWorkspaceNav, WorkspaceHeader } from '../../../components/ProductWorkspace';
 import { getPickAvailability } from '../../../utils/pickAvailability';
+import { isLeagueJoinLocked } from '../../../utils/leagueLock';
 
 // Mock NFL team data - in production this would come from an API
 const NFL_TEAMS = {
@@ -132,9 +133,7 @@ function PickBreakdownPanel({ data, week }) {
 export default function LeagueEntries() {
   // Helper to check if pool lock time is in the past
   const isPoolLocked = () => {
-    if (!league || !league.lock_time) return false;
-    const lockTime = new Date(league.lock_time);
-    return isNaN(lockTime) ? false : lockTime < new Date();
+    return isLeagueJoinLocked(league, new Date(lockClock));
   };
   const [league, setLeague] = useState(null);
   const [entries, setEntries] = useState([]);
@@ -142,12 +141,18 @@ export default function LeagueEntries() {
   const [scheduleData, setScheduleData] = useState({}); // Store schedule data by week
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [lockClock, setLockClock] = useState(() => Date.now());
   const [selectedWeek, setSelectedWeek] = useState(null);
   const [breakdownData, setBreakdownData] = useState([]);
   const [breakdownLoading, setBreakdownLoading] = useState(false);
   const [selectedEntry, setSelectedEntry] = useState(null);
   const [showMatchupOverlay, setShowMatchupOverlay] = useState(false);
   const [selectedTeam, setSelectedTeam] = useState(null);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setLockClock(Date.now()), 30000);
+    return () => window.clearInterval(timer);
+  }, []);
   const [editingEntryId, setEditingEntryId] = useState(null);
   const [editingEntryName, setEditingEntryName] = useState('');
   const [showAccountMenu, setShowAccountMenu] = useState(false); // Track account dropdown state

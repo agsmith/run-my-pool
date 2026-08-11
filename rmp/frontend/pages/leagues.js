@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/router';
 import ProtectedRoute from '../components/ProtectedRoute';
 import PasswordVisibilityButton from '../components/PasswordVisibilityButton';
+import { isLeagueJoinLocked } from '../utils/leagueLock';
 
 export default function Leagues() {
   const router = useRouter();
@@ -19,6 +20,12 @@ export default function Leagues() {
   const [joinError, setJoinError] = useState('');
   const [joinErrorId, setJoinErrorId] = useState(null);
   const [submittingId, setSubmittingId] = useState(null);
+  const [lockClock, setLockClock] = useState(() => Date.now());
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setLockClock(Date.now()), 30000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     const loadPools = async () => {
@@ -56,6 +63,7 @@ export default function Leagues() {
   }), [pools, search, visibility, activeView, joinedIds]);
 
   const joinPool = async (pool) => {
+    if (isLeagueJoinLocked(pool)) return;
     if (pool.is_private && joiningId !== pool.id) {
       setJoiningId(pool.id);
       setPassword('');
@@ -160,6 +168,7 @@ export default function Leagues() {
             {filteredPools.map((pool) => {
               const joined = joinedIds.has(pool.id);
               const enteringPassword = joiningId === pool.id;
+              const registrationClosed = isLeagueJoinLocked(pool, new Date(lockClock));
               return (
                 <article className="league-directory__card" key={pool.id}>
                   <div className="league-directory__card-head">
@@ -171,7 +180,7 @@ export default function Leagues() {
                   <h2>{pool.name}</h2>
                   <p>{pool.description || 'A survivor pool ready for kickoff.'}</p>
 
-                  {enteringPassword && !joined && (
+                  {enteringPassword && !joined && !registrationClosed && (
                     <div className="league-directory__password">
                       <label htmlFor={`pool-password-${pool.id}`}>Pool password</label>
                       <div className="password-visibility-field">
@@ -204,6 +213,8 @@ export default function Leagues() {
                       <button type="button" className="league-directory__primary" onClick={() => router.push(`/pool/${pool.id}`)}>
                         Open pool
                       </button>
+                    ) : registrationClosed ? (
+                      <span className="league-directory__closed">Registration closed</span>
                     ) : (
                       <button
                         type="button"
@@ -214,7 +225,7 @@ export default function Leagues() {
                         {submittingId === pool.id ? 'Joining…' : enteringPassword ? 'Unlock & join' : 'Join pool'}
                       </button>
                     )}
-                    {enteringPassword && !joined && (
+                    {enteringPassword && !joined && !registrationClosed && (
                       <button type="button" onClick={() => { setJoiningId(null); setJoinError(''); setJoinErrorId(null); setShowPassword(false); }}>
                         Cancel
                       </button>
