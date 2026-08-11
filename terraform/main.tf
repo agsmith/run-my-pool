@@ -100,10 +100,34 @@ resource "aws_ecs_task_definition" "backend" {
         {
           name  = "CORS_ORIGINS"
           value = var.cors_origins
+        },
+        {
+          name  = "FRONTEND_URL"
+          value = "https://runmypool.net"
+        },
+        {
+          name  = "STRIPE_PRICE_COMMISSIONER"
+          value = var.stripe_price_commissioner
+        },
+        {
+          name  = "STRIPE_PRICE_PRO"
+          value = var.stripe_price_pro
+        },
+        {
+          name  = "STRIPE_PRICE_CLUB"
+          value = var.stripe_price_club
+        },
+        {
+          name  = "STRIPE_PRICE_CLUB_UNLIMITED"
+          value = var.stripe_price_club_unlimited
+        },
+        {
+          name  = "STRIPE_AUTOMATIC_TAX"
+          value = tostring(var.stripe_automatic_tax)
         }
       ]
 
-      secrets = [
+      secrets = concat([
         {
           name      = "DATABASE_URL"
           valueFrom = var.database_url_secret_arn
@@ -112,7 +136,13 @@ resource "aws_ecs_task_definition" "backend" {
           name      = "SECRET_KEY"
           valueFrom = var.jwt_secret_arn
         }
-      ]
+        ], var.stripe_secret_key_secret_arn == null ? [] : [{
+          name      = "STRIPE_SECRET_KEY"
+          valueFrom = var.stripe_secret_key_secret_arn
+          }], var.stripe_webhook_secret_arn == null ? [] : [{
+          name      = "STRIPE_WEBHOOK_SECRET"
+          valueFrom = var.stripe_webhook_secret_arn
+      }])
 
       logConfiguration = {
         logDriver = "awslogs"

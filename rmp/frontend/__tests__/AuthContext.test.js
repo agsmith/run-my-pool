@@ -196,6 +196,34 @@ describe('login function', () => {
     })
   })
 
+  test('uses a safe in-app continuation after login', async () => {
+    fetch
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ access_token: 'tok' }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ id: '1', email: 'a@b.com' }) })
+
+    function ContinuationConsumer() {
+      const { login } = useAuth()
+      return <button data-testid="continue-login" onClick={() => login('a@b.com', 'Pass1!ab', '/pricing?checkout=club')}>Continue</button>
+    }
+    renderWithAuth(<ContinuationConsumer />)
+    await act(async () => { screen.getByTestId('continue-login').click() })
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/pricing?checkout=club'))
+  })
+
+  test('rejects an external-looking login continuation', async () => {
+    fetch
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ access_token: 'tok' }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ id: '1', email: 'a@b.com' }) })
+
+    function UnsafeContinuationConsumer() {
+      const { login } = useAuth()
+      return <button data-testid="unsafe-login" onClick={() => login('a@b.com', 'Pass1!ab', '//evil.example')}>Continue</button>
+    }
+    renderWithAuth(<UnsafeContinuationConsumer />)
+    await act(async () => { screen.getByTestId('unsafe-login').click() })
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/dashboard'))
+  })
+
   test('throws on bad credentials when server returns not-ok', async () => {
     fetch.mockResolvedValueOnce({
       ok: false,

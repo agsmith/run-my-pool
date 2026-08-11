@@ -183,6 +183,9 @@ table {
 .pricing-card li span { color:var(--lime); font-weight:900; }
 .pricing-card__cta { display:flex; justify-content:space-between; align-items:center; min-height:48px; padding:0 15px; color:#101514; background:var(--ice); font-size:10px; font-weight:900; letter-spacing:.05em; text-decoration:none; text-transform:uppercase; }
 .pricing-card--featured .pricing-card__cta { background:var(--lime); }
+.pricing-card__cta.is-loading,.pricing-card__cta[aria-disabled="true"] { opacity:.62; pointer-events:none; }
+.pricing-checkout-notice { grid-column:1/-1; padding:1rem 1.2rem; color:var(--ice); background:#10191c; border:1px solid #40555a; }
+.pricing-checkout-notice--error { color:#ffd9d5; border-color:rgba(255,129,122,.55); }
 .pricing-promise { display:grid; grid-template-columns:repeat(3,1fr); margin-bottom:80px; padding-top:24px; border-top:1px solid #314146; }
 .pricing-promise > div { display:grid; gap:8px; padding:0 24px; border-right:1px solid #314146; }
 .pricing-promise > div:last-child { border-right:0; }
@@ -200,6 +203,15 @@ table {
 .pricing-final .rmp-eyebrow { justify-content:center; }
 .pricing-final h2 { font-size:clamp(60px,7vw,88px); }
 .pricing-nav-links a[aria-current="page"] { color:var(--lime); }
+.billing-result-page { display:grid; place-items:center; min-height:calc(100vh - 70px); padding:2rem; background:radial-gradient(circle at 50% 25%,rgba(159,239,255,.12),transparent 32%),#080d0f; }
+.billing-result-card { width:min(100%,680px); padding:clamp(1.5rem,5vw,3.5rem); color:var(--ink); background:#0f191b; border:1px solid #40555a; border-top:4px solid var(--lime); box-shadow:0 30px 90px rgba(0,0,0,.45); }
+.billing-result-card h1 { margin:1rem 0; font-family:Impact,'Arial Narrow',sans-serif; font-size:clamp(3.4rem,9vw,6rem); font-style:italic; font-weight:400; line-height:.88; }
+.billing-result-card > p { color:#aab8b8; font-family:Georgia,serif; line-height:1.7; }
+.billing-result-card > p strong { color:var(--lime); text-transform:capitalize; }
+.billing-result-amount { margin:1.5rem 0; color:var(--ice); font-family:Impact,'Arial Narrow',sans-serif; font-size:3rem; font-style:italic; }
+.billing-result-actions { display:flex; flex-wrap:wrap; gap:.75rem; margin-top:2rem; }
+.billing-result-actions a { padding:.85rem 1rem; color:#091012; background:var(--lime); font-size:.75rem; font-weight:900; letter-spacing:.06em; text-decoration:none; text-transform:uppercase; }
+.billing-result-actions a:last-child { color:var(--ice); background:#152124; border:1px solid #40555a; }
 @media (max-width:1050px) and (min-width:801px) {
   .pricing-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
   .pricing-card--featured { transform:none; }

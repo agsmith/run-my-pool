@@ -48,7 +48,7 @@ export function AuthProvider({ children }) {
     return () => { cancelled = true; };
   }, []);
 
-  const login = async (email, password) => {
+  const login = async (email, password, redirectTo = '/dashboard') => {
     setLoading(true);
     try {
       const res = await fetch(process.env.NEXT_PUBLIC_API_URL + '/auth/login', {
@@ -83,7 +83,10 @@ export function AuthProvider({ children }) {
       }
       
       setLoading(false);
-      router.push('/dashboard');
+      const safeRedirect = typeof redirectTo === 'string' && redirectTo.startsWith('/') && !redirectTo.startsWith('//')
+        ? redirectTo
+        : '/dashboard';
+      router.push(safeRedirect);
     } catch (e) {
       setLoading(false);
       throw e;

@@ -30,7 +30,7 @@ export default function MyApp({ Component, pageProps }) {
     },
     '/pricing': {
       title: 'Football Pool Pricing',
-      description: 'Simple season pricing for NFL survivor pool commissioners. Start free, scale to 500 entries, and never pay a percentage of prizes.',
+      description: 'Simple season pricing for NFL survivor pool commissioners. Start free, grow by the hundred, or run unlimited entries for one predictable price.',
       path: '/pricing',
     },
     '/install': {
