@@ -1174,6 +1174,10 @@ table {
 .admin-access-panel__options small { color:var(--muted)!important; font-size:.72rem; }
 .admin-access-panel__password { display:grid; gap:.5rem; }
 .admin-access-panel__password small { color:var(--muted)!important; }
+.admin-access-panel__current-password { display:grid; gap:.45rem; margin-bottom:.65rem; padding:.75rem; background:#0c1416; border:1px solid #34484c; }
+.admin-access-panel__current-password > div { display:flex; gap:.5rem; }
+.admin-access-panel__current-password input { flex:1; min-width:0; }
+.broadcast-v2--admin .admin-access-panel__current-password button { flex:0 0 auto; color:var(--lime)!important; background:transparent!important; border:1px solid var(--lime)!important; border-radius:0!important; }
 .admin-access-panel__footer { display:flex; align-items:center; gap:1rem; flex-wrap:wrap; padding-top:.9rem; border-top:1px solid #314449; }
 .broadcast-v2--admin .admin-access-panel__footer button { color:#091012!important; background:var(--lime)!important; border:1px solid var(--lime)!important; border-radius:0!important; }
 .admin-access-panel__footer span { color:var(--ice); font-size:.8rem; font-weight:700; }

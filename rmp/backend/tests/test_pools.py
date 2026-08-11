@@ -297,6 +297,59 @@ class TestPoolJoining:
         pool = db_session.query(models.Pool).filter(models.Pool.id == response.json()["id"]).first()
         assert pool.join_password_hash
         assert pool.join_password_hash != "huddle42"
+        assert pool.join_password_encrypted
+        assert pool.join_password_encrypted != "huddle42"
+
+        revealed = client.get(
+            f"/pools/{pool.id}/join-password", headers=headers
+        )
+        assert revealed.status_code == 200
+        assert revealed.json() == {"available": True, "password": "huddle42"}
+        assert revealed.headers["cache-control"] == "no-store"
+
+    def test_join_password_is_only_viewable_by_league_admins(self, client):
+        owner = _register(client, "view.password.owner@example.com")
+        pool = client.post(
+            "/pools/create",
+            json={"name": "View Password", "is_private": True, "join_password": "sideline8"},
+            headers=owner,
+        ).json()
+        outsider = _register(client, "view.password.outsider@example.com")
+
+        denied = client.get(
+            f"/pools/{pool['id']}/join-password", headers=outsider
+        )
+
+        assert denied.status_code == 403
+        assert "password" not in denied.json()
+
+    def test_legacy_password_becomes_viewable_after_admin_changes_it(self, client, db_session):
+        owner = _register(client, "legacy.password.owner@example.com")
+        pool = client.post(
+            "/pools/create",
+            json={"name": "Legacy Password", "is_private": True, "join_password": "original8"},
+            headers=owner,
+        ).json()
+        stored = db_session.query(models.Pool).filter(models.Pool.id == pool["id"]).one()
+        stored.join_password_encrypted = None
+        db_session.commit()
+
+        unavailable = client.get(
+            f"/pools/{pool['id']}/join-password", headers=owner
+        )
+        assert unavailable.status_code == 200
+        assert unavailable.json() == {"available": False, "password": None}
+
+        changed = client.patch(
+            f"/pools/{pool['id']}",
+            json={"join_password": "replacement9"},
+            headers=owner,
+        )
+        assert changed.status_code == 200
+        revealed = client.get(
+            f"/pools/{pool['id']}/join-password", headers=owner
+        )
+        assert revealed.json() == {"available": True, "password": "replacement9"}
 
     def test_public_pool_joins_without_password_and_appears_in_my_pools(self, client):
         owner = _register(client, "public.owner@example.com")
@@ -415,6 +468,11 @@ class TestPoolJoining:
         )
         assert changed.status_code == 200, changed.text
         assert denied.status_code == 403
+        revealed = client.get(
+            f"/pools/{pool['id']}/join-password", headers=admin
+        )
+        assert revealed.status_code == 200
+        assert revealed.json()["password"] == "delegate9"
 
 
 # ---------------------------------------------------------------------------

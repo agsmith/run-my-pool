@@ -7,6 +7,7 @@ import AdminUserOverview from '../../../components/AdminUserOverview';
 import AdminAccessControl from '../../../components/AdminAccessControl';
 import OwnershipTransferControl from '../../../components/OwnershipTransferControl';
 import LeagueLockSettings from '../../../components/LeagueLockSettings';
+import LeaguePasswordViewer from '../../../components/LeaguePasswordViewer';
 import { getAuditUsername } from '../../../utils/auditDisplay';
 
 export default function AdminPortal() {
@@ -24,6 +25,7 @@ export default function AdminPortal() {
   const [accessSettings, setAccessSettings] = useState({ is_private: false, join_password: '' });
   const [accessMessage, setAccessMessage] = useState('');
   const [savingAccess, setSavingAccess] = useState(false);
+  const [passwordChanged, setPasswordChanged] = useState(0);
   
   // User Management State
   const [resetPasswordData, setResetPasswordData] = useState({ username: '' });
@@ -195,6 +197,7 @@ export default function AdminPortal() {
     try {
       const token = localStorage.getItem('access_token');
       const payload = { is_private: accessSettings.is_private };
+      const changedPassword = Boolean(accessSettings.is_private && accessSettings.join_password);
       if (accessSettings.is_private && accessSettings.join_password) {
         payload.join_password = accessSettings.join_password;
       }
@@ -210,6 +213,7 @@ export default function AdminPortal() {
       if (!response.ok) throw new Error(data.detail || 'Unable to update pool access');
       setLeague(data);
       setAccessSettings({ is_private: data.is_private, join_password: '' });
+      if (changedPassword) setPasswordChanged((current) => current + 1);
       setAccessMessage(data.is_private ? 'Private access saved.' : 'Pool is now public. No password is required.');
     } catch (err) {
       setAccessMessage(err.message || 'Unable to update pool access');
@@ -401,6 +405,11 @@ export default function AdminPortal() {
         </div>
         {accessSettings.is_private && (
           <div className="admin-access-panel__password">
+            <LeaguePasswordViewer
+              poolId={leagueId}
+              isPrivate={accessSettings.is_private}
+              passwordChanged={passwordChanged}
+            />
             <label htmlFor="admin-join-password">Join password</label>
             <input
               id="admin-join-password"

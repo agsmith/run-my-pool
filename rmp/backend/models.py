@@ -69,6 +69,7 @@ class Pool(Base):
     join_lock_time = Column(DateTime, nullable=True)
     is_private = Column(Boolean, default=False)
     join_password_hash = Column(String(255), nullable=True)
+    join_password_encrypted = Column(Text, nullable=True)
     owner_id = Column(String(36), ForeignKey(USERS_ID_FK))
     created_at = Column(DateTime)
     updated_at = Column(DateTime)

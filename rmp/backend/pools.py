@@ -1,8 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from typing import List
+import base64
+import hashlib
 import models
 import schemas
 import deps
@@ -10,12 +12,32 @@ from datetime import datetime, time, timezone
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 import uuid
 from audit_utils import log_create_operation, log_update_operation, log_delete_operation
-from auth import get_password_hash, verify_password
+from auth import SECRET_KEY, get_password_hash, verify_password
+from cryptography.fernet import Fernet, InvalidToken
 
 router = APIRouter(prefix="/pools", tags=["pools"])
 
 MIN_JOIN_PASSWORD_LENGTH = 6
 MAX_POOL_NAME_LENGTH = 255
+
+
+def _password_cipher() -> Fernet:
+    key = base64.urlsafe_b64encode(hashlib.sha256(SECRET_KEY.encode("utf-8")).digest())
+    return Fernet(key)
+
+
+def _encrypt_join_password(password: str) -> str:
+    return _password_cipher().encrypt(password.encode("utf-8")).decode("ascii")
+
+
+def _decrypt_join_password(encrypted_password: str) -> str:
+    try:
+        return _password_cipher().decrypt(encrypted_password.encode("ascii")).decode("utf-8")
+    except (InvalidToken, ValueError, UnicodeDecodeError):
+        raise HTTPException(
+            status_code=409,
+            detail="The stored league password cannot be displayed. Set a new password.",
+        )
 
 
 def _normalize_pool_name(name: str) -> str:
@@ -152,10 +174,11 @@ def create_pool(
                 )
 
         join_password_hash = None
+        join_password_encrypted = None
         if pool.is_private:
-            join_password_hash = get_password_hash(
-                _validate_join_password(pool.join_password)
-            )
+            validated_password = _validate_join_password(pool.join_password)
+            join_password_hash = get_password_hash(validated_password)
+            join_password_encrypted = _encrypt_join_password(validated_password)
 
         recurring_time = _parse_time_of_day(pool.lock_time_of_day) if pool.lock_time_of_day else None
         recurring_timezone = _validate_timezone(pool.lock_timezone) if pool.lock_timezone else None
@@ -174,6 +197,7 @@ def create_pool(
             join_lock_time=join_lock_time,
             is_private=pool.is_private,
             join_password_hash=join_password_hash,
+            join_password_encrypted=join_password_encrypted,
             owner_id=current_user.id,
             created_at=datetime.now(timezone.utc).replace(tzinfo=None),
             updated_at=datetime.now(timezone.utc).replace(tzinfo=None),
@@ -322,9 +346,9 @@ def update_pool(
         )
         if target_is_private:
             if pool_update.join_password is not None:
-                pool.join_password_hash = get_password_hash(
-                    _validate_join_password(pool_update.join_password)
-                )
+                validated_password = _validate_join_password(pool_update.join_password)
+                pool.join_password_hash = get_password_hash(validated_password)
+                pool.join_password_encrypted = _encrypt_join_password(validated_password)
             elif pool_update.is_private is True and not pool.join_password_hash:
                 raise HTTPException(
                     status_code=400,
@@ -332,6 +356,7 @@ def update_pool(
                 )
         else:
             pool.join_password_hash = None
+            pool.join_password_encrypted = None
         pool.is_private = target_is_private
 
         pool.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
@@ -419,6 +444,30 @@ def join_pool(
         },
     )
     return {"message": "Pool joined successfully", "pool_id": pool_id}
+
+
+@router.get("/{pool_id}/join-password")
+def get_pool_join_password(
+    pool_id: str,
+    response: Response,
+    db: Session = Depends(deps.get_db),
+    current_user: models.User = Depends(deps.get_current_user),
+):
+    """Reveal a private league password only to that league's administrators."""
+    pool = db.query(models.Pool).filter(models.Pool.id == pool_id).first()
+    if not pool:
+        raise HTTPException(status_code=404, detail="Pool not found")
+    if not _has_admin_access(db, pool, current_user.id):
+        raise HTTPException(status_code=403, detail="Only league admins can view the password")
+    if not pool.is_private:
+        raise HTTPException(status_code=400, detail="Public leagues do not have a join password")
+    response.headers["Cache-Control"] = "no-store"
+    if not pool.join_password_encrypted:
+        return {"available": False, "password": None}
+    return {
+        "available": True,
+        "password": _decrypt_join_password(pool.join_password_encrypted),
+    }
 
 
 @router.delete("/{pool_id}")
