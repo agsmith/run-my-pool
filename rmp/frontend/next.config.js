@@ -1,11 +1,9 @@
-const withPWA = require('@ducanh2912/next-pwa').default({
-  dest: 'public',
+const withSerwist = require('@serwist/next').default({
+  swSrc: 'service-worker/index.js',
+  swDest: 'public/sw.js',
   disable: process.env.NODE_ENV === 'development',
   register: true,
-  skipWaiting: true,
-  fallbacks: {
-    document: '/offline',
-  },
+  additionalPrecacheEntries: [{ url: '/offline', revision: 'offline-v1' }],
 })
 
 /** @type {import('next').NextConfig} */
@@ -14,4 +12,4 @@ const nextConfig = {
   output: 'standalone',
 }
 
-module.exports = withPWA(nextConfig)
+module.exports = withSerwist(nextConfig)

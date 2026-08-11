@@ -15,7 +15,7 @@ fi
 
 # Install test dependencies if not already installed
 echo "📋 Installing test dependencies..."
-pip install -q pytest pytest-cov pytest-asyncio httpx pytest-mock
+pip install -q --require-hashes -r requirements-dev.txt
 
 # Run tests with coverage
 echo "🚀 Running tests with coverage..."

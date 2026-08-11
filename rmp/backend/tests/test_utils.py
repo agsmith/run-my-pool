@@ -75,7 +75,8 @@ class TestUtilities:
     def test_jwt_utilities(self):
         """Test JWT token utilities"""
         from auth import create_access_token, SECRET_KEY
-        from jose import jwt, JWTError
+        import jwt
+        from jwt import InvalidTokenError
 
         # Test token creation
         data = {"sub": "test@example.com"}
@@ -88,7 +89,7 @@ class TestUtilities:
         try:
             decoded = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
             assert decoded["sub"] == "test@example.com"
-        except JWTError:
+        except InvalidTokenError:
             pytest.fail("Token decoding failed")
 
 

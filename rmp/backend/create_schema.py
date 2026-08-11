@@ -5,10 +5,6 @@ Script to create the database schema from datamodel.sql
 
 import mysql.connector
 import os
-from dotenv import load_dotenv
-
-# Load environment variables
-load_dotenv()
 
 # Database configuration
 MYSQL_USER = os.getenv("MYSQL_USER", "root")

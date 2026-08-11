@@ -39,7 +39,7 @@ class TestAuthFunctions:
     def test_create_access_token(self):
         """Test JWT token creation"""
         from auth import create_access_token
-        from jose import jwt
+        import jwt
 
         test_data = {"sub": "test@example.com"}
         token = create_access_token(test_data)
@@ -218,7 +218,7 @@ class TestGetMe:
 
     def test_get_me_tampered_token(self, client, test_user_data):
         """T-04: Token with payload modified but original signature returns 401"""
-        from jose import jwt
+        import jwt
 
         client.post("/auth/register", json=test_user_data)
         token = _register_and_login(
@@ -484,7 +484,7 @@ class TestLoginExtended:
 
     def test_login_token_is_decodable(self, client, test_user_data):
         """T-27: Returned JWT is decodable; sub == email; exp present; HS256"""
-        from jose import jwt
+        import jwt
 
         client.post("/auth/register", json=test_user_data)
         response = client.post(

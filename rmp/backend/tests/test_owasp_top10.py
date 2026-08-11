@@ -1,9 +1,4 @@
-"""Executable OWASP Top 10 security assessment for the RunMyPool API.
-
-Passing tests verify controls that exist today.  ``xfail`` tests are security
-requirements for confirmed gaps; they remain visible in every test report and
-will XPASS as soon as the associated control is implemented.
-"""
+"""Executable OWASP Top 10 security assessment for the RunMyPool API."""
 
 import base64
 import json
@@ -181,15 +176,32 @@ class TestA05SecurityMisconfiguration:
 
 
 class TestA06VulnerableAndOutdatedComponents:
-    @pytest.mark.xfail(reason="Python requirements and frontend dependencies are not pinned")
-    def test_direct_dependencies_are_exactly_pinned(self):
+    def test_dependencies_are_reproducibly_locked(self):
         root = Path(__file__).resolve().parents[2]
-        requirements = (root / "backend" / "requirements.txt").read_text().splitlines()
-        package = (root / "frontend" / "package.json").read_text()
-        active = [line.strip() for line in requirements if line.strip() and not line.startswith("#")]
-        assert all("==" in line for line in active)
-        assert '"latest"' not in package
-        assert '"^' not in package
+        backend = root / "backend"
+        frontend = root / "frontend"
+
+        direct_requirements = [
+            line.strip()
+            for line in (backend / "requirements.in").read_text().splitlines()
+            if line.strip() and not line.lstrip().startswith("#")
+        ]
+        assert all(
+            "==" in requirement
+            or (" @ https://" in requirement and "#sha256=" in requirement)
+            for requirement in direct_requirements
+        )
+
+        compiled_requirements = (backend / "requirements.txt").read_text()
+        assert "--hash=sha256:" in compiled_requirements
+
+        package = json.loads((frontend / "package.json").read_text())
+        for section in ("dependencies", "devDependencies", "overrides"):
+            for name, version in package.get(section, {}).items():
+                assert version[0].isdigit(), f"{name} is not exactly pinned: {version}"
+
+        lockfile = json.loads((frontend / "package-lock.json").read_text())
+        assert lockfile["lockfileVersion"] >= 3
 
 
 class TestA07IdentificationAndAuthenticationFailures:

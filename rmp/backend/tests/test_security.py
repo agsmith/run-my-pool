@@ -22,7 +22,7 @@ import os
 from datetime import datetime, timedelta, timezone
 
 import pytest
-from jose import jwt as jose_jwt
+import jwt
 from auth import create_access_token
 
 
@@ -119,7 +119,7 @@ class TestJWT:
     def test_expired_jwt_returns_401(self, client):
         """A JWT whose 'exp' claim is in the past must be rejected with 401."""
         secret = os.environ.get("SECRET_KEY", "test-secret-key")
-        expired_token = jose_jwt.encode(
+        expired_token = jwt.encode(
             {
                 "sub": "test@example.com",
                 "exp": datetime.utcnow() - timedelta(hours=1),

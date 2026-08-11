@@ -5,10 +5,6 @@ Script to fix duplicate foreign key constraints in the Schedule table
 
 import mysql.connector
 import os
-from dotenv import load_dotenv
-
-# Load environment variables
-load_dotenv()
 
 def get_database_connection():
     """Get database connection using environment variables"""

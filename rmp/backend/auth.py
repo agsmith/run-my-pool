@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from passlib.context import CryptContext
-from jose import jwt, JWTError
+import jwt
+from jwt import InvalidTokenError
 from datetime import datetime, timedelta, timezone
 import hashlib
 import models
@@ -183,7 +184,7 @@ def reset_password(request: schemas.ResetPasswordRequest, db: Session = Depends(
         )
         
         return {"message": "Password reset successfully"}
-    except JWTError:
+    except InvalidTokenError:
         raise HTTPException(status_code=400, detail="Invalid or expired reset token")
     except HTTPException:
         raise
