@@ -1051,76 +1051,32 @@ export default function LeagueEntries() {
             )}
 
             {/* Action Buttons */}
-            <div style={{ 
-              marginBottom: '2rem', 
-              display: 'flex', 
-              gap: '1rem', 
-              flexWrap: 'wrap'
-            }}>
-              {!isPoolLocked() && (
-                <>
-                  <button 
+            <div className="entries-action-bar">
+              <div className="entries-action-bar__primary">
+                {!isPoolLocked() && (
+                  <>
+                  <button className="entries-action entries-action--create"
                     onClick={handleCreateEntry}
-                    style={{ 
-                      backgroundColor: '#667eea', 
-                      color: 'white', 
-                      padding: '0.75rem 1.5rem', 
-                      border: 'none', 
-                      borderRadius: '8px', 
-                      cursor: 'pointer',
-                      fontSize: '1rem',
-                      fontWeight: '600',
-                      transition: 'all 0.2s ease',
-                      boxShadow: '0 4px 12px rgba(102, 126, 234, 0.4)'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.target.style.backgroundColor = '#5a67d8';
-                      e.target.style.transform = 'translateY(-1px)';
-                      e.target.style.boxShadow = '0 6px 16px rgba(102, 126, 234, 0.5)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.target.style.backgroundColor = '#667eea';
-                      e.target.style.transform = 'translateY(0)';
-                      e.target.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.4)';
-                    }}
                   >
-                    Create New Entry
+                    <span aria-hidden="true">+</span> Create New Entry
                   </button>
                   {entries.length > 0 && (
-                    <button 
+                    <button className="entries-action entries-action--delete"
                       onClick={handleDeleteLastEntry}
-                      style={{ 
-                        backgroundColor: '#e53e3e', 
-                        color: 'white', 
-                        padding: '0.75rem 1.5rem', 
-                        border: 'none', 
-                        borderRadius: '8px', 
-                        cursor: 'pointer',
-                        fontSize: '1rem',
-                        fontWeight: '600',
-                        transition: 'all 0.2s ease',
-                        boxShadow: '0 4px 12px rgba(229, 62, 62, 0.4)'
-                      }}
-                      onMouseEnter={(e) => {
-                        e.target.style.backgroundColor = '#c53030';
-                        e.target.style.transform = 'translateY(-1px)';
-                        e.target.style.boxShadow = '0 6px 16px rgba(229, 62, 62, 0.5)';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.target.style.backgroundColor = '#e53e3e';
-                        e.target.style.transform = 'translateY(0)';
-                        e.target.style.boxShadow = '0 4px 12px rgba(229, 62, 62, 0.4)';
-                      }}
                     >
-                      Delete Entry
+                      <span aria-hidden="true">−</span> Delete Entry
                     </button>
                   )}
-                </>
-              )}
+                  </>
+                )}
+              </div>
+              <button className="entries-action entries-action--back" onClick={() => router.push('/dashboard')}>
+                Back to Dashboard <span aria-hidden="true">→</span>
+              </button>
             </div>
 
         {entries.length === 0 ? (
-          <div style={{
+          <div className="entries-empty-state" style={{
             textAlign: 'center',
             padding: '4rem 2rem',
             backgroundColor: 'white',
@@ -1154,7 +1110,7 @@ export default function LeagueEntries() {
               You haven't created any entries for this pool yet.
             </p>
             {!isPoolLocked() && (
-              <button 
+              <button className="entries-action entries-action--create"
                 onClick={handleCreateEntry}
                 style={{ 
                   background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
@@ -1368,42 +1324,6 @@ export default function LeagueEntries() {
           </div>
           </>
         )}
-
-            {/* Footer Navigation */}
-            <div style={{ 
-              marginTop: '2rem', 
-              paddingTop: '2rem',
-              borderTop: '1px solid #e5e7eb',
-              textAlign: 'center'
-            }}>
-              <button 
-                onClick={() => router.push('/dashboard')}
-                style={{ 
-                  backgroundColor: '#6b7280', 
-                  color: 'white', 
-                  padding: '0.75rem 1.5rem', 
-                  border: 'none', 
-                  borderRadius: '8px', 
-                  cursor: 'pointer',
-                  fontSize: '1rem',
-                  fontWeight: '600',
-                  transition: 'all 0.2s ease',
-                  boxShadow: '0 4px 12px rgba(107, 114, 128, 0.4)'
-                }}
-                onMouseEnter={(e) => {
-                  e.target.style.backgroundColor = '#4b5563';
-                  e.target.style.transform = 'translateY(-1px)';
-                  e.target.style.boxShadow = '0 6px 16px rgba(107, 114, 128, 0.5)';
-                }}
-                onMouseLeave={(e) => {
-                  e.target.style.backgroundColor = '#6b7280';
-                  e.target.style.transform = 'translateY(0)';
-                  e.target.style.boxShadow = '0 4px 12px rgba(107, 114, 128, 0.4)';
-                }}
-              >
-                Back to Dashboard
-              </button>
-            </div>
 
             {renderMatchupOverlay()}
           </div>

@@ -131,15 +131,6 @@ export default function NavBar() {
         >
           Leagues
         </Link>
-        <Link 
-          href="/message-board" 
-          style={navStyles.navLink}
-          onClick={closeMobileMenu}
-          onMouseEnter={handleLinkHover}
-          onMouseLeave={handleLinkLeave}
-        >
-          Message Board
-        </Link>
         {user ? (
           <>
             <Link 

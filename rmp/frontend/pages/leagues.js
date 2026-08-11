@@ -6,6 +6,7 @@ export default function Leagues() {
   const router = useRouter();
   const [pools, setPools] = useState([]);
   const [joinedIds, setJoinedIds] = useState(new Set());
+  const [activeView, setActiveView] = useState('browse');
   const [search, setSearch] = useState('');
   const [visibility, setVisibility] = useState('all');
   const [loading, setLoading] = useState(true);
@@ -42,8 +43,9 @@ export default function Leagues() {
     const matchesText = `${pool.name} ${pool.description || ''}`.toLowerCase().includes(search.toLowerCase());
     const matchesVisibility = visibility === 'all'
       || (visibility === 'private' ? pool.is_private : !pool.is_private);
-    return matchesText && matchesVisibility;
-  }), [pools, search, visibility]);
+    const matchesMembership = activeView === 'browse' || joinedIds.has(pool.id);
+    return matchesText && matchesVisibility && matchesMembership;
+  }), [pools, search, visibility, activeView, joinedIds]);
 
   const joinPool = async (pool) => {
     if (pool.is_private && joiningId !== pool.id) {
@@ -89,6 +91,25 @@ export default function Leagues() {
           <p>Public pools are open to every player. Private pools require the password supplied by the commissioner.</p>
         </header>
 
+        <nav className="league-directory__views" aria-label="League directory views">
+          <button
+            type="button"
+            className={activeView === 'browse' ? 'is-active' : ''}
+            aria-current={activeView === 'browse' ? 'page' : undefined}
+            onClick={() => setActiveView('browse')}
+          >
+            Browse Pools
+          </button>
+          <button
+            type="button"
+            className={activeView === 'mine' ? 'is-active' : ''}
+            aria-current={activeView === 'mine' ? 'page' : undefined}
+            onClick={() => setActiveView('mine')}
+          >
+            My Pools <span>{joinedIds.size}</span>
+          </button>
+        </nav>
+
         <section className="league-directory__controls" aria-label="Pool filters">
           <input
             type="search"
@@ -119,7 +140,9 @@ export default function Leagues() {
         ) : error ? (
           <div className="league-directory__state league-directory__state--error">{error}</div>
         ) : filteredPools.length === 0 ? (
-          <div className="league-directory__state">No pools match this search.</div>
+          <div className="league-directory__state">
+            {activeView === 'mine' ? 'You have not joined any pools that match these filters.' : 'No pools match this search.'}
+          </div>
         ) : (
           <section className="league-directory__grid" aria-label="Available pools">
             {filteredPools.map((pool) => {

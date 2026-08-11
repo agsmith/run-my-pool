@@ -32,12 +32,12 @@ beforeEach(() => {
 // Tests
 // ---------------------------------------------------------------------------
 describe('NavBar', () => {
-  test('renders navigation links for Dashboard, Leagues, and Message Board', () => {
+  test('renders global navigation links for Dashboard and Leagues', () => {
     render(<NavBar />)
 
     expect(screen.getByRole('link', { name: /dashboard/i })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /leagues/i })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /message board/i })).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /message board/i })).not.toBeInTheDocument()
   })
 
   test('keeps administration out of the global navigation', () => {

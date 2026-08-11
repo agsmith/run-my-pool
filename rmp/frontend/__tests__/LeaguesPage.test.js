@@ -39,6 +39,19 @@ describe('Join a Pool', () => {
     expect(screen.getByText('Private')).toBeInTheDocument();
   });
 
+  test('shows memberships in My Pools and excludes pools not joined', async () => {
+    global.fetch = jest.fn()
+      .mockImplementationOnce(() => response(pools))
+      .mockImplementationOnce(() => response([pools[1]]));
+    const user = userEvent.setup();
+    render(<Leagues />);
+    await screen.findByRole('heading', { name: 'Public Pool' });
+
+    await user.click(screen.getByRole('button', { name: /my pools/i }));
+    expect(screen.getByRole('heading', { name: 'Private Pool' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Public Pool' })).not.toBeInTheDocument();
+  });
+
   test('joins a public pool without requesting a password', async () => {
     global.fetch.mockImplementationOnce(() => response({ message: 'Pool joined successfully' }));
     const user = userEvent.setup();
