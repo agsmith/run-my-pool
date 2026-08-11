@@ -71,9 +71,9 @@ function PickBreakdownPanel({ data, week }) {
 
   return (
     <div className="entries-breakdown" style={{
-      backgroundColor: '#f8f9fa',
-      border: '1px solid #dee2e6',
-      borderRadius: '8px',
+      backgroundColor: '#10191c',
+      border: '1px solid #314449',
+      borderRadius: '0',
       padding: '1rem 1.25rem',
       marginBottom: '1.5rem',
     }}>
@@ -114,7 +114,7 @@ function PickBreakdownPanel({ data, week }) {
                 width: `${pct}%`,
                 minWidth: pct > 0 ? '4px' : '0',
                 height: '100%',
-                backgroundColor: '#667eea',
+                backgroundColor: '#d7ff3f',
                 borderRadius: '4px',
                 transition: 'width 0.3s ease',
               }} />
@@ -850,13 +850,13 @@ export default function LeagueEntries() {
     return (
       <div className="product-page entries-page" style={{
         minHeight: '100vh', 
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        background: '#080d0f',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center'
       }}>
         <div style={{ 
-          color: 'white',
+          color: '#d7ff3f',
           fontSize: '1.5rem',
           fontWeight: '600',
           textShadow: '0 2px 4px rgba(0, 0, 0, 0.5)'
@@ -869,9 +869,9 @@ export default function LeagueEntries() {
 
   return (
     <ProtectedRoute>
-      <div style={{ 
+      <div className="product-page entries-page" style={{
         minHeight: '100vh', 
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        background: '#080d0f',
         display: 'flex',
         flexDirection: 'column'
       }}>
@@ -1080,16 +1080,16 @@ export default function LeagueEntries() {
           <div className="entries-empty-state" style={{
             textAlign: 'center',
             padding: '4rem 2rem',
-            backgroundColor: 'white',
-            borderRadius: '16px',
-            border: '2px dashed #e2e8f0',
-            boxShadow: '0 8px 32px rgba(102, 126, 234, 0.1)',
-            background: 'linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(248,250,252,0.9) 100%)'
+            backgroundColor: '#0d1618',
+            borderRadius: '0',
+            border: '1px dashed #3a5055',
+            boxShadow: 'none',
+            background: '#0d1618'
           }}>
             <div style={{
               fontSize: '3rem',
               marginBottom: '1rem',
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              background: 'none',
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
               backgroundClip: 'text'
@@ -1114,7 +1114,7 @@ export default function LeagueEntries() {
               <button className="entries-action entries-action--create"
                 onClick={handleCreateEntry}
                 style={{ 
-                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  background: '#d7ff3f',
                   color: 'white', 
                   padding: '1rem 2rem', 
                   border: 'none', 
@@ -1123,17 +1123,17 @@ export default function LeagueEntries() {
                   fontSize: '1.1rem',
                   fontWeight: '600',
                   transition: 'all 0.3s ease',
-                  boxShadow: '0 8px 24px rgba(102, 126, 234, 0.4)',
+                  boxShadow: '0 8px 24px rgba(215, 255, 63, 0.14)',
                   textTransform: 'none',
                   letterSpacing: '0.5px'
                 }}
                 onMouseEnter={(e) => {
                   e.target.style.transform = 'translateY(-2px)';
-                  e.target.style.boxShadow = '0 12px 32px rgba(102, 126, 234, 0.5)';
+                  e.target.style.boxShadow = '0 12px 32px rgba(215, 255, 63, 0.2)';
                 }}
                 onMouseLeave={(e) => {
                   e.target.style.transform = 'translateY(0)';
-                  e.target.style.boxShadow = '0 8px 24px rgba(102, 126, 234, 0.4)';
+                  e.target.style.boxShadow = '0 8px 24px rgba(215, 255, 63, 0.14)';
                 }}
               >
                 Create Your First Entry
@@ -1146,8 +1146,8 @@ export default function LeagueEntries() {
             <div className="entries-table-scroll" style={{
               overflowX: 'auto',
               borderRadius: '12px',
-            boxShadow: '0 8px 32px rgba(102, 126, 234, 0.15)',
-            backgroundColor: 'white'
+            boxShadow: 'none',
+            backgroundColor: '#11191c'
           }}>
             <table className="entries-season-table" style={{
               width: '100%', 
@@ -1158,7 +1158,7 @@ export default function LeagueEntries() {
             }}>
               <thead>
                 <tr style={{ 
-                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  background: '#0c1416',
                   color: 'white'
                 }}>
                   <th className="entries-season-table__name" style={{
@@ -1217,7 +1217,7 @@ export default function LeagueEntries() {
                             onBlur={() => handleSaveEntryName(entry.id)}
                             autoFocus
                             style={{
-                              border: '2px solid #667eea',
+                              border: '2px solid #9fefff',
                               borderRadius: '8px',
                               padding: '8px 12px',
                               fontSize: '14px',

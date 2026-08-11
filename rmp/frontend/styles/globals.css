@@ -428,6 +428,37 @@ table {
 .broadcast-v2--entries .entries-overlay__header p { color:var(--bn-muted)!important; }
 .broadcast-v2--entries .entries-overlay__game { background:#121d20; border-color:#314449!important; border-radius:0!important; }
 .broadcast-v2--entries .entries-overlay__footer { background:#0e1719!important; border-color:#314449!important; border-radius:0!important; }
+.broadcast-v2--entries .entries-page { color:var(--ink); background:radial-gradient(circle at 82% 8%,rgba(159,239,255,.055),transparent 28%),#080d0f!important; }
+.broadcast-v2--entries .entries-board { color:var(--ink); background:linear-gradient(145deg,#121d20,#0d1618)!important; border:1px solid #314449!important; box-shadow:0 24px 64px rgba(0,0,0,.32)!important; }
+.broadcast-v2--entries .entries-table-scroll { background:#0d1517!important; }
+.broadcast-v2--entries .entries-season-table { background:#0d1517!important; }
+.broadcast-v2--entries .entries-season-table thead tr { color:var(--ice)!important; background:#0a1113!important; border-bottom:2px solid var(--lime); }
+.broadcast-v2--entries .entries-season-table tbody tr { background:#10191c!important; }
+.broadcast-v2--entries .entries-season-table tbody tr:nth-child(even) { background:#142024!important; }
+.broadcast-v2--entries .entries-season-table tbody tr:hover { background:#1a292d!important; transform:none!important; }
+.broadcast-v2--entries .entries-season-table td { color:#dbe4e2!important; border-color:#2d3f43!important; }
+.broadcast-v2--entries .entries-season-table tbody .entries-season-table__name { color:var(--ink)!important; background:inherit!important; }
+.broadcast-v2--entries .entries-name-button { color:var(--ink)!important; background:transparent!important; }
+.broadcast-v2--entries .entries-name-button:hover,.broadcast-v2--entries .entries-name-button:focus { color:var(--ice)!important; background:#1a292d!important; }
+.broadcast-v2--entries .entries-name-editor input { color:var(--ink)!important; background:#0b1315!important; border-color:var(--ice)!important; border-radius:0!important; }
+.broadcast-v2--entries .entries-season-table__week > button { color:var(--ice)!important; background:#0b1315!important; border-color:#40555a!important; }
+.broadcast-v2--entries .entries-breakdown { color:var(--ink)!important; background:#10191c!important; border-color:#314449!important; }
+.broadcast-v2--entries .entries-breakdown__row > div { background:#26363a!important; }
+.broadcast-v2--entries .entries-breakdown__row > div > div { background:var(--lime)!important; }
+.broadcast-v2--entries .entries-breakdown__row > span { color:#b8c5c6!important; }
+.broadcast-v2--entries .entries-empty-state { color:var(--ink)!important; background:#0d1618!important; border-color:#3a5055!important; box-shadow:none!important; }
+.broadcast-v2--entries .entries-empty-state h3 { color:var(--ink)!important; }
+.broadcast-v2--entries .entries-empty-state p { color:var(--muted)!important; }
+.broadcast-v2--entries .entries-empty-state > div:first-child { color:var(--ice)!important; background:none!important; }
+.broadcast-v2--entries .entries-empty-state .entries-action--create { color:#091012!important; background:var(--lime)!important; border-color:var(--lime)!important; box-shadow:0 8px 24px rgba(215,255,63,.14)!important; }
+.broadcast-v2--entries .entries-overlay__dialog { background:#0e1719!important; }
+.broadcast-v2--entries .entries-overlay__game { color:var(--ink)!important; background:#121d20!important; border-color:#314449!important; }
+.broadcast-v2--entries .entries-overlay__teams > span,.broadcast-v2--entries .entries-overlay__kickoff { color:var(--muted)!important; }
+.broadcast-v2--entries .entries-overlay__teams button { color:var(--ink)!important; background:#111b1e!important; border-color:#40555a!important; }
+.broadcast-v2--entries .entries-overlay__teams button:not(:disabled):hover { border-color:var(--ice)!important; }
+.broadcast-v2--entries .entries-overlay__footer button:first-child { color:var(--ice)!important; background:#121d20!important; border-color:#40555a!important; }
+.broadcast-v2--entries .entries-overlay__footer button:last-child:not(:disabled) { color:#091012!important; background:var(--lime)!important; }
+.broadcast-v2--entries .entries-overlay__footer button:last-child:disabled { color:#68787b!important; background:#26363a!important; }
 @media (max-width:650px) {
   .broadcast-v2--entries main { width:100%!important; padding:.75rem .65rem 3rem!important; }
   .broadcast-v2--entries .pool-workspace-nav { margin-inline:0; }
