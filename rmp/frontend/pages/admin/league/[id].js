@@ -3,6 +3,7 @@ import { useRouter } from 'next/router';
 import ProtectedRoute from '../../../components/ProtectedRoute';
 import { useAuth } from '../../../context/AuthContext';
 import { PoolWorkspaceNav, WorkspaceHeader } from '../../../components/ProductWorkspace';
+import AdminUserOverview from '../../../components/AdminUserOverview';
 import { getAuditUsername } from '../../../utils/auditDisplay';
 
 const TIMEZONES = [
@@ -66,6 +67,9 @@ export default function AdminPortal() {
   const [userLockData, setUserLockData] = useState({ email: '', reason: '' });
   const [userLockStatus, setUserLockStatus] = useState(null);
   const [userLockMessage, setUserLockMessage] = useState('');
+  const [userOverview, setUserOverview] = useState(null);
+  const [userOverviewLoading, setUserOverviewLoading] = useState(false);
+  const [userOverviewError, setUserOverviewError] = useState('');
 
   // Lock time state
   const [lockTimeData, setLockTimeData] = useState({ day: 6, time: '13:00', timezone: 'America/New_York' });
@@ -110,6 +114,28 @@ export default function AdminPortal() {
       fetchAuditLogs();
     }
   }, [activeSection, leagueId]);
+
+  useEffect(() => {
+    if (activeSection === 'user-management' && leagueId) fetchUserOverview();
+  }, [activeSection, leagueId]);
+
+  const fetchUserOverview = async () => {
+    setUserOverviewLoading(true);
+    setUserOverviewError('');
+    try {
+      const token = localStorage.getItem('access_token');
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/pools/${leagueId}/users-overview`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.detail || 'Unable to load league users');
+      setUserOverview(data);
+    } catch (err) {
+      setUserOverviewError(err.message || 'Unable to load league users');
+    } finally {
+      setUserOverviewLoading(false);
+    }
+  };
 
   const fetchAuditLogs = async (search = auditSearch) => {
     setAuditLoading(true);
@@ -857,6 +883,8 @@ export default function AdminPortal() {
       <h3 style={{ color: '#1a202c', marginTop: 0, marginBottom: '2rem' }}>
         User Management
       </h3>
+
+      <AdminUserOverview overview={userOverview} loading={userOverviewLoading} error={userOverviewError} onRefresh={fetchUserOverview} />
 
       <div style={{ marginBottom: '3rem' }}>
         <h4>Lock User Account</h4>

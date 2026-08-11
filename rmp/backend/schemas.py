@@ -50,6 +50,25 @@ class AdminUserDashboardOut(BaseModel):
     users: List[AdminUserOut]
 
 
+class LeagueAdminUserSummary(BaseModel):
+    id: str
+    email: EmailStr
+    total_entries: int
+    surviving_entries: int
+    picked_entries: int
+    has_current_week_pick: bool
+    all_surviving_entries_picked: bool
+    is_admin: bool
+    admin_role: str
+
+
+class LeagueAdminUserOverview(BaseModel):
+    pool_id: str
+    current_week: int
+    total_users: int
+    users: List[LeagueAdminUserSummary]
+
+
 class PoolRuleValueCreate(BaseModel):
     rule_id: str
     rule_value: str

@@ -17,7 +17,7 @@ import schemas
 import deps
 from audit_utils import log_admin_action
 from odds_service import freeze_week_lines
-from schedule import current_season_games
+from schedule import current_season_games, current_season_week
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -36,6 +36,93 @@ def verify_admin_access(pool_id: str, current_user: models.User, db: Session) ->
         .first()
     )
     return pool_admin is not None
+
+
+@router.get(
+    "/pools/{pool_id}/users-overview",
+    response_model=schemas.LeagueAdminUserOverview,
+)
+def pool_users_overview(
+    pool_id: str,
+    week: Optional[int] = None,
+    db: Session = Depends(deps.get_db),
+    current_user: models.User = Depends(deps.get_current_user),
+):
+    """Return commissioner-level participation totals without exposing picks."""
+    if not verify_admin_access(pool_id, current_user, db):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    pool = db.query(models.Pool).filter(models.Pool.id == pool_id).first()
+    if not pool:
+        raise HTTPException(status_code=404, detail="Pool not found")
+
+    selected_week = week if week is not None else current_season_week(db)
+    if selected_week < 1 or selected_week > 18:
+        raise HTTPException(status_code=400, detail="Week must be between 1 and 18")
+
+    entries = db.query(models.Entry).filter(models.Entry.pool_id == pool_id).all()
+    member_ids = {
+        user_id for (user_id,) in db.query(models.PoolMember.user_id)
+        .filter(models.PoolMember.pool_id == pool_id).all()
+    }
+    member_ids.update(entry.user_id for entry in entries)
+    admin_ids = {
+        user_id for (user_id,) in db.query(models.PoolAdmin.user_id)
+        .filter(models.PoolAdmin.pool_id == pool_id).all()
+    }
+    member_ids.update(admin_ids)
+    if pool.owner_id:
+        member_ids.add(pool.owner_id)
+
+    users = (
+        db.query(models.User)
+        .filter(models.User.id.in_(member_ids or [""]))
+        .order_by(models.User.email)
+        .all()
+    )
+    entries_by_user = {}
+    alive_entry_ids = set()
+    for entry in entries:
+        entries_by_user.setdefault(entry.user_id, []).append(entry)
+        if entry.alive:
+            alive_entry_ids.add(entry.id)
+    picked_entry_ids = {
+        entry_id for (entry_id,) in db.query(models.Pick.entry_id)
+        .filter(
+            models.Pick.entry_id.in_(alive_entry_ids or [""]),
+            models.Pick.week == selected_week,
+        )
+        .distinct()
+        .all()
+    }
+
+    result = []
+    for user in users:
+        user_entries = entries_by_user.get(user.id, [])
+        surviving = [entry for entry in user_entries if entry.alive]
+        picked_count = sum(entry.id in picked_entry_ids for entry in surviving)
+        if user.id == pool.owner_id:
+            admin_role = "Owner"
+        elif user.id in admin_ids:
+            admin_role = "League admin"
+        else:
+            admin_role = "Member"
+        result.append({
+            "id": user.id,
+            "email": user.email,
+            "total_entries": len(user_entries),
+            "surviving_entries": len(surviving),
+            "picked_entries": picked_count,
+            "has_current_week_pick": picked_count > 0,
+            "all_surviving_entries_picked": bool(surviving) and picked_count == len(surviving),
+            "is_admin": admin_role != "Member",
+            "admin_role": admin_role,
+        })
+    return {
+        "pool_id": pool_id,
+        "current_week": selected_week,
+        "total_users": len(result),
+        "users": result,
+    }
 
 
 @router.post("/pools/{pool_id}/transfer-entry")

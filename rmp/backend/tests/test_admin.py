@@ -88,6 +88,70 @@ def _create_pick(db_session, entry_id, week, team, locked=False):
 class TestAdminEndpoints:
     """Integration tests for the admin router."""
 
+    def test_pool_user_overview_reports_entries_admin_and_week_completion(self, client, db_session):
+        import models as m
+
+        owner_token = _register_and_login(client, "overview.owner@example.com")
+        _register_and_login(client, "overview.member@example.com")
+        _register_and_login(client, "overview.outsider@example.com")
+        pool_id = _create_pool(client, _authed(owner_token))
+        owner = db_session.query(m.User).filter(m.User.email == "overview.owner@example.com").one()
+        member = db_session.query(m.User).filter(m.User.email == "overview.member@example.com").one()
+        db_session.add(m.PoolMember(pool_id=pool_id, user_id=member.id, joined_at=datetime.utcnow()))
+        db_session.add(m.PoolAdmin(pool_id=pool_id, user_id=member.id))
+        owner_entry = m.Entry(id=str(uuid.uuid4()), pool_id=pool_id, user_id=owner.id, name="Owner", alive=True)
+        alive_entry = m.Entry(id=str(uuid.uuid4()), pool_id=pool_id, user_id=member.id, name="Alive", alive=True)
+        eliminated_entry = m.Entry(id=str(uuid.uuid4()), pool_id=pool_id, user_id=member.id, name="Out", alive=False)
+        db_session.add_all([owner_entry, alive_entry, eliminated_entry])
+        db_session.commit()
+        _create_pick(db_session, alive_entry.id, 4, "BUF")
+
+        response = client.get(
+            f"/admin/pools/{pool_id}/users-overview?week=4",
+            headers=_authed(owner_token),
+        )
+
+        assert response.status_code == 200, response.text
+        payload = response.json()
+        assert payload["current_week"] == 4
+        assert payload["total_users"] == 2
+        users = {user["email"]: user for user in payload["users"]}
+        assert set(users) == {"overview.owner@example.com", "overview.member@example.com"}
+        assert users["overview.owner@example.com"] == {
+            "id": owner.id,
+            "email": owner.email,
+            "total_entries": 1,
+            "surviving_entries": 1,
+            "picked_entries": 0,
+            "has_current_week_pick": False,
+            "all_surviving_entries_picked": False,
+            "is_admin": True,
+            "admin_role": "Owner",
+        }
+        assert users["overview.member@example.com"]["total_entries"] == 2
+        assert users["overview.member@example.com"]["surviving_entries"] == 1
+        assert users["overview.member@example.com"]["picked_entries"] == 1
+        assert users["overview.member@example.com"]["all_surviving_entries_picked"] is True
+        assert users["overview.member@example.com"]["admin_role"] == "League admin"
+        assert "team" not in users["overview.member@example.com"]
+
+    def test_pool_user_overview_rejects_non_admin_and_invalid_week(self, client):
+        owner_token = _register_and_login(client, "overview.guard.owner@example.com")
+        outsider_token = _register_and_login(client, "overview.guard.outsider@example.com")
+        pool_id = _create_pool(client, _authed(owner_token))
+
+        forbidden = client.get(
+            f"/admin/pools/{pool_id}/users-overview?week=1",
+            headers=_authed(outsider_token),
+        )
+        invalid_week = client.get(
+            f"/admin/pools/{pool_id}/users-overview?week=19",
+            headers=_authed(owner_token),
+        )
+
+        assert forbidden.status_code == 403
+        assert invalid_week.status_code == 400
+
     def test_admin_searches_entries_with_owner_email(self, client):
         owner_token = _register_and_login(client, "search.owner@example.com")
         headers = _authed(owner_token)

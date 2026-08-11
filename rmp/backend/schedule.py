@@ -1,11 +1,35 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List, Optional
+from datetime import datetime
 from models import Schedule, Team, PoolGameLine
 from deps import get_db
 from odds_service import fetch_week_lines
 
 router = APIRouter()
+
+
+def football_season(start_time: datetime) -> int:
+    """Return the season year for a regular-season kickoff."""
+    return start_time.year if start_time.month >= 7 else start_time.year - 1
+
+
+def current_season_week(db: Session, now: Optional[datetime] = None) -> int:
+    """Derive the current NFL week from the newest schedule in the database."""
+    games = db.query(Schedule).all()
+    if not games:
+        return 1
+    season = max(football_season(game.start_time) for game in games)
+    season_games = [game for game in games if football_season(game.start_time) == season]
+    week_ends = {
+        week: max(game.start_time for game in season_games if game.week_num == week)
+        for week in {game.week_num for game in season_games}
+    }
+    current_time = now or datetime.utcnow()
+    for week in sorted(week_ends):
+        if current_time <= week_ends[week]:
+            return week
+    return max(week_ends, default=1)
 
 
 def current_season_games(db: Session, week_num: int):
@@ -21,9 +45,9 @@ def current_season_games(db: Session, week_num: int):
     if regular_season_games:
         games = regular_season_games
 
-    season = max(g.start_time.year if g.start_time.month >= 7 else g.start_time.year - 1 for g in games)
+    season = max(football_season(g.start_time) for g in games)
     return sorted(
-        [g for g in games if (g.start_time.year if g.start_time.month >= 7 else g.start_time.year - 1) == season],
+        [g for g in games if football_season(g.start_time) == season],
         key=lambda game: game.start_time,
     )
 
