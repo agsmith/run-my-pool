@@ -9,6 +9,7 @@ from sqlalchemy import (
     Integer,
     Float,
     Time,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import relationship, declarative_base
 import enum
@@ -57,6 +58,7 @@ class User(Base):
 
 class Pool(Base):
     __tablename__ = "pools"
+    __table_args__ = (UniqueConstraint("name", name="uq_pools_name"),)
     id = Column(String(36), primary_key=True, index=True)
     name = Column(String(255), nullable=False)
     description = Column(Text)

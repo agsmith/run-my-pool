@@ -1,4 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from typing import List
 import models
@@ -13,6 +15,60 @@ from auth import get_password_hash, verify_password
 router = APIRouter(prefix="/pools", tags=["pools"])
 
 MIN_JOIN_PASSWORD_LENGTH = 6
+MAX_POOL_NAME_LENGTH = 255
+
+
+def _normalize_pool_name(name: str) -> str:
+    """Store a clean display name and reject names with no visible characters."""
+    normalized = (name or "").strip()
+    if not normalized:
+        raise HTTPException(status_code=400, detail="League name is required")
+    if len(normalized) > MAX_POOL_NAME_LENGTH:
+        raise HTTPException(
+            status_code=400,
+            detail=f"League name must be {MAX_POOL_NAME_LENGTH} characters or fewer",
+        )
+    return normalized
+
+
+def _pool_name_taken(db: Session, name: str, exclude_pool_id: str = None) -> bool:
+    query = db.query(models.Pool.id).filter(
+        func.lower(func.trim(models.Pool.name)) == name.casefold()
+    )
+    if exclude_pool_id is not None:
+        query = query.filter(models.Pool.id != exclude_pool_id)
+    return query.first() is not None
+
+
+def _suggest_pool_names(db: Session, requested_name: str, limit: int = 3) -> List[str]:
+    """Return deterministic, immediately available alternatives."""
+    def with_suffix(suffix: str) -> str:
+        return f"{requested_name[:MAX_POOL_NAME_LENGTH - len(suffix)]}{suffix}"
+
+    candidates = [
+        with_suffix(" 2026"),
+        with_suffix(" Survivor"),
+        with_suffix(" League"),
+    ]
+    candidates.extend(with_suffix(f" {number}") for number in range(2, 100))
+    suggestions = []
+    for candidate in candidates:
+        if not _pool_name_taken(db, candidate):
+            suggestions.append(candidate)
+        if len(suggestions) == limit:
+            break
+    return suggestions
+
+
+def _raise_name_conflict(db: Session, requested_name: str) -> None:
+    raise HTTPException(
+        status_code=status.HTTP_409_CONFLICT,
+        detail={
+            "code": "league_name_taken",
+            "message": "That league name is already in use. Choose a unique name.",
+            "suggestions": _suggest_pool_names(db, requested_name),
+        },
+    )
 
 
 def _validate_join_password(password: str) -> str:
@@ -80,6 +136,10 @@ def create_pool(
 ):
     """Create a new pool with the current user as the owner/admin."""
     try:
+        pool_name = _normalize_pool_name(pool.name)
+        if _pool_name_taken(db, pool_name):
+            _raise_name_conflict(db, pool_name)
+
         # Parse lock_time if provided
         lock_time = None
         if pool.lock_time:
@@ -105,7 +165,7 @@ def create_pool(
 
         db_pool = models.Pool(
             id=str(uuid.uuid4()),
-            name=pool.name,
+            name=pool_name,
             description=pool.description,
             lock_time=lock_time,
             lock_day_of_week=pool.lock_day_of_week,
@@ -120,7 +180,11 @@ def create_pool(
         )
 
         db.add(db_pool)
-        db.commit()
+        try:
+            db.commit()
+        except IntegrityError:
+            db.rollback()
+            _raise_name_conflict(db, pool_name)
         db.refresh(db_pool)
 
         # Add the pool creator as a pool admin
@@ -140,7 +204,7 @@ def create_pool(
             entity_id=db_pool.id,
             user_id=current_user.id,
             entity_data={
-                "name": pool.name,
+                "name": pool_name,
                 "description": pool.description,
                 "is_private": pool.is_private,
                 "owner_email": current_user.email,
@@ -227,7 +291,10 @@ def update_pool(
 
         # Update fields if provided
         if pool_update.name is not None:
-            pool.name = pool_update.name
+            pool_name = _normalize_pool_name(pool_update.name)
+            if _pool_name_taken(db, pool_name, exclude_pool_id=pool.id):
+                _raise_name_conflict(db, pool_name)
+            pool.name = pool_name
         if pool_update.description is not None:
             pool.description = pool_update.description
         if pool_update.lock_time is not None:
@@ -269,7 +336,11 @@ def update_pool(
 
         pool.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
 
-        db.commit()
+        try:
+            db.commit()
+        except IntegrityError:
+            db.rollback()
+            _raise_name_conflict(db, pool.name)
         db.refresh(pool)
 
         log_update_operation(

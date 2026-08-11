@@ -36,6 +36,71 @@ class TestPoolEndpoints:
         # FastAPI HTTPBearer returns 403 when no credentials are provided
         assert response.status_code in (401, 403)
 
+    def test_create_pool_rejects_duplicate_name_and_suggests_unique_names(self, client):
+        owner = _register(client, "duplicate.owner@example.com")
+        other_owner = _register(client, "duplicate.other@example.com")
+        created = client.post(
+            "/pools/create",
+            json={"name": "Office Champions", "is_private": False},
+            headers=owner,
+        )
+        assert created.status_code == 200
+
+        response = client.post(
+            "/pools/create",
+            json={"name": "  office champions  ", "is_private": False},
+            headers=other_owner,
+        )
+
+        assert response.status_code == 409
+        detail = response.json()["detail"]
+        assert detail["code"] == "league_name_taken"
+        assert "already in use" in detail["message"]
+        assert len(detail["suggestions"]) == 3
+        assert all(name != "Office Champions" for name in detail["suggestions"])
+
+        for suggestion in detail["suggestions"]:
+            suggestion_response = client.post(
+                "/pools/create",
+                json={"name": suggestion, "is_private": False},
+                headers=other_owner,
+            )
+            assert suggestion_response.status_code == 200
+
+    def test_pool_rename_cannot_duplicate_another_pool_name(self, client):
+        owner = _register(client, "rename.owner@example.com")
+        first = client.post(
+            "/pools/create", json={"name": "First League"}, headers=owner
+        ).json()
+        second = client.post(
+            "/pools/create", json={"name": "Second League"}, headers=owner
+        ).json()
+
+        response = client.patch(
+            f"/pools/{second['id']}",
+            json={"name": first["name"].upper()},
+            headers=owner,
+        )
+
+        assert response.status_code == 409
+        assert response.json()["detail"]["code"] == "league_name_taken"
+
+    def test_duplicate_max_length_name_still_returns_suggestions(self, client):
+        owner = _register(client, "long.name.owner@example.com")
+        long_name = "L" * 255
+        assert client.post(
+            "/pools/create", json={"name": long_name}, headers=owner
+        ).status_code == 200
+
+        response = client.post(
+            "/pools/create", json={"name": long_name}, headers=owner
+        )
+
+        assert response.status_code == 409
+        suggestions = response.json()["detail"]["suggestions"]
+        assert len(suggestions) == 3
+        assert all(len(suggestion) <= 255 for suggestion in suggestions)
+
     def test_get_my_pools(self, authenticated_client, test_pool_data):
         """Test getting user's pools"""
         client, user_data = authenticated_client
@@ -93,7 +158,7 @@ class TestPoolEndpoints:
         assert response.status_code == 422  # Validation error
 
     def test_pool_validation_empty_name(self, authenticated_client):
-        """Test pool creation with empty name — no server-side validation exists; returns 200"""
+        """Pool names must contain at least one visible character."""
         client, user_data = authenticated_client
 
         invalid_data = {
@@ -102,11 +167,8 @@ class TestPoolEndpoints:
             "is_private": False,
         }
 
-        # NOTE: The backend performs no server-side name validation beyond Pydantic's
-        # required-field check. An empty string passes, so the server returns 200.
-        # This is a known gap — empty names should be rejected.
         response = client.post("/pools/create", json=invalid_data)
-        assert response.status_code == 200
+        assert response.status_code == 400
 
     @patch("pools.log_create_operation")
     def test_pool_creation_audit_logging(

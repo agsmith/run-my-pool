@@ -43,7 +43,11 @@ def _create_pool(client, headers):
     """Create a pool and return its id."""
     resp = client.post(
         "/pools/create",
-        json={"name": "Admin Test Pool", "is_private": False, "rule_values": []},
+        json={
+            "name": f"Admin Test Pool {uuid.uuid4()}",
+            "is_private": False,
+            "rule_values": [],
+        },
         headers=headers,
     )
     assert resp.status_code == 200, f"Pool creation failed: {resp.json()}"
