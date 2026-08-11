@@ -32,8 +32,19 @@ const plans = [
     price: '$129',
     cadence: 'per season',
     description: 'A season-long home for commissioners who run several pools year after year.',
-    features: ['Up to 5 active pools', 'Up to 500 total entries', 'Everything in Pro', 'Full historical access', 'Reusable members and past seasons', 'Custom league branding'],
+    features: ['Up to 5 active pools', '500 total entries included', '$25 per additional 100 entries', 'Everything in Pro', 'Full historical access', 'Custom league branding'],
     cta: 'Choose Club',
+  },
+  {
+    name: 'Club Unlimited',
+    slug: 'club-unlimited',
+    price: '$249',
+    cadence: 'per season',
+    description: 'The best value for large organizations that want one predictable price and room to grow.',
+    features: ['Unlimited entries', 'Unlimited active pools', 'No usage charges', 'Everything in Club', 'Historical access for every season', 'VIP weekend support'],
+    cta: 'Go Unlimited',
+    featured: true,
+    badge: 'Best for large pools',
   },
 ];
 
@@ -47,7 +58,7 @@ export default function PricingPage() {
       <Seo
         title="Football Pool Pricing"
         path="/pricing"
-        description="Simple season pricing for NFL survivor pool commissioners. Start free, scale to 500 entries, and never pay a percentage of prizes."
+        description="Simple season pricing for NFL survivor pool commissioners. Start free, grow by the hundred, or run unlimited entries for one predictable price."
         structuredData={{
           '@context': 'https://schema.org',
           '@type': 'Product',
@@ -59,7 +70,7 @@ export default function PricingPage() {
             name: plan.name,
             price: plan.price.replace('$', ''),
             priceCurrency: 'USD',
-            url: `https://runmypool.net/create-account?plan=${plan.name.toLowerCase()}`,
+            url: `https://runmypool.net/create-account?plan=${plan.slug || plan.name.toLowerCase()}`,
             availability: 'https://schema.org/InStock',
           })),
         }}
@@ -94,7 +105,7 @@ export default function PricingPage() {
             <article className={`pricing-card${plan.featured ? ' pricing-card--featured' : ''}`} key={plan.name}>
               <div className="pricing-card__head">
                 <span>0{index + 1}</span>
-                {plan.featured && <b>Most popular</b>}
+                {plan.featured && <b>{plan.badge || 'Most popular'}</b>}
               </div>
               <h2>{plan.name}</h2>
               <div className="pricing-card__price"><strong>{plan.price}</strong><small>{plan.cadence}</small></div>
@@ -102,7 +113,7 @@ export default function PricingPage() {
               <ul>
                 {plan.features.map((feature) => <li key={feature}><span>✓</span>{feature}</li>)}
               </ul>
-              <Link href={`/create-account?plan=${plan.name.toLowerCase()}`} className="pricing-card__cta">{plan.cta}<span>→</span></Link>
+              <Link href={`/create-account?plan=${plan.slug || plan.name.toLowerCase()}`} className="pricing-card__cta">{plan.cta}<span>→</span></Link>
             </article>
           ))}
         </section>
@@ -110,7 +121,7 @@ export default function PricingPage() {
         <section className="pricing-promise rmp-shell">
           <div><span>NO RAKE</span><strong>Run My Pool never takes a percentage of your pool.</strong></div>
           <div><span>PLAYERS FREE</span><strong>Only the commissioner purchases the hosting plan.</strong></div>
-          <div><span>ONE SEASON</span><strong>Paid plans cover the full football season.</strong></div>
+          <div><span>UNLIMITED VALUE</span><strong>Large pools can lock in unlimited entries for $249.</strong></div>
         </section>
 
         <section className="pricing-faq rmp-shell">
@@ -121,6 +132,8 @@ export default function PricingPage() {
             <article><h3>Do you hold prize money?</h3><p>No. Run My Pool provides management software and does not collect stakes or distribute winnings.</p></article>
             <article><h3>Can I upgrade later?</h3><p>Yes. Start free and upgrade without rebuilding your pool or inviting everyone again.</p></article>
             <article><h3>What counts as an entry?</h3><p>Each survivor entry counts toward the plan limit. One person may own multiple entries if the commissioner allows it.</p></article>
+            <article><h3>What happens after 500 Club entries?</h3><p>Club expands in 100-entry blocks for $25 each with no maximum. Upgrade to Club Unlimited at any time for unlimited entries and pools at one predictable seasonal price.</p></article>
+            <article><h3>When is Unlimited the better value?</h3><p>Club Unlimited costs less once a Club account needs more than 900 entries—and it removes pool limits and usage charges from day one.</p></article>
           </div>
         </section>
 

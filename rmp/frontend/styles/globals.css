@@ -167,7 +167,7 @@ table {
 .pricing-hero h1,.pricing-faq h2,.pricing-final h2 { margin:24px 0 20px; color:#f3f6f4; font-family:Impact,'Arial Narrow',sans-serif; font-size:clamp(62px,7vw,96px); font-style:italic; font-weight:900; letter-spacing:-.018em; line-height:.86; }
 .pricing-hero h1 em,.pricing-faq h2 em,.pricing-final h2 em { color:var(--lime); font-style:inherit; }
 .pricing-hero > p:last-child { max-width:700px; margin:0 auto; color:#99a8aa; font-family:Georgia,serif; font-size:14px; line-height:1.75; }
-.pricing-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; padding-bottom:54px; }
+.pricing-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:10px; padding-bottom:54px; }
 .pricing-card { display:flex; flex-direction:column; min-width:0; padding:26px; background:linear-gradient(155deg,#131d20,#0d1517); border:1px solid #314146; border-top:3px solid #526267; box-shadow:0 22px 60px rgba(0,0,0,.22); }
 .pricing-card--featured { border-top-color:var(--lime); transform:translateY(-12px); box-shadow:0 28px 70px rgba(0,0,0,.34),0 0 0 1px rgba(215,255,63,.15); }
 .pricing-card__head { display:flex; justify-content:space-between; align-items:center; min-height:27px; color:#627174; font-family:Impact,'Arial Narrow',sans-serif; font-style:italic; }
