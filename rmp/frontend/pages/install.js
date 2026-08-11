@@ -1,6 +1,6 @@
-import Head from 'next/head';
 import Image from 'next/image';
 import { useEffect, useState } from 'react';
+import Seo from '../components/Seo';
 
 const steps = {
   ios: [
@@ -67,10 +67,11 @@ export default function InstallPage() {
 
   return (
     <div className="product-page pwa-guide">
-      <Head>
-        <title>Install Run My Pool</title>
-        <meta name="description" content="Install Run My Pool on iPhone, Android, or desktop for fast home-screen access." />
-      </Head>
+      <Seo
+        title="Install the Run My Pool App"
+        path="/install"
+        description="Install Run My Pool on iPhone, Android, or desktop for fast home-screen access to picks and standings."
+      />
       <main className="product-main pwa-guide__main">
         <section className="pwa-guide__hero">
           <div>

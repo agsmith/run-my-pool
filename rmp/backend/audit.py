@@ -13,6 +13,7 @@ def list_audit_logs(
     skip: int = 0,
     limit: int = Query(default=100, ge=1, le=500),
     user_id: Optional[str] = None,
+    username: Optional[str] = None,
     action: Optional[str] = None,
     pool_id: Optional[str] = None,
     date_from: Optional[datetime] = None,
@@ -24,6 +25,16 @@ def list_audit_logs(
     query = db.query(models.AuditLog)
     if user_id:
         query = query.filter(models.AuditLog.user_id == user_id)
+    if username:
+        matching_user_ids = [
+            user_id
+            for (user_id,) in (
+                db.query(models.User.id)
+                .filter(models.User.email.ilike(f"%{username.strip()}%"))
+                .all()
+            )
+        ]
+        query = query.filter(models.AuditLog.user_id.in_(matching_user_ids))
     if action:
         pattern = f"%{action}%"
         query = query.filter(models.AuditLog.action.ilike(pattern))

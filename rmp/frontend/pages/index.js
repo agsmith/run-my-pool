@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { useAuth } from '../context/AuthContext';
+import Seo from '../components/Seo';
 
 const games = [
   { number: '01', time: 'SUN 1:00', away: 'BUF', awayName: 'Buffalo', home: 'NYJ', homeName: 'New York', className: 'blue' },
@@ -31,6 +32,20 @@ export default function Home() {
 
   return (
     <div className="rmp-landing">
+      <Seo
+        title="Run My Pool"
+        description="Run a professional NFL survivor pool with automated picks, standings, deadlines, commissioner controls, and mobile access."
+        structuredData={{
+          '@context': 'https://schema.org',
+          '@type': 'SoftwareApplication',
+          name: 'Run My Pool',
+          applicationCategory: 'SportsApplication',
+          operatingSystem: 'Web',
+          url: 'https://runmypool.net',
+          description: 'NFL survivor pool management software for commissioners and players.',
+          offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+        }}
+      />
       <header className="rmp-header">
         <nav className="rmp-shell" aria-label="Main navigation">
           <Link href="/" className="rmp-brand" aria-label="Run My Pool home">
@@ -40,6 +55,7 @@ export default function Home() {
             <a href="#how">How it works</a>
             <a href="#features">Features</a>
             <a href="#pool-types">Pool formats</a>
+            <Link href="/pricing">Pricing</Link>
           </div>
           <div className="rmp-nav-actions">
             <Link href="/login" className="rmp-login">Login</Link>
@@ -126,7 +142,7 @@ export default function Home() {
         </section>
       </main>
 
-      <footer className="rmp-footer"><div className="rmp-shell"><Link href="/" className="rmp-brand"><FootballMark /><span>RUN MY <b>POOL</b></span></Link><p>Built for football fans, by football fans. <Link href="/install">Install the app</Link></p><span>© 2026 Run My Pool</span></div></footer>
+      <footer className="rmp-footer"><div className="rmp-shell"><Link href="/" className="rmp-brand"><FootballMark /><span>RUN MY <b>POOL</b></span></Link><p>Built for football fans, by football fans. <Link href="/pricing">Pricing</Link> · <Link href="/install">Install the app</Link></p><span>© 2026 Run My Pool</span></div></footer>
     </div>
   );
 }

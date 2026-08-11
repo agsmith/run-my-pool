@@ -89,7 +89,7 @@ export default function AdminPortal() {
   
   // Audit Log State
   const [auditSearch, setAuditSearch] = useState({ 
-    userId: '', 
+    username: '',
     dateFrom: '', 
     dateTo: '', 
     actionSearch: '' 
@@ -117,7 +117,7 @@ export default function AdminPortal() {
     try {
       const token = localStorage.getItem('access_token');
       const params = new URLSearchParams({ pool_id: leagueId, limit: '500' });
-      if (search.userId) params.set('user_id', search.userId.trim());
+      if (search.username) params.set('username', search.username.trim());
       if (search.actionSearch) params.set('action', search.actionSearch.trim());
       if (search.dateFrom) params.set('date_from', `${search.dateFrom}T00:00:00`);
       if (search.dateTo) params.set('date_to', `${search.dateTo}T23:59:59`);
@@ -1592,13 +1592,13 @@ export default function AdminPortal() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
             <div>
               <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500', color: '#374151' }}>
-                User ID
+                Username
               </label>
               <input
                 type="text"
-                value={auditSearch.userId}
-                onChange={(e) => setAuditSearch({...auditSearch, userId: e.target.value})}
-                placeholder="Enter user ID (optional)"
+                value={auditSearch.username}
+                onChange={(e) => setAuditSearch({...auditSearch, username: e.target.value})}
+                placeholder="Enter username or email"
                 style={{
                   width: '100%',
                   padding: '0.75rem',
@@ -1682,7 +1682,7 @@ export default function AdminPortal() {
           </button>
           <button
             onClick={() => {
-              const emptySearch = { userId: '', dateFrom: '', dateTo: '', actionSearch: '' };
+              const emptySearch = { username: '', dateFrom: '', dateTo: '', actionSearch: '' };
               setAuditSearch(emptySearch);
               fetchAuditLogs(emptySearch);
             }}

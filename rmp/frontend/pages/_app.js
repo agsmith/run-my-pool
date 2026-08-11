@@ -3,10 +3,11 @@ import { AuthProvider } from '../context/AuthContext'
 import Head from 'next/head'
 import { useRouter } from 'next/router'
 import NavBar from '../components/NavBar'
+import Seo from '../components/Seo'
 
 export default function MyApp({ Component, pageProps }) {
   const router = useRouter()
-  const isLandingPage = router.pathname === '/'
+  const isMarketingPage = ['/', '/pricing'].includes(router.pathname)
 
   const getExperience = (pathname) => {
     if (['/login', '/register', '/create-account', '/forgot-password', '/reset-password'].includes(pathname)) return 'auth'
@@ -21,7 +22,23 @@ export default function MyApp({ Component, pageProps }) {
   }
 
   const experience = getExperience(router.pathname)
-  const showProductNav = !isLandingPage && !['auth', 'utility'].includes(experience)
+  const showProductNav = !isMarketingPage && !['auth', 'utility'].includes(experience)
+  const publicSeo = {
+    '/': {
+      title: 'Run My Pool',
+      description: 'Run a professional NFL survivor pool with automated picks, standings, deadlines, commissioner controls, and mobile access.',
+    },
+    '/pricing': {
+      title: 'Football Pool Pricing',
+      description: 'Simple season pricing for NFL survivor pool commissioners. Start free, scale to 500 entries, and never pay a percentage of prizes.',
+      path: '/pricing',
+    },
+    '/install': {
+      title: 'Install the Run My Pool App',
+      description: 'Install Run My Pool on iPhone, Android, or desktop for fast home-screen access to picks and standings.',
+      path: '/install',
+    },
+  }[router.pathname]
 
   return (
     <>
@@ -38,20 +55,23 @@ export default function MyApp({ Component, pageProps }) {
         {/* Optimize touch interactions */}
         <meta name="msapplication-tap-highlight" content="no" />
         
-        {/* SEO and responsive meta tags */}
-        <meta name="description" content="Professional football pick pool management system. Create, manage, and track your NFL pools with ease." />
-        <meta name="keywords" content="NFL, football, pool, picks, league, fantasy, sports betting" />
-        
         {/* Favicon and app icons */}
-        <link rel="icon" href="/favicon.ico" />
+        <link rel="icon" type="image/png" href="/icons/icon-192x192.png" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         <link rel="manifest" href="/manifest.json" />
         
-        <title>Run My Pool - NFL Pick Pool Management</title>
       </Head>
+      <Seo
+        {...(publicSeo || {
+          title: 'Run My Pool',
+          description: 'Run My Pool account and commissioner workspace.',
+          noIndex: true,
+          path: router.asPath?.split('?')[0] || router.pathname,
+        })}
+      />
       <AuthProvider>
         <div
-          className={isLandingPage ? '' : `broadcast-v2 broadcast-v2--${experience}`}
+          className={isMarketingPage ? '' : `broadcast-v2 broadcast-v2--${experience}`}
           data-route={router.pathname}
         >
           {showProductNav && <NavBar />}

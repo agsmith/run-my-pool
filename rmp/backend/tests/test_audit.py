@@ -391,6 +391,30 @@ class TestAuditTrail:
             headers=_h(token),
         ).json() == []
 
+    def test_audit_feed_filters_by_username_without_exposing_user_id(self, client):
+        token = _reg(client, "searchable.user@audit.example.com")
+        pool = _create_pool(client, token)
+        entry = _create_entry(client, token, pool["id"])
+        _create_pick(client, token, entry["id"], team="NE")
+
+        response = client.get(
+            "/audit/",
+            params={"pool_id": pool["id"], "username": "SEARCHABLE.USER"},
+            headers=_h(token),
+        )
+        assert response.status_code == 200, response.text
+        events = response.json()
+        assert events
+        assert all(event["username"] == "searchable.user@audit.example.com" for event in events)
+
+        unknown = client.get(
+            "/audit/",
+            params={"pool_id": pool["id"], "username": "does-not-exist"},
+            headers=_h(token),
+        )
+        assert unknown.status_code == 200
+        assert unknown.json() == []
+
     def test_audit_feed_newest_first_and_honors_limit(self, client, db_session):
         token = _reg(client, "pick.order@audit.example.com")
         pool_id = str(uuid.uuid4())

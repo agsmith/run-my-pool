@@ -160,6 +160,62 @@ table {
 .rmp-footer { background:#050708; border-top:1px solid #283235; padding:30px 0; }.rmp-footer .rmp-shell { display:grid; grid-template-columns:auto 1fr auto; align-items:center; gap:30px; }.rmp-footer p { margin:0; text-align:center; color:#738083; font-family:Georgia,serif; font-size:10px; }.rmp-footer .rmp-shell>span { color:#596466; font-size:8px; }
 .rmp-footer p a { color:#9fefff; font-family:Arial,sans-serif; font-weight:800; letter-spacing:.04em; text-transform:uppercase; }
 
+/* Public pricing — the Broadcast Night system with commissioner-first plans. */
+.pricing-main { width:100%; max-width:none; margin:0; padding:0; background:#080d0f; }
+.pricing-hero { padding-top:86px; padding-bottom:62px; text-align:center; }
+.pricing-hero .rmp-eyebrow { justify-content:center; }
+.pricing-hero h1,.pricing-faq h2,.pricing-final h2 { margin:24px 0 20px; color:#f3f6f4; font-family:Impact,'Arial Narrow',sans-serif; font-size:clamp(62px,7vw,96px); font-style:italic; font-weight:900; letter-spacing:-.018em; line-height:.86; }
+.pricing-hero h1 em,.pricing-faq h2 em,.pricing-final h2 em { color:var(--lime); font-style:inherit; }
+.pricing-hero > p:last-child { max-width:700px; margin:0 auto; color:#99a8aa; font-family:Georgia,serif; font-size:14px; line-height:1.75; }
+.pricing-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; padding-bottom:54px; }
+.pricing-card { display:flex; flex-direction:column; min-width:0; padding:26px; background:linear-gradient(155deg,#131d20,#0d1517); border:1px solid #314146; border-top:3px solid #526267; box-shadow:0 22px 60px rgba(0,0,0,.22); }
+.pricing-card--featured { border-top-color:var(--lime); transform:translateY(-12px); box-shadow:0 28px 70px rgba(0,0,0,.34),0 0 0 1px rgba(215,255,63,.15); }
+.pricing-card__head { display:flex; justify-content:space-between; align-items:center; min-height:27px; color:#627174; font-family:Impact,'Arial Narrow',sans-serif; font-style:italic; }
+.pricing-card__head b { padding:6px 8px; color:#111718; background:var(--lime); font-family:Arial,sans-serif; font-size:7px; font-style:normal; letter-spacing:.1em; text-transform:uppercase; }
+.pricing-card h2 { margin:24px 0 12px; color:#eef3f1; font-family:Impact,'Arial Narrow',sans-serif; font-size:34px; font-style:italic; font-weight:400; text-transform:uppercase; }
+.pricing-card__price { display:flex; align-items:flex-end; gap:10px; padding-bottom:20px; border-bottom:1px solid #2d3b3f; }
+.pricing-card__price strong { color:var(--ice); font-family:Impact,'Arial Narrow',sans-serif; font-size:55px; font-style:italic; font-weight:400; line-height:1; }
+.pricing-card--featured .pricing-card__price strong { color:var(--lime); }
+.pricing-card__price small { max-width:78px; padding-bottom:5px; color:#7e8d8f; font-size:8px; font-weight:800; letter-spacing:.07em; line-height:1.25; text-transform:uppercase; }
+.pricing-card > p { min-height:64px; margin:20px 0; color:#94a2a4; font-family:Georgia,serif; font-size:11px; line-height:1.65; }
+.pricing-card ul { display:grid; gap:12px; flex:1; margin:0 0 26px; padding:0; list-style:none; }
+.pricing-card li { display:flex; gap:10px; align-items:flex-start; color:#c5cfce; font-size:10px; line-height:1.5; }
+.pricing-card li span { color:var(--lime); font-weight:900; }
+.pricing-card__cta { display:flex; justify-content:space-between; align-items:center; min-height:48px; padding:0 15px; color:#101514; background:var(--ice); font-size:10px; font-weight:900; letter-spacing:.05em; text-decoration:none; text-transform:uppercase; }
+.pricing-card--featured .pricing-card__cta { background:var(--lime); }
+.pricing-promise { display:grid; grid-template-columns:repeat(3,1fr); margin-bottom:80px; padding-top:24px; border-top:1px solid #314146; }
+.pricing-promise > div { display:grid; gap:8px; padding:0 24px; border-right:1px solid #314146; }
+.pricing-promise > div:last-child { border-right:0; }
+.pricing-promise span { color:var(--ice); font-size:8px; font-weight:900; letter-spacing:.14em; }
+.pricing-promise strong { color:#bdc8c7; font-family:Georgia,serif; font-size:11px; font-weight:400; line-height:1.6; }
+.pricing-faq { padding-top:72px; padding-bottom:90px; border-top:1px solid #29363a; }
+.pricing-faq__heading { display:flex; justify-content:space-between; align-items:flex-end; gap:50px; margin-bottom:38px; }
+.pricing-faq h2 { margin:24px 0 0; font-size:clamp(52px,5.5vw,74px); }
+.pricing-faq__heading > p { max-width:390px; color:#869598; font-family:Georgia,serif; font-size:12px; line-height:1.7; }
+.pricing-faq__grid { display:grid; grid-template-columns:repeat(2,1fr); gap:1px; background:#314146; border:1px solid #314146; }
+.pricing-faq__grid article { padding:24px; background:#10191c; }
+.pricing-faq__grid h3 { margin:0 0 9px; color:#eef3f1; font-family:Impact,'Arial Narrow',sans-serif; font-size:22px; font-style:italic; text-transform:uppercase; }
+.pricing-faq__grid p { margin:0; color:#899799; font-family:Georgia,serif; font-size:11px; line-height:1.65; }
+.pricing-final { padding:80px 0 88px; text-align:center; background:radial-gradient(circle at center,rgba(39,114,130,.25),transparent 45%),#070b0d; border-top:1px solid #29363a; }
+.pricing-final .rmp-eyebrow { justify-content:center; }
+.pricing-final h2 { font-size:clamp(60px,7vw,88px); }
+.pricing-nav-links a[aria-current="page"] { color:var(--lime); }
+@media (max-width:1050px) and (min-width:801px) {
+  .pricing-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .pricing-card--featured { transform:none; }
+}
+@media (max-width:800px) {
+  .pricing-hero { padding-top:58px; }
+  .pricing-hero h1 { font-size:clamp(55px,16vw,76px); }
+  .pricing-grid { grid-template-columns:1fr; gap:14px; }
+  .pricing-card--featured { transform:none; }
+  .pricing-card > p { min-height:0; }
+  .pricing-promise { grid-template-columns:1fr; gap:20px; }
+  .pricing-promise > div { padding:0 0 20px; border-right:0; border-bottom:1px solid #314146; }
+  .pricing-faq__heading { align-items:flex-start; flex-direction:column; gap:10px; }
+  .pricing-faq__grid { grid-template-columns:1fr; }
+}
+
 @media (max-width: 960px) {
   .rmp-hero-grid { grid-template-columns:1fr; padding-top:70px; }.rmp-hero-copy { max-width:650px; }.rmp-product-stage { margin-bottom:25px; }.rmp-section-heading,.rmp-feature-heading { align-items:flex-start; flex-direction:column; gap:20px; }.rmp-steps { grid-template-columns:1fr; }.rmp-feature-grid { grid-template-columns:1fr; }.rmp-ticker p { display:none; }
 }
