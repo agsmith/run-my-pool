@@ -92,10 +92,11 @@ After stamping, all future schema changes deploy normally via `alembic upgrade h
 
 ## Season Schedule
 
-The NFL season schedule is **not** managed by Alembic migrations (it changes annually). Use the seed script:
+The NFL season schedule is **not** managed by Alembic migrations (it changes annually). Synchronize a season from ESPN with a dry run first:
 
 ```bash
-python seed_schedule.py
+python sync_schedule.py --season 2026
+python sync_schedule.py --season 2026 --apply
 ```
 
-This is idempotent — safe to re-run. Update `SCHEDULE_2025` in `seed_schedule.py` each season.
+The synchronizer is idempotent and validates all 18 regular-season weeks before writing. It rejects duplicate teams, invalid game counts, missing team mappings, and removal of stale games referenced by frozen pool lines. The static `seed_schedule.py` file is retained only for legacy 2025 development data.
