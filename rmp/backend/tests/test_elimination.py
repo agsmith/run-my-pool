@@ -396,9 +396,11 @@ class TestAdminOps:
         """
         token_admin = _reg(client, "xfr_admin@example.com")
         token_a = _reg(client, "xfr_a@example.com")
-        _reg(client, "xfr_b@example.com")  # register user B so they exist
+        token_b = _reg(client, "xfr_b@example.com")
 
         pool_id = _create_pool(client, _h(token_admin))
+        joined = client.post(f"/pools/{pool_id}/join", json={}, headers=_h(token_b))
+        assert joined.status_code == 200, joined.text
         entry_id = _create_entry(client, _h(token_a), pool_id, name="Transfer Entry")
 
         # Give the entry a pick so we can assert it survives the transfer

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 import models
 import schemas
@@ -7,6 +7,22 @@ from typing import List, Optional
 from datetime import datetime, time
 
 router = APIRouter(prefix="/audit", tags=["audit"])
+
+
+def _require_audit_scope(db: Session, current_user: models.User, pool_id: Optional[str]):
+    if current_user.role == models.UserRole.SUPER_ADMIN:
+        return
+    if not pool_id:
+        raise HTTPException(status_code=403, detail="A league is required")
+    has_access = db.query(models.Pool).filter(
+        models.Pool.id == pool_id,
+        models.Pool.owner_id == current_user.id,
+    ).first() or db.query(models.PoolAdmin).filter(
+        models.PoolAdmin.pool_id == pool_id,
+        models.PoolAdmin.user_id == current_user.id,
+    ).first()
+    if not has_access:
+        raise HTTPException(status_code=403, detail="Admin access required")
 
 @router.get("/", response_model=List[schemas.AuditLogOut])
 def list_audit_logs(
@@ -22,6 +38,7 @@ def list_audit_logs(
     current_user=Depends(deps.get_current_user),
 ):
     """Return newest audit events first with filters used by the admin console."""
+    _require_audit_scope(db, current_user, pool_id)
     query = db.query(models.AuditLog)
     if user_id:
         query = query.filter(models.AuditLog.user_id == user_id)

@@ -65,6 +65,24 @@ def _create_entry(client, headers, pool_id, name="Test Entry"):
     return resp.json()["id"]
 
 
+def _add_pool_member(db_session, pool_id, email):
+    import models as m
+
+    user = db_session.query(m.User).filter(m.User.email == email).one()
+    if not db_session.query(m.PoolMember).filter_by(
+        pool_id=pool_id, user_id=user.id
+    ).first():
+        db_session.add(
+            m.PoolMember(
+                pool_id=pool_id,
+                user_id=user.id,
+                joined_at=datetime.now(timezone.utc).replace(tzinfo=None),
+            )
+        )
+        db_session.commit()
+    return user.id
+
+
 def _create_pick(db_session, entry_id, week, team, locked=False):
     """Directly insert a Pick row and return the model instance."""
     import models as m
@@ -228,8 +246,8 @@ class TestAdminEndpoints:
             headers=_authed(owner_token),
         )
 
-        assert nonmember.status_code == 400
-        assert "join the league" in nonmember.json()["detail"]
+        assert nonmember.status_code == 404
+        assert nonmember.json()["detail"] == "User not found in this league"
         assert revoke_owner.status_code == 400
         assert "owner access cannot be revoked" in revoke_owner.json()["detail"]
 
@@ -304,8 +322,8 @@ class TestAdminEndpoints:
         )
 
         assert delegated.status_code == 403
-        assert nonmember.status_code == 400
-        assert "join the league" in nonmember.json()["detail"]
+        assert nonmember.status_code == 404
+        assert nonmember.json()["detail"] == "User not found in this league"
         assert same_owner.status_code == 400
         assert "already owns" in same_owner.json()["detail"]
 
@@ -357,11 +375,12 @@ class TestAdminEndpoints:
         assert db_session.query(m.Entry).filter(m.Entry.id == entry_id).first() is None
         assert db_session.query(m.Pick).filter(m.Pick.id == pick.id).first() is None
 
-    def test_admin_locks_and_unlocks_user_by_email(self, client):
+    def test_admin_locks_and_unlocks_user_by_email(self, client, db_session):
         owner_token = _register_and_login(client, "email.lock.owner@example.com")
         _register_and_login(client, "email.lock.target@example.com")
         headers = _authed(owner_token)
         pool_id = _create_pool(client, headers)
+        _add_pool_member(db_session, pool_id, "email.lock.target@example.com")
 
         locked = client.put(
             f"/admin/pools/{pool_id}/user-lock",
@@ -383,6 +402,45 @@ class TestAdminEndpoints:
         )
         assert unlocked.status_code == 200
         assert unlocked.json()["locked"] is False
+
+    def test_admin_cannot_lookup_or_lock_user_from_another_league(self, client):
+        owner_token = _register_and_login(client, "scoped.lock.owner@example.com")
+        _register_and_login(client, "scoped.lock.outsider@example.com")
+        headers = _authed(owner_token)
+        pool_id = _create_pool(client, headers)
+
+        lookup = client.get(
+            f"/admin/pools/{pool_id}/user-lock?email=scoped.lock.outsider%40example.com",
+            headers=headers,
+        )
+        update = client.put(
+            f"/admin/pools/{pool_id}/user-lock",
+            json={"email": "scoped.lock.outsider@example.com", "locked": True},
+            headers=headers,
+        )
+        reset = client.post(
+            f"/admin/pools/{pool_id}/users/password-reset",
+            json={"email": "scoped.lock.outsider@example.com"},
+            headers=headers,
+        )
+
+        assert lookup.status_code == 404
+        assert update.status_code == 404
+        assert reset.status_code == 404
+
+    def test_admin_can_send_password_reset_to_league_member(self, client, db_session):
+        owner_token = _register_and_login(client, "scoped.reset.owner@example.com")
+        _register_and_login(client, "scoped.reset.member@example.com")
+        pool_id = _create_pool(client, _authed(owner_token))
+        _add_pool_member(db_session, pool_id, "scoped.reset.member@example.com")
+
+        response = client.post(
+            f"/admin/pools/{pool_id}/users/password-reset",
+            json={"email": "scoped.reset.member@example.com"},
+            headers=_authed(owner_token),
+        )
+
+        assert response.status_code == 200
 
     # ------------------------------------------------------------------
     # POST /admin/pools/{pool_id}/transfer-entry — auth & access guards
@@ -412,7 +470,7 @@ class TestAdminEndpoints:
         )
         assert response.status_code == 403
 
-    def test_transfer_entry_success(self, client):
+    def test_transfer_entry_success(self, client, db_session):
         """Pool owner transfers an entry to a registered recipient — returns 200 with expected fields."""
         # Register owner and recipient
         token_owner = _register_and_login(client, email="transfer_owner@example.com")
@@ -421,6 +479,7 @@ class TestAdminEndpoints:
         headers_owner = _authed(token_owner)
         pool_id = _create_pool(client, headers_owner)
         entry_id = _create_entry(client, headers_owner, pool_id)
+        _add_pool_member(db_session, pool_id, "transfer_recipient@example.com")
 
         response = client.post(
             f"/admin/pools/{pool_id}/transfer-entry",
@@ -819,6 +878,7 @@ class TestUserLock:
         target_token = _register_and_login(client, email="lock_target@example.com")
         pool_id = _create_pool(client, _authed(token))
         target_id = self._get_user_id(db_session, "lock_target@example.com")
+        _add_pool_member(db_session, pool_id, "lock_target@example.com")
 
         resp = client.post(
             f"/admin/pools/{pool_id}/users/{target_id}/lock",
@@ -836,6 +896,7 @@ class TestUserLock:
         _register_and_login(client, email="lock_dup_target@example.com")
         pool_id = _create_pool(client, _authed(token))
         target_id = self._get_user_id(db_session, "lock_dup_target@example.com")
+        _add_pool_member(db_session, pool_id, "lock_dup_target@example.com")
 
         client.post(f"/admin/pools/{pool_id}/users/{target_id}/lock", json={}, headers=_authed(token))
         resp = client.post(f"/admin/pools/{pool_id}/users/{target_id}/lock", json={}, headers=_authed(token))
@@ -847,6 +908,7 @@ class TestUserLock:
         _register_and_login(client, email="unlock_target@example.com")
         pool_id = _create_pool(client, _authed(token))
         target_id = self._get_user_id(db_session, "unlock_target@example.com")
+        _add_pool_member(db_session, pool_id, "unlock_target@example.com")
 
         client.post(f"/admin/pools/{pool_id}/users/{target_id}/lock", json={}, headers=_authed(token))
         resp = client.delete(f"/admin/pools/{pool_id}/users/{target_id}/lock", headers=_authed(token))
@@ -858,6 +920,7 @@ class TestUserLock:
         _register_and_login(client, email="unlock_noop_target@example.com")
         pool_id = _create_pool(client, _authed(token))
         target_id = self._get_user_id(db_session, "unlock_noop_target@example.com")
+        _add_pool_member(db_session, pool_id, "unlock_noop_target@example.com")
 
         resp = client.delete(f"/admin/pools/{pool_id}/users/{target_id}/lock", headers=_authed(token))
         assert resp.status_code == 404
@@ -876,6 +939,21 @@ class TestUserLock:
             headers=_authed(other_token),
         )
         assert resp.status_code == 403
+
+    def test_admin_cannot_lock_user_from_another_league(self, client, db_session):
+        owner_token = _register_and_login(client, "lock_scope_owner@example.com")
+        _register_and_login(client, "lock_scope_outsider@example.com")
+        pool_id = _create_pool(client, _authed(owner_token))
+        target_id = self._get_user_id(db_session, "lock_scope_outsider@example.com")
+
+        response = client.post(
+            f"/admin/pools/{pool_id}/users/{target_id}/lock",
+            json={},
+            headers=_authed(owner_token),
+        )
+
+        assert response.status_code == 404
+        assert response.json()["detail"] == "User not found in this league"
 
 
 # ---------------------------------------------------------------------------
@@ -905,6 +983,7 @@ class TestUserLockEnforcement:
         user_token = _register_and_login(client, email="enf_user@example.com")
         pool_id = _create_pool(client, _authed(admin_token))
         user_id = self._get_user_id(db_session, "enf_user@example.com")
+        _add_pool_member(db_session, pool_id, "enf_user@example.com")
 
         self._lock_user(client, admin_token, pool_id, user_id)
 
@@ -968,6 +1047,7 @@ class TestUserLockEnforcement:
         _register_and_login(client, email="enf_login_user@example.com")
         pool_id = _create_pool(client, _authed(admin_token))
         user_id = self._get_user_id(db_session, "enf_login_user@example.com")
+        _add_pool_member(db_session, pool_id, "enf_login_user@example.com")
         self._lock_user(client, admin_token, pool_id, user_id)
 
         # Login should still succeed
@@ -987,6 +1067,7 @@ class TestUserLockEnforcement:
         pool_b = _create_pool(client, _authed(admin_token))
 
         user_id = self._get_user_id(db_session, "enf_other_user@example.com")
+        _add_pool_member(db_session, pool_a, "enf_other_user@example.com")
         self._lock_user(client, admin_token, pool_a, user_id)
 
         # Should succeed in pool B
@@ -1011,6 +1092,7 @@ class TestUserLockEnforcement:
         )
         assert entry_resp.status_code == 200
         entry_id = entry_resp.json()["id"]
+        _add_pool_member(db_session, pool_id, "enf_xfr_newowner@example.com")
 
         user_id = self._get_user_id(db_session, "enf_xfr_user@example.com")
         self._lock_user(client, admin_token, pool_id, user_id)

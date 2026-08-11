@@ -15,6 +15,7 @@ import uuid
 import models
 import schemas
 import deps
+import auth
 from audit_utils import log_admin_action
 from odds_service import freeze_week_lines
 from schedule import current_season_games, current_season_week
@@ -59,6 +60,46 @@ def find_user_by_email(email: str, db: Session) -> models.User:
     return user
 
 
+def is_pool_participant(db: Session, pool_id: str, user_id: str) -> bool:
+    """Include owners, delegated admins, members, and users with entries."""
+    return bool(
+        db.query(models.Pool).filter(
+            models.Pool.id == pool_id,
+            models.Pool.owner_id == user_id,
+        ).first()
+        or db.query(models.PoolAdmin).filter(
+            models.PoolAdmin.pool_id == pool_id,
+            models.PoolAdmin.user_id == user_id,
+        ).first()
+        or db.query(models.PoolMember).filter(
+            models.PoolMember.pool_id == pool_id,
+            models.PoolMember.user_id == user_id,
+        ).first()
+        or db.query(models.Entry).filter(
+            models.Entry.pool_id == pool_id,
+            models.Entry.user_id == user_id,
+        ).first()
+    )
+
+
+def require_pool_participant_by_email(
+    db: Session, pool_id: str, email: str
+) -> models.User:
+    user = find_user_by_email(email, db)
+    if not is_pool_participant(db, pool_id, user.id):
+        raise HTTPException(status_code=404, detail="User not found in this league")
+    return user
+
+
+def require_pool_participant_by_id(
+    db: Session, pool_id: str, user_id: str
+) -> models.User:
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user or not is_pool_participant(db, pool_id, user.id):
+        raise HTTPException(status_code=404, detail="User not found in this league")
+    return user
+
+
 @router.put(
     "/pools/{pool_id}/admins",
     response_model=schemas.LeagueAdminAssignmentOut,
@@ -71,7 +112,7 @@ def grant_pool_admin(
 ):
     """Grant league-specific administrator access to an existing participant."""
     pool = require_pool_owner(pool_id, current_user, db)
-    user = find_user_by_email(assignment.email, db)
+    user = require_pool_participant_by_email(db, pool_id, assignment.email)
     if user.id == pool.owner_id:
         raise HTTPException(status_code=400, detail="The league owner already has administrator access")
 
@@ -81,16 +122,6 @@ def grant_pool_admin(
     ).first()
     if existing:
         return {"pool_id": pool_id, "user_id": user.id, "email": user.email, "is_admin": True, "changed": False}
-
-    is_participant = db.query(models.PoolMember).filter(
-        models.PoolMember.pool_id == pool_id,
-        models.PoolMember.user_id == user.id,
-    ).first() or db.query(models.Entry).filter(
-        models.Entry.pool_id == pool_id,
-        models.Entry.user_id == user.id,
-    ).first()
-    if not is_participant:
-        raise HTTPException(status_code=400, detail="User must join the league before becoming an administrator")
 
     db.add(models.PoolAdmin(pool_id=pool_id, user_id=user.id))
     db.commit()
@@ -118,7 +149,7 @@ def revoke_pool_admin(
 ):
     """Revoke delegated administrator access without changing membership."""
     pool = require_pool_owner(pool_id, current_user, db)
-    user = find_user_by_email(email, db)
+    user = require_pool_participant_by_email(db, pool_id, email)
     if user.id == pool.owner_id:
         raise HTTPException(status_code=400, detail="League owner access cannot be revoked")
 
@@ -155,19 +186,9 @@ def transfer_pool_ownership(
 ):
     """Transfer sole league ownership and retain the previous owner as an admin."""
     pool = require_pool_owner(pool_id, current_user, db)
-    new_owner = find_user_by_email(transfer.email, db)
+    new_owner = require_pool_participant_by_email(db, pool_id, transfer.email)
     if new_owner.id == pool.owner_id:
         raise HTTPException(status_code=400, detail="This user already owns the league")
-
-    is_participant = db.query(models.PoolMember).filter(
-        models.PoolMember.pool_id == pool_id,
-        models.PoolMember.user_id == new_owner.id,
-    ).first() or db.query(models.Entry).filter(
-        models.Entry.pool_id == pool_id,
-        models.Entry.user_id == new_owner.id,
-    ).first()
-    if not is_participant:
-        raise HTTPException(status_code=400, detail="New owner must join the league before ownership can be transferred")
 
     previous_owner_id = pool.owner_id
     previous_owner_email = current_user.email
@@ -329,16 +350,9 @@ def transfer_entry(
             detail="Current entry owner not found",
         )
 
-    new_owner = (
-        db.query(models.User)
-        .filter(models.User.email == transfer_data.to_email)
-        .first()
+    new_owner = require_pool_participant_by_email(
+        db, pool_id, transfer_data.to_email
     )
-    if not new_owner:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"User '{transfer_data.to_email}' not found",
-        )
 
     existing_entry = (
         db.query(models.Entry)
@@ -804,9 +818,7 @@ def get_user_lock_by_email(
 ):
     if not verify_admin_access(pool_id, current_user, db):
         raise HTTPException(status_code=403, detail="Admin access required")
-    user = db.query(models.User).filter(models.User.email == email.strip()).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+    user = require_pool_participant_by_email(db, pool_id, email)
     lock = db.query(models.PoolUserLock).filter(
         models.PoolUserLock.pool_id == pool_id,
         models.PoolUserLock.user_id == user.id,
@@ -819,6 +831,20 @@ def get_user_lock_by_email(
     }
 
 
+@router.post("/pools/{pool_id}/users/password-reset")
+def send_pool_user_password_reset(
+    pool_id: str,
+    request: schemas.ForgotPasswordRequest,
+    db: Session = Depends(deps.get_db),
+    current_user: models.User = Depends(deps.get_current_user),
+):
+    """Send a reset link only for a participant in the admin's selected league."""
+    if not verify_admin_access(pool_id, current_user, db):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    require_pool_participant_by_email(db, pool_id, request.email)
+    return auth.forgot_password(request, db)
+
+
 @router.put("/pools/{pool_id}/user-lock")
 def set_user_lock_by_email(
     pool_id: str,
@@ -828,9 +854,7 @@ def set_user_lock_by_email(
 ):
     if not verify_admin_access(pool_id, current_user, db):
         raise HTTPException(status_code=403, detail="Admin access required")
-    user = db.query(models.User).filter(models.User.email == request.email).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+    user = require_pool_participant_by_email(db, pool_id, request.email)
     lock = db.query(models.PoolUserLock).filter(
         models.PoolUserLock.pool_id == pool_id,
         models.PoolUserLock.user_id == user.id,
@@ -885,12 +909,7 @@ def lock_user_in_pool(
             status_code=status.HTTP_404_NOT_FOUND, detail="Pool not found"
         )
 
-    # Check user exists
-    target_user = db.query(models.User).filter(models.User.id == user_id).first()
-    if not target_user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
-        )
+    target_user = require_pool_participant_by_id(db, pool_id, user_id)
 
     # Check not already locked
     if is_user_locked_in_pool(db, pool_id, user_id):

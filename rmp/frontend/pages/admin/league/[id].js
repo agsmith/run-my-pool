@@ -689,10 +689,13 @@ export default function AdminPortal() {
     setResetPasswordMessage('');
     try {
       const res = await fetch(
-        process.env.NEXT_PUBLIC_API_URL + '/auth/forgot-password',
+        process.env.NEXT_PUBLIC_API_URL + `/admin/pools/${leagueId}/users/password-reset`,
         {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${localStorage.getItem('access_token')}`,
+          },
           body: JSON.stringify({ email: resetPasswordData.username.trim() }),
         }
       );
