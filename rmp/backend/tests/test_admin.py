@@ -152,6 +152,83 @@ class TestAdminEndpoints:
         assert forbidden.status_code == 403
         assert invalid_week.status_code == 400
 
+    def test_owner_grants_and_revokes_league_admin_idempotently(self, client, db_session):
+        import models as m
+
+        owner_token = _register_and_login(client, "grant.owner@example.com")
+        member_token = _register_and_login(client, "grant.member@example.com")
+        _register_and_login(client, "grant.other@example.com")
+        pool_id = _create_pool(client, _authed(owner_token))
+        member = db_session.query(m.User).filter(m.User.email == "grant.member@example.com").one()
+        other = db_session.query(m.User).filter(m.User.email == "grant.other@example.com").one()
+        db_session.add_all([
+            m.PoolMember(pool_id=pool_id, user_id=member.id, joined_at=datetime.utcnow()),
+            m.PoolMember(pool_id=pool_id, user_id=other.id, joined_at=datetime.utcnow()),
+        ])
+        db_session.commit()
+
+        granted = client.put(
+            f"/admin/pools/{pool_id}/admins",
+            json={"email": "GRANT.MEMBER@example.com"},
+            headers=_authed(owner_token),
+        )
+        repeated_grant = client.put(
+            f"/admin/pools/{pool_id}/admins",
+            json={"email": "grant.member@example.com"},
+            headers=_authed(owner_token),
+        )
+        delegated_grant = client.put(
+            f"/admin/pools/{pool_id}/admins",
+            json={"email": "grant.other@example.com"},
+            headers=_authed(member_token),
+        )
+
+        assert granted.status_code == 200, granted.text
+        assert granted.json()["changed"] is True
+        assert granted.json()["is_admin"] is True
+        assert repeated_grant.json()["changed"] is False
+        assert delegated_grant.status_code == 403
+        assert client.get(f"/pools/{pool_id}/is-admin", headers=_authed(member_token)).json()["has_admin_access"] is True
+
+        revoked = client.delete(
+            f"/admin/pools/{pool_id}/admins?email=grant.member%40example.com",
+            headers=_authed(owner_token),
+        )
+        repeated_revoke = client.delete(
+            f"/admin/pools/{pool_id}/admins?email=grant.member%40example.com",
+            headers=_authed(owner_token),
+        )
+
+        assert revoked.status_code == 200, revoked.text
+        assert revoked.json()["changed"] is True
+        assert revoked.json()["is_admin"] is False
+        assert repeated_revoke.json()["changed"] is False
+        assert client.get(f"/pools/{pool_id}/is-admin", headers=_authed(member_token)).json()["has_admin_access"] is False
+        actions = {log.action for log in db_session.query(m.AuditLog).all()}
+        assert "ADMIN_GRANT_LEAGUE_ADMIN" in actions
+        assert "ADMIN_REVOKE_LEAGUE_ADMIN" in actions
+
+    def test_grant_requires_existing_participant_and_owner_cannot_be_revoked(self, client):
+        owner_email = "grant.guard.owner@example.com"
+        owner_token = _register_and_login(client, owner_email)
+        _register_and_login(client, "grant.guard.outsider@example.com")
+        pool_id = _create_pool(client, _authed(owner_token))
+
+        nonmember = client.put(
+            f"/admin/pools/{pool_id}/admins",
+            json={"email": "grant.guard.outsider@example.com"},
+            headers=_authed(owner_token),
+        )
+        revoke_owner = client.delete(
+            f"/admin/pools/{pool_id}/admins?email={owner_email}",
+            headers=_authed(owner_token),
+        )
+
+        assert nonmember.status_code == 400
+        assert "join the league" in nonmember.json()["detail"]
+        assert revoke_owner.status_code == 400
+        assert "owner access cannot be revoked" in revoke_owner.json()["detail"]
+
     def test_admin_searches_entries_with_owner_email(self, client):
         owner_token = _register_and_login(client, "search.owner@example.com")
         headers = _authed(owner_token)

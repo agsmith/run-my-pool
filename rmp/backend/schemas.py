@@ -69,6 +69,18 @@ class LeagueAdminUserOverview(BaseModel):
     users: List[LeagueAdminUserSummary]
 
 
+class LeagueAdminAssignment(BaseModel):
+    email: EmailStr
+
+
+class LeagueAdminAssignmentOut(BaseModel):
+    pool_id: str
+    user_id: str
+    email: EmailStr
+    is_admin: bool
+    changed: bool
+
+
 class PoolRuleValueCreate(BaseModel):
     rule_id: str
     rule_value: str

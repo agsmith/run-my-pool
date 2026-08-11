@@ -4,6 +4,7 @@ import ProtectedRoute from '../../../components/ProtectedRoute';
 import { useAuth } from '../../../context/AuthContext';
 import { PoolWorkspaceNav, WorkspaceHeader } from '../../../components/ProductWorkspace';
 import AdminUserOverview from '../../../components/AdminUserOverview';
+import AdminAccessControl from '../../../components/AdminAccessControl';
 import { getAuditUsername } from '../../../utils/auditDisplay';
 
 const TIMEZONES = [
@@ -81,7 +82,6 @@ export default function AdminPortal() {
 
   const [updateEmailData, setUpdateEmailData] = useState({ username: '', newEmail: '' });
   const [deleteUserData, setDeleteUserData] = useState({ username: '' });
-  const [assignAdminData, setAssignAdminData] = useState({ username: '' });
   
   // Entry Management State
   const [transferEntryData, setTransferEntryData] = useState({ entryId: '', fromUser: '', toUser: '' });
@@ -1077,59 +1077,7 @@ export default function AdminPortal() {
         </div>
       </div>
 
-      {/* Assign Administrator Access */}
-      <div style={{ marginBottom: '3rem' }}>
-        <h4 style={{ color: '#2d3748', marginBottom: '1rem' }}>Assign Administrator Access</h4>
-        <div style={{ 
-          backgroundColor: 'white', 
-          padding: '1.5rem', 
-          borderRadius: '8px',
-          border: '1px solid #e2e8f0'
-        }}>
-          <div style={{ marginBottom: '1rem' }}>
-            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500', color: '#374151' }}>
-              Username
-            </label>
-            <input
-              type="text"
-              value={assignAdminData.username}
-              onChange={(e) => setAssignAdminData({...assignAdminData, username: e.target.value})}
-              placeholder="Enter username to grant admin access"
-              style={{
-                width: '100%',
-                padding: '0.75rem',
-                border: '1px solid #d1d5db',
-                borderRadius: '6px',
-                fontSize: '1rem'
-              }}
-            />
-          </div>
-          <div style={{ 
-            backgroundColor: '#fef3c7', 
-            color: '#92400e', 
-            padding: '1rem', 
-            borderRadius: '6px', 
-            marginBottom: '1rem',
-            fontSize: '0.875rem'
-          }}>
-            ⚠️ Confirm: This user should have administrator access to this league.
-          </div>
-          <button
-            style={{
-              backgroundColor: '#f59e0b',
-              color: 'white',
-              padding: '0.75rem 1.5rem',
-              border: 'none',
-              borderRadius: '6px',
-              cursor: 'pointer',
-              fontSize: '1rem',
-              fontWeight: '500'
-            }}
-          >
-            Grant Admin Access
-          </button>
-        </div>
-      </div>
+      <AdminAccessControl poolId={leagueId} onChanged={fetchUserOverview} />
     </div>
   );
 

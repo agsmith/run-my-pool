@@ -38,6 +38,111 @@ def verify_admin_access(pool_id: str, current_user: models.User, db: Session) ->
     return pool_admin is not None
 
 
+def require_pool_owner(pool_id: str, current_user: models.User, db: Session) -> models.Pool:
+    """Return the pool when the caller owns it; delegated admins cannot grant access."""
+    pool = db.query(models.Pool).filter(models.Pool.id == pool_id).first()
+    if not pool:
+        raise HTTPException(status_code=404, detail="Pool not found")
+    if pool.owner_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Only the league owner can manage administrators")
+    return pool
+
+
+def find_user_by_email(email: str, db: Session) -> models.User:
+    user = (
+        db.query(models.User)
+        .filter(func.lower(models.User.email) == email.strip().lower())
+        .first()
+    )
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return user
+
+
+@router.put(
+    "/pools/{pool_id}/admins",
+    response_model=schemas.LeagueAdminAssignmentOut,
+)
+def grant_pool_admin(
+    pool_id: str,
+    assignment: schemas.LeagueAdminAssignment,
+    db: Session = Depends(deps.get_db),
+    current_user: models.User = Depends(deps.get_current_user),
+):
+    """Grant league-specific administrator access to an existing participant."""
+    pool = require_pool_owner(pool_id, current_user, db)
+    user = find_user_by_email(assignment.email, db)
+    if user.id == pool.owner_id:
+        raise HTTPException(status_code=400, detail="The league owner already has administrator access")
+
+    existing = db.query(models.PoolAdmin).filter(
+        models.PoolAdmin.pool_id == pool_id,
+        models.PoolAdmin.user_id == user.id,
+    ).first()
+    if existing:
+        return {"pool_id": pool_id, "user_id": user.id, "email": user.email, "is_admin": True, "changed": False}
+
+    is_participant = db.query(models.PoolMember).filter(
+        models.PoolMember.pool_id == pool_id,
+        models.PoolMember.user_id == user.id,
+    ).first() or db.query(models.Entry).filter(
+        models.Entry.pool_id == pool_id,
+        models.Entry.user_id == user.id,
+    ).first()
+    if not is_participant:
+        raise HTTPException(status_code=400, detail="User must join the league before becoming an administrator")
+
+    db.add(models.PoolAdmin(pool_id=pool_id, user_id=user.id))
+    db.commit()
+    log_admin_action(
+        db=db,
+        action="GRANT_LEAGUE_ADMIN",
+        admin_user_id=current_user.id,
+        details=f"Granted league administrator access to {user.email}",
+        target_entity_type="user",
+        target_entity_id=user.id,
+        additional_data={"pool_id": pool_id, "username": user.email, "admin_email": current_user.email},
+    )
+    return {"pool_id": pool_id, "user_id": user.id, "email": user.email, "is_admin": True, "changed": True}
+
+
+@router.delete(
+    "/pools/{pool_id}/admins",
+    response_model=schemas.LeagueAdminAssignmentOut,
+)
+def revoke_pool_admin(
+    pool_id: str,
+    email: str,
+    db: Session = Depends(deps.get_db),
+    current_user: models.User = Depends(deps.get_current_user),
+):
+    """Revoke delegated administrator access without changing membership."""
+    pool = require_pool_owner(pool_id, current_user, db)
+    user = find_user_by_email(email, db)
+    if user.id == pool.owner_id:
+        raise HTTPException(status_code=400, detail="League owner access cannot be revoked")
+
+    existing = db.query(models.PoolAdmin).filter(
+        models.PoolAdmin.pool_id == pool_id,
+        models.PoolAdmin.user_id == user.id,
+    ).first()
+    if not existing:
+        return {"pool_id": pool_id, "user_id": user.id, "email": user.email, "is_admin": False, "changed": False}
+
+    db.delete(existing)
+    db.commit()
+    log_admin_action(
+        db=db,
+        action="REVOKE_LEAGUE_ADMIN",
+        admin_user_id=current_user.id,
+        details=f"Revoked league administrator access from {user.email}",
+        target_entity_type="user",
+        target_entity_id=user.id,
+        additional_data={"pool_id": pool_id, "username": user.email, "admin_email": current_user.email},
+    )
+    return {"pool_id": pool_id, "user_id": user.id, "email": user.email, "is_admin": False, "changed": True}
+
+
 @router.get(
     "/pools/{pool_id}/users-overview",
     response_model=schemas.LeagueAdminUserOverview,

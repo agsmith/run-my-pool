@@ -1235,6 +1235,17 @@ table {
 .admin-pick-status.is-partial { color:#091012; background:var(--ice); border-color:var(--ice); }
 .admin-pick-status.is-missing { color:#ffc0bb; background:rgba(255,91,82,.1); border-color:rgba(255,129,122,.5); }
 .admin-pick-status.is-neutral { color:#99a8a8; }
+.admin-access-control { margin:0 0 2rem; padding:1.25rem; color:var(--ink); background:#101a1d; border:1px solid #34474c; border-top:3px solid var(--lime); }
+.admin-access-control > span { color:var(--lime); font-size:.65rem; font-weight:900; letter-spacing:.14em; text-transform:uppercase; }
+.broadcast-v2--admin .admin-access-control h4 { margin:.3rem 0; color:var(--ink)!important; font-family:Impact,'Arial Narrow',sans-serif; font-size:1.75rem; font-style:italic; font-weight:400; text-transform:uppercase; }
+.admin-access-control > p { max-width:760px; margin:.25rem 0 1rem; color:var(--muted); font-size:.82rem; line-height:1.55; }
+.admin-access-control label { display:block; margin-bottom:.38rem; color:#9aabab; font-size:.65rem; font-weight:900; letter-spacing:.1em; text-transform:uppercase; }
+.broadcast-v2--admin .admin-access-control input { width:min(100%,520px); margin:0!important; color:var(--ink)!important; background:#172326!important; border:1px solid #40565b!important; }
+.admin-access-control__actions { display:flex; gap:.55rem; flex-wrap:wrap; margin-top:.75rem; }
+.broadcast-v2--admin .admin-access-control__actions button { margin:0!important; color:#091012!important; background:var(--lime)!important; border-color:var(--lime)!important; }
+.broadcast-v2--admin .admin-access-control__actions button.is-secondary { color:var(--ice)!important; background:transparent!important; border-color:#4b6268!important; }
+.broadcast-v2--admin .admin-access-control__actions button:disabled { cursor:not-allowed; opacity:.55; }
+.admin-access-control__message { margin:.8rem 0 0!important; color:var(--ice)!important; font-weight:800; }
 
 @media (max-width:760px) {
   .admin-user-overview__head { align-items:stretch; flex-direction:column; }
@@ -1245,6 +1256,8 @@ table {
   .admin-user-overview__table tr { padding:.75rem 1rem; border-bottom:1px solid #2a3b3f; }
   .admin-user-overview__table td { display:grid; grid-template-columns:110px minmax(0,1fr); gap:.75rem; padding:.35rem 0; border:0; }
   .admin-user-overview__table td::before { content:attr(data-label); color:#839294; font-size:.61rem; font-weight:900; letter-spacing:.08em; text-transform:uppercase; }
+  .admin-access-control__actions { display:grid; grid-template-columns:1fr; }
+  .broadcast-v2--admin .admin-access-control__actions button { width:100%; }
 }
 
 /* Utility/offline: deliberately minimal. */
