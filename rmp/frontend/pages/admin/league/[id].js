@@ -384,7 +384,7 @@ export default function AdminPortal() {
   };
 
   const renderLeagueManagement = () => (
-    <div style={{ flex: 1 }}>
+    <div className="admin-section admin-section--league" style={{ flex: 1 }}>
       <h3 style={{ color: '#1a202c', marginTop: 0, marginBottom: '2rem' }}>
         League Management
       </h3>
@@ -441,7 +441,7 @@ export default function AdminPortal() {
       
       {/* View/Search Leagues */}
       <div style={{ marginBottom: '3rem' }}>
-        <h4 style={{ color: '#2d3748', marginBottom: '1rem' }}>📋 View Leagues</h4>
+        <h4 style={{ color: '#2d3748', marginBottom: '1rem' }}>View Leagues</h4>
         <div style={{ 
           backgroundColor: 'white', 
           padding: '1.5rem', 
@@ -505,7 +505,7 @@ export default function AdminPortal() {
 
       {/* Pool Lock Time */}
       <div style={{ marginBottom: '3rem' }}>
-        <h4 style={{ color: '#2d3748', marginBottom: '1rem' }}>🔒 Pool Lock Time</h4>
+        <h4 style={{ color: '#2d3748', marginBottom: '1rem' }}>Pool Lock Time</h4>
         <div style={{ backgroundColor: 'white', padding: '1.5rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
             <div>
@@ -563,7 +563,7 @@ export default function AdminPortal() {
 
       {/* Create League */}
       <div style={{ marginBottom: '3rem' }}>
-        <h4 style={{ color: '#2d3748', marginBottom: '1rem' }}>➕ Create League</h4>
+        <h4 style={{ color: '#2d3748', marginBottom: '1rem' }}>Create League</h4>
         <div style={{ 
           backgroundColor: 'white', 
           padding: '1.5rem', 
@@ -656,7 +656,7 @@ export default function AdminPortal() {
 
       {/* Modify League */}
       <div style={{ marginBottom: '3rem' }}>
-        <h4 style={{ color: '#2d3748', marginBottom: '1rem' }}>✏️ Modify League</h4>
+        <h4 style={{ color: '#2d3748', marginBottom: '1rem' }}>Modify League</h4>
         <div style={{ 
           backgroundColor: 'white', 
           padding: '1.5rem', 
@@ -701,7 +701,7 @@ export default function AdminPortal() {
 
       {/* Delete League */}
       <div style={{ marginBottom: '3rem' }}>
-        <h4 style={{ color: '#2d3748', marginBottom: '1rem' }}>🗑️ Delete League</h4>
+        <h4 style={{ color: '#2d3748', marginBottom: '1rem' }}>Delete League</h4>
         <div style={{ 
           backgroundColor: '#fef2f2', 
           padding: '1.5rem', 
@@ -776,14 +776,14 @@ export default function AdminPortal() {
   };
 
   const renderUserManagement = () => (
-    <div style={{ flex: 1 }}>
+    <div className="admin-section admin-section--users" style={{ flex: 1 }}>
       <h3 style={{ color: '#1a202c', marginTop: 0, marginBottom: '2rem' }}>
         User Management
       </h3>
       
       {/* Reset User Password */}
       <div style={{ marginBottom: '3rem' }}>
-        <h4 style={{ color: '#2d3748', marginBottom: '1rem' }}>🔑 Reset User Password</h4>
+        <h4 style={{ color: '#2d3748', marginBottom: '1rem' }}>Reset User Password</h4>
         <div style={{ 
           backgroundColor: 'white', 
           padding: '1.5rem', 
@@ -833,7 +833,7 @@ export default function AdminPortal() {
 
       {/* Update User Email */}
       <div style={{ marginBottom: '3rem' }}>
-        <h4 style={{ color: '#2d3748', marginBottom: '1rem' }}>✉️ Update User Email</h4>
+        <h4 style={{ color: '#2d3748', marginBottom: '1rem' }}>Update User Email</h4>
         <div style={{ 
           backgroundColor: 'white', 
           padding: '1.5rem', 
@@ -897,7 +897,7 @@ export default function AdminPortal() {
 
       {/* Delete User */}
       <div style={{ marginBottom: '3rem' }}>
-        <h4 style={{ color: '#2d3748', marginBottom: '1rem' }}>🗑️ Delete User</h4>
+        <h4 style={{ color: '#2d3748', marginBottom: '1rem' }}>Delete User</h4>
         <div style={{ 
           backgroundColor: '#fef2f2', 
           padding: '1.5rem', 
@@ -951,7 +951,7 @@ export default function AdminPortal() {
 
       {/* Assign Administrator Access */}
       <div style={{ marginBottom: '3rem' }}>
-        <h4 style={{ color: '#2d3748', marginBottom: '1rem' }}>👑 Assign Administrator Access</h4>
+        <h4 style={{ color: '#2d3748', marginBottom: '1rem' }}>Assign Administrator Access</h4>
         <div style={{ 
           backgroundColor: 'white', 
           padding: '1.5rem', 
@@ -1006,14 +1006,14 @@ export default function AdminPortal() {
   );
 
   const renderEntryManagement = () => (
-    <div style={{ flex: 1 }}>
+    <div className="admin-section admin-section--entries" style={{ flex: 1 }}>
       <h3 style={{ color: '#1a202c', marginTop: 0, marginBottom: '2rem' }}>
         Entry Management
       </h3>
       
       {/* CSV Export */}
       <div style={{ marginBottom: '3rem' }}>
-        <h4 style={{ color: '#2d3748', marginBottom: '1rem' }}>📥 Export Entries</h4>
+        <h4 style={{ color: '#2d3748', marginBottom: '1rem' }}>Export Entries</h4>
         <div style={{ backgroundColor: 'white', padding: '1.5rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
           <p style={{ color: '#4a5568', marginBottom: '1rem' }}>Download a CSV of all participant emails and entry names for this pool.</p>
           <button
@@ -1042,7 +1042,7 @@ export default function AdminPortal() {
 
       {/* Entry ID Lookup */}
       <div style={{ marginBottom: '3rem' }}>
-        <h4 style={{ color: '#2d3748', marginBottom: '1rem' }}>🔍 Entry ID Lookup</h4>
+        <h4 style={{ color: '#2d3748', marginBottom: '1rem' }}>Entry ID Lookup</h4>
         <div style={{ 
           backgroundColor: 'white', 
           padding: '1.5rem', 
@@ -1210,7 +1210,7 @@ export default function AdminPortal() {
       
       {/* Transfer Entries */}
       <div style={{ marginBottom: '3rem' }}>
-        <h4 style={{ color: '#2d3748', marginBottom: '1rem' }}>🔄 Transfer Entries</h4>
+        <h4 style={{ color: '#2d3748', marginBottom: '1rem' }}>Transfer Entries</h4>
         <div style={{ 
           backgroundColor: 'white', 
           padding: '1.5rem', 
@@ -1293,7 +1293,7 @@ export default function AdminPortal() {
 
       {/* Delete Entries */}
       <div style={{ marginBottom: '3rem' }}>
-        <h4 style={{ color: '#2d3748', marginBottom: '1rem' }}>🗑️ Delete Entries</h4>
+        <h4 style={{ color: '#2d3748', marginBottom: '1rem' }}>Delete Entries</h4>
         <div style={{ 
           backgroundColor: '#fef2f2', 
           padding: '1.5rem', 
@@ -1367,7 +1367,7 @@ export default function AdminPortal() {
 
       {/* Correct Pick */}
       <div style={{ marginBottom: '3rem' }}>
-        <h4 style={{ color: '#2d3748', marginBottom: '1rem' }}>✏️ Correct Pick</h4>
+        <h4 style={{ color: '#2d3748', marginBottom: '1rem' }}>Correct Pick</h4>
         <div style={{ 
           backgroundColor: 'white', 
           padding: '1.5rem', 
@@ -1471,14 +1471,14 @@ export default function AdminPortal() {
   );
 
   const renderAuditLog = () => (
-    <div style={{ flex: 1 }}>
+    <div className="admin-section admin-section--audit" style={{ flex: 1 }}>
       <h3 style={{ color: '#1a202c', marginTop: 0, marginBottom: '2rem' }}>
         Audit Log
       </h3>
       
       {/* Search Audit Log */}
       <div style={{ marginBottom: '3rem' }}>
-        <h4 style={{ color: '#2d3748', marginBottom: '1rem' }}>🔍 Search Audit Log</h4>
+        <h4 style={{ color: '#2d3748', marginBottom: '1rem' }}>Search Audit Log</h4>
         <div style={{ 
           backgroundColor: 'white', 
           padding: '1.5rem', 
@@ -1600,7 +1600,7 @@ export default function AdminPortal() {
 
       {/* Audit Log Results */}
       <div style={{ marginBottom: '3rem' }}>
-        <h4 style={{ color: '#2d3748', marginBottom: '1rem' }}>📋 Audit Log Results</h4>
+        <h4 style={{ color: '#2d3748', marginBottom: '1rem' }}>Audit Log Results</h4>
         <div style={{ 
           backgroundColor: 'white', 
           padding: '1.5rem', 

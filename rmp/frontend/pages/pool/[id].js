@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import ProtectedRoute from '../../components/ProtectedRoute';
 import { useAuth } from '../../context/AuthContext';
+import { PoolWorkspaceNav, WorkspaceHeader } from '../../components/ProductWorkspace';
 
 export default function PoolDetail() {
-  const [league, setLeague] = useState(null);
+  const [pool, setPool] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
@@ -13,210 +14,104 @@ export default function PoolDetail() {
   const { id } = router.query;
 
   useEffect(() => {
-    if (router.query.message) {
-      setSuccessMessage(router.query.message);
-    }
+    if (router.query.message) setSuccessMessage(router.query.message);
   }, [router.query.message]);
 
   useEffect(() => {
-    if (id) {
-      fetchPool();
-    }
+    if (!id) return;
+    const loadPool = async () => {
+      try {
+        const token = localStorage.getItem('access_token');
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/pools/${id}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!response.ok) throw new Error('Failed to load pool details');
+        setPool(await response.json());
+      } catch (err) {
+        setError(err.message || 'Failed to load pool details');
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadPool();
   }, [id]);
 
-  const fetchPool = async () => {
+  const deletePool = async () => {
+    if (!confirm('Delete this pool and all of its data? This cannot be undone.')) return;
     try {
       const token = localStorage.getItem('access_token');
-      const res = await fetch(process.env.NEXT_PUBLIC_API_URL + `/pools/${id}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      
-      if (res.ok) {
-        const data = await res.json();
-        setLeague(data);
-      } else {
-        setError('Failed to load pool details');
-      }
-    } catch (err) {
-      setError('Failed to load pool details');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleEditLeague = () => {
-    router.push(`/admin/league/${id}`);
-  };
-
-  const handleDeleteLeague = async () => {
-    if (!confirm('Are you sure you want to delete this league? This action cannot be undone.')) {
-      return;
-    }
-
-    try {
-      const token = localStorage.getItem('access_token');
-      const res = await fetch(process.env.NEXT_PUBLIC_API_URL + `/pools/${id}`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/pools/${id}`, {
         method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` },
       });
-      
-      if (res.ok) {
-        router.push('/dashboard?message=League deleted successfully');
-      } else {
-        const errorData = await res.json();
-        setError(errorData.detail || 'Failed to delete league');
-      }
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.detail || 'Failed to delete pool');
+      router.push('/dashboard?message=Pool deleted successfully');
     } catch (err) {
-      setError('Failed to delete league');
+      setError(err.message || 'Failed to delete pool');
     }
   };
 
-  if (!router.isReady) {
-    return <div>Loading...</div>;
-  }
+  if (!router.isReady) return null;
+
+  const isOwner = pool?.owner_id === user?.id;
 
   return (
     <ProtectedRoute>
-      <main style={{ padding: '2rem', maxWidth: '1200px', margin: '0 auto' }}>
-        {loading ? (
-          <div>Loading league details...</div>
-        ) : error ? (
-          <div style={{ color: 'red' }}>{error}</div>
-        ) : league ? (
-          <>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-              <h1>{league.name}</h1>
-              <div style={{ display: 'flex', gap: '1rem' }}>
-                <button 
-                  onClick={() => router.push(`/pool/${id}/entries`)}
-                  style={{ 
-                    backgroundColor: '#28a745', 
-                    color: 'white', 
-                    padding: '10px 20px', 
-                    border: 'none', 
-                    borderRadius: '5px', 
-                    cursor: 'pointer',
-                    fontSize: '16px'
-                  }}
-                >
-                  My Entries
-                </button>
-                {league.owner_id === user?.id && (
-                  <>
-                    <button 
-                      onClick={handleEditLeague}
-                      style={{ 
-                        backgroundColor: '#ffc107', 
-                        color: 'black', 
-                        padding: '10px 20px', 
-                        border: 'none', 
-                        borderRadius: '5px', 
-                        cursor: 'pointer',
-                        fontSize: '16px'
-                      }}
-                    >
-                      Edit League
-                    </button>
-                    <button 
-                      onClick={handleDeleteLeague}
-                      style={{ 
-                        backgroundColor: '#dc3545', 
-                        color: 'white', 
-                        padding: '10px 20px', 
-                        border: 'none', 
-                        borderRadius: '5px', 
-                        cursor: 'pointer',
-                        fontSize: '16px'
-                      }}
-                    >
-                      Delete League
-                    </button>
-                  </>
+      <div className="product-page pool-home-page">
+        <main className="product-main pool-home-main">
+          {loading ? (
+            <div className="pool-home-state">Loading pool…</div>
+          ) : error && !pool ? (
+            <div className="pool-home-state pool-home-state--error">{error}</div>
+          ) : pool ? (
+            <>
+              <PoolWorkspaceNav poolId={id} poolName={pool.name} active="overview" showAdmin={isOwner} />
+              <WorkspaceHeader
+                eyebrow="Pool headquarters"
+                title={pool.name}
+                description={pool.description || 'Everything your pool needs for the week, organized in one place.'}
+                meta={`${pool.is_private ? 'Private' : 'Public'} pool`}
+                actions={<button className="workspace-primary-action" onClick={() => router.push(`/pool/${id}/entries`)}>Make picks</button>}
+              />
+
+              {successMessage && <div className="pool-home-notice pool-home-notice--success">{successMessage}</div>}
+              {error && <div className="pool-home-notice pool-home-notice--error">{error}</div>}
+
+              <section className="pool-home-actions" aria-label="Pool shortcuts">
+                <button onClick={() => router.push(`/pool/${id}/entries`)}><span>01</span><strong>Picks & Entries</strong><small>Make selections and review entries</small></button>
+                <button onClick={() => router.push(`/pool/${id}/matchups`)}><span>02</span><strong>Matchups & Lines</strong><small>Review this week’s board</small></button>
+                <button onClick={() => router.push(`/pool/${id}/messages`)}><span>03</span><strong>Pool Messages</strong><small>Talk with league members</small></button>
+              </section>
+
+              <section className="pool-home-details">
+                <div className="pool-home-details__heading">
+                  <span>At a glance</span>
+                  <h2>Pool Information</h2>
+                </div>
+                <dl>
+                  <div><dt>Access</dt><dd>{pool.is_private ? 'Private · Password required' : 'Public · Open joining'}</dd></div>
+                  <div><dt>Pick lock</dt><dd>{pool.lock_time ? new Date(pool.lock_time).toLocaleString() : 'Not scheduled'}</dd></div>
+                  <div><dt>Your role</dt><dd>{isOwner ? 'Commissioner' : 'Player'}</dd></div>
+                  <div><dt>Season format</dt><dd>Weekly survivor</dd></div>
+                </dl>
+              </section>
+
+              <footer className="pool-home-footer">
+                <button onClick={() => router.push('/dashboard')}>Back to Dashboard</button>
+                {isOwner && (
+                  <div>
+                    <button onClick={() => router.push(`/admin/league/${id}`)}>Commissioner Settings</button>
+                    <button className="pool-home-delete" onClick={deletePool}>Delete Pool</button>
+                  </div>
                 )}
-              </div>
-            </div>
-
-            {successMessage && (
-              <div style={{ 
-                color: 'green', 
-                backgroundColor: '#d4edda', 
-                padding: '10px', 
-                borderRadius: '4px',
-                marginBottom: '1rem'
-              }}>
-                {successMessage}
-              </div>
-            )}
-
-            <div style={{ 
-              backgroundColor: '#f8f9fa', 
-              padding: '1.5rem', 
-              borderRadius: '8px',
-              marginBottom: '2rem'
-            }}>
-              <h2>League Information</h2>
-              <div style={{ display: 'grid', gap: '1rem', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))' }}>
-                <div>
-                  <strong>Description:</strong>
-                  <p>{league.description || 'No description provided'}</p>
-                </div>
-                <div>
-                  <strong>Type:</strong>
-                  <p>{league.is_private ? 'Private League' : 'Public League'}</p>
-                </div>
-                <div>
-                  <strong>Lock Time:</strong>
-                  <p>{league.lock_time ? new Date(league.lock_time).toLocaleString() : 'Not set'}</p>
-                </div>
-                <div>
-                  <strong>Owner:</strong>
-                  <p>{league.owner_id === user?.id ? 'You' : 'Another user'}</p>
-                </div>
-              </div>
-            </div>
-
-            <div style={{ 
-              backgroundColor: '#fff', 
-              border: '1px solid #ddd',
-              padding: '1.5rem', 
-              borderRadius: '8px',
-              marginBottom: '2rem'
-            }}>
-              <h2>League Members</h2>
-              <p style={{ color: '#666' }}>Member management coming soon...</p>
-            </div>
-
-            <div style={{ 
-              backgroundColor: '#fff', 
-              border: '1px solid #ddd',
-              padding: '1.5rem', 
-              borderRadius: '8px'
-            }}>
-              <h2>League Entries</h2>
-              <p style={{ color: '#666' }}>Entry management coming soon...</p>
-            </div>
-
-            <div style={{ marginTop: '2rem' }}>
-              <button 
-                onClick={() => router.push('/dashboard')}
-                style={{ 
-                  backgroundColor: '#6c757d', 
-                  color: 'white', 
-                  padding: '10px 20px', 
-                  border: 'none', 
-                  borderRadius: '5px', 
-                  cursor: 'pointer',
-                  fontSize: '16px'
-                }}
-              >
-                Back to Dashboard
-              </button>
-            </div>
-          </>
-        ) : (
-          <div>League not found</div>
-        )}
-      </main>
+              </footer>
+            </>
+          ) : (
+            <div className="pool-home-state">Pool not found.</div>
+          )}
+        </main>
+      </div>
     </ProtectedRoute>
   );
 }
