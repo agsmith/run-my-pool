@@ -50,11 +50,9 @@ export default function Dashboard() {
   const [activeTabs, setActiveTabs] = useState({}); // Track active tab for each pool
   const [poolPicksData, setPoolPicksData] = useState({}); // Store picks data for each pool
   const [poolStatsData, setPoolStatsData] = useState({}); // Store pool stats for each pool
-  const [poolAdminStatus, setPoolAdminStatus] = useState({}); // Store admin status for each pool
   const [showAccountMenu, setShowAccountMenu] = useState(false); // Track account dropdown state
   const [draggedPoolId, setDraggedPoolId] = useState(null); // Track which pool is being dragged
   const [poolOrder, setPoolOrder] = useState([]); // Track custom pool ordering
-  const [isMobile, setIsMobile] = useState(false); // Track mobile device
 
   // Calculate current NFL week based on date
   const getCurrentWeek = () => {
@@ -81,16 +79,6 @@ export default function Dashboard() {
 
   useEffect(() => {
     fetchUserLeagues();
-  }, []);
-
-  useEffect(() => {
-    const checkDevice = () => {
-      setIsMobile(window.innerWidth <= 767);
-    };
-    
-    checkDevice();
-    window.addEventListener('resize', checkDevice);
-    return () => window.removeEventListener('resize', checkDevice);
   }, []);
 
   useEffect(() => {
@@ -138,19 +126,16 @@ export default function Dashboard() {
         const tabs = {};
         const picksData = {};
         const statsData = {};
-        const adminStatus = {};
         
         for (const league of data) {
           tabs[league.id] = currentWeek; // Default to current week
           picksData[league.id] = await fetchLeaguePicksData(league.id, token);
           statsData[league.id] = await fetchPoolStats(league.id, token);
-          adminStatus[league.id] = await fetchPoolAdminStatus(league.id, token);
         }
         
         setActiveTabs(tabs);
                 setPoolPicksData(picksData);
                 setPoolStatsData(statsData);
-                setPoolAdminStatus(adminStatus);
                 
                 // Load saved pool order from localStorage
                 try {
@@ -204,23 +189,6 @@ export default function Dashboard() {
     } catch (err) {
       console.error(`Failed to fetch pool stats for league ${leagueId}:`, err);
       return { totalEntries: 0, survivors: 0, eliminated: 0, survivorsPercentage: 0, eliminatedPercentage: 0 };
-    }
-  };
-
-  const fetchPoolAdminStatus = async (poolId, token) => {
-    try {
-      const res = await fetch(process.env.NEXT_PUBLIC_API_URL + `/pools/${poolId}/is-admin`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      
-      if (res.ok) {
-        return await res.json();
-      }
-      
-      return { has_admin_access: false, is_owner: false, is_admin: false };
-    } catch (err) {
-      console.error(`Failed to fetch admin status for pool ${poolId}:`, err);
-      return { has_admin_access: false, is_owner: false, is_admin: false };
     }
   };
 
@@ -1186,111 +1154,10 @@ export default function Dashboard() {
                       marginBottom: '0.5rem', 
                       color: '#1a202c' 
                     }}>
-                      {league.name}
+                      <button type="button" className="pool-card__open" onClick={() => router.push(`/pool/${league.id}`)}>
+                        {league.name}
+                      </button>
                     </h3>
-                    
-                    {/* Action Buttons */}
-                    <div className="pool-card__actions" style={{
-                      display: 'grid', 
-                      gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(auto-fit, minmax(120px, 1fr))', 
-                      gap: '0.75rem', 
-                      marginBottom: '1rem' 
-                    }}>
-                      <button className="pool-card__action pool-card__action--primary"
-                        onClick={() => router.push(`/pool/${league.id}/entries`)}
-                        style={{ 
-                          backgroundColor: '#8b5cf6', 
-                          color: 'white', 
-                          padding: '0.75rem 1rem', 
-                          border: 'none', 
-                          borderRadius: '6px', 
-                          cursor: 'pointer',
-                          fontSize: '0.875rem',
-                          fontWeight: '500',
-                          transition: 'all 0.2s ease',
-                          minHeight: '44px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          textAlign: 'center'
-                        }}
-                        onMouseEnter={(e) => e.target.style.backgroundColor = '#7c3aed'}
-                        onMouseLeave={(e) => e.target.style.backgroundColor = '#8b5cf6'}
-                      >
-                        My Entries
-                      </button>
-                      <button className="pool-card__action"
-                        onClick={() => router.push(`/pool/${league.id}`)}
-                        style={{ 
-                          backgroundColor: '#10b981', 
-                          color: 'white', 
-                          padding: '0.75rem 1rem', 
-                          border: 'none', 
-                          borderRadius: '6px', 
-                          cursor: 'pointer',
-                          fontSize: '0.875rem',
-                          fontWeight: '500',
-                          transition: 'all 0.2s ease',
-                          minHeight: '44px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          textAlign: 'center'
-                        }}
-                        onMouseEnter={(e) => e.target.style.backgroundColor = '#059669'}
-                        onMouseLeave={(e) => e.target.style.backgroundColor = '#10b981'}
-                      >
-                        Pool Home
-                      </button>
-                      <button className="pool-card__action"
-                        onClick={() => router.push(`/pool/${league.id}/messages`)}
-                        style={{ 
-                          backgroundColor: '#3b82f6', 
-                          color: 'white', 
-                          padding: '0.75rem 1rem', 
-                          border: 'none', 
-                          borderRadius: '6px', 
-                          cursor: 'pointer',
-                          fontSize: '0.875rem',
-                          fontWeight: '500',
-                          transition: 'all 0.2s ease',
-                          minHeight: '44px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          textAlign: 'center'
-                        }}
-                        onMouseEnter={(e) => e.target.style.backgroundColor = '#2563eb'}
-                        onMouseLeave={(e) => e.target.style.backgroundColor = '#3b82f6'}
-                      >
-                        Forum
-                      </button>
-                      {(poolAdminStatus[league.id]?.has_admin_access || league.created_by === user.id) && (
-                        <button className="pool-card__action pool-card__action--admin"
-                          onClick={() => router.push(`/admin/league/${league.id}`)}
-                          style={{ 
-                            backgroundColor: '#f59e0b', 
-                            color: 'white', 
-                            padding: '0.75rem 1rem', 
-                            border: 'none', 
-                            borderRadius: '6px', 
-                            cursor: 'pointer',
-                            fontSize: '0.875rem',
-                            fontWeight: '500',
-                            transition: 'all 0.2s ease',
-                            minHeight: '44px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            textAlign: 'center'
-                          }}
-                          onMouseEnter={(e) => e.target.style.backgroundColor = '#d97706'}
-                          onMouseLeave={(e) => e.target.style.backgroundColor = '#f59e0b'}
-                        >
-                          Admin
-                        </button>
-                      )}
-                    </div>
                     
                     {/* Pool Stats Section */}
                     {renderPoolStats(league)}

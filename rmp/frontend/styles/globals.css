@@ -403,13 +403,8 @@ table {
 .pool-card__privacy--private { color:#f7dda0!important; background:rgba(245,158,11,.1)!important; border:1px solid rgba(245,158,11,.38); }
 .pool-card__privacy--public { color:var(--lime)!important; background:rgba(215,255,63,.08)!important; border:1px solid rgba(215,255,63,.3); }
 .broadcast-v2--dashboard .pool-card__title { margin:0!important; padding:1.15rem 6.8rem 1.05rem 3.65rem; color:var(--ink)!important; background:#0c1416; border-bottom:1px solid #2d3f43; font-size:1.65rem!important; font-weight:400!important; letter-spacing:.015em; line-height:1.05; }
-.broadcast-v2--dashboard .pool-card__actions { display:grid!important; grid-template-columns:repeat(4,minmax(0,1fr))!important; gap:0!important; margin:0!important; background:#111c1f; border-bottom:1px solid #314449; }
-.broadcast-v2--dashboard .pool-card__action { min-width:0; min-height:48px!important; padding:.72rem .4rem!important; color:#b9c7c7!important; background:transparent!important; border:0!important; border-right:1px solid #2d3f43!important; border-radius:0!important; font-size:.68rem!important; font-weight:900!important; letter-spacing:.055em; text-transform:uppercase; }
-.broadcast-v2--dashboard .pool-card__action:last-child { border-right:0!important; }
-.broadcast-v2--dashboard .pool-card__action:hover { color:var(--ink)!important; background:#1a292d!important; filter:none; }
-.broadcast-v2--dashboard .pool-card__action--primary { color:#091012!important; background:var(--lime)!important; }
-.broadcast-v2--dashboard .pool-card__action--primary:hover { color:#091012!important; background:#e1ff68!important; }
-.broadcast-v2--dashboard .pool-card__action--admin { color:var(--ice)!important; }
+.pool-card__open { display:block; width:100%; padding:0; color:inherit; background:transparent; border:0; font:inherit; font-style:inherit; letter-spacing:inherit; text-align:left; text-transform:inherit; cursor:pointer; }
+.pool-card__open:hover { color:var(--lime); }
 .pool-card__stats { margin:1rem 1rem .75rem!important; padding:0!important; background:#0c1416!important; border:1px solid #2e4145!important; border-radius:0!important; }
 .pool-card__stats--empty { padding:1.2rem!important; color:var(--muted)!important; }
 .broadcast-v2--dashboard .pool-card__stats-title { margin:0!important; padding:.7rem .85rem; color:#c9d4d3!important; border-bottom:1px solid #2e4145; font-size:.68rem!important; font-weight:900!important; letter-spacing:.11em; text-align:left!important; text-transform:uppercase; }
@@ -437,9 +432,6 @@ table {
 .pool-card__team-code { color:#e6edeb!important; }
 .pool-card__pick-count { color:#091012!important; background:var(--lime)!important; border-radius:999px!important; }
 @media (max-width:600px) {
-  .broadcast-v2--dashboard .pool-card__actions { grid-template-columns:repeat(2,minmax(0,1fr))!important; }
-  .broadcast-v2--dashboard .pool-card__action:nth-child(2) { border-right:0!important; }
-  .broadcast-v2--dashboard .pool-card__action:nth-child(-n+2) { border-bottom:1px solid #2d3f43!important; }
   .pool-card__week-controls { align-items:stretch!important; flex-direction:column; }
   .pool-card__week-nav { width:100%; }
   .pool-card__week-nav button { flex:1; }

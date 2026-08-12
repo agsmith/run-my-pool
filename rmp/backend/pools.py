@@ -11,12 +11,16 @@ import deps
 from datetime import datetime, time, timezone
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 import uuid
+import logging
 from audit_utils import log_create_operation, log_update_operation, log_delete_operation
 from auth import SECRET_KEY, get_password_hash, verify_password
 from pool_access import is_pool_participant
 from schedule import current_season_games
 from weekly_locks import pool_week_lock_time
 from cryptography.fernet import Fernet, InvalidToken
+from app_logging import log_event
+
+logger = logging.getLogger("runmypool.pools")
 
 router = APIRouter(prefix="/pools", tags=["pools"])
 
@@ -237,12 +241,16 @@ def create_pool(
                 "owner_email": current_user.email,
             },
         )
+        log_event(
+            logger, logging.INFO, "pool_created",
+            pool_id=db_pool.id, user_id=current_user.id, is_private=db_pool.is_private,
+        )
 
         return db_pool
     except HTTPException:
         raise
-    except Exception as e:
-        print(f"Create pool error: {str(e)}")
+    except Exception:
+        logger.exception("pool_creation_failed", extra={"event": "pool_creation_failed", "user_id": current_user.id})
         raise HTTPException(status_code=500, detail="Failed to create pool")
 
 
@@ -263,8 +271,8 @@ def get_my_pools(
             .distinct()
             .all()
         )
-    except Exception as e:
-        print(f"Get my pools error: {str(e)}")
+    except Exception:
+        logger.exception("my_pools_query_failed", extra={"event": "my_pools_query_failed", "user_id": current_user.id})
         raise HTTPException(status_code=500, detail="Failed to retrieve pools")
 
 

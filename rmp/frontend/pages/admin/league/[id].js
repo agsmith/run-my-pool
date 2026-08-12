@@ -9,6 +9,7 @@ import OwnershipTransferControl from '../../../components/OwnershipTransferContr
 import LeagueLockSettings from '../../../components/LeagueLockSettings';
 import LeaguePasswordViewer from '../../../components/LeaguePasswordViewer';
 import { getAuditUsername } from '../../../utils/auditDisplay';
+import { downloadAuditCsv } from '../../../utils/auditCsv';
 
 export default function AdminPortal() {
   const [activeSection, setActiveSection] = useState('league-management');
@@ -1555,7 +1556,19 @@ export default function AdminPortal() {
 
       {/* Audit Log Results */}
       <div style={{ marginBottom: '3rem' }}>
-        <h4 style={{ color: '#2d3748', marginBottom: '1rem' }}>Audit Log Results</h4>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', marginBottom: '1rem' }}>
+          <h4 style={{ color: '#2d3748', margin: 0 }}>Audit Log Results</h4>
+          <button
+            type="button"
+            disabled={auditLoading || auditLogs.length === 0}
+            onClick={() => downloadAuditCsv(
+              auditLogs,
+              `${(league?.name || 'pool').replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '').toLowerCase()}-audit-log.csv`,
+            )}
+          >
+            Export CSV
+          </button>
+        </div>
         <div style={{ 
           backgroundColor: 'white', 
           padding: '1.5rem', 

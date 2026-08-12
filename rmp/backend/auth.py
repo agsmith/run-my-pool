@@ -12,7 +12,11 @@ import schemas
 import deps
 import os
 import uuid
+import logging
 from audit_utils import log_create_operation, log_authentication_event, log_update_operation
+from app_logging import log_event
+
+logger = logging.getLogger("runmypool.auth")
 
 SECRET_KEY = os.environ["SECRET_KEY"]
 ALGORITHM = "HS256"
@@ -71,17 +75,19 @@ def register(user: schemas.UserCreate, db: Session = Depends(deps.get_db)):
             user_id=db_user.id,
             entity_data={"email": db_user.email, "role": db_user.role.value}
         )
+        log_event(logger, logging.INFO, "user_registered", user_id=db_user.id)
         
         return db_user
     except HTTPException:
         raise
     except IntegrityError:
         db.rollback()
+        log_event(logger, logging.WARNING, "registration_rejected", reason="email_exists")
         # The unique index remains the authority if two requests race.
         raise HTTPException(status_code=400, detail="Email already registered")
-    except Exception as exc:
+    except Exception:
         db.rollback()
-        print(f"Registration failed: {type(exc).__name__}")
+        logger.exception("registration_failed", extra={"event": "registration_failed"})
         raise HTTPException(status_code=500, detail="Unable to create account")
 
 @router.post("/login")
@@ -98,6 +104,7 @@ def login(
         models.LoginAttempt.attempted_at >= window_start,
     ).count()
     if recent_failures >= LOGIN_ATTEMPT_LIMIT:
+        log_event(logger, logging.WARNING, "login_rate_limited")
         raise HTTPException(status_code=429, detail="Too many login attempts. Try again later.")
 
     db_user = db.query(models.User).filter(
@@ -113,6 +120,7 @@ def login(
             user_email=normalized_email,
             additional_info={"reason": "invalid_credentials"}
         )
+        log_event(logger, logging.WARNING, "login_rejected", reason="invalid_credentials")
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
     db.query(models.LoginAttempt).filter(models.LoginAttempt.email == normalized_email).delete()
@@ -125,6 +133,7 @@ def login(
         user_email=db_user.email,
         user_id=db_user.id
     )
+    log_event(logger, logging.INFO, "login_succeeded", user_id=db_user.id)
     
     access_token = create_access_token(data={"sub": db_user.email})
     response.set_cookie(
@@ -179,7 +188,7 @@ def forgot_password(request: schemas.ForgotPasswordRequest, db: Session = Depend
         # Always return success message regardless of whether email exists
         return {"message": "If an account with that email exists, you will receive a password reset link shortly."}
     except Exception:
-        print("Forgot-password request failed")
+        logger.exception("forgot_password_failed", extra={"event": "forgot_password_failed"})
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.post("/reset-password")
@@ -226,5 +235,5 @@ def reset_password(request: schemas.ResetPasswordRequest, db: Session = Depends(
     except HTTPException:
         raise
     except Exception:
-        print("Password-reset request failed")
+        logger.exception("password_reset_failed", extra={"event": "password_reset_failed"})
         raise HTTPException(status_code=500, detail="Internal server error")

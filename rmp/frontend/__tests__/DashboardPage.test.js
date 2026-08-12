@@ -66,20 +66,19 @@ describe('dashboard', () => {
     expect(screen.getByText('Eliminated')).toBeInTheDocument();
     expect(screen.getByText('BUF')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'My Entries' }));
-    expect(mockPush).toHaveBeenCalledWith('/pool/pool-1/entries');
-    await user.click(screen.getByRole('button', { name: 'Pool Home' }));
+    expect(screen.queryByRole('button', { name: 'My Entries' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Forum' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Admin' })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Office Survivor' }));
     expect(mockPush).toHaveBeenCalledWith('/pool/pool-1');
-    await user.click(screen.getByRole('button', { name: 'Admin' }));
-    expect(mockPush).toHaveBeenCalledWith('/admin/league/pool-1');
   });
 
-  test('does not expose commissioner controls to a regular player', async () => {
+  test('uses the same single pool-home entry point for a regular player', async () => {
     installDashboardApi({ admin: false });
     render(<Dashboard />);
 
     expect(await screen.findByRole('heading', { name: 'Office Survivor' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Admin' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Office Survivor' })).toBeInTheDocument();
   });
 
   test('sends users with no pool memberships directly to Browse Pools', async () => {

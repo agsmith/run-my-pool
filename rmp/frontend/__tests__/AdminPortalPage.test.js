@@ -136,6 +136,7 @@ describe('commissioner portal', () => {
     await user.click(screen.getByRole('button', { name: /audit log/i }));
 
     expect(await screen.findByText(/corrected week 2 pick/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Export CSV' })).toBeEnabled();
     expect(fetch).toHaveBeenCalledWith(
       expect.stringContaining('pool_id=pool-1'),
       expect.any(Object),

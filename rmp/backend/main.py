@@ -7,8 +7,22 @@ from sqlalchemy.orm import Session
 import uvicorn
 import os
 import asyncio
+import logging
+import re
+import time
+import uuid
 from contextlib import suppress
 from weekly_locks import process_due_weekly_locks
+from app_logging import configure_logging, log_event, request_id_context
+
+configure_logging()
+logger = logging.getLogger("runmypool.api")
+REQUEST_ID_PATTERN = re.compile(r"^[A-Za-z0-9._:-]{1,100}$")
+
+
+def _request_id(request):
+    supplied = request.headers.get("X-Request-ID", "")
+    return supplied if REQUEST_ID_PATTERN.fullmatch(supplied) else str(uuid.uuid4())
 
 # Skip SQLAlchemy table creation since schema is managed by datamodel.sql
 # Database schema is managed by Alembic migrations.
@@ -25,7 +39,25 @@ app = FastAPI(
 
 @app.middleware("http")
 async def add_security_headers(request, call_next):
-    response = await call_next(request)
+    request_id = _request_id(request)
+    token = request_id_context.set(request_id)
+    started = time.monotonic()
+    try:
+        response = await call_next(request)
+    except Exception:
+        logger.exception(
+            "http_request_failed",
+            extra={
+                "event": "http_request_failed",
+                "method": request.method,
+                "path": request.url.path,
+                "duration_ms": round((time.monotonic() - started) * 1000, 2),
+            },
+        )
+        raise
+    finally:
+        request_id_context.reset(token)
+    response.headers["X-Request-ID"] = request_id
     response.headers["Content-Security-Policy"] = "default-src 'none'; frame-ancestors 'none'"
     response.headers["Referrer-Policy"] = "no-referrer"
     response.headers["X-Content-Type-Options"] = "nosniff"
@@ -34,6 +66,16 @@ async def add_security_headers(request, call_next):
     response.headers["Strict-Transport-Security"] = "max-age=63072000; includeSubDomains; preload"
     if request.url.path.startswith("/auth/"):
         response.headers["Cache-Control"] = "no-store"
+    log_event(
+        logger,
+        logging.WARNING if response.status_code >= 400 else logging.INFO,
+        "http_request_completed",
+        request_id=request_id,
+        method=request.method,
+        path=request.url.path,
+        status_code=response.status_code,
+        duration_ms=round((time.monotonic() - started) * 1000, 2),
+    )
     return response
 
 # Get CORS origins from environment variable
@@ -56,9 +98,9 @@ async def _weekly_lock_worker():
         db = database.SessionLocal()
         try:
             process_due_weekly_locks(db)
-        except Exception as exc:
+        except Exception:
             db.rollback()
-            print(f"Weekly lock sweep failed: {exc}")
+            logger.exception("weekly_lock_sweep_failed", extra={"event": "weekly_lock_sweep_failed"})
         finally:
             db.close()
         await asyncio.sleep(interval)
