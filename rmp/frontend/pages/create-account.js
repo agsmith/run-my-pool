@@ -13,6 +13,15 @@ function validatePassword(password) {
   return /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^\w\s]).{8,}$/.test(password);
 }
 
+function registrationError(detail) {
+  if (typeof detail === 'string' && detail.trim()) return detail;
+  if (Array.isArray(detail)) {
+    const messages = detail.map((item) => item?.msg).filter(Boolean);
+    if (messages.length) return messages.join(' ');
+  }
+  return 'Account creation failed. Please try again.';
+}
+
 export default function CreateAccount() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -46,15 +55,18 @@ export default function CreateAccount() {
       const res = await fetch(process.env.NEXT_PUBLIC_API_URL + '/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
+        body: JSON.stringify({ email: email.trim().toLowerCase(), password })
       });
-      if (!res.ok) throw new Error('Account creation failed.');
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(registrationError(data.detail));
+      }
       const checkoutNext = selectedPlan && selectedPlan !== 'free'
         ? `/pricing?checkout=${encodeURIComponent(selectedPlan)}`
         : '/dashboard';
       router.push(`/login?message=${encodeURIComponent('Account created successfully! Please sign in with your new credentials.')}&next=${encodeURIComponent(checkoutNext)}`);
     } catch (err) {
-      setError('Account creation failed.');
+      setError(err.message || 'Account creation failed. Please try again.');
     }
     setLoading(false);
   };

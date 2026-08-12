@@ -77,6 +77,21 @@ class TestAuthEndpoints:
         assert response.status_code == 400
         assert "Email already registered" in response.json()["detail"]
 
+    def test_register_normalizes_email_and_rejects_case_variant_duplicate(self, client):
+        first = client.post(
+            "/auth/register",
+            json={"email": "Player.Case@Example.COM", "password": "password123"},
+        )
+        duplicate = client.post(
+            "/auth/register",
+            json={"email": "player.case@example.com", "password": "password123"},
+        )
+
+        assert first.status_code == 200
+        assert first.json()["email"] == "player.case@example.com"
+        assert duplicate.status_code == 400
+        assert duplicate.json()["detail"] == "Email already registered"
+
     def test_register_invalid_email(self, client):
         """Test registration with invalid email"""
         invalid_data = {"email": "invalid-email", "password": "testpassword123"}

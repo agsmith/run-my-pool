@@ -116,13 +116,13 @@ class TestPoolEndpoints:
         assert len(pools) >= 1
         assert any(pool["name"] == test_pool_data["name"] for pool in pools)
 
-    def test_pool_discovery_requires_auth_and_hides_outsider_private_leagues(self, client):
+    def test_pool_discovery_requires_auth_and_shows_private_leagues(self, client):
         owner = _register(client, "private.discovery.owner@example.com")
         outsider = _register(client, "private.discovery.outsider@example.com")
         private_pool = client.post(
             "/pools/create",
             json={
-                "name": "Hidden Discovery League",
+                "name": "Private Discovery League",
                 "is_private": True,
                 "join_password": "Private123!",
             },
@@ -144,7 +144,7 @@ class TestPoolEndpoints:
             pool["id"] for pool in client.get("/pools/", headers=owner).json()
         }
         assert public_pool["id"] in outsider_ids
-        assert private_pool["id"] not in outsider_ids
+        assert private_pool["id"] in outsider_ids
         assert private_pool["id"] in owner_ids
 
     def test_get_pool_by_id_success(self, authenticated_client, test_pool_data):
@@ -437,6 +437,37 @@ class TestPoolJoining:
         assert wrong.status_code == 403
         assert missing.json()["detail"] == "Invalid pool password"
         assert wrong.json()["detail"] == "Invalid pool password"
+
+    def test_private_pool_invite_resolves_for_authenticated_outsider(self, client):
+        owner = _register(client, "invite.owner@example.com")
+        pool = client.post(
+            "/pools/create",
+            json={"name": "Invite Only", "is_private": True, "join_password": "invite77"},
+            headers=owner,
+        ).json()
+        outsider = _register(client, "invite.outsider@example.com")
+
+        directory = client.get("/pools/", headers=outsider).json()
+        assert pool["id"] in {item["id"] for item in directory}
+
+        invite = client.get(f"/pools/invite/{pool['id']}", headers=outsider)
+        assert invite.status_code == 200
+        assert invite.json() == {
+            "id": pool["id"],
+            "name": "Invite Only",
+            "description": None,
+            "join_lock_time": None,
+            "is_private": True,
+        }
+        assert "owner_id" not in invite.json()
+
+    def test_pool_invite_requires_auth_and_rejects_unknown_id(self, client):
+        headers = _register(client, "invite.lookup@example.com")
+        client.cookies.clear()
+        assert client.get("/pools/invite/not-a-pool").status_code in (401, 403)
+        missing = client.get("/pools/invite/not-a-pool", headers=headers)
+        assert missing.status_code == 404
+        assert missing.json()["detail"] == "Pool invitation not found"
 
     def test_private_pool_accepts_correct_password_idempotently(self, client):
         owner = _register(client, "private.owner2@example.com")

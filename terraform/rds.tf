@@ -13,7 +13,7 @@
 resource "aws_db_instance" "main" {
   identifier        = "runmypool-db"
   engine            = "mysql"
-  engine_version    = "8.0"
+  engine_version    = "8.0.46"
   instance_class    = "db.t3.micro"
   allocated_storage = 20
   storage_type      = "gp2"
@@ -30,9 +30,8 @@ resource "aws_db_instance" "main" {
   publicly_accessible = false
 
   # Backups — 7-day retention, no specific window preference
-  backup_retention_period   = 7
-  skip_final_snapshot       = false
-  final_snapshot_identifier = "runmypool-final-snapshot"
+  backup_retention_period = 7
+  skip_final_snapshot     = true
 
   # Allow minor version auto-upgrades; pin major version
   auto_minor_version_upgrade = true
@@ -40,6 +39,12 @@ resource "aws_db_instance" "main" {
 
   tags = {
     Project = "runmypool"
+  }
+
+  lifecycle {
+    # The imported password is write-only in RDS and cannot be read back into state.
+    # Password rotation is managed through the database URL secret, not Terraform.
+    ignore_changes = [password]
   }
 }
 

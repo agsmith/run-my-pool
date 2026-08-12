@@ -44,4 +44,21 @@ describe('LeaguePasswordViewer', () => {
 
     expect(await screen.findByText(/set a new password to make it viewable/i)).toBeInTheDocument();
   });
+
+  test('copies a private invite link without exposing the password', async () => {
+    const writeText = jest.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText },
+    });
+    render(<LeaguePasswordViewer poolId="private-pool" isPrivate />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Copy invite link' }));
+
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith(
+      expect.stringMatching(/\/leagues\?invite=private-pool$/),
+    ));
+    expect(await screen.findByRole('status')).toHaveTextContent('Send it with the pool password');
+    expect(fetch).not.toHaveBeenCalled();
+  });
 });

@@ -106,8 +106,21 @@ resource "aws_lb_listener" "https" {
 
   # Default: frontend
   default_action {
-    type             = "forward"
-    target_group_arn = aws_lb_target_group.frontend.arn
+    type = "forward"
+
+    forward {
+      target_group {
+        arn    = aws_lb_target_group.frontend.arn
+        weight = 1
+      }
+
+    }
+  }
+
+  lifecycle {
+    # AWS reports the forward target in both the legacy target_group_arn field
+    # and the forward block, which otherwise creates perpetual plan drift.
+    ignore_changes = [default_action]
   }
 }
 
@@ -123,8 +136,15 @@ resource "aws_lb_listener_rule" "backend_api_1" {
   }
 
   action {
-    type             = "forward"
-    target_group_arn = aws_lb_target_group.backend.arn
+    type = "forward"
+
+    forward {
+      target_group {
+        arn    = aws_lb_target_group.backend.arn
+        weight = 1
+      }
+
+    }
   }
 }
 
@@ -141,8 +161,15 @@ resource "aws_lb_listener_rule" "backend_api_2" {
   }
 
   action {
-    type             = "forward"
-    target_group_arn = aws_lb_target_group.backend.arn
+    type = "forward"
+
+    forward {
+      target_group {
+        arn    = aws_lb_target_group.backend.arn
+        weight = 1
+      }
+
+    }
   }
 }
 
@@ -157,14 +184,21 @@ resource "aws_lb_listener_rule" "backend_api_3" {
   }
 
   action {
-    type             = "forward"
-    target_group_arn = aws_lb_target_group.backend.arn
+    type = "forward"
+
+    forward {
+      target_group {
+        arn    = aws_lb_target_group.backend.arn
+        weight = 1
+      }
+
+    }
   }
 }
 
 resource "aws_lb_listener_rule" "backend_api_4" {
   listener_arn = aws_lb_listener.https.arn
-  priority     = 13
+  priority     = 14
 
   condition {
     path_pattern {
@@ -173,8 +207,15 @@ resource "aws_lb_listener_rule" "backend_api_4" {
   }
 
   action {
-    type             = "forward"
-    target_group_arn = aws_lb_target_group.backend.arn
+    type = "forward"
+
+    forward {
+      target_group {
+        arn    = aws_lb_target_group.backend.arn
+        weight = 1
+      }
+
+    }
   }
 }
 

@@ -1109,6 +1109,23 @@ export default function Dashboard() {
                 >
                   Create Your First Pool
                 </button>
+                <button
+                  type="button"
+                  onClick={() => router.push('/leagues')}
+                  style={{
+                    marginLeft: '0.75rem',
+                    backgroundColor: '#84cc16',
+                    color: '#17210b',
+                    padding: '0.75rem 2rem',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontSize: '1rem',
+                    fontWeight: '700',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Browse Pools
+                </button>
               </div>
             ) : (
               <>

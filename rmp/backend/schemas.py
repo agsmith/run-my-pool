@@ -193,6 +193,17 @@ class PoolJoin(BaseModel):
     password: Optional[str] = None
 
 
+class PoolInviteOut(BaseModel):
+    id: str
+    name: str
+    description: Optional[str] = None
+    join_lock_time: Optional[datetime] = None
+    is_private: bool
+
+    class Config:
+        orm_mode = True
+
+
 class RuleOut(BaseModel):
     id: str
     pool_type: Optional[str] = None

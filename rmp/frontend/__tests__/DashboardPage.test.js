@@ -84,6 +84,8 @@ describe('dashboard', () => {
     render(<Dashboard />);
 
     expect(await screen.findByRole('heading', { name: 'No Pools Yet' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Browse Pools' }));
+    expect(mockPush).toHaveBeenCalledWith('/leagues');
     await user.click(screen.getByRole('button', { name: 'Create Your First Pool' }));
     expect(mockPush).toHaveBeenCalledWith('/create-pool');
   });

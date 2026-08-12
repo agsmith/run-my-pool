@@ -82,6 +82,7 @@ resource "aws_ecs_task_definition" "backend" {
   memory                   = "1024"
   execution_role_arn       = var.execution_role_arn
   task_role_arn            = var.task_role_arn
+  skip_destroy             = false
 
   container_definitions = jsonencode([
     {
@@ -163,9 +164,6 @@ resource "aws_ecs_task_definition" "backend" {
     }
   ])
 
-  tags = {
-    Project = "runmypool"
-  }
 }
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -180,6 +178,7 @@ resource "aws_ecs_task_definition" "frontend" {
   memory                   = "512"
   execution_role_arn       = var.execution_role_arn
   task_role_arn            = var.task_role_arn
+  skip_destroy             = false
 
   container_definitions = jsonencode([
     {
@@ -190,6 +189,7 @@ resource "aws_ecs_task_definition" "frontend" {
       portMappings = [
         {
           containerPort = 3000
+          hostPort      = 3000
           protocol      = "tcp"
         }
       ]
@@ -201,9 +201,13 @@ resource "aws_ecs_task_definition" "frontend" {
         },
         {
           name  = "NEXT_PUBLIC_API_URL"
-          value = "https://runmypool.net"
+          value = "https://run-my-pool-alb-1079058824.us-east-1.elb.amazonaws.com"
         }
       ]
+
+      mountPoints    = []
+      volumesFrom    = []
+      systemControls = []
 
       logConfiguration = {
         logDriver = "awslogs"
@@ -215,7 +219,7 @@ resource "aws_ecs_task_definition" "frontend" {
       }
 
       healthCheck = {
-        command     = ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/ || exit 1"]
+        command     = ["CMD-SHELL", "node /app/healthcheck.js || exit 1"]
         interval    = 30
         timeout     = 5
         retries     = 3
@@ -224,9 +228,6 @@ resource "aws_ecs_task_definition" "frontend" {
     }
   ])
 
-  tags = {
-    Project = "runmypool"
-  }
 }
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -239,9 +240,6 @@ resource "aws_ecs_service" "backend" {
   task_definition = aws_ecs_task_definition.backend.arn
   desired_count   = var.desired_count
   launch_type     = "FARGATE"
-
-  # Allow Terraform to update the service when CI deploys a new image tag
-  force_new_deployment = true
 
   network_configuration {
     subnets          = [aws_subnet.public_a.id, aws_subnet.public_b.id]
@@ -286,8 +284,6 @@ resource "aws_ecs_service" "frontend" {
   task_definition = aws_ecs_task_definition.frontend.arn
   desired_count   = var.desired_count
   launch_type     = "FARGATE"
-
-  force_new_deployment = true
 
   network_configuration {
     subnets          = [aws_subnet.public_a.id, aws_subnet.public_b.id]

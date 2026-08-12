@@ -1,6 +1,5 @@
 # Local .terraform directory
 .terraform/
-.terraform.lock.hcl
 
 # Terraform state — never commit state files
 *.tfstate

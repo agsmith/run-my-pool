@@ -6,6 +6,7 @@ import { isLeagueJoinLocked } from '../utils/leagueLock';
 
 export default function Leagues() {
   const router = useRouter();
+  const invitePoolId = typeof router.query?.invite === 'string' ? router.query.invite : '';
   const [pools, setPools] = useState([]);
   const [joinedIds, setJoinedIds] = useState(new Set());
   const [activeView, setActiveView] = useState('browse');
@@ -13,6 +14,7 @@ export default function Leagues() {
   const [visibility, setVisibility] = useState('all');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [inviteError, setInviteError] = useState('');
   const [membershipError, setMembershipError] = useState('');
   const [joiningId, setJoiningId] = useState(null);
   const [password, setPassword] = useState('');
@@ -30,15 +32,25 @@ export default function Leagues() {
   useEffect(() => {
     const loadPools = async () => {
       try {
+        setInviteError('');
         const token = localStorage.getItem('access_token');
         const headers = { Authorization: `Bearer ${token}` };
-        const [allResponse, mineResponse] = await Promise.all([
+        const [allResponse, mineResponse, inviteResponse] = await Promise.all([
           fetch(`${process.env.NEXT_PUBLIC_API_URL}/pools/`, { headers }),
           fetch(`${process.env.NEXT_PUBLIC_API_URL}/pools/my-pools`, { headers }),
+          invitePoolId
+            ? fetch(`${process.env.NEXT_PUBLIC_API_URL}/pools/invite/${encodeURIComponent(invitePoolId)}`, { headers, cache: 'no-store' })
+            : Promise.resolve(null),
         ]);
         if (!allResponse.ok) throw new Error('Unable to load pools');
         const allPools = await allResponse.json();
-        setPools(allPools);
+        if (inviteResponse?.ok) {
+          const invitedPool = await inviteResponse.json();
+          setPools(allPools.some((pool) => pool.id === invitedPool.id) ? allPools : [invitedPool, ...allPools]);
+        } else {
+          setPools(allPools);
+          if (inviteResponse && !inviteResponse.ok) setInviteError('This pool invitation is invalid or no longer available.');
+        }
         if (mineResponse.ok) {
           const myPools = await mineResponse.json();
           setJoinedIds(new Set(myPools.map((pool) => pool.id)));
@@ -52,7 +64,7 @@ export default function Leagues() {
       }
     };
     loadPools();
-  }, []);
+  }, [invitePoolId]);
 
   const filteredPools = useMemo(() => pools.filter((pool) => {
     const matchesText = `${pool.name} ${pool.description || ''}`.toLowerCase().includes(search.toLowerCase());
@@ -152,6 +164,12 @@ export default function Leagues() {
             Create pool
           </button>
         </section>
+
+        {inviteError && (
+          <div className="league-directory__state league-directory__state--error" role="alert">
+            {inviteError}
+          </div>
+        )}
 
         {loading ? (
           <div className="league-directory__state">Loading pools…</div>

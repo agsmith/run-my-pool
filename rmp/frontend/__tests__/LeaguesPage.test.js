@@ -4,8 +4,9 @@ import userEvent from '@testing-library/user-event';
 import Leagues from '../pages/leagues';
 
 const mockPush = jest.fn();
+let mockQuery = {};
 jest.mock('next/router', () => ({
-  useRouter: () => ({ push: mockPush }),
+  useRouter: () => ({ push: mockPush, query: mockQuery }),
 }));
 jest.mock('../components/ProtectedRoute', () => ({ children }) => children);
 
@@ -20,6 +21,7 @@ function response(data, ok = true) {
 
 beforeEach(() => {
   mockPush.mockReset();
+  mockQuery = {};
   window.localStorage.setItem('access_token', 'test-token');
   global.fetch = jest.fn()
     .mockImplementationOnce(() => response(pools))
@@ -101,6 +103,28 @@ describe('Join a Pool', () => {
     await user.click(screen.getByRole('button', { name: /join private pool/i }));
     await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(3));
     expect(JSON.parse(global.fetch.mock.calls[2][1].body)).toEqual({ password: 'huddle42' });
+  });
+
+  test('loads a shared private pool that is absent from public discovery', async () => {
+    mockQuery = { invite: 'invited-private-pool' };
+    const invitedPool = {
+      id: 'invited-private-pool',
+      name: 'Invite Only Pool',
+      description: 'Shared by the commish',
+      is_private: true,
+    };
+    global.fetch = jest.fn()
+      .mockImplementationOnce(() => response([pools[0]]))
+      .mockImplementationOnce(() => response([]))
+      .mockImplementationOnce(() => response(invitedPool));
+
+    render(<Leagues />);
+
+    expect(await screen.findByRole('heading', { name: 'Invite Only Pool' })).toBeInTheDocument();
+    expect(global.fetch).toHaveBeenCalledWith(
+      expect.stringContaining('/pools/invite/invited-private-pool'),
+      expect.objectContaining({ cache: 'no-store' }),
+    );
   });
 
   test('shows a private-password error returned by the API', async () => {

@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
-from sqlalchemy import func, or_
+from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from typing import List
@@ -275,32 +275,25 @@ def list_pools(
     db: Session = Depends(deps.get_db),
     current_user: models.User = Depends(deps.get_current_user),
 ):
-    """List public leagues plus private leagues the caller may access."""
-    return (
-        db.query(models.Pool)
-        .outerjoin(
-            models.PoolMember,
-            (models.PoolMember.pool_id == models.Pool.id)
-            & (models.PoolMember.user_id == current_user.id),
-        )
-        .outerjoin(
-            models.PoolAdmin,
-            (models.PoolAdmin.pool_id == models.Pool.id)
-            & (models.PoolAdmin.user_id == current_user.id),
-        )
-        .filter(
-            or_(
-                models.Pool.is_private.is_(False),
-                models.Pool.owner_id == current_user.id,
-                models.PoolMember.user_id == current_user.id,
-                models.PoolAdmin.user_id == current_user.id,
-            )
-        )
-        .distinct()
-        .offset(skip)
-        .limit(limit)
-        .all()
-    )
+    """List all leagues for authenticated discovery.
+
+    Private league metadata is visible here, but joining and all participant
+    data remain protected by the league password and membership checks.
+    """
+    return db.query(models.Pool).offset(skip).limit(limit).all()
+
+
+@router.get("/invite/{pool_id}", response_model=schemas.PoolInviteOut)
+def get_pool_invite(
+    pool_id: str,
+    db: Session = Depends(deps.get_db),
+    current_user: models.User = Depends(deps.get_current_user),
+):
+    """Resolve a shared pool UUID without adding private pools to discovery."""
+    pool = db.query(models.Pool).filter(models.Pool.id == pool_id).first()
+    if not pool:
+        raise HTTPException(status_code=404, detail="Pool invitation not found")
+    return pool
 
 
 @router.get("/{pool_id}", response_model=schemas.PoolOut)

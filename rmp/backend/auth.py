@@ -1,5 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.orm import Session
+from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError
 from passlib.context import CryptContext
 import jwt
 from jwt import InvalidTokenError
@@ -38,27 +40,25 @@ def create_access_token(data: dict, expires_delta: timedelta = None):
 
 @router.post("/register", response_model=schemas.UserOut)
 def register(user: schemas.UserCreate, db: Session = Depends(deps.get_db)):
+    normalized_email = str(user.email).strip().lower()
     try:
-        print(f"Registration attempt for email: {user.email}")
-        db_user = db.query(models.User).filter(models.User.email == user.email).first()
+        db_user = db.query(models.User).filter(
+            func.lower(models.User.email) == normalized_email
+        ).first()
         if db_user:
-            print("Email already exists")
             raise HTTPException(status_code=400, detail="Email already registered")
-        
-        print("Hashing password...")
+
         hashed_password = get_password_hash(user.password)
-        
-        print("Creating user object...")
+
         db_user = models.User(
             id=str(uuid.uuid4()),
-            email=user.email, 
+            email=normalized_email,
             hashed_password=hashed_password,
             role=models.UserRole.USER,
             created_at=datetime.now(timezone.utc).replace(tzinfo=None),
             updated_at=datetime.now(timezone.utc).replace(tzinfo=None)
         )
         
-        print("Adding to database...")
         db.add(db_user)
         db.commit()
         db.refresh(db_user)
@@ -72,12 +72,16 @@ def register(user: schemas.UserCreate, db: Session = Depends(deps.get_db)):
             entity_data={"email": db_user.email, "role": db_user.role.value}
         )
         
-        print("User created successfully")
         return db_user
     except HTTPException:
         raise
-    except Exception:
-        print("Registration failed")
+    except IntegrityError:
+        db.rollback()
+        # The unique index remains the authority if two requests race.
+        raise HTTPException(status_code=400, detail="Email already registered")
+    except Exception as exc:
+        db.rollback()
+        print(f"Registration failed: {type(exc).__name__}")
         raise HTTPException(status_code=500, detail="Unable to create account")
 
 @router.post("/login")

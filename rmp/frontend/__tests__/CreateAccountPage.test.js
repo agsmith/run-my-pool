@@ -39,4 +39,21 @@ describe('CreateAccountPage', () => {
     render(<CreateAccountPage />)
     expect(screen.getByRole('link', { name: /already have an account/i })).toHaveAttribute('href', '/login')
   })
+
+  test('shows the API reason when account creation is rejected', async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: false,
+      json: async () => ({ detail: 'Email already registered' }),
+    })
+    const user = userEvent.setup()
+    render(<CreateAccountPage />)
+
+    await user.type(screen.getByPlaceholderText(/enter your email/i), 'Existing@Example.com')
+    await user.type(screen.getByPlaceholderText(/^enter your password$/i), 'ValidPass1!')
+    await user.type(screen.getByPlaceholderText(/confirm your password/i), 'ValidPass1!')
+    await user.click(screen.getByRole('button', { name: 'Create Account' }))
+
+    expect(await screen.findByText('Email already registered')).toBeInTheDocument()
+    expect(JSON.parse(global.fetch.mock.calls[0][1].body).email).toBe('existing@example.com')
+  })
 })

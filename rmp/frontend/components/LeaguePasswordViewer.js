@@ -5,14 +5,29 @@ export default function LeaguePasswordViewer({ poolId, isPrivate, passwordChange
   const [visible, setVisible] = useState(false);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
+  const [copyMessage, setCopyMessage] = useState('');
 
   useEffect(() => {
     setPassword('');
     setVisible(false);
     setMessage('');
+    setCopyMessage('');
   }, [poolId, isPrivate, passwordChanged]);
 
   if (!isPrivate) return null;
+
+  const inviteUrl = typeof window === 'undefined'
+    ? ''
+    : `${window.location.origin}/leagues?invite=${encodeURIComponent(poolId)}`;
+
+  const copyInviteLink = async () => {
+    try {
+      await navigator.clipboard.writeText(inviteUrl);
+      setCopyMessage('Invite link copied. Send it with the pool password.');
+    } catch {
+      setCopyMessage('Unable to copy automatically. Select and copy the invite link.');
+    }
+  };
 
   const revealPassword = async () => {
     if (password) {
@@ -43,6 +58,12 @@ export default function LeaguePasswordViewer({ poolId, isPrivate, passwordChange
   };
 
   return <div className="admin-access-panel__current-password">
+    <label htmlFor="private-pool-invite-link">Private invite link</label>
+    <div>
+      <input id="private-pool-invite-link" type="url" value={inviteUrl} readOnly />
+      <button type="button" onClick={copyInviteLink}>Copy invite link</button>
+    </div>
+    {copyMessage && <small role="status">{copyMessage}</small>}
     <label htmlFor="current-league-password">Current password</label>
     <div>
       <input
