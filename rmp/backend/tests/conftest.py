@@ -210,7 +210,7 @@ def db_session():
 @pytest.fixture
 def test_user_data():
     """Sample user data for testing"""
-    return {"email": "test@example.com", "password": "testpassword123"}
+    return {"email": "test@example.com", "password": "TestPassword123!"}
 
 
 @pytest.fixture

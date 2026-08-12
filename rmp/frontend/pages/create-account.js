@@ -14,6 +14,9 @@ function validatePassword(password) {
 }
 
 function registrationError(detail) {
+  if (detail === 'Email already registered') {
+    return 'An account with this email already exists. If you just submitted this form, your account may have been created successfully. Please sign in.';
+  }
   if (typeof detail === 'string' && detail.trim()) return detail;
   if (Array.isArray(detail)) {
     const messages = detail.map((item) => item?.msg).filter(Boolean);
@@ -30,6 +33,7 @@ export default function CreateAccount() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [accountCreated, setAccountCreated] = useState(false);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const selectedPlan = typeof router.query?.plan === 'string' ? router.query.plan : '';
@@ -39,6 +43,7 @@ export default function CreateAccount() {
     e.preventDefault();
     setError('');
     setSuccess('');
+    if (loading || accountCreated) return;
     if (!validateEmail(email)) {
       setError('Please enter a valid email address.');
       return;
@@ -52,8 +57,9 @@ export default function CreateAccount() {
       return;
     }
     setLoading(true);
+    let res;
     try {
-      const res = await fetch(process.env.NEXT_PUBLIC_API_URL + '/auth/register', {
+      res = await fetch(process.env.NEXT_PUBLIC_API_URL + '/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: email.trim().toLowerCase(), password })
@@ -62,16 +68,30 @@ export default function CreateAccount() {
         const data = await res.json().catch(() => ({}));
         throw new Error(registrationError(data.detail));
       }
-      const checkoutNext = createPoolIntent
-        ? '/create-pool?source=splash'
-        : selectedPlan && selectedPlan !== 'free'
-          ? `/pricing?checkout=${encodeURIComponent(selectedPlan)}`
-          : '/dashboard';
-      router.push(`/login?message=${encodeURIComponent('Account created successfully! Please sign in with your new credentials.')}&next=${encodeURIComponent(checkoutNext)}`);
     } catch (err) {
       setError(err.message || 'Account creation failed. Please try again.');
+      setLoading(false);
+      return;
     }
-    setLoading(false);
+
+    // From this point forward the account exists. A client-side navigation
+    // failure must never turn a successful registration into an error that
+    // encourages the user to submit the form again.
+    setAccountCreated(true);
+    setSuccess('Account created successfully! Taking you to sign in…');
+    const checkoutNext = createPoolIntent
+      ? '/create-pool?source=splash'
+      : selectedPlan && selectedPlan !== 'free'
+        ? `/pricing?checkout=${encodeURIComponent(selectedPlan)}`
+        : '/dashboard';
+    const loginUrl = `/login?message=${encodeURIComponent('Account created successfully! Please sign in with your new credentials.')}&next=${encodeURIComponent(checkoutNext)}`;
+    try {
+      await router.push(loginUrl);
+    } catch (_navigationError) {
+      // Keep the confirmed success state visible. The sign-in link below is a
+      // reliable fallback on Safari and other browsers if navigation fails.
+      setLoading(false);
+    }
   };
 
   return (
@@ -113,6 +133,7 @@ export default function CreateAccount() {
             fontSize: '0.875rem'
           }}>
             {success}
+            {accountCreated && <div><Link href="/login">Continue to sign in</Link></div>}
           </div>
         )}
 
@@ -176,6 +197,7 @@ export default function CreateAccount() {
               />
               <PasswordVisibilityButton visible={showPassword} onToggle={() => setShowPassword((current) => !current)} fieldName="new account password" />
             </div>
+            <p className="auth-field-hint">Use 8+ characters with uppercase, lowercase, a number, and a special character.</p>
           </div>
 
           <div className="auth-form-field" style={{ marginBottom: '1.5rem' }}>
@@ -202,7 +224,7 @@ export default function CreateAccount() {
 
           <button className="auth-submit"
             type="submit" 
-            disabled={loading} 
+            disabled={loading || accountCreated}
             style={{ 
               width: '100%',
               padding: '0.875rem 1rem',
@@ -232,7 +254,7 @@ export default function CreateAccount() {
               }
             }}
           >
-            {loading ? 'Creating Account...' : 'Create Account'}
+            {accountCreated ? 'Account Created' : loading ? 'Creating Account...' : 'Create Account'}
           </button>
         </form>
 

@@ -59,8 +59,26 @@ describe('CreateAccountPage', () => {
     await user.type(screen.getByPlaceholderText(/confirm your password/i), 'ValidPass1!')
     await user.click(screen.getByRole('button', { name: 'Create Account' }))
 
-    expect(await screen.findByText('Email already registered')).toBeInTheDocument()
+    expect(await screen.findByText(/your account may have been created successfully/i)).toBeInTheDocument()
     expect(JSON.parse(global.fetch.mock.calls[0][1].body).email).toBe('existing@example.com')
+  })
+
+  test('keeps confirmed success visible if client-side navigation fails', async () => {
+    global.fetch = jest.fn().mockResolvedValue({ ok: true })
+    mockPush.mockRejectedValueOnce(new Error('Safari navigation interrupted'))
+    const user = userEvent.setup()
+    render(<CreateAccountPage />)
+
+    await user.type(screen.getByPlaceholderText(/enter your email/i), 'new@example.com')
+    await user.type(screen.getByPlaceholderText(/^enter your password$/i), 'ValidPass1!')
+    await user.type(screen.getByPlaceholderText(/confirm your password/i), 'ValidPass1!')
+    await user.click(screen.getByRole('button', { name: 'Create Account' }))
+
+    expect(await screen.findByText(/account created successfully/i)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /continue to sign in/i })).toHaveAttribute('href', '/login')
+    expect(screen.getByRole('button', { name: 'Account Created' })).toBeDisabled()
+    expect(screen.queryByText(/account creation failed/i)).not.toBeInTheDocument()
+    expect(global.fetch).toHaveBeenCalledTimes(1)
   })
 
   test('continues a splash-page pool creation after registration and login', async () => {

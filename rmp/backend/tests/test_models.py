@@ -158,12 +158,12 @@ class TestSchemas:
             # Valid user data
             valid_data = {
                 "email": "test@example.com",
-                "password": "validpassword123"
+                "password": "ValidPassword123!"
             }
             
             user = UserCreate(**valid_data)
             assert user.email == "test@example.com"
-            assert user.password == "validpassword123"
+            assert user.password == "ValidPassword123!"
             
         except ImportError:
             # Skip if schemas not available
@@ -215,7 +215,7 @@ class TestSchemas:
             
             invalid_data = {
                 "email": "invalid-email",
-                "password": "validpassword123"
+                "password": "ValidPassword123!"
             }
             
             with pytest.raises(ValidationError):

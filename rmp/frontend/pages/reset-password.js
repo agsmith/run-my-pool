@@ -88,6 +88,7 @@ export default function ResetPassword() {
               style={{ width: '100%', padding: '8px', marginTop: '4px' }}
             />
           </label>
+          <p className="auth-field-hint">Use 8+ characters with uppercase, lowercase, a number, and a special character.</p>
           <br />
           <label>Confirm New Password<br />
             <input 

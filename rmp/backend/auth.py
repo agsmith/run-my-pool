@@ -67,15 +67,22 @@ def register(user: schemas.UserCreate, db: Session = Depends(deps.get_db)):
         db.commit()
         db.refresh(db_user)
         
-        # Log user registration
-        log_create_operation(
-            db=db,
-            entity_type="user",
-            entity_id=db_user.id,
-            user_id=db_user.id,
-            entity_data={"email": db_user.email, "role": db_user.role.value}
-        )
-        log_event(logger, logging.INFO, "user_registered", user_id=db_user.id)
+        # Registration is already committed. Observability failures after this
+        # point must not report that account creation failed and prompt a retry.
+        try:
+            log_create_operation(
+                db=db,
+                entity_type="user",
+                entity_id=db_user.id,
+                user_id=db_user.id,
+                entity_data={"email": db_user.email, "role": db_user.role.value}
+            )
+            log_event(logger, logging.INFO, "user_registered", user_id=db_user.id)
+        except Exception:
+            logger.exception(
+                "registration_observability_failed",
+                extra={"event": "registration_observability_failed", "user_id": db_user.id},
+            )
         
         return db_user
     except HTTPException:

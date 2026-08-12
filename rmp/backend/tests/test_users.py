@@ -141,8 +141,8 @@ class TestUserEndpoints:
 
     def test_super_admin_dashboard_remains_platform_wide(self, client, db_session):
         _register_and_login(client, email="platform_target@users.example.com")
-        token = _register_and_login(client, email="platform_admin@users.example.com")
-        _make_super_admin(db_session, "platform_admin@users.example.com")
+        token = _register_and_login(client, email="agsmith11@gmail.com")
+        _make_super_admin(db_session, "agsmith11@gmail.com")
 
         data = client.get(
             "/users/admin-dashboard?limit=500", headers=_authed(token)
@@ -151,8 +151,121 @@ class TestUserEndpoints:
         assert data["total"] == 2
         assert {user["email"] for user in data["users"]} == {
             "platform_target@users.example.com",
-            "platform_admin@users.example.com",
+            "agsmith11@gmail.com",
         }
+        assert data["unassigned"] == 2
+        assert all(user["pool_count"] == 0 for user in data["users"])
+
+    def test_super_admin_filters_users_without_pools(self, client, db_session):
+        assigned_token = _register_and_login(client, "assigned@users.example.com")
+        _register_and_login(client, "unassigned@users.example.com")
+        token = _register_and_login(client, "agsmith11@gmail.com")
+        _make_super_admin(db_session, "agsmith11@gmail.com")
+        _create_pool(client, assigned_token, "Assigned User Pool")
+
+        response = client.get(
+            "/users/admin-dashboard?unassigned_only=true&limit=500",
+            headers=_authed(token),
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["unassigned"] == 2
+        assert {user["email"] for user in data["users"]} == {
+            "unassigned@users.example.com",
+            "agsmith11@gmail.com",
+        }
+        assert all(user["pool_count"] == 0 for user in data["users"])
+
+    def test_pool_admin_cannot_filter_platform_unassigned_users(self, client, db_session):
+        token = _register_and_login(client, "scoped_filter@users.example.com")
+        _make_pool_admin(db_session, "scoped_filter@users.example.com")
+
+        response = client.get(
+            "/users/admin-dashboard?unassigned_only=true",
+            headers=_authed(token),
+        )
+
+        assert response.status_code == 403
+
+    def test_super_admin_can_deactivate_and_reactivate_user(self, client, db_session):
+        _register_and_login(client, "status_target@users.example.com")
+        token = _register_and_login(client, "agsmith11@gmail.com")
+        _make_super_admin(db_session, "agsmith11@gmail.com")
+        target_id = _get_user_id(client, db_session, "status_target@users.example.com")
+
+        disabled = client.patch(
+            f"/users/{target_id}/status?active=false", headers=_authed(token)
+        )
+        assert disabled.status_code == 200
+        assert disabled.json()["is_active"] is False
+
+        enabled = client.patch(
+            f"/users/{target_id}/status?active=true", headers=_authed(token)
+        )
+        assert enabled.status_code == 200
+        assert enabled.json()["is_active"] is True
+
+    def test_delegated_super_admin_has_platform_access(self, client, db_session):
+        token = _register_and_login(client, "rogue_super@users.example.com")
+        _make_super_admin(db_session, "rogue_super@users.example.com")
+
+        response = client.get("/users/admin-dashboard", headers=_authed(token))
+
+        assert response.status_code == 200
+
+    def test_super_admin_can_grant_and_revoke_super_admin_access(self, client, db_session):
+        token = _register_and_login(client, "agsmith11@gmail.com")
+        _make_super_admin(db_session, "agsmith11@gmail.com")
+        target_token = _register_and_login(client, "support@users.example.com")
+        target_id = _get_user_id(client, db_session, "support@users.example.com")
+
+        granted = client.patch(
+            f"/users/{target_id}/super-admin?enabled=true", headers=_authed(token)
+        )
+        assert granted.status_code == 200
+        assert granted.json()["role"] == "SUPER_ADMIN"
+        assert client.get(
+            "/users/admin-dashboard", headers=_authed(target_token)
+        ).status_code == 200
+
+        revoked = client.patch(
+            f"/users/{target_id}/super-admin?enabled=false", headers=_authed(token)
+        )
+        assert revoked.status_code == 200
+        assert revoked.json()["role"] == "USER"
+        assert client.get(
+            "/users/admin-dashboard", headers=_authed(target_token)
+        ).status_code == 403
+
+    def test_super_admin_cannot_revoke_self(self, client, db_session):
+        token = _register_and_login(client, "support.self@users.example.com")
+        _make_super_admin(db_session, "support.self@users.example.com")
+        user_id = _get_user_id(client, db_session, "support.self@users.example.com")
+
+        response = client.patch(
+            f"/users/{user_id}/super-admin?enabled=false", headers=_authed(token)
+        )
+
+        assert response.status_code == 400
+
+    def test_bootstrap_super_admin_cannot_be_revoked_deactivated_deleted_or_renamed(self, client, db_session):
+        token = _register_and_login(client, "agsmith11@gmail.com")
+        _make_super_admin(db_session, "agsmith11@gmail.com")
+        user_id = _get_user_id(client, db_session, "agsmith11@gmail.com")
+
+        assert client.patch(
+            f"/users/{user_id}/super-admin?enabled=false", headers=_authed(token)
+        ).status_code == 400
+        assert client.patch(
+            f"/users/{user_id}/status?active=false", headers=_authed(token)
+        ).status_code == 400
+        assert client.delete(f"/users/{user_id}", headers=_authed(token)).status_code == 400
+        assert client.patch(
+            f"/users/{user_id}/email",
+            params={"email": "other@example.com"},
+            headers=_authed(token),
+        ).status_code == 400
 
     # -----------------------------------------------------------------------
     # GET /users/{user_id}

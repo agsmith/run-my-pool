@@ -175,7 +175,7 @@ export default function NavBar() {
               Login
             </Link>
             <Link 
-              href="/register" 
+              href="/create-account"
               style={navStyles.navLink}
               onClick={closeMobileMenu}
               onMouseEnter={handleLinkHover}

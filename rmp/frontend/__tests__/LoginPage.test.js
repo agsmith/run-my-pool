@@ -166,7 +166,7 @@ describe('LoginPage', () => {
     ).toBeInTheDocument()
   })
 
-  test('does not call login when password fails complexity requirements', async () => {
+  test('allows an existing legacy password to reach authentication', async () => {
     const mockLogin = jest.fn()
     useAuth.mockReturnValue({ login: mockLogin, user: null, loading: false })
 
@@ -178,20 +178,13 @@ describe('LoginPage', () => {
     await user.type(screen.getByPlaceholderText(/enter your password/i), 'abc')
     await user.click(screen.getByRole('button', { name: /sign in/i }))
 
-    expect(mockLogin).not.toHaveBeenCalled()
+    expect(mockLogin).toHaveBeenCalledWith(VALID_EMAIL, 'abc')
   })
 
-  test('shows a validation error message when password is too weak', async () => {
-    const user = userEvent.setup()
+  test('shows the new-password policy as login subtext', () => {
     renderLogin()
 
-    await user.type(screen.getByPlaceholderText(/enter your email/i), VALID_EMAIL)
-    await user.type(screen.getByPlaceholderText(/enter your password/i), 'abc')
-    await user.click(screen.getByRole('button', { name: /sign in/i }))
-
-    expect(
-      screen.getByText(/password must be at least 8 characters/i)
-    ).toBeInTheDocument()
+    expect(screen.getByText(/new passwords require 8\+ characters/i)).toBeInTheDocument()
   })
 
   test('displays error message when login throws Invalid credentials', async () => {

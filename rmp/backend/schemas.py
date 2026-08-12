@@ -2,6 +2,7 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 from typing import Optional, List
 from datetime import datetime, time
 import enum
+import re
 
 
 class UserRole(str, enum.Enum):
@@ -17,8 +18,11 @@ class UserBase(BaseModel):
 
 
 def validate_account_password(value: str) -> str:
-    if len(value) < 8:
-        raise ValueError("Password must be at least 8 characters")
+    if not re.match(r"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^\w\s]).{8,}$", value):
+        raise ValueError(
+            "Password must be at least 8 characters and include uppercase, "
+            "lowercase, a number, and a special character"
+        )
     return value
 
 
@@ -63,6 +67,7 @@ class UserOut(UserBase):
 class AdminUserOut(UserOut):
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
+    pool_count: int = 0
 
 
 class AdminUserDashboardOut(BaseModel):
@@ -71,6 +76,7 @@ class AdminUserDashboardOut(BaseModel):
     locked: int
     pool_admins: int
     super_admins: int
+    unassigned: int
     users: List[AdminUserOut]
 
 

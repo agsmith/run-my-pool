@@ -1068,6 +1068,9 @@ table {
 .platform-admin-directory form > div { display:flex; }
 .platform-admin-directory input { flex:1; min-width:0; padding:.8rem; color:var(--ink); background:#081012; border:1px solid #40555a; }
 .platform-admin-directory button { padding:0 1.1rem; color:#091012; background:var(--lime); border:0; font-weight:900; text-transform:uppercase; }
+.platform-admin-filters { display:flex; gap:.5rem; padding:1rem 1.5rem; border-bottom:1px solid #35494e; }
+.platform-admin-filters button { padding:.65rem .9rem; color:var(--muted); background:#111b1e; border:1px solid #40555a; }
+.platform-admin-filters button.is-active { color:#091012; background:var(--lime); border-color:var(--lime); }
 .platform-admin-table-wrap { overflow:auto; }
 .platform-admin-table { width:100%; min-width:850px; border-collapse:collapse; }
 .platform-admin-table th,.platform-admin-table td { padding:1rem; text-align:left; border-bottom:1px solid #26383c; }
@@ -1075,6 +1078,9 @@ table {
 .platform-admin-table td { color:#bdc9c8; }
 .platform-admin-table td strong { color:var(--ink); }
 .platform-admin-table code { color:#849496; font-size:.7rem; }
+.platform-admin-actions { display:flex; flex-wrap:wrap; gap:.4rem; }
+.platform-admin-actions button { padding:.45rem .6rem; font-size:.65rem; }
+.platform-admin-actions button.is-danger { color:#fff; background:#9f302b; }
 .platform-admin-role,.platform-admin-status { display:inline-flex; padding:.3rem .48rem; border:1px solid #40555a; font-size:.66rem; font-weight:900; letter-spacing:.05em; text-transform:uppercase; }
 .platform-admin-role--super_admin { color:#091012; background:var(--lime); border-color:var(--lime); }
 .platform-admin-status.is-active { color:var(--lime); border-color:rgba(215,255,63,.45); }

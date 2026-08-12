@@ -5,12 +5,13 @@ import schemas
 import deps
 from typing import List, Optional
 from datetime import datetime, time
+from platform_admin import is_platform_super_admin
 
 router = APIRouter(prefix="/audit", tags=["audit"])
 
 
 def _require_audit_scope(db: Session, current_user: models.User, pool_id: Optional[str]):
-    if current_user.role == models.UserRole.SUPER_ADMIN:
+    if is_platform_super_admin(current_user):
         return
     if not pool_id:
         raise HTTPException(status_code=403, detail="A league is required")

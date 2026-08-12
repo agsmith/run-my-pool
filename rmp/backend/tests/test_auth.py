@@ -66,6 +66,19 @@ class TestAuthEndpoints:
         assert "id" in data
         assert "hashed_password" not in data  # Password should not be returned
 
+    @pytest.mark.parametrize(
+        "password",
+        ["Sh1!", "lowercase1!", "UPPERCASE1!", "NoNumber!", "NoSpecial1"],
+    )
+    def test_register_enforces_complete_password_policy(self, client, password):
+        response = client.post(
+            "/auth/register",
+            json={"email": f"policy-{password}@example.com", "password": password},
+        )
+
+        assert response.status_code == 422
+        assert "uppercase" in response.text
+
     def test_register_duplicate_email(self, client, test_user_data):
         """Test registration with duplicate email"""
         # Register first user
@@ -77,14 +90,26 @@ class TestAuthEndpoints:
         assert response.status_code == 400
         assert "Email already registered" in response.json()["detail"]
 
+    @patch("auth.log_create_operation", side_effect=RuntimeError("audit unavailable"))
+    def test_register_succeeds_when_post_commit_observability_fails(
+        self, _mock_audit, client, test_user_data
+    ):
+        """A committed account must never be reported as a failed registration."""
+        response = client.post("/auth/register", json=test_user_data)
+
+        assert response.status_code == 200
+        assert response.json()["email"] == test_user_data["email"]
+        login = client.post("/auth/login", json=test_user_data)
+        assert login.status_code == 200
+
     def test_register_normalizes_email_and_rejects_case_variant_duplicate(self, client):
         first = client.post(
             "/auth/register",
-            json={"email": "Player.Case@Example.COM", "password": "password123"},
+            json={"email": "Player.Case@Example.COM", "password": "Password123!"},
         )
         duplicate = client.post(
             "/auth/register",
-            json={"email": "player.case@example.com", "password": "password123"},
+            json={"email": "player.case@example.com", "password": "Password123!"},
         )
 
         assert first.status_code == 200
@@ -94,7 +119,7 @@ class TestAuthEndpoints:
 
         login = client.post(
             "/auth/login",
-            json={"email": "Player.Case@Example.COM", "password": "password123"},
+            json={"email": "Player.Case@Example.COM", "password": "Password123!"},
         )
         assert login.status_code == 200
         assert "access_token" in login.json()

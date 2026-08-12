@@ -10,11 +10,6 @@ function validateEmail(email) {
   return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email);
 }
 
-function validatePassword(password) {
-  // At least 8 chars, 1 uppercase, 1 lowercase, 1 number, 1 special
-  return /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^\w\s]).{8,}$/.test(password);
-}
-
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -48,8 +43,8 @@ export default function Login() {
       setError('Please enter a valid email address.');
       return;
     }
-    if (!validatePassword(password)) {
-      setError('Password must be at least 8 characters, include uppercase, lowercase, number, and special character.');
+    if (!password) {
+      setError('Please enter your password.');
       return;
     }
     try {
@@ -168,6 +163,7 @@ export default function Login() {
                 fieldName="login password"
               />
             </div>
+            <p className="auth-field-hint">Use your existing password. New passwords require 8+ characters with uppercase, lowercase, a number, and a special character.</p>
           </div>
 
           <ResponsiveButton 
