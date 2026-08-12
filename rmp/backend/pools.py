@@ -296,17 +296,19 @@ def get_pool_activity_summary(
     ):
         raise HTTPException(status_code=403, detail="League membership required")
 
-    entries_remaining = db.query(models.Entry).filter(
+    user_entries = db.query(models.Entry).filter(
         models.Entry.pool_id == pool_id,
         models.Entry.user_id == current_user.id,
-        models.Entry.alive.is_(True),
-    ).count()
+    )
+    total_entries = user_entries.count()
+    entries_remaining = user_entries.filter(models.Entry.alive.is_(True)).count()
     week_selections = (
         db.query(func.count(func.distinct(models.Pick.entry_id)))
         .join(models.Entry, models.Entry.id == models.Pick.entry_id)
         .filter(
             models.Entry.pool_id == pool_id,
             models.Entry.user_id == current_user.id,
+            models.Entry.alive.is_(True),
             models.Pick.week == week,
             models.Pick.team.isnot(None),
             models.Pick.team != "",
@@ -316,6 +318,7 @@ def get_pool_activity_summary(
     )
     return {
         "entries_remaining": entries_remaining,
+        "total_entries": total_entries,
         "week": week,
         "week_selections": week_selections,
     }

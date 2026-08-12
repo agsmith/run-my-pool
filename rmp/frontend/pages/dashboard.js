@@ -171,10 +171,10 @@ export default function Dashboard() {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (summaryRes.ok) return await summaryRes.json();
-      return { entries_remaining: 0, week, week_selections: 0 };
+      return { entries_remaining: 0, total_entries: 0, week, week_selections: 0 };
     } catch (err) {
       console.error(`Failed to fetch pool stats for league ${leagueId}:`, err);
-      return { entries_remaining: 0, week: getCurrentWeek(), week_selections: 0 };
+      return { entries_remaining: 0, total_entries: 0, week: getCurrentWeek(), week_selections: 0 };
     }
   };
 
@@ -425,7 +425,10 @@ export default function Dashboard() {
           gridTemplateColumns: 'repeat(2, 1fr)',
           gap: '0.75rem'
         }}>
-          {[['Entries Remaining', stats.entries_remaining], [`Week ${stats.week} Selections`, stats.week_selections]].map(([label, value]) => <div key={label} className="pool-card__stat" style={{
+          {[
+            ['Entries Remaining', `${stats.entries_remaining ?? 0}/${stats.total_entries ?? stats.entries_remaining ?? 0}`],
+            [`Week ${stats.week} Selections`, `${stats.week_selections ?? 0}/${stats.entries_remaining ?? 0}`],
+          ].map(([label, value]) => <div key={label} className="pool-card__stat" style={{
             backgroundColor: '#ffffff',
             borderRadius: '6px',
             padding: '0.75rem',

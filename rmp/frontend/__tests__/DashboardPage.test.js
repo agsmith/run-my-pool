@@ -30,7 +30,7 @@ function installDashboardApi({ pools = [pool], admin = true, failPools = false }
       return response({ 1: { teams: { WSH: 1 }, unlockedCount: 0 } });
     }
     if (path.includes('/pools/pool-1/activity-summary?week=')) {
-      return response({ entries_remaining: 12, week: 1, week_selections: 9 });
+      return response({ entries_remaining: 12, total_entries: 15, week: 1, week_selections: 9 });
     }
     if (path.endsWith('/entries/pool/pool-1')) {
       return response([
@@ -67,11 +67,11 @@ describe('dashboard', () => {
     expect(screen.getByText('Private')).toBeInTheDocument();
     expect(screen.getByText('Entries Remaining')).toBeInTheDocument();
     expect(screen.getByText('Week 1 Selections')).toBeInTheDocument();
-    expect(screen.getByText('12')).toHaveClass('pool-card__stat-value');
-    expect(screen.getByText('12')).toHaveStyle({ color: '#d7ff3f' });
+    expect(screen.getByText('12/15')).toHaveClass('pool-card__stat-value');
+    expect(screen.getByText('12/15')).toHaveStyle({ color: '#d7ff3f' });
     expect(screen.getByText('Entries Remaining')).toHaveClass('pool-card__stat-label');
     expect(screen.getByText('Entries Remaining')).toHaveStyle({ color: '#c9d4d3' });
-    expect(screen.getByText('9')).toBeInTheDocument();
+    expect(screen.getByText('9/12')).toHaveClass('pool-card__stat-value');
     expect(screen.getByText('WSH')).toBeInTheDocument();
     expect(screen.getByAltText('WSH logo')).toHaveAttribute('src', '/nfl/wsh.svg');
 

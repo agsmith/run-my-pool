@@ -136,7 +136,13 @@ class TestPoolEndpoints:
             json={"pool_id": pool["id"], "name": "Member Entry"},
             headers=member,
         ).json()
+        unpicked_member_entry = client.post(
+            "/entries/create",
+            json={"pool_id": pool["id"], "name": "Unpicked Member Entry"},
+            headers=member,
+        ).json()
         assert owner_entry["id"] != member_entry["id"]
+        assert unpicked_member_entry["id"] != member_entry["id"]
         assert client.post(
             "/picks/create",
             json={"entry_id": member_entry["id"], "week": 1, "team": "DET"},
@@ -154,7 +160,8 @@ class TestPoolEndpoints:
 
         assert response.status_code == 200
         assert response.json() == {
-            "entries_remaining": 1,
+            "entries_remaining": 2,
+            "total_entries": 2,
             "week": 1,
             "week_selections": 1,
         }
