@@ -15,6 +15,7 @@ import uuid
 import logging
 from audit_utils import log_create_operation, log_authentication_event, log_update_operation
 from app_logging import log_event
+from email_service import send_password_reset_email
 
 logger = logging.getLogger("runmypool.auth")
 
@@ -188,9 +189,15 @@ def forgot_password(request: schemas.ForgotPasswordRequest, db: Session = Depend
                 expires_delta=timedelta(hours=1)
             )
             
-            # Token delivery belongs in the configured email provider. Never
-            # expose bearer reset credentials through application logs.
-            _ = reset_token
+            try:
+                send_password_reset_email(db_user.email, reset_token)
+            except Exception:
+                # Preserve the same response for registered and unknown email
+                # addresses. Never log the reset token or expose delivery state.
+                logger.exception(
+                    "password_reset_email_failed",
+                    extra={"event": "password_reset_email_failed", "user_id": db_user.id},
+                )
         
         # Always return success message regardless of whether email exists
         return {"message": "If an account with that email exists, you will receive a password reset link shortly."}

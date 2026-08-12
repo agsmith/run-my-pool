@@ -331,7 +331,8 @@ class TestGetMe:
 class TestForgotPassword:
     """Tests for POST /auth/forgot-password (T-07 to T-10)"""
 
-    def test_forgot_password_registered_email(self, client, test_user_data):
+    @patch("auth.send_password_reset_email")
+    def test_forgot_password_registered_email(self, mock_send, client, test_user_data):
         """T-07: Registered email returns 200 with generic message"""
         client.post("/auth/register", json=test_user_data)
         response = client.post(
@@ -342,6 +343,22 @@ class TestForgotPassword:
         data = response.json()
         assert "message" in data
         assert data["message"]  # non-empty
+        recipient, token = mock_send.call_args.args
+        assert recipient == test_user_data["email"]
+        assert token not in response.text
+
+    @patch("auth.send_password_reset_email")
+    def test_forgot_password_does_not_send_for_unknown_email(self, mock_send, client):
+        response = client.post("/auth/forgot-password", json={"email": "missing@example.com"})
+        assert response.status_code == 200
+        mock_send.assert_not_called()
+
+    @patch("auth.send_password_reset_email", side_effect=RuntimeError("SES unavailable"))
+    def test_forgot_password_hides_delivery_failures(self, _mock_send, client, test_user_data):
+        client.post("/auth/register", json=test_user_data)
+        response = client.post("/auth/forgot-password", json={"email": test_user_data["email"]})
+        assert response.status_code == 200
+        assert "SES unavailable" not in response.text
 
     def test_forgot_password_unregistered_email(self, client):
         """T-08: Unregistered email returns same generic 200 — no email leakage"""

@@ -144,6 +144,18 @@ resource "aws_ecs_task_definition" "backend" {
           value = "https://runmypool.net"
         },
         {
+          name  = "AWS_SES_REGION"
+          value = var.aws_region
+        },
+        {
+          name  = "EMAIL_FROM"
+          value = "Run My Pool Accounts <accounts@runmypool.net>"
+        },
+        {
+          name  = "EMAIL_REPLY_TO"
+          value = "support@runmypool.net"
+        },
+        {
           name  = "STRIPE_PRICE_COMMISSIONER"
           value = var.stripe_price_commissioner
         },
