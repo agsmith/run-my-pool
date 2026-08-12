@@ -61,7 +61,7 @@ export default function Admin() {
   const updateAccount = async (account, action) => {
     let path; let method = 'PATCH';
     if (action === 'email') {
-      const email = window.prompt('Enter the corrected email address', account.email)?.trim().toLowerCase();
+      const email = window.prompt('Enter the new login email address', account.email)?.trim().toLowerCase();
       if (!email || email === account.email) return;
       path = `/users/${account.id}/email?email=${encodeURIComponent(email)}`;
     } else if (action === 'super-admin') {
@@ -115,6 +115,6 @@ function AdminTable({ tab, records, currentUser, updateAccount }) {
     // Legacy or partially cached account payloads may not include a role.
     // Treat them as least-privileged members instead of crashing the console.
     const accountRole = typeof account.role === 'string' && account.role ? account.role : 'USER';
-    return <tr key={account.id}><td><strong>{account.email}</strong></td><td><span className={`platform-admin-role platform-admin-role--${accountRole.toLowerCase()}`}>{roleLabel(accountRole)}</span></td><td><span className={`platform-admin-status ${account.is_active ? 'is-active' : 'is-locked'}`}>{account.is_active ? 'Active' : 'Locked'}</span></td><td>{account.pool_count ?? 0}</td><td>{account.created_at ? new Date(account.created_at).toLocaleDateString() : '—'}</td><td><div className="platform-admin-actions">{tab === 'users' && <><button type="button" onClick={() => updateAccount(account, 'email')}>Edit email</button><button type="button" onClick={() => updateAccount(account, 'status')}>{account.is_active ? 'Deactivate' : 'Reactivate'}</button><button type="button" className="is-danger" onClick={() => updateAccount(account, 'delete')}>Delete</button></>}<button type="button" disabled={account.id === currentUser?.id && accountRole === 'SUPER_ADMIN'} onClick={() => updateAccount({ ...account, role: accountRole }, 'super-admin')}>{accountRole === 'SUPER_ADMIN' ? 'Revoke super admin' : 'Grant super admin'}</button></div></td></tr>;
+    return <tr key={account.id}><td><strong>{account.email}</strong></td><td><span className={`platform-admin-role platform-admin-role--${accountRole.toLowerCase()}`}>{roleLabel(accountRole)}</span></td><td><span className={`platform-admin-status ${account.is_active ? 'is-active' : 'is-locked'}`}>{account.is_active ? 'Active' : 'Locked'}</span></td><td>{account.pool_count ?? 0}</td><td>{account.created_at ? new Date(account.created_at).toLocaleDateString() : '—'}</td><td><div className="platform-admin-actions">{tab === 'users' && <><button type="button" onClick={() => updateAccount(account, 'email')}>Change login email</button><button type="button" onClick={() => updateAccount(account, 'status')}>{account.is_active ? 'Deactivate' : 'Reactivate'}</button><button type="button" className="is-danger" onClick={() => updateAccount(account, 'delete')}>Delete</button></>}<button type="button" disabled={account.id === currentUser?.id && accountRole === 'SUPER_ADMIN'} onClick={() => updateAccount({ ...account, role: accountRole }, 'super-admin')}>{accountRole === 'SUPER_ADMIN' ? 'Revoke super admin' : 'Grant super admin'}</button></div></td></tr>;
   })}</tbody></table></div>;
 }

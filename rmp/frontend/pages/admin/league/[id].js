@@ -41,7 +41,6 @@ export default function AdminPortal() {
   // User lock state
   const [lockMessage, setLockMessage] = useState('');
 
-  const [updateEmailData, setUpdateEmailData] = useState({ username: '', newEmail: '' });
   const [deleteUserData, setDeleteUserData] = useState({ username: '' });
   
   // Entry Management State
@@ -95,6 +94,24 @@ export default function AdminPortal() {
       setUserOverviewError(err.message || 'Unable to load league users');
     } finally {
       setUserOverviewLoading(false);
+    }
+  };
+
+  const handleChangeUserEmail = async (account) => {
+    const email = window.prompt('Enter the new login email address', account.email)?.trim().toLowerCase();
+    if (!email || email === account.email) return;
+    setUserOverviewError('');
+    try {
+      const token = localStorage.getItem('access_token');
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/admin/pools/${leagueId}/users/${account.id}/email?email=${encodeURIComponent(email)}`,
+        { method: 'PATCH', headers: { Authorization: `Bearer ${token}` } },
+      );
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.detail || 'Unable to change login email');
+      await fetchUserOverview();
+    } catch (err) {
+      setUserOverviewError(err.message || 'Unable to change login email');
     }
   };
 
@@ -753,7 +770,7 @@ export default function AdminPortal() {
         User Management
       </h3>
 
-      <AdminUserOverview overview={userOverview} loading={userOverviewLoading} error={userOverviewError} onRefresh={fetchUserOverview} />
+      <AdminUserOverview overview={userOverview} loading={userOverviewLoading} error={userOverviewError} onRefresh={fetchUserOverview} onChangeEmail={handleChangeUserEmail} />
 
       <div style={{ marginBottom: '3rem' }}>
         <h4>Lock User Account</h4>
@@ -825,70 +842,6 @@ export default function AdminPortal() {
               {resetPasswordMessage}
             </p>
           )}
-        </div>
-      </div>
-
-      {/* Update User Email */}
-      <div style={{ marginBottom: '3rem' }}>
-        <h4 style={{ color: '#2d3748', marginBottom: '1rem' }}>Update User Email</h4>
-        <div style={{ 
-          backgroundColor: 'white', 
-          padding: '1.5rem', 
-          borderRadius: '8px',
-          border: '1px solid #e2e8f0'
-        }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
-            <div>
-              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500', color: '#374151' }}>
-                Username
-              </label>
-              <input
-                type="text"
-                value={updateEmailData.username}
-                onChange={(e) => setUpdateEmailData({...updateEmailData, username: e.target.value})}
-                placeholder="Enter username"
-                style={{
-                  width: '100%',
-                  padding: '0.75rem',
-                  border: '1px solid #d1d5db',
-                  borderRadius: '6px',
-                  fontSize: '1rem'
-                }}
-              />
-            </div>
-            <div>
-              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500', color: '#374151' }}>
-                New Email Address
-              </label>
-              <input
-                type="email"
-                value={updateEmailData.newEmail}
-                onChange={(e) => setUpdateEmailData({...updateEmailData, newEmail: e.target.value})}
-                placeholder="Enter new email address"
-                style={{
-                  width: '100%',
-                  padding: '0.75rem',
-                  border: '1px solid #d1d5db',
-                  borderRadius: '6px',
-                  fontSize: '1rem'
-                }}
-              />
-            </div>
-          </div>
-          <button
-            style={{
-              backgroundColor: '#10b981',
-              color: 'white',
-              padding: '0.75rem 1.5rem',
-              border: 'none',
-              borderRadius: '6px',
-              cursor: 'pointer',
-              fontSize: '1rem',
-              fontWeight: '500'
-            }}
-          >
-            Update Email
-          </button>
         </div>
       </div>
 

@@ -362,16 +362,14 @@ class TestUserEndpoints:
         )
         assert resp.status_code == 403
 
-    def test_update_email_success(self, client, db_session):
+    def test_super_admin_updates_login_email_without_changing_account(self, client, db_session):
         """
         PATCH /users/{user_id}/email with the correct UUID updates the email.
         user_id is now correctly typed as str.
         """
-        token = _register_and_login(client, email="email_admin@users.example.com")
+        token = _register_and_login(client, email="agsmith11@gmail.com")
         target_token = _register_and_login(client, email="email_before@users.example.com")
-        _make_pool_admin(db_session, "email_admin@users.example.com")
-        pool_id = _create_pool(client, token, "Update Email League")
-        _join_pool(client, target_token, pool_id)
+        _make_super_admin(db_session, "agsmith11@gmail.com")
         user_id = _get_user_id(client, db_session, "email_before@users.example.com")
 
         resp = client.patch(
@@ -382,6 +380,65 @@ class TestUserEndpoints:
         assert resp.status_code == 200, (
             f"Expected 200 for email update with UUID, got {resp.status_code}: {resp.json()}"
         )
+        assert resp.json()["id"] == user_id
+        assert resp.json()["email"] == "email_after@users.example.com"
+
+        assert client.post(
+            "/auth/login",
+            json={"email": "email_before@users.example.com", "password": "Test1234!"},
+        ).status_code == 401
+        assert client.post(
+            "/auth/login",
+            json={"email": "email_after@users.example.com", "password": "Test1234!"},
+        ).status_code == 200
+
+    def test_league_admin_can_update_login_email_for_managed_user(self, client, db_session):
+        token = _register_and_login(client, email="email_pool_admin@users.example.com")
+        target_token = _register_and_login(client, email="email_member@users.example.com")
+        _make_pool_admin(db_session, "email_pool_admin@users.example.com")
+        pool_id = _create_pool(client, token, "Email Scope League")
+        _join_pool(client, target_token, pool_id)
+        user_id = _get_user_id(client, db_session, "email_member@users.example.com")
+
+        response = client.patch(
+            f"/admin/pools/{pool_id}/users/{user_id}/email",
+            params={"email": "email_changed@users.example.com"},
+            headers=_authed(token),
+        )
+
+        assert response.status_code == 200
+        assert response.json()["email"] == "email_changed@users.example.com"
+
+    def test_league_admin_cannot_update_login_email_outside_managed_league(self, client, db_session):
+        token = _register_and_login(client, email="email_scoped_admin@users.example.com")
+        _make_pool_admin(db_session, "email_scoped_admin@users.example.com")
+        pool_id = _create_pool(client, token, "Scoped Email League")
+        _register_and_login(client, email="email_outsider@users.example.com")
+        user_id = _get_user_id(client, db_session, "email_outsider@users.example.com")
+
+        response = client.patch(
+            f"/admin/pools/{pool_id}/users/{user_id}/email",
+            params={"email": "outsider_changed@users.example.com"},
+            headers=_authed(token),
+        )
+
+        assert response.status_code == 404
+
+    def test_update_login_email_rejects_duplicate(self, client, db_session):
+        token = _register_and_login(client, email="agsmith11@gmail.com")
+        _make_super_admin(db_session, "agsmith11@gmail.com")
+        _register_and_login(client, email="email_existing@users.example.com")
+        _register_and_login(client, email="email_target@users.example.com")
+        user_id = _get_user_id(client, db_session, "email_target@users.example.com")
+
+        response = client.patch(
+            f"/users/{user_id}/email",
+            params={"email": "EMAIL_EXISTING@users.example.com"},
+            headers=_authed(token),
+        )
+
+        assert response.status_code == 409
+        assert response.json()["detail"] == "An account with that email address already exists"
 
     # -----------------------------------------------------------------------
     # PATCH /users/{user_id}/password — removed

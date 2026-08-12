@@ -36,4 +36,14 @@ describe('AdminUserOverview', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Refresh' }));
     expect(onRefresh).toHaveBeenCalledTimes(1);
   });
+
+  test('lets a league admin choose a managed user for a login email change', () => {
+    const onChangeEmail = jest.fn();
+    render(<AdminUserOverview overview={overview} loading={false} error="" onRefresh={() => {}} onChangeEmail={onChangeEmail} />);
+
+    const buttons = screen.getAllByRole('button', { name: 'Change login email' });
+    fireEvent.click(buttons[0]);
+
+    expect(onChangeEmail).toHaveBeenCalledWith(overview.users[0]);
+  });
 });

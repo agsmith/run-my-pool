@@ -11,6 +11,7 @@ from sqlalchemy import and_, func
 from datetime import datetime, timezone
 from typing import Optional
 import uuid
+from pydantic import EmailStr
 
 import models
 import schemas
@@ -20,7 +21,7 @@ from audit_utils import log_admin_action
 from odds_service import freeze_week_lines
 from schedule import current_season_games, current_season_week
 from weekly_locks import lock_pool_week
-from platform_admin import is_platform_super_admin
+from platform_admin import is_bootstrap_super_admin, is_platform_super_admin
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -324,6 +325,52 @@ def pool_users_overview(
         "total_users": len(result),
         "users": result,
     }
+
+
+@router.patch(
+    "/pools/{pool_id}/users/{user_id}/email",
+    response_model=schemas.UserOut,
+)
+def update_pool_user_email(
+    pool_id: str,
+    user_id: str,
+    email: EmailStr,
+    db: Session = Depends(deps.get_db),
+    current_user: models.User = Depends(deps.get_current_user),
+):
+    """Change a participant's login email within a league admin's scope."""
+    if not verify_admin_access(pool_id, current_user, db):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    user = require_pool_participant_by_id(db, pool_id, user_id)
+    if is_bootstrap_super_admin(user):
+        raise HTTPException(status_code=400, detail="The initial super admin email cannot be changed")
+    normalized_email = str(email).strip().lower()
+    duplicate = db.query(models.User).filter(
+        func.lower(models.User.email) == normalized_email,
+        models.User.id != user.id,
+    ).first()
+    if duplicate:
+        raise HTTPException(status_code=409, detail="An account with that email address already exists")
+
+    old_email = user.email
+    user.email = normalized_email
+    db.commit()
+    db.refresh(user)
+    log_admin_action(
+        db=db,
+        action="UPDATE_USER_EMAIL",
+        admin_user_id=current_user.id,
+        details=f"Updated user email from {old_email} to {normalized_email}",
+        target_entity_type="user",
+        target_entity_id=user.id,
+        additional_data={
+            "pool_id": pool_id,
+            "old_email": old_email,
+            "new_email": normalized_email,
+            "updated_by": current_user.email,
+        },
+    )
+    return user
 
 
 @router.post("/pools/{pool_id}/transfer-entry")

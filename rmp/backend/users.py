@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import EmailStr
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 import models
@@ -276,19 +277,31 @@ def delete_user(
     return {"ok": True}
 
 
-@router.patch("/{user_id}/email")
+@router.patch("/{user_id}/email", response_model=schemas.UserOut)
 def update_email(
     user_id: str,
-    email: str,
+    email: EmailStr = Query(...),
     db: Session = Depends(deps.get_db),
     current_user: models.User = Depends(deps.get_current_user),
 ):
-    user = _get_managed_user(db, current_user, user_id)
+    _require_super_admin(current_user)
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
     if is_bootstrap_super_admin(user):
         raise HTTPException(status_code=400, detail="The initial super admin email cannot be changed")
 
+    normalized_email = str(email).strip().lower()
+    duplicate = (
+        db.query(models.User)
+        .filter(func.lower(models.User.email) == normalized_email, models.User.id != user.id)
+        .first()
+    )
+    if duplicate:
+        raise HTTPException(status_code=409, detail="An account with that email address already exists")
+
     old_email = user.email
-    user.email = email
+    user.email = normalized_email
     db.commit()
     db.refresh(user)
 
@@ -297,12 +310,12 @@ def update_email(
         db=db,
         action="UPDATE_USER_EMAIL",
         admin_user_id=current_user.id,
-        details=f"Updated user email from {old_email} to {email}",
+        details=f"Updated user email from {old_email} to {normalized_email}",
         target_entity_type="user",
         target_entity_id=str(user.id),
         additional_data={
             "old_email": old_email,
-            "new_email": email,
+            "new_email": normalized_email,
             "updated_by": current_user.email,
         },
     )

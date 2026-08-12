@@ -7,7 +7,7 @@ function pickStatus(user) {
   return { label: 'Missing', tone: 'missing' };
 }
 
-export default function AdminUserOverview({ overview, loading, error, onRefresh }) {
+export default function AdminUserOverview({ overview, loading, error, onRefresh, onChangeEmail }) {
   const [search, setSearch] = useState('');
   const users = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -32,7 +32,7 @@ export default function AdminUserOverview({ overview, loading, error, onRefresh 
     {loading ? <div className="admin-user-overview__state">Loading league users…</div> : !error && users.length === 0 ?
       <div className="admin-user-overview__state">No users match this search.</div> : !error &&
       <div className="admin-user-overview__table-wrap"><table className="admin-user-overview__table">
-        <thead><tr><th>User</th><th>League role</th><th>Total entries</th><th>Surviving</th><th>Week {overview?.current_week || '—'} picks</th></tr></thead>
+        <thead><tr><th>User</th><th>League role</th><th>Total entries</th><th>Surviving</th><th>Week {overview?.current_week || '—'} picks</th><th>Actions</th></tr></thead>
         <tbody>{users.map((user) => {
           const status = pickStatus(user);
           return <tr key={user.id}>
@@ -41,6 +41,7 @@ export default function AdminUserOverview({ overview, loading, error, onRefresh 
             <td data-label="Total entries">{user.total_entries}</td>
             <td data-label="Surviving">{user.surviving_entries}</td>
             <td data-label={`Week ${overview?.current_week || ''} picks`}><span className={`admin-pick-status is-${status.tone}`}>{status.label}</span><small>{user.picked_entries} / {user.surviving_entries} picked</small></td>
+            <td data-label="Actions"><button type="button" onClick={() => onChangeEmail(user)}>Change login email</button></td>
           </tr>;
         })}</tbody>
       </table></div>}
