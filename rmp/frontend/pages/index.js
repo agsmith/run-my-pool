@@ -14,6 +14,33 @@ const features = [
   { number: '03', title: 'Mobile App', copy: 'Make picks, check results, and follow the leaderboard from any screen.' },
 ];
 
+const homepageFaqs = [
+  {
+    question: 'When do weekly picks lock?',
+    answer: 'The commissioner sets the weekly lock time. Members can change picks until that deadline; after it passes, picks are locked and the week’s surviving-entry picks are revealed.',
+  },
+  {
+    question: 'Can a pool be private?',
+    answer: 'Yes. Private pools appear in the Pool Directory, but a member must enter the pool’s join password before joining.',
+  },
+  {
+    question: 'What happens if someone forgets to pick?',
+    answer: 'When autopicks are enabled, Run My Pool selects the best available eligible team at the weekly lock. Commissioners can review which entries received an autopick.',
+  },
+  {
+    question: 'Do members have to pay?',
+    answer: 'No. Members join pools, manage entries, make picks, and follow results for free. Only the commissioner purchases hosting when a pool exceeds the Free plan.',
+  },
+  {
+    question: 'Does Run My Pool handle prize money?',
+    answer: 'No. Run My Pool provides pool-management software and never collects entry stakes, holds prize funds, or distributes winnings.',
+  },
+  {
+    question: 'How do I get help?',
+    answer: 'Email support@runmypool.net for account, pool, billing, or technical assistance.',
+  },
+];
+
 function FootballMark() {
   return <span className="rmp-mark" aria-hidden="true"><i /><i /><i /></span>;
 }
@@ -29,13 +56,25 @@ export default function Home() {
         description="Run NFL Survivor or Pick 'Em pools with automated picks, standings, deadlines, commissioner controls, and mobile access."
         structuredData={{
           '@context': 'https://schema.org',
-          '@type': 'SoftwareApplication',
-          name: 'Run My Pool',
-          applicationCategory: 'SportsApplication',
-          operatingSystem: 'Web',
-          url: 'https://runmypool.net',
-          description: "NFL Survivor and Pick 'Em pool management software for commissioners and players.",
-          offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+          '@graph': [
+            {
+              '@type': 'SoftwareApplication',
+              name: 'Run My Pool',
+              applicationCategory: 'SportsApplication',
+              operatingSystem: 'Web',
+              url: 'https://runmypool.net',
+              description: "NFL Survivor and Pick 'Em pool management software for commissioners and players.",
+              offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+            },
+            {
+              '@type': 'FAQPage',
+              mainEntity: homepageFaqs.map((faq) => ({
+                '@type': 'Question',
+                name: faq.question,
+                acceptedAnswer: { '@type': 'Answer', text: faq.answer },
+              })),
+            },
+          ],
         }}
       />
       <header className="rmp-header">
@@ -47,6 +86,7 @@ export default function Home() {
             <a href="#how">How it works</a>
             <a href="#features">Features</a>
             <a href="#pool-types">Pool formats</a>
+            <a href="#faq">FAQ</a>
             <Link href="/pricing">Pricing</Link>
           </div>
           <div className="rmp-nav-actions">
@@ -143,6 +183,25 @@ export default function Home() {
               </article>
             </div>
             <Link href={createPoolHref} className="rmp-button rmp-primary">Compare packages and start <span>→</span></Link>
+          </div>
+        </section>
+
+        <section className="rmp-home-faq" id="faq">
+          <div className="rmp-shell">
+            <div className="rmp-section-kicker"><span>04</span><b>BEFORE KICKOFF</b></div>
+            <div className="rmp-home-faq__heading">
+              <h2>QUESTIONS,<br /><em>ANSWERED.</em></h2>
+              <p>The essentials for commissioners and members before the first pick is made.</p>
+            </div>
+            <div className="rmp-home-faq__grid">
+              {homepageFaqs.map((faq) => (
+                <details key={faq.question}>
+                  <summary>{faq.question}<span aria-hidden="true">+</span></summary>
+                  <p>{faq.answer}</p>
+                </details>
+              ))}
+            </div>
+            <p className="rmp-home-faq__support">Still need help? <a href="mailto:support@runmypool.net">Contact support</a>.</p>
           </div>
         </section>
       </main>

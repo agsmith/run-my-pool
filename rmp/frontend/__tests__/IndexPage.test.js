@@ -70,6 +70,19 @@ describe('IndexPage', () => {
     expect(screen.getByText(/one point for every winner/i)).toBeInTheDocument()
   })
 
+  test('answers essential pre-purchase questions and links to support', () => {
+    render(<IndexPage />)
+
+    expect(screen.getByText('When do weekly picks lock?')).toBeInTheDocument()
+    expect(screen.getByText('Can a pool be private?')).toBeInTheDocument()
+    expect(screen.getByText('What happens if someone forgets to pick?')).toBeInTheDocument()
+    expect(screen.getByText('Do members have to pay?')).toBeInTheDocument()
+    expect(screen.getByText('Does Run My Pool handle prize money?')).toBeInTheDocument()
+    expect(screen.getAllByRole('link', { name: /contact support/i })).toEqual(
+      expect.arrayContaining([expect.objectContaining({ href: 'mailto:support@runmypool.net' })]),
+    )
+  })
+
   test('shows a Login link in the header for unauthenticated users', () => {
     render(<IndexPage />)
 

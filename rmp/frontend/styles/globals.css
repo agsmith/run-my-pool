@@ -180,6 +180,21 @@ table {
 .rmp-format-grid li { color:#d8e1df; font-size:12px; font-weight:700; }
 .rmp-format-grid li::before { content:'✓'; margin-right:9px; color:var(--lime); }
 @media (max-width:700px) { .rmp-format-grid { grid-template-columns:1fr; } .rmp-pool-types { padding:65px 0; } }
+.rmp-home-faq { padding:85px 0 95px; color:#111718; background:#f1f2ed; }
+.rmp-home-faq__heading { display:flex; align-items:flex-end; justify-content:space-between; gap:40px; margin:24px 0 34px; padding-bottom:28px; border-bottom:1px solid #b5bab7; }
+.rmp-home-faq__heading h2 { margin:0; font-family:Impact,'Arial Narrow',sans-serif; font-size:clamp(50px,5vw,70px); font-style:italic; line-height:.9; }
+.rmp-home-faq__heading h2 em { color:#286678; font-style:inherit; }
+.rmp-home-faq__heading p { max-width:380px; margin:0; color:#5b6866; font-family:Georgia,serif; font-size:13px; line-height:1.65; }
+.rmp-home-faq__grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+.rmp-home-faq details { background:#fff; border:1px solid #c8cdca; }
+.rmp-home-faq summary { display:flex; align-items:center; justify-content:space-between; gap:20px; min-height:68px; padding:18px 20px; font-size:13px; font-weight:900; letter-spacing:.025em; cursor:pointer; list-style:none; }
+.rmp-home-faq summary::-webkit-details-marker { display:none; }
+.rmp-home-faq summary span { color:#286678; font-size:24px; line-height:1; transition:transform .2s ease; }
+.rmp-home-faq details[open] summary span { transform:rotate(45deg); }
+.rmp-home-faq details p { margin:0; padding:0 20px 20px; color:#5b6866; font-family:Georgia,serif; font-size:12px; line-height:1.7; }
+.rmp-home-faq__support { margin:24px 0 0; color:#5b6866; font-size:12px; text-align:center; }
+.rmp-home-faq__support a { color:#286678; font-weight:900; }
+@media (max-width:700px) { .rmp-home-faq { padding:65px 0 70px; } .rmp-home-faq__heading { display:block; } .rmp-home-faq__heading p { margin-top:18px; } .rmp-home-faq__grid { grid-template-columns:1fr; } }
 .rmp-footer { background:#050708; border-top:1px solid #283235; padding:30px 0; }.rmp-footer .rmp-shell { display:grid; grid-template-columns:auto 1fr auto; align-items:center; gap:30px; }.rmp-footer p { margin:0; text-align:center; color:#738083; font-family:Georgia,serif; font-size:10px; }.rmp-footer .rmp-shell>span { color:#596466; font-size:8px; }
 .rmp-footer p a { color:#9fefff; font-family:Arial,sans-serif; font-weight:800; letter-spacing:.04em; text-transform:uppercase; }
 
