@@ -23,9 +23,9 @@ export function PoolWorkspaceNav({ poolId, poolName, active, showAdmin = false }
 
   const items = [
     { id: 'overview', label: 'Pool Home', href: `/pool/${poolId}` },
-    { id: 'entries', label: 'Picks & Entries', href: `/pool/${poolId}/entries` },
-    { id: 'matchups', label: 'Matchups & Lines', href: `/pool/${poolId}/matchups` },
-    { id: 'messages', label: 'Pool Messages', href: `/pool/${poolId}/messages` },
+    { id: 'entries', label: 'My Entries', href: `/pool/${poolId}/entries` },
+    { id: 'matchups', label: 'Weekly Matchups', href: `/pool/${poolId}/matchups` },
+    { id: 'messages', label: 'Forum', href: `/pool/${poolId}/messages` },
   ];
 
   if (showAdmin) {

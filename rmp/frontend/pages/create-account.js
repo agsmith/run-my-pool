@@ -33,6 +33,7 @@ export default function CreateAccount() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const selectedPlan = typeof router.query?.plan === 'string' ? router.query.plan : '';
+  const createPoolIntent = router.query?.intent === 'create-pool';
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -61,9 +62,11 @@ export default function CreateAccount() {
         const data = await res.json().catch(() => ({}));
         throw new Error(registrationError(data.detail));
       }
-      const checkoutNext = selectedPlan && selectedPlan !== 'free'
-        ? `/pricing?checkout=${encodeURIComponent(selectedPlan)}`
-        : '/dashboard';
+      const checkoutNext = createPoolIntent
+        ? '/create-pool?source=splash'
+        : selectedPlan && selectedPlan !== 'free'
+          ? `/pricing?checkout=${encodeURIComponent(selectedPlan)}`
+          : '/dashboard';
       router.push(`/login?message=${encodeURIComponent('Account created successfully! Please sign in with your new credentials.')}&next=${encodeURIComponent(checkoutNext)}`);
     } catch (err) {
       setError(err.message || 'Account creation failed. Please try again.');

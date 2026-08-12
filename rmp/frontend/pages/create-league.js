@@ -3,6 +3,10 @@ import { useRouter } from 'next/router';
 import ProtectedRoute from '../components/ProtectedRoute';
 import { baseStyles, colors } from '../styles/globalStyles';
 
+export function getServerSideProps() {
+  return { redirect: { destination: '/', permanent: false } };
+}
+
 export default function CreateLeague() {
   const [formData, setFormData] = useState({
     name: '',

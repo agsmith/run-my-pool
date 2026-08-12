@@ -1,12 +1,13 @@
 import '@testing-library/jest-dom';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import Dashboard from '../pages/dashboard';
 
 process.env.NEXT_PUBLIC_API_URL = '';
 const mockPush = jest.fn();
+const mockReplace = jest.fn();
 const mockUser = { id: 'user-1', email: 'player@example.com' };
-jest.mock('next/router', () => ({ useRouter: () => ({ push: mockPush }) }));
+jest.mock('next/router', () => ({ useRouter: () => ({ push: mockPush, replace: mockReplace }) }));
 jest.mock('../components/ProtectedRoute', () => ({ children }) => children);
 jest.mock('../context/AuthContext', () => ({ useAuth: () => ({ user: mockUser }) }));
 
@@ -44,6 +45,7 @@ function installDashboardApi({ pools = [pool], admin = true, failPools = false }
 describe('dashboard', () => {
   beforeEach(() => {
     mockPush.mockReset();
+    mockReplace.mockReset();
     localStorage.setItem('access_token', 'token');
     localStorage.removeItem('poolOrder');
   });
@@ -66,6 +68,8 @@ describe('dashboard', () => {
 
     await user.click(screen.getByRole('button', { name: 'My Entries' }));
     expect(mockPush).toHaveBeenCalledWith('/pool/pool-1/entries');
+    await user.click(screen.getByRole('button', { name: 'Pool Home' }));
+    expect(mockPush).toHaveBeenCalledWith('/pool/pool-1');
     await user.click(screen.getByRole('button', { name: 'Admin' }));
     expect(mockPush).toHaveBeenCalledWith('/admin/league/pool-1');
   });
@@ -78,16 +82,12 @@ describe('dashboard', () => {
     expect(screen.queryByRole('button', { name: 'Admin' })).not.toBeInTheDocument();
   });
 
-  test('shows a useful empty state and starts pool creation', async () => {
+  test('sends users with no pool memberships directly to Browse Pools', async () => {
     installDashboardApi({ pools: [] });
-    const user = userEvent.setup();
     render(<Dashboard />);
 
-    expect(await screen.findByRole('heading', { name: 'No Pools Yet' })).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Browse Pools' }));
-    expect(mockPush).toHaveBeenCalledWith('/leagues');
-    await user.click(screen.getByRole('button', { name: 'Create Your First Pool' }));
-    expect(mockPush).toHaveBeenCalledWith('/create-pool');
+    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/leagues'));
+    expect(global.fetch).toHaveBeenCalledTimes(1);
   });
 
   test('surfaces pool-loading failures instead of rendering stale data', async () => {

@@ -125,6 +125,10 @@ export default function Dashboard() {
       
       if (res.ok) {
         const data = await res.json();
+        if (data.length === 0) {
+          router.replace('/leagues');
+          return;
+        }
         setLeagues(data);
         
         // Calculate current week for initial tab state
@@ -308,10 +312,6 @@ export default function Dashboard() {
       console.error(`Failed to fetch league picks data for league ${leagueId}:`, err);
       return {};
     }
-  };
-
-  const handleCreateLeague = () => {
-    router.push('/create-pool');
   };
 
   const handleLogout = () => {
@@ -992,7 +992,6 @@ export default function Dashboard() {
             title="Your pools, one clear view"
             description="See what needs a pick, what is locked, and where every entry stands this week."
             meta={user?.email}
-            actions={<button onClick={handleCreateLeague} className="workspace-primary-action">Create pool</button>}
           />
           <h1 className="legacy-page-title" style={{
             fontSize: '3rem', 
@@ -1028,32 +1027,6 @@ export default function Dashboard() {
               }}>
                 My Pools
               </h2>
-              <button 
-                onClick={handleCreateLeague}
-                style={{ 
-                  fontWeight: '600', 
-                  color: 'white', 
-                  textDecoration: 'none', 
-                  border: 'none', 
-                  borderRadius: '8px', 
-                  padding: '0.75rem 1.5rem', 
-                  background: '#475569', 
-                  transition: 'all 0.2s ease',
-                  boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06)',
-                  cursor: 'pointer',
-                  fontSize: '14px'
-                }}
-                onMouseEnter={(e) => {
-                  e.target.style.background = '#334155';
-                  e.target.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)';
-                }}
-                onMouseLeave={(e) => {
-                  e.target.style.background = '#475569';
-                  e.target.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06)';
-                }}
-              >
-                Create pool
-              </button>
             </div>
             
             {loading ? (
@@ -1082,33 +1055,8 @@ export default function Dashboard() {
                 <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🏈</div>
                 <h3 style={{ color: '#1a202c', marginBottom: '0.5rem' }}>No Pools Yet</h3>
                 <p style={{ color: '#6b7280', marginBottom: '1.5rem' }}>
-                  You haven't joined any pools yet. Create your first pool or join an existing one to get started!
+                  You haven't joined any pools yet. Browse the Pool Directory to join one.
                 </p>
-                <button 
-                  onClick={handleCreateLeague}
-                  style={{ 
-                    backgroundColor: '#475569',
-                    color: 'white',
-                    padding: '0.75rem 2rem',
-                    border: 'none',
-                    borderRadius: '8px',
-                    fontSize: '1rem',
-                    fontWeight: '600',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease',
-                    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06)'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.target.style.backgroundColor = '#334155';
-                    e.target.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.target.style.backgroundColor = '#475569';
-                    e.target.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06)';
-                  }}
-                >
-                  Create Your First Pool
-                </button>
                 <button
                   type="button"
                   onClick={() => router.push('/leagues')}
@@ -1292,7 +1240,7 @@ export default function Dashboard() {
                         onMouseEnter={(e) => e.target.style.backgroundColor = '#059669'}
                         onMouseLeave={(e) => e.target.style.backgroundColor = '#10b981'}
                       >
-                        View Pool
+                        Pool Home
                       </button>
                       <button className="pool-card__action"
                         onClick={() => router.push(`/pool/${league.id}/messages`)}

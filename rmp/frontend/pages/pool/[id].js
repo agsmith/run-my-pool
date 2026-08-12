@@ -4,8 +4,32 @@ import ProtectedRoute from '../../components/ProtectedRoute';
 import { useAuth } from '../../context/AuthContext';
 import { PoolWorkspaceNav, WorkspaceHeader } from '../../components/ProductWorkspace';
 
+const DAYS_OF_WEEK = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+function formatClockTime(value) {
+  const [hour = 0, minute = '00'] = String(value || '').split(':');
+  const numericHour = Number(hour);
+  if (!Number.isFinite(numericHour)) return null;
+  return `${numericHour % 12 || 12}:${minute} ${numericHour < 12 ? 'AM' : 'PM'}`;
+}
+
+export function formatPickLock(pool) {
+  if (pool?.lock_day_of_week != null && pool?.lock_time_of_day) {
+    const day = DAYS_OF_WEEK[pool.lock_day_of_week];
+    const time = formatClockTime(pool.lock_time_of_day);
+    const timezone = pool.lock_timezone || 'UTC';
+    if (day && time) return `${day} at ${time} · ${timezone}`;
+  }
+  if (pool?.lock_time) {
+    const lockDate = new Date(pool.lock_time);
+    if (!Number.isNaN(lockDate.getTime())) return lockDate.toLocaleString();
+  }
+  return 'Not scheduled';
+}
+
 export default function PoolDetail() {
   const [pool, setPool] = useState(null);
+  const [adminStatus, setAdminStatus] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
@@ -27,6 +51,14 @@ export default function PoolDetail() {
         });
         if (!response.ok) throw new Error('Failed to load pool details');
         setPool(await response.json());
+        try {
+          const adminResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/pools/${id}/is-admin`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (adminResponse.ok) setAdminStatus(await adminResponse.json());
+        } catch {
+          setAdminStatus(null);
+        }
       } catch (err) {
         setError(err.message || 'Failed to load pool details');
       } finally {
@@ -55,6 +87,9 @@ export default function PoolDetail() {
   if (!router.isReady) return null;
 
   const isOwner = pool?.owner_id === user?.id;
+  const isAdmin = Boolean(adminStatus?.is_admin);
+  const hasAdminAccess = isOwner || isAdmin;
+  const userRole = isOwner ? 'Commissioner' : isAdmin ? 'Admin' : 'Player';
 
   return (
     <ProtectedRoute>
@@ -66,7 +101,7 @@ export default function PoolDetail() {
             <div className="pool-home-state pool-home-state--error">{error}</div>
           ) : pool ? (
             <>
-              <PoolWorkspaceNav poolId={id} poolName={pool.name} active="overview" showAdmin={isOwner} />
+              <PoolWorkspaceNav poolId={id} poolName={pool.name} active="overview" showAdmin={hasAdminAccess} />
               <WorkspaceHeader
                 eyebrow="Pool headquarters"
                 title={pool.name}
@@ -79,9 +114,9 @@ export default function PoolDetail() {
               {error && <div className="pool-home-notice pool-home-notice--error">{error}</div>}
 
               <section className="pool-home-actions" aria-label="Pool shortcuts">
-                <button onClick={() => router.push(`/pool/${id}/entries`)}><span>01</span><strong>Picks & Entries</strong><small>Make selections and review entries</small></button>
-                <button onClick={() => router.push(`/pool/${id}/matchups`)}><span>02</span><strong>Matchups & Lines</strong><small>Review this week’s board</small></button>
-                <button onClick={() => router.push(`/pool/${id}/messages`)}><span>03</span><strong>Pool Messages</strong><small>Talk with league members</small></button>
+                <button onClick={() => router.push(`/pool/${id}/entries`)}><span>01</span><strong>My Entries</strong><small>Make selections and review entries</small></button>
+                <button onClick={() => router.push(`/pool/${id}/matchups`)}><span>02</span><strong>Weekly Matchups</strong><small>Review this week’s board</small></button>
+                <button onClick={() => router.push(`/pool/${id}/messages`)}><span>03</span><strong>Forum</strong><small>Talk with pool members</small></button>
               </section>
 
               <section className="pool-home-details">
@@ -91,18 +126,18 @@ export default function PoolDetail() {
                 </div>
                 <dl>
                   <div><dt>Access</dt><dd>{pool.is_private ? 'Private · Password required' : 'Public · Open joining'}</dd></div>
-                  <div><dt>Pick lock</dt><dd>{pool.lock_time ? new Date(pool.lock_time).toLocaleString() : 'Not scheduled'}</dd></div>
-                  <div><dt>Your role</dt><dd>{isOwner ? 'Commissioner' : 'Player'}</dd></div>
+                  <div><dt>Pick lock</dt><dd>{formatPickLock(pool)}</dd></div>
+                  <div><dt>Your role</dt><dd>{userRole}</dd></div>
                   <div><dt>Season format</dt><dd>Weekly survivor</dd></div>
                 </dl>
               </section>
 
               <footer className="pool-home-footer">
                 <button onClick={() => router.push('/dashboard')}>Back to Dashboard</button>
-                {isOwner && (
+                {hasAdminAccess && (
                   <div>
                     <button onClick={() => router.push(`/admin/league/${id}`)}>Commissioner Settings</button>
-                    <button className="pool-home-delete" onClick={deletePool}>Delete Pool</button>
+                    {isOwner && <button className="pool-home-delete" onClick={deletePool}>Delete Pool</button>}
                   </div>
                 )}
               </footer>

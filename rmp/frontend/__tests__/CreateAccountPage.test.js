@@ -4,9 +4,10 @@ import userEvent from '@testing-library/user-event'
 import CreateAccountPage from '../pages/create-account'
 
 const mockPush = jest.fn()
+let mockQuery = {}
 
 jest.mock('next/router', () => ({
-  useRouter: () => ({ push: mockPush }),
+  useRouter: () => ({ push: mockPush, query: mockQuery }),
 }))
 
 jest.mock('../styles/globalStyles', () => ({
@@ -14,6 +15,11 @@ jest.mock('../styles/globalStyles', () => ({
 }))
 
 describe('CreateAccountPage', () => {
+  beforeEach(() => {
+    mockPush.mockClear()
+    mockQuery = {}
+  })
+
   test('uses the Broadcast Night product brand without an emoji', () => {
     const { container } = render(<CreateAccountPage />)
     expect(screen.getByRole('heading', { name: /run my pool/i })).toBeInTheDocument()
@@ -55,5 +61,21 @@ describe('CreateAccountPage', () => {
 
     expect(await screen.findByText('Email already registered')).toBeInTheDocument()
     expect(JSON.parse(global.fetch.mock.calls[0][1].body).email).toBe('existing@example.com')
+  })
+
+  test('continues a splash-page pool creation after registration and login', async () => {
+    mockQuery = { intent: 'create-pool' }
+    global.fetch = jest.fn().mockResolvedValue({ ok: true })
+    const user = userEvent.setup()
+    render(<CreateAccountPage />)
+
+    await user.type(screen.getByPlaceholderText(/enter your email/i), 'new@example.com')
+    await user.type(screen.getByPlaceholderText(/^enter your password$/i), 'ValidPass1!')
+    await user.type(screen.getByPlaceholderText(/confirm your password/i), 'ValidPass1!')
+    await user.click(screen.getByRole('button', { name: 'Create Account' }))
+
+    expect(mockPush).toHaveBeenCalledWith(expect.stringContaining(
+      `next=${encodeURIComponent('/create-pool?source=splash')}`,
+    ))
   })
 })

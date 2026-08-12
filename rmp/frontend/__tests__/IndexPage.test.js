@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import IndexPage from '../pages/index'
 
 // ---------------------------------------------------------------------------
@@ -58,7 +58,7 @@ describe('IndexPage', () => {
 
     const link = screen.getByRole('link', { name: /get started free/i })
     expect(link).toBeInTheDocument()
-    expect(link).toHaveAttribute('href', '/create-account')
+    expect(link).toHaveAttribute('href', '/create-account?intent=create-pool')
   })
 
   test('shows a Login link in the header for unauthenticated users', () => {
@@ -69,22 +69,25 @@ describe('IndexPage', () => {
     expect(loginLink).toHaveAttribute('href', '/login')
   })
 
-  test('redirects to /dashboard when a logged-in user visits the home page', async () => {
+  test('makes the splash page the creation entry point for logged-in users', () => {
     useAuth.mockReturnValue({ user: { id: '1', email: 'a@b.com' } })
 
     render(<IndexPage />)
 
-    await waitFor(() => {
-      expect(mockPush).toHaveBeenCalledWith('/dashboard')
-    })
+    expect(screen.getByRole('link', { name: /get started free/i })).toHaveAttribute(
+      'href',
+      '/create-pool?source=splash',
+    )
+    expect(mockPush).not.toHaveBeenCalled()
   })
 
-  test('renders "Redirecting..." placeholder when user is authenticated', () => {
+  test('keeps the splash content visible when user is authenticated', () => {
     useAuth.mockReturnValue({ user: { id: '1', email: 'a@b.com' } })
 
     render(<IndexPage />)
 
-    expect(screen.getByText(/redirecting/i)).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/run my pool/i)
+    expect(screen.queryByText(/redirecting/i)).not.toBeInTheDocument()
   })
 
   test('renders the "Highly Configurable" feature heading', () => {

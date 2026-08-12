@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/router';
 import ProtectedRoute from '../components/ProtectedRoute';
-import PasswordVisibilityButton from '../components/PasswordVisibilityButton';
 import { isLeagueJoinLocked } from '../utils/leagueLock';
 
 export default function Leagues() {
@@ -19,7 +18,6 @@ export default function Leagues() {
   const [membershipError, setMembershipError] = useState('');
   const [joiningId, setJoiningId] = useState(null);
   const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
   const [joinError, setJoinError] = useState('');
   const [joinErrorId, setJoinErrorId] = useState(null);
   const [submittingId, setSubmittingId] = useState(null);
@@ -80,7 +78,6 @@ export default function Leagues() {
     if (pool.is_private && joiningId !== pool.id) {
       setJoiningId(pool.id);
       setPassword('');
-      setShowPassword(false);
       setJoinError('');
       setJoinErrorId(null);
       return;
@@ -104,7 +101,6 @@ export default function Leagues() {
       setJoinedIds((current) => new Set([...current, pool.id]));
       setJoiningId(null);
       setPassword('');
-      setShowPassword(false);
     } catch (err) {
       setJoinError(err.message || 'Unable to join pool');
       setJoinErrorId(pool.id);
@@ -119,7 +115,7 @@ export default function Leagues() {
         <header className="league-directory__header">
           <span>Pool directory</span>
           <h1>Join a Pool</h1>
-          <p>Public pools are open to every player. Private pools require the password supplied by the commissioner.</p>
+          <p>Public pools are open to every player. Private pools require the join code supplied by the commissioner.</p>
         </header>
 
         <nav className="league-directory__views" aria-label="League directory views">
@@ -165,9 +161,6 @@ export default function Leagues() {
               </button>
             ))}
           </div>
-          <button type="button" className="league-directory__create" onClick={() => router.push('/create-pool')}>
-            Create pool
-          </button>
         </section>
 
         {inviteError && (
@@ -205,24 +198,18 @@ export default function Leagues() {
 
                   {enteringPassword && !joined && !registrationClosed && (
                     <div className="league-directory__password">
-                      <label htmlFor={`pool-password-${pool.id}`}>Pool password</label>
-                      <div className="password-visibility-field">
-                        <input
-                          id={`pool-password-${pool.id}`}
-                          type={showPassword ? 'text' : 'password'}
-                          value={password}
-                          maxLength={72}
-                          onChange={(event) => setPassword(event.target.value)}
-                          onKeyDown={(event) => event.key === 'Enter' && joinPool(pool)}
-                          autoComplete="off"
-                          autoFocus
-                        />
-                        <PasswordVisibilityButton
-                          visible={showPassword}
-                          onToggle={() => setShowPassword((current) => !current)}
-                          fieldName="pool password"
-                        />
-                      </div>
+                      <label htmlFor={`pool-join-code-${pool.id}`}>Pool join code</label>
+                      <input
+                        id={`pool-join-code-${pool.id}`}
+                        type="text"
+                        name={`pool-join-code-${pool.id}`}
+                        value={password}
+                        maxLength={72}
+                        onChange={(event) => setPassword(event.target.value)}
+                        onKeyDown={(event) => event.key === 'Enter' && joinPool(pool)}
+                        autoComplete="one-time-code"
+                        autoFocus
+                      />
                       {joinError && <span role="alert">{joinError}</span>}
                     </div>
                   )}
@@ -245,11 +232,11 @@ export default function Leagues() {
                         disabled={submittingId === pool.id || (enteringPassword && password.length === 0)}
                         onClick={() => joinPool(pool)}
                       >
-                        {submittingId === pool.id ? 'Joining…' : enteringPassword ? 'Join Private Pool' : 'Join pool'}
+                        {submittingId === pool.id ? 'Joining…' : enteringPassword ? 'Submit Join Code' : 'Join pool'}
                       </button>
                     )}
                     {enteringPassword && !joined && !registrationClosed && (
-                      <button type="button" onClick={() => { setJoiningId(null); setJoinError(''); setJoinErrorId(null); setShowPassword(false); }}>
+                      <button type="button" onClick={() => { setJoiningId(null); setJoinError(''); setJoinErrorId(null); }}>
                         Cancel
                       </button>
                     )}

@@ -2,6 +2,13 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import ProtectedRoute from '../components/ProtectedRoute';
 
+export function getServerSideProps({ query }) {
+  if (query.source !== 'splash') {
+    return { redirect: { destination: '/', permanent: false } };
+  }
+  return { props: {} };
+}
+
 export default function CreatePool() {
   const [formData, setFormData] = useState({
     name: '',

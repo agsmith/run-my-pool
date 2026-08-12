@@ -43,6 +43,7 @@ describe('Join a Pool', () => {
     expect(search).toHaveValue('');
     expect(search).toHaveAttribute('autocomplete', 'off');
     expect(search).toHaveAttribute('readonly');
+    expect(screen.queryByRole('button', { name: /create.*pool/i })).not.toBeInTheDocument();
   });
 
   test('activates search only after user interaction to prevent credential autofill', async () => {
@@ -110,17 +111,15 @@ describe('Join a Pool', () => {
 
     const privateCard = screen.getByRole('heading', { name: 'Private Pool' }).closest('article');
     await user.click(privateCard.querySelector('button'));
-    const password = screen.getByLabelText(/^pool password$/i);
+    const password = screen.getByLabelText(/^pool join code$/i);
     expect(password).toBeInTheDocument();
-    expect(password).toHaveAttribute('type', 'password');
+    expect(password).toHaveAttribute('type', 'text');
+    expect(password).toHaveAttribute('autocomplete', 'one-time-code');
+    expect(password).toHaveAttribute('name', 'pool-join-code-private-pool');
     expect(global.fetch).toHaveBeenCalledTimes(2);
 
     await user.type(password, 'huddle42');
-    await user.click(screen.getByRole('button', { name: /show pool password/i }));
-    expect(password).toHaveAttribute('type', 'text');
-    await user.click(screen.getByRole('button', { name: /hide pool password/i }));
-    expect(password).toHaveAttribute('type', 'password');
-    await user.click(screen.getByRole('button', { name: /join private pool/i }));
+    await user.click(screen.getByRole('button', { name: /submit join code/i }));
     await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(3));
     expect(JSON.parse(global.fetch.mock.calls[2][1].body)).toEqual({ password: 'huddle42' });
     expect(mockPush).not.toHaveBeenCalled();
@@ -155,8 +154,8 @@ describe('Join a Pool', () => {
     await screen.findByRole('heading', { name: 'Private Pool' });
     const privateCard = screen.getByRole('heading', { name: 'Private Pool' }).closest('article');
     await user.click(privateCard.querySelector('button'));
-    await user.type(screen.getByLabelText(/^pool password$/i), 'incorrect');
-    await user.click(screen.getByRole('button', { name: /join private pool/i }));
+    await user.type(screen.getByLabelText(/^pool join code$/i), 'incorrect');
+    await user.click(screen.getByRole('button', { name: /submit join code/i }));
     expect(await screen.findByRole('alert')).toHaveTextContent('Invalid pool password');
   });
 

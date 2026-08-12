@@ -19,7 +19,7 @@ const response = (data, ok = true, status = ok ? 200 : 400) => Promise.resolve({
 });
 const pool = {
   id: 'pool-1', name: 'Office Survivor', owner_id: 'user-1', description: 'Make it through the season',
-  is_private: true, lock_time: '2026-09-13T17:00:00Z',
+  is_private: true, lock_day_of_week: 6, lock_time_of_day: '13:00:00', lock_timezone: 'America/New_York',
 };
 
 describe('pool workspace pages', () => {
@@ -38,6 +38,7 @@ describe('pool workspace pages', () => {
   test('owner sees commissioner controls and can delete after confirmation', async () => {
     global.confirm = jest.fn(() => true);
     global.fetch = jest.fn((url, options = {}) => {
+      if (String(url).endsWith('/is-admin')) return response({ is_owner: true, is_admin: true, has_admin_access: true });
       if (!options.method) return response(pool);
       if (options.method === 'DELETE') return response({ message: 'deleted' });
       throw new Error(`Unexpected request ${url}`);
@@ -48,10 +49,28 @@ describe('pool workspace pages', () => {
     expect(await screen.findByRole('heading', { name: 'Office Survivor' })).toBeInTheDocument();
     expect(screen.getAllByText('Commissioner')).toHaveLength(2);
     expect(screen.getByText('Private · Password required')).toBeInTheDocument();
+    expect(screen.getByText('Sunday at 1:00 PM · America/New_York')).toBeInTheDocument();
+    expect(screen.getAllByRole('link', { name: 'My Entries' })).toHaveLength(1);
+    expect(screen.getAllByText('My Entries')).toHaveLength(2);
+    expect(screen.getAllByText('Weekly Matchups')).toHaveLength(2);
+    expect(screen.getAllByText('Forum')).toHaveLength(2);
     await user.click(screen.getByRole('button', { name: 'Delete Pool' }));
 
     expect(global.confirm).toHaveBeenCalled();
     expect(mockPush).toHaveBeenCalledWith('/dashboard?message=Pool deleted successfully');
+  });
+
+  test('shows the current user’s pool administrator role and controls', async () => {
+    global.fetch = jest.fn((url) => {
+      if (String(url).endsWith('/is-admin')) return response({ is_owner: false, is_admin: true, has_admin_access: true });
+      return response({ ...pool, owner_id: 'another-user' });
+    });
+
+    render(<PoolDetail />);
+
+    expect(await screen.findByText('Admin')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Commissioner Settings' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Delete Pool' })).not.toBeInTheDocument();
   });
 
   test('renders official, live, and pending matchup lines and changes week', async () => {

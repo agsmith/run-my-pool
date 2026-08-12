@@ -1,7 +1,8 @@
 import '@testing-library/jest-dom';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import CreatePool from '../pages/create-pool';
+import CreatePool, { getServerSideProps } from '../pages/create-pool';
+import { getServerSideProps as getLegacyCreateServerSideProps } from '../pages/create-league';
 
 const mockPush = jest.fn();
 
@@ -44,5 +45,18 @@ describe('CreatePool', () => {
     await user.click(suggestion);
     expect(screen.getByPlaceholderText(/enter pool name/i)).toHaveValue('Office Pool 2026');
     await waitFor(() => expect(screen.queryByText(/already in use/i)).not.toBeInTheDocument());
+  });
+
+  test('only allows the pool creation page to be entered from the splash page', () => {
+    expect(getServerSideProps({ query: {} })).toEqual({
+      redirect: { destination: '/', permanent: false },
+    });
+    expect(getServerSideProps({ query: { source: 'splash' } })).toEqual({ props: {} });
+  });
+
+  test('redirects the legacy create-league route to the splash page', () => {
+    expect(getLegacyCreateServerSideProps()).toEqual({
+      redirect: { destination: '/', permanent: false },
+    });
   });
 });

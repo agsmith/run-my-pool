@@ -1,6 +1,4 @@
 import Link from 'next/link';
-import { useEffect } from 'react';
-import { useRouter } from 'next/router';
 import { useAuth } from '../context/AuthContext';
 import Seo from '../components/Seo';
 
@@ -22,13 +20,7 @@ function FootballMark() {
 
 export default function Home() {
   const { user } = useAuth();
-  const router = useRouter();
-
-  useEffect(() => {
-    if (user) router.push('/dashboard');
-  }, [user, router]);
-
-  if (user) return <div>Redirecting...</div>;
+  const createPoolHref = user ? '/create-pool?source=splash' : '/create-account?intent=create-pool';
 
   return (
     <div className="rmp-landing">
@@ -59,7 +51,7 @@ export default function Home() {
           </div>
           <div className="rmp-nav-actions">
             <Link href="/login" className="rmp-login">Login</Link>
-            <Link href="/create-account" className="rmp-nav-cta">Start a pool <span>↗</span></Link>
+            <Link href={createPoolHref} className="rmp-nav-cta">Start a pool <span>↗</span></Link>
           </div>
         </nav>
       </header>
@@ -73,7 +65,7 @@ export default function Home() {
               <h2>Highly Configurable, Affordable, Scalable Pool Management System</h2>
               <p className="rmp-hero-intro">Run a survivor pool your crew talks about all week. Set it up in minutes, automate the busywork, and follow every pick from kickoff to the final whistle.</p>
               <div className="rmp-hero-actions">
-                <Link href="/create-account" className="rmp-button rmp-primary">Get Started Free <span>→</span></Link>
+                <Link href={createPoolHref} className="rmp-button rmp-primary">Get Started Free <span>→</span></Link>
                 <a href="#how" className="rmp-button rmp-secondary"><i>▶</i> See how it works</a>
               </div>
               <div className="rmp-proof">
@@ -137,7 +129,7 @@ export default function Home() {
             <p className="rmp-eyebrow"><span /> CLASSIC SURVIVOR, DONE RIGHT</p>
             <h2>ONE TEAM. EVERY WEEK.<br /><em>LAST ENTRY STANDING.</em></h2>
             <p>Choose a team you haven&apos;t used. Win and advance. Lose and your run is over. Run My Pool keeps every entry, deadline, and result organized automatically.</p>
-            <Link href="/create-account" className="rmp-button rmp-primary">Create your survivor pool <span>→</span></Link>
+            <Link href={createPoolHref} className="rmp-button rmp-primary">Create your survivor pool <span>→</span></Link>
           </div>
         </section>
       </main>
