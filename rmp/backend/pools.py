@@ -280,6 +280,49 @@ def get_my_pools(
         raise HTTPException(status_code=500, detail="Failed to retrieve pools")
 
 
+@router.get("/{pool_id}/activity-summary")
+def get_pool_activity_summary(
+    pool_id: str,
+    db: Session = Depends(deps.get_db),
+    current_user: models.User = Depends(deps.get_current_user),
+):
+    """Return privacy-safe participation totals for a pool member's dashboard."""
+    pool = db.query(models.Pool).filter(models.Pool.id == pool_id).first()
+    if not pool:
+        raise HTTPException(status_code=404, detail="Pool not found")
+    if not is_platform_super_admin(current_user) and not is_pool_participant(
+        db, pool_id, current_user.id
+    ):
+        raise HTTPException(status_code=403, detail="League membership required")
+
+    account_ids = {
+        user_id
+        for query in (
+            db.query(models.PoolMember.user_id).filter(models.PoolMember.pool_id == pool_id),
+            db.query(models.PoolAdmin.user_id).filter(models.PoolAdmin.pool_id == pool_id),
+            db.query(models.Entry.user_id).filter(models.Entry.pool_id == pool_id),
+        )
+        for (user_id,) in query.all()
+        if user_id
+    }
+    if pool.owner_id:
+        account_ids.add(pool.owner_id)
+
+    total_entries = db.query(models.Entry).filter(models.Entry.pool_id == pool_id).count()
+    entries_with_selections = (
+        db.query(func.count(func.distinct(models.Pick.entry_id)))
+        .join(models.Entry, models.Entry.id == models.Pick.entry_id)
+        .filter(models.Entry.pool_id == pool_id, models.Pick.team.isnot(None), models.Pick.team != "")
+        .scalar()
+        or 0
+    )
+    return {
+        "accounts": len(account_ids),
+        "entries": total_entries,
+        "entries_with_selections": entries_with_selections,
+    }
+
+
 @router.get("/", response_model=List[schemas.PoolOut])
 def list_pools(
     skip: int = Query(default=0, ge=0),

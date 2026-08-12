@@ -116,6 +116,42 @@ class TestPoolEndpoints:
         assert len(pools) >= 1
         assert any(pool["name"] == test_pool_data["name"] for pool in pools)
 
+    def test_activity_summary_counts_accounts_entries_and_selected_entries(self, client):
+        owner = _register(client, "activity.owner@example.com")
+        member = _register(client, "activity.member@example.com")
+        pool = client.post(
+            "/pools/create", json={"name": "Activity Summary Pool"}, headers=owner
+        ).json()
+        assert client.post(
+            f"/pools/{pool['id']}/join", json={}, headers=member
+        ).status_code == 200
+
+        owner_entry = client.post(
+            "/entries/create",
+            json={"pool_id": pool["id"], "name": "Owner Entry"},
+            headers=owner,
+        ).json()
+        member_entry = client.post(
+            "/entries/create",
+            json={"pool_id": pool["id"], "name": "Member Entry"},
+            headers=member,
+        ).json()
+        assert owner_entry["id"] != member_entry["id"]
+        assert client.post(
+            "/picks/create",
+            json={"entry_id": member_entry["id"], "week": 1, "team": "DET"},
+            headers=member,
+        ).status_code == 200
+
+        response = client.get(f"/pools/{pool['id']}/activity-summary", headers=member)
+
+        assert response.status_code == 200
+        assert response.json() == {
+            "accounts": 2,
+            "entries": 2,
+            "entries_with_selections": 1,
+        }
+
     def test_pool_discovery_requires_auth_and_shows_private_leagues(self, client):
         owner = _register(client, "private.discovery.owner@example.com")
         outsider = _register(client, "private.discovery.outsider@example.com")

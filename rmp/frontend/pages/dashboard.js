@@ -165,30 +165,14 @@ export default function Dashboard() {
 
   const fetchPoolStats = async (leagueId, token) => {
     try {
-      // Calculate stats manually from entries
-      const entriesRes = await fetch(process.env.NEXT_PUBLIC_API_URL + `/entries/pool/${leagueId}`, {
+      const summaryRes = await fetch(process.env.NEXT_PUBLIC_API_URL + `/pools/${leagueId}/activity-summary`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      
-      if (entriesRes.ok) {
-        const entries = await entriesRes.json();
-        const totalEntries = entries.length;
-        const eliminatedCount = entries.filter(entry => entry.status === 'eliminated').length;
-        const survivorsCount = totalEntries - eliminatedCount;
-        
-        return {
-          totalEntries,
-          survivors: survivorsCount,
-          eliminated: eliminatedCount,
-          survivorsPercentage: totalEntries > 0 ? ((survivorsCount / totalEntries) * 100).toFixed(1) : 0,
-          eliminatedPercentage: totalEntries > 0 ? ((eliminatedCount / totalEntries) * 100).toFixed(1) : 0
-        };
-      }
-      
-      return { totalEntries: 0, survivors: 0, eliminated: 0, survivorsPercentage: 0, eliminatedPercentage: 0 };
+      if (summaryRes.ok) return await summaryRes.json();
+      return { accounts: 0, entries: 0, entries_with_selections: 0 };
     } catch (err) {
       console.error(`Failed to fetch pool stats for league ${leagueId}:`, err);
-      return { totalEntries: 0, survivors: 0, eliminated: 0, survivorsPercentage: 0, eliminatedPercentage: 0 };
+      return { accounts: 0, entries: 0, entries_with_selections: 0 };
     }
   };
 
@@ -401,7 +385,7 @@ export default function Dashboard() {
   const renderPoolStats = (league) => {
     const stats = poolStatsData[league.id];
     
-    if (!stats || stats.totalEntries === 0) {
+    if (!stats) {
       return (
         <div className="pool-card__stats pool-card__stats--empty" style={{
           backgroundColor: '#f8f9fa',
@@ -412,7 +396,7 @@ export default function Dashboard() {
           color: '#6b7280',
           fontSize: '0.875rem'
         }}>
-          No pool statistics available
+          Loading pool activity…
         </div>
       );
     }
@@ -432,75 +416,36 @@ export default function Dashboard() {
           color: '#374151',
           textAlign: 'center'
         }}>
-          Pool Statistics
+          Pool Activity
         </h4>
         <div className="pool-card__stat-grid" style={{
           display: 'grid',
-          gridTemplateColumns: '1fr 1fr',
+          gridTemplateColumns: 'repeat(3, 1fr)',
           gap: '0.75rem'
         }}>
-          <div className="pool-card__stat pool-card__stat--surviving" style={{
-            backgroundColor: '#dcfce7',
+          {[['Accounts', stats.accounts], ['Entries', stats.entries], ['With selections', stats.entries_with_selections]].map(([label, value]) => <div key={label} className="pool-card__stat" style={{
+            backgroundColor: '#ffffff',
             borderRadius: '6px',
             padding: '0.75rem',
-            border: '1px solid #16a34a',
+            border: '1px solid #cbd5e1',
             textAlign: 'center'
           }}>
             <div style={{ 
               fontSize: '1.25rem',
               fontWeight: '700',
-              color: '#15803d',
+              color: '#0f172a',
               marginBottom: '0.25rem'
             }}>
-              {stats.survivors}
+              {value ?? 0}
             </div>
             <div style={{ 
               fontSize: '0.75rem',
-              color: '#166534',
-              fontWeight: '500',
-              marginBottom: '0.25rem'
+              color: '#475569',
+              fontWeight: '600'
             }}>
-              Survivors
+              {label}
             </div>
-            <div style={{ 
-              fontSize: '0.625rem',
-              color: '#166534',
-              opacity: 0.8
-            }}>
-              {stats.survivorsPercentage}%
-            </div>
-          </div>
-          <div className="pool-card__stat pool-card__stat--eliminated" style={{
-            backgroundColor: '#fee2e2',
-            borderRadius: '6px',
-            padding: '0.75rem',
-            border: '1px solid #dc2626',
-            textAlign: 'center'
-          }}>
-            <div style={{ 
-              fontSize: '1.25rem',
-              fontWeight: '700',
-              color: '#dc2626',
-              marginBottom: '0.25rem'
-            }}>
-              {stats.eliminated}
-            </div>
-            <div style={{ 
-              fontSize: '0.75rem',
-              color: '#991b1b',
-              fontWeight: '500',
-              marginBottom: '0.25rem'
-            }}>
-              Eliminated
-            </div>
-            <div style={{ 
-              fontSize: '0.625rem',
-              color: '#991b1b',
-              opacity: 0.8
-            }}>
-              {stats.eliminatedPercentage}%
-            </div>
-          </div>
+          </div>)}
         </div>
         <div className="pool-card__stat-total" style={{
           textAlign: 'center',
@@ -508,7 +453,7 @@ export default function Dashboard() {
           fontSize: '0.75rem',
           color: '#6b7280'
         }}>
-          Total Entries: {stats.totalEntries}
+          Entries with at least one saved pick
         </div>
       </div>
     );
