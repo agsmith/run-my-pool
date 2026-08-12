@@ -219,6 +219,7 @@ export default function ForgotPassword() {
             >
               Don't have an account? Create one
             </Link>
+            <a href="mailto:support@runmypool.net" className="auth-support-link">Still need help? Contact support</a>
           </div>
         </div>
       </div>

@@ -917,6 +917,8 @@ table {
 .broadcast-v2--auth .auth-submit:disabled { color:#718083!important; background:#26363a!important; border-color:#35484c!important; }
 .broadcast-v2--auth .auth-footer { border-color:#314449!important; }
 .broadcast-v2--auth .auth-footer a { color:var(--ice)!important; font-size:.78rem!important; font-weight:850; letter-spacing:.035em; text-transform:uppercase; }
+.auth-support-link { display:block; margin-top:.75rem; color:#667eea; font-size:.875rem; font-weight:600; text-decoration:none; }
+.auth-support-link:hover { text-decoration:underline; }
 .broadcast-v2--auth .auth-notice { border-radius:2px!important; }
 .password-visibility-field { position:relative; width:100%; }
 .password-visibility-field > input { width:100%; padding-right:3.25rem!important; }

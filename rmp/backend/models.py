@@ -10,6 +10,7 @@ from sqlalchemy import (
     Float,
     Time,
     UniqueConstraint,
+    Index,
 )
 from sqlalchemy.orm import relationship, declarative_base
 import enum
@@ -209,6 +210,10 @@ class PoolUserLock(Base):
 
 class Schedule(Base):
     __tablename__ = "schedule"
+    __table_args__ = (
+        Index("ix_schedule_week_start", "week_num", "start_time"),
+        Index("ix_schedule_start_time", "start_time"),
+    )
     game_id = Column(Integer, primary_key=True)
     week_num = Column(Integer, nullable=False)
     home_team_id = Column(Integer, ForeignKey(TEAMS_ID_FK), nullable=False)

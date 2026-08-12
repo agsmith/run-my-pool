@@ -19,5 +19,14 @@ if not DATABASE_URL:
     MYSQL_DB = os.environ["MYSQL_DB"]
     DATABASE_URL = f"mysql+mysqlconnector://{MYSQL_USER}:{MYSQL_PASSWORD}@{MYSQL_HOST}:{MYSQL_PORT}/{MYSQL_DB}"
 
-engine = create_engine(DATABASE_URL, pool_pre_ping=True)
+engine_options = {"pool_pre_ping": True}
+if not DATABASE_URL.startswith("sqlite"):
+    engine_options.update({
+        "pool_size": int(os.getenv("DB_POOL_SIZE", "5")),
+        "max_overflow": int(os.getenv("DB_MAX_OVERFLOW", "5")),
+        "pool_timeout": int(os.getenv("DB_POOL_TIMEOUT_SECONDS", "10")),
+        "pool_recycle": int(os.getenv("DB_POOL_RECYCLE_SECONDS", "1800")),
+    })
+
+engine = create_engine(DATABASE_URL, **engine_options)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

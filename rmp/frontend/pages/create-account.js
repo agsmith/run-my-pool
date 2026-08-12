@@ -278,6 +278,7 @@ export default function CreateAccount() {
           >
             Already have an account? Sign in
           </Link>
+          <a href="mailto:support@runmypool.net" className="auth-support-link">Need help? Contact support</a>
         </div>
       </div>
     </main>

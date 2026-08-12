@@ -44,6 +44,7 @@ export default function BillingSuccess() {
         <div className="billing-result-amount">{order.amount_total != null ? new Intl.NumberFormat('en-US', { style: 'currency', currency: (order.currency || 'usd').toUpperCase() }).format(order.amount_total / 100) : 'Paid'}</div>
       </> : <p>Stripe accepted your checkout. We’re waiting for the verified payment notification before activating access.</p>}
       <div className="billing-result-actions"><Link href="/dashboard">Go to dashboard</Link><Link href="/pricing">View plans</Link></div>
+      <p>Questions about your payment? <a href="mailto:support@runmypool.net">Contact billing support</a>.</p>
     </section>
   </main></ProtectedRoute>;
 }

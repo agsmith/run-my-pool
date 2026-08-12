@@ -126,6 +126,54 @@ variable "desired_count" {
   default     = 1
 }
 
+variable "backend_min_tasks" {
+  description = "Minimum backend tasks; one is appropriate for current low traffic"
+  type        = number
+  default     = 1
+}
+
+variable "backend_max_tasks" {
+  description = "Maximum backend tasks for the expected 700-user population"
+  type        = number
+  default     = 4
+}
+
+variable "frontend_min_tasks" {
+  description = "Minimum frontend tasks"
+  type        = number
+  default     = 1
+}
+
+variable "frontend_max_tasks" {
+  description = "Maximum frontend tasks for burst traffic"
+  type        = number
+  default     = 3
+}
+
+variable "ecs_cpu_target_percent" {
+  description = "ECS target-tracking CPU utilization"
+  type        = number
+  default     = 60
+}
+
+variable "ecs_memory_target_percent" {
+  description = "Backend ECS target-tracking memory utilization"
+  type        = number
+  default     = 70
+}
+
+variable "backend_db_pool_size" {
+  description = "Persistent SQLAlchemy connections per backend task"
+  type        = number
+  default     = 5
+}
+
+variable "backend_db_max_overflow" {
+  description = "Temporary SQLAlchemy connections per backend task"
+  type        = number
+  default     = 5
+}
+
 # ──────────────────────────────────────────────────────────────────────────────
 # Database
 # ──────────────────────────────────────────────────────────────────────────────

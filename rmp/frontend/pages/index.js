@@ -134,7 +134,7 @@ export default function Home() {
         </section>
       </main>
 
-      <footer className="rmp-footer"><div className="rmp-shell"><Link href="/" className="rmp-brand"><FootballMark /><span>RUN MY <b>POOL</b></span></Link><p>Built for football fans, by football fans. <Link href="/pricing">Pricing</Link> · <Link href="/install">Install the app</Link></p><span>© 2026 Run My Pool</span></div></footer>
+      <footer className="rmp-footer"><div className="rmp-shell"><Link href="/" className="rmp-brand"><FootballMark /><span>RUN MY <b>POOL</b></span></Link><p>Built for football fans, by football fans. <Link href="/pricing">Pricing</Link> · <Link href="/install">Install the app</Link> · <a href="mailto:support@runmypool.net">Contact support</a></p><span>© 2026 Run My Pool</span></div></footer>
     </div>
   );
 }

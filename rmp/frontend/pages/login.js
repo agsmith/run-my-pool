@@ -225,6 +225,7 @@ export default function Login() {
             >
               Forgot your password?
             </Link>
+            <a href="mailto:support@runmypool.net" className="auth-support-link">Contact support</a>
           </div>
         </div>
       </ResponsiveCard>

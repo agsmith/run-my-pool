@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import func
 from typing import List, Optional
 from datetime import datetime
 from models import Schedule, Team, PoolGameLine
@@ -16,15 +17,18 @@ def football_season(start_time: datetime) -> int:
 
 def current_season_week(db: Session, now: Optional[datetime] = None) -> int:
     """Derive the current NFL week from the newest schedule in the database."""
-    games = db.query(Schedule).all()
-    if not games:
+    newest_start = db.query(func.max(Schedule.start_time)).scalar()
+    if newest_start is None:
         return 1
-    season = max(football_season(game.start_time) for game in games)
-    season_games = [game for game in games if football_season(game.start_time) == season]
-    week_ends = {
-        week: max(game.start_time for game in season_games if game.week_num == week)
-        for week in {game.week_num for game in season_games}
-    }
+    season = football_season(newest_start)
+    season_start = datetime(season, 7, 1)
+    season_end = datetime(season + 1, 3, 1)
+    week_ends = dict(db.query(
+        Schedule.week_num, func.max(Schedule.start_time)
+    ).filter(
+        Schedule.start_time >= season_start,
+        Schedule.start_time < season_end,
+    ).group_by(Schedule.week_num).all())
     current_time = now or datetime.utcnow()
     for week in sorted(week_ends):
         if current_time <= week_ends[week]:
@@ -34,7 +38,9 @@ def current_season_week(db: Session, now: Optional[datetime] = None) -> int:
 
 def current_season_games(db: Session, week_num: int):
     """Return the newest regular-season slate, excluding preseason collisions."""
-    games = db.query(Schedule).filter(Schedule.week_num == week_num).all()
+    games = db.query(Schedule).options(
+        joinedload(Schedule.home_team), joinedload(Schedule.away_team)
+    ).filter(Schedule.week_num == week_num).all()
     if not games:
         return []
 
@@ -152,7 +158,9 @@ def get_all_schedules(db: Session = Depends(get_db)):
     """
     Get all scheduled games
     """
-    games = db.query(Schedule).order_by(Schedule.week_num, Schedule.start_time).all()
+    games = db.query(Schedule).options(
+        joinedload(Schedule.home_team), joinedload(Schedule.away_team)
+    ).order_by(Schedule.week_num, Schedule.start_time).all()
     
     result = []
     for game in games:

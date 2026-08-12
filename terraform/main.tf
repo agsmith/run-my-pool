@@ -174,6 +174,22 @@ resource "aws_ecs_task_definition" "backend" {
         {
           name  = "STRIPE_AUTOMATIC_TAX"
           value = tostring(var.stripe_automatic_tax)
+        },
+        {
+          name  = "DB_POOL_SIZE"
+          value = tostring(var.backend_db_pool_size)
+        },
+        {
+          name  = "DB_MAX_OVERFLOW"
+          value = tostring(var.backend_db_max_overflow)
+        },
+        {
+          name  = "DB_POOL_TIMEOUT_SECONDS"
+          value = "10"
+        },
+        {
+          name  = "DB_POOL_RECYCLE_SECONDS"
+          value = "1800"
         }
       ]
 
@@ -317,7 +333,7 @@ resource "aws_ecs_service" "backend" {
 
   lifecycle {
     # Prevent Terraform from rolling back image changes made by CI
-    ignore_changes = [task_definition]
+    ignore_changes = [task_definition, desired_count]
   }
 
   depends_on = [aws_lb_listener.https]
@@ -360,8 +376,75 @@ resource "aws_ecs_service" "frontend" {
   }
 
   lifecycle {
-    ignore_changes = [task_definition]
+    ignore_changes = [task_definition, desired_count]
   }
 
   depends_on = [aws_lb_listener.https]
+}
+
+resource "aws_appautoscaling_target" "backend" {
+  max_capacity       = var.backend_max_tasks
+  min_capacity       = var.backend_min_tasks
+  resource_id        = "service/${aws_ecs_cluster.main.name}/${aws_ecs_service.backend.name}"
+  scalable_dimension = "ecs:service:DesiredCount"
+  service_namespace  = "ecs"
+}
+
+resource "aws_appautoscaling_policy" "backend_cpu" {
+  name               = "runmypool-backend-cpu"
+  policy_type        = "TargetTrackingScaling"
+  resource_id        = aws_appautoscaling_target.backend.resource_id
+  scalable_dimension = aws_appautoscaling_target.backend.scalable_dimension
+  service_namespace  = aws_appautoscaling_target.backend.service_namespace
+
+  target_tracking_scaling_policy_configuration {
+    target_value       = var.ecs_cpu_target_percent
+    scale_in_cooldown  = 300
+    scale_out_cooldown = 60
+    predefined_metric_specification {
+      predefined_metric_type = "ECSServiceAverageCPUUtilization"
+    }
+  }
+}
+
+resource "aws_appautoscaling_policy" "backend_memory" {
+  name               = "runmypool-backend-memory"
+  policy_type        = "TargetTrackingScaling"
+  resource_id        = aws_appautoscaling_target.backend.resource_id
+  scalable_dimension = aws_appautoscaling_target.backend.scalable_dimension
+  service_namespace  = aws_appautoscaling_target.backend.service_namespace
+
+  target_tracking_scaling_policy_configuration {
+    target_value       = var.ecs_memory_target_percent
+    scale_in_cooldown  = 300
+    scale_out_cooldown = 60
+    predefined_metric_specification {
+      predefined_metric_type = "ECSServiceAverageMemoryUtilization"
+    }
+  }
+}
+
+resource "aws_appautoscaling_target" "frontend" {
+  max_capacity       = var.frontend_max_tasks
+  min_capacity       = var.frontend_min_tasks
+  resource_id        = "service/${aws_ecs_cluster.main.name}/${aws_ecs_service.frontend.name}"
+  scalable_dimension = "ecs:service:DesiredCount"
+  service_namespace  = "ecs"
+}
+
+resource "aws_appautoscaling_policy" "frontend_cpu" {
+  name               = "runmypool-frontend-cpu"
+  policy_type        = "TargetTrackingScaling"
+  resource_id        = aws_appautoscaling_target.frontend.resource_id
+  scalable_dimension = aws_appautoscaling_target.frontend.scalable_dimension
+  service_namespace  = aws_appautoscaling_target.frontend.service_namespace
+
+  target_tracking_scaling_policy_configuration {
+    target_value       = var.ecs_cpu_target_percent
+    scale_in_cooldown  = 300
+    scale_out_cooldown = 60
+    predefined_metric_specification {
+      predefined_metric_type = "ECSServiceAverageCPUUtilization"
+    }
+  }
 }

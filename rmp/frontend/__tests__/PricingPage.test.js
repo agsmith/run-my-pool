@@ -54,4 +54,9 @@ describe('PricingPage', () => {
     expect(unlimitedCard).toHaveTextContent('No usage charges');
     expect(screen.getByText(/costs less once a Club account needs more than 900 entries/i)).toBeInTheDocument();
   });
+
+  test('offers a direct billing and account support email', () => {
+    render(<PricingPage />);
+    expect(screen.getByRole('link', { name: /billing and account support/i })).toHaveAttribute('href', 'mailto:support@runmypool.net');
+  });
 });
