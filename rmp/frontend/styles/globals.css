@@ -415,6 +415,8 @@ table {
 .pool-card__stat-grid { gap:0!important; }
 .pool-card__stat { padding:.85rem!important; background:transparent!important; border:0!important; border-right:1px solid #2e4145!important; border-radius:0!important; }
 .pool-card__stat:last-child { border-right:0!important; }
+.pool-card__stat-value { color:var(--lime)!important; }
+.pool-card__stat-label { color:#c9d4d3!important; }
 .pool-card__stat--surviving > div:first-child { color:var(--lime)!important; }
 .pool-card__stat--eliminated > div:first-child { color:var(--danger)!important; }
 .pool-card__stat > div:nth-child(2),.pool-card__stat > div:nth-child(3) { color:var(--muted)!important; text-transform:uppercase; letter-spacing:.06em; }

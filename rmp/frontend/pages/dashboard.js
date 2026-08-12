@@ -432,17 +432,17 @@ export default function Dashboard() {
             border: '1px solid #cbd5e1',
             textAlign: 'center'
           }}>
-            <div style={{ 
+            <div className="pool-card__stat-value" style={{
               fontSize: '1.25rem',
               fontWeight: '700',
-              color: '#0f172a',
+              color: '#d7ff3f',
               marginBottom: '0.25rem'
             }}>
               {value ?? 0}
             </div>
-            <div style={{ 
+            <div className="pool-card__stat-label" style={{
               fontSize: '0.75rem',
-              color: '#475569',
+              color: '#c9d4d3',
               fontWeight: '600'
             }}>
               {label}

@@ -67,7 +67,10 @@ describe('dashboard', () => {
     expect(screen.getByText('Private')).toBeInTheDocument();
     expect(screen.getByText('Entries Remaining')).toBeInTheDocument();
     expect(screen.getByText('Week 1 Selections')).toBeInTheDocument();
-    expect(screen.getByText('12')).toBeInTheDocument();
+    expect(screen.getByText('12')).toHaveClass('pool-card__stat-value');
+    expect(screen.getByText('12')).toHaveStyle({ color: '#d7ff3f' });
+    expect(screen.getByText('Entries Remaining')).toHaveClass('pool-card__stat-label');
+    expect(screen.getByText('Entries Remaining')).toHaveStyle({ color: '#c9d4d3' });
     expect(screen.getByText('9')).toBeInTheDocument();
     expect(screen.getByText('WSH')).toBeInTheDocument();
     expect(screen.getByAltText('WSH logo')).toHaveAttribute('src', '/nfl/wsh.svg');
