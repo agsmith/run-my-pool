@@ -1071,6 +1071,9 @@ table {
 .platform-admin-filters { display:flex; gap:.5rem; padding:1rem 1.5rem; border-bottom:1px solid #35494e; }
 .platform-admin-filters button { padding:.65rem .9rem; color:var(--muted); background:#111b1e; border:1px solid #40555a; }
 .platform-admin-filters button.is-active { color:#091012; background:var(--lime); border-color:var(--lime); }
+.platform-admin-tabs { display:flex; flex-wrap:wrap; gap:.5rem; margin:1rem 0; }
+.platform-admin-tabs button { padding:.75rem 1rem; color:var(--muted); background:#111b1e; border:1px solid #40555a; font-weight:900; text-transform:uppercase; cursor:pointer; }
+.platform-admin-tabs button.is-active { color:#091012; background:var(--lime); border-color:var(--lime); }
 .platform-admin-table-wrap { overflow:auto; }
 .platform-admin-table { width:100%; min-width:850px; border-collapse:collapse; }
 .platform-admin-table th,.platform-admin-table td { padding:1rem; text-align:left; border-bottom:1px solid #26383c; }

@@ -19,6 +19,7 @@ from schedule import current_season_games
 from weekly_locks import pool_week_lock_time
 from cryptography.fernet import Fernet, InvalidToken
 from app_logging import log_event
+from platform_admin import is_platform_super_admin
 
 logger = logging.getLogger("runmypool.pools")
 
@@ -116,6 +117,9 @@ def _validate_join_password(password: str) -> str:
 
 
 def _has_admin_access(db: Session, pool: models.Pool, user_id: str) -> bool:
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if user and is_platform_super_admin(user):
+        return True
     if pool.owner_id == user_id:
         return True
     return db.query(models.PoolAdmin).filter(
@@ -317,7 +321,7 @@ def get_pool(
         if not pool:
             raise HTTPException(status_code=404, detail="Pool not found")
 
-        if not is_pool_participant(db, pool_id, current_user.id):
+        if not is_platform_super_admin(current_user) and not is_pool_participant(db, pool_id, current_user.id):
             raise HTTPException(status_code=403, detail="League membership required")
 
         return pool
@@ -337,7 +341,7 @@ def get_pool_lock_status(
     pool = db.query(models.Pool).filter(models.Pool.id == pool_id).first()
     if not pool:
         raise HTTPException(status_code=404, detail="Pool not found")
-    if not is_pool_participant(db, pool_id, current_user.id):
+    if not is_platform_super_admin(current_user) and not is_pool_participant(db, pool_id, current_user.id):
         raise HTTPException(status_code=403, detail="League membership required")
     now = datetime.now(timezone.utc).replace(tzinfo=None)
     weeks = {}
@@ -539,7 +543,7 @@ def delete_pool(
         if not pool:
             raise HTTPException(status_code=404, detail="Pool not found")
 
-        if pool.owner_id != current_user.id:
+        if pool.owner_id != current_user.id and not is_platform_super_admin(current_user):
             raise HTTPException(
                 status_code=403, detail="Only pool owner can delete the pool"
             )
@@ -585,11 +589,12 @@ def check_pool_admin(
 
         is_admin = pool_admin is not None
 
+        platform_access = is_platform_super_admin(current_user)
         return {
             "pool_id": pool_id,
             "is_owner": is_owner,
             "is_admin": is_admin,
-            "has_admin_access": is_owner or is_admin,
+            "has_admin_access": is_owner or is_admin or platform_access,
         }
     except HTTPException:
         raise

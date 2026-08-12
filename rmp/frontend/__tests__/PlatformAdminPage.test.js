@@ -5,7 +5,7 @@ import Admin from '../pages/admin';
 
 process.env.NEXT_PUBLIC_API_URL = '';
 const mockUser = { id: 'admin-1', email: 'agsmith11@gmail.com', role: 'SUPER_ADMIN' };
-jest.mock('../components/ProtectedRoute', () => ({ children }) => children);
+jest.mock('../components/SuperAdminRoute', () => ({ children }) => children);
 jest.mock('../context/AuthContext', () => ({ useAuth: () => ({ user: mockUser }) }));
 
 const summary = {
@@ -31,7 +31,7 @@ describe('platform admin dashboard', () => {
     expect(screen.getByText('locked@example.com')).toBeInTheDocument();
     expect(screen.getByText('Member')).toBeInTheDocument();
     expect(screen.getByText('Pool admin')).toBeInTheDocument();
-    expect(screen.getAllByText('Locked')).toHaveLength(2);
+    expect(screen.getByText('Locked')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'ALL USERS' })).toBeInTheDocument();
   });
 
@@ -58,7 +58,7 @@ describe('platform admin dashboard', () => {
     render(<Admin />);
 
     expect(await screen.findByText('Administrator access required')).toBeInTheDocument();
-    expect(screen.getByText('No users match that search.')).toBeInTheDocument();
+    expect(screen.getByText('No records match that search.')).toBeInTheDocument();
   });
 
   test('filters users without a pool and can deactivate an account', async () => {

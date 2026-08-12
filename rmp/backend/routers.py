@@ -11,6 +11,7 @@ import schedule
 import admin
 import rules
 import billing
+import platform_admin_api
 
 router = APIRouter()
 router.include_router(auth.router)
@@ -25,3 +26,4 @@ router.include_router(schedule.router, prefix="/schedule", tags=["schedule"])
 router.include_router(admin.router)
 router.include_router(rules.router)
 router.include_router(billing.router)
+router.include_router(platform_admin_api.router)

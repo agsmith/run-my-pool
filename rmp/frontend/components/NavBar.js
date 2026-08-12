@@ -113,6 +113,15 @@ export default function NavBar() {
       </div>
 
       <div style={navStyles.menuContainer}>
+        {user?.role === 'SUPER_ADMIN' && <Link
+          href="/admin"
+          style={{ ...navStyles.navLink, color: '#d7ff3f' }}
+          onClick={closeMobileMenu}
+          onMouseEnter={handleLinkHover}
+          onMouseLeave={handleLinkLeave}
+        >
+          Platform Admin
+        </Link>}
         <Link 
           href="/dashboard" 
           style={navStyles.navLink}

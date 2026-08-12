@@ -45,6 +45,16 @@ describe('NavBar', () => {
     render(<NavBar />)
 
     expect(screen.queryByRole('link', { name: /^admin$/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /platform admin/i })).not.toBeInTheDocument()
+  })
+
+  test('shows Platform Admin first only to super admins', () => {
+    useAuth.mockReturnValue({ user: { email: 'support@example.com', role: 'SUPER_ADMIN' }, logout: jest.fn() })
+    render(<NavBar />)
+
+    const links = screen.getAllByRole('link')
+    expect(screen.getByRole('link', { name: /platform admin/i })).toHaveAttribute('href', '/admin')
+    expect(links.indexOf(screen.getByRole('link', { name: /platform admin/i }))).toBeLessThan(links.indexOf(screen.getByRole('link', { name: /dashboard/i })))
   })
 
   test('shows Login and Register links when user is not authenticated', () => {

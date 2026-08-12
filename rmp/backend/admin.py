@@ -20,6 +20,7 @@ from audit_utils import log_admin_action
 from odds_service import freeze_week_lines
 from schedule import current_season_games, current_season_week
 from weekly_locks import lock_pool_week
+from platform_admin import is_platform_super_admin
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -34,6 +35,8 @@ def _csv_safe(value: str) -> str:
 
 def verify_admin_access(pool_id: str, current_user: models.User, db: Session) -> bool:
     """Verify if user has admin access to the pool"""
+    if is_platform_super_admin(current_user):
+        return db.query(models.Pool.id).filter(models.Pool.id == pool_id).first() is not None
     pool = db.query(models.Pool).filter(models.Pool.id == pool_id).first()
     if pool and pool.owner_id == current_user.id:
         return True
@@ -53,7 +56,7 @@ def require_pool_owner(pool_id: str, current_user: models.User, db: Session) -> 
     pool = db.query(models.Pool).filter(models.Pool.id == pool_id).first()
     if not pool:
         raise HTTPException(status_code=404, detail="Pool not found")
-    if pool.owner_id != current_user.id:
+    if pool.owner_id != current_user.id and not is_platform_super_admin(current_user):
         raise HTTPException(status_code=403, detail="Only the league owner can manage administrators")
     return pool
 
