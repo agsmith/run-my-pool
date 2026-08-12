@@ -842,13 +842,11 @@ export default function LeagueEntries() {
       if (res.ok) {
         const newEntry = await res.json();
         console.log('Created new entry:', newEntry);
-        // Add the new entry to the existing entries
-        setEntries(prevEntries => [...prevEntries, newEntry]);
-        // Initialize picks for the new entry as empty
-        setAllPicks(prevPicks => ({
-          ...prevPicks,
-          [newEntry.id]: []
-        }));
+        // Reload the complete entry/pick map from the server. This prevents an
+        // entry creation render from temporarily replacing an existing pick
+        // with an empty client-side slot when several entries are managed in
+        // quick succession.
+        await fetchLeagueAndEntries();
       } else {
         const errorData = await res.json();
         setError(errorData.detail || 'Failed to create entry');
@@ -1234,7 +1232,7 @@ export default function LeagueEntries() {
                 </tr>
               </thead>
               <tbody>
-                {entries
+                {[...entries]
                   .sort((a, b) => a.name.localeCompare(b.name))
                   .map((entry, index) => (
                   <tr key={entry.id} style={{ 

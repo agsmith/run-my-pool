@@ -61,6 +61,20 @@ describe('platform admin dashboard', () => {
     expect(screen.getByText('No records match that search.')).toBeInTheDocument();
   });
 
+  test('renders an incomplete legacy account as a member instead of crashing', async () => {
+    const incompleteSummary = {
+      ...summary,
+      users: [{ id: 'legacy-user', email: 'legacy@example.com', is_active: true, pool_count: 0 }],
+    };
+    global.fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => incompleteSummary });
+
+    render(<Admin />);
+
+    expect(await screen.findByText('legacy@example.com')).toBeInTheDocument();
+    expect(screen.getByText('Member')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Grant super admin' })).toBeInTheDocument();
+  });
+
   test('filters users without a pool and can deactivate an account', async () => {
     global.fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => summary });
     jest.spyOn(window, 'confirm').mockReturnValue(true);

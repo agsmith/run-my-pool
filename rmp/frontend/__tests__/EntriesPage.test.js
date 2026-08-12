@@ -19,7 +19,8 @@ const jsonResponse = (data, ok = true) => Promise.resolve({
   json: () => Promise.resolve(data),
 });
 
-function installApi({ pool = {}, entries = [], picks = {}, lockWeeks = {} } = {}) {
+function installApi({ pool = {}, entries = [], picks = {}, lockWeeks = {}, createdEntry = null } = {}) {
+  let currentEntries = [...entries];
   global.fetch = jest.fn((url, options = {}) => {
     const path = String(url);
     if (path.endsWith('/pools/pool-1')) {
@@ -31,7 +32,7 @@ function installApi({ pool = {}, entries = [], picks = {}, lockWeeks = {} } = {}
     if (path.endsWith('/pools/pool-1/lock-status')) {
       return jsonResponse({ weeks: lockWeeks });
     }
-    if (path.endsWith('/entries/pool/pool-1')) return jsonResponse(entries);
+    if (path.endsWith('/entries/pool/pool-1')) return jsonResponse(currentEntries);
     const pickMatch = path.match(/\/picks\/entry\/([^/]+)$/);
     if (pickMatch) return jsonResponse(picks[pickMatch[1]] || []);
     if (path.includes('/picks/pool/pool-1/week/')) return jsonResponse([]);
@@ -46,6 +47,10 @@ function installApi({ pool = {}, entries = [], picks = {}, lockWeeks = {} } = {}
     if (path.endsWith('/picks/create') && options.method === 'POST') {
       const request = JSON.parse(options.body);
       return jsonResponse({ id: 'pick-new', ...request, locked: false });
+    }
+    if (path.endsWith('/entries/create') && options.method === 'POST' && createdEntry) {
+      currentEntries = [...currentEntries, createdEntry];
+      return jsonResponse(createdEntry);
     }
     throw new Error(`Unexpected request: ${path}`);
   });
@@ -134,5 +139,25 @@ describe('player entries page', () => {
       }),
     ));
     expect(screen.queryByRole('heading', { name: /week 2 matchups/i })).not.toBeInTheDocument();
+  });
+
+  test('keeps existing Week 1 picks visible after adding another entry', async () => {
+    const user = userEvent.setup();
+    installApi({
+      entries: [{ id: 'entry-1', name: 'Entry 1', alive: true }],
+      picks: { 'entry-1': [{ id: 'pick-1', week: 1, team: 'DET', locked: false }] },
+      createdEntry: { id: 'entry-2', name: 'Entry 2', alive: true },
+    });
+    render(<LeagueEntries />);
+
+    expect(await screen.findByAltText('DET logo')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /create new entry/i }));
+
+    expect(await screen.findByText('Entry 2')).toBeInTheDocument();
+    expect(screen.getByAltText('DET logo')).toBeInTheDocument();
+    expect(fetch).toHaveBeenCalledWith(
+      expect.stringContaining('/picks/entry/entry-1'),
+      expect.any(Object),
+    );
   });
 });

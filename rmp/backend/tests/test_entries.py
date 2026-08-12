@@ -84,6 +84,26 @@ class TestEntryLockEnforcement:
         assert response.status_code == 200
         assert "id" in response.json()
 
+    def test_create_additional_entry_preserves_existing_week_one_pick(self, client):
+        """Adding an entry must never update or delete another entry's pick."""
+        token = _register_and_login(client, email="entry_pick_preserved@example.com")
+        headers = _authed(client, token)
+        pool_id = self._create_pool(client, headers)
+        first_entry = self._create_entry(client, headers, pool_id, name="Entry 1").json()
+        pick = client.post(
+            "/picks/create",
+            json={"entry_id": first_entry["id"], "week": 1, "team": "DET"},
+            headers=headers,
+        )
+        assert pick.status_code == 200
+
+        second_entry = self._create_entry(client, headers, pool_id, name="Entry 2")
+
+        assert second_entry.status_code == 200
+        picks = client.get(f"/picks/entry/{first_entry['id']}", headers=headers)
+        assert picks.status_code == 200
+        assert [(item["week"], item["team"]) for item in picks.json()] == [(1, "DET")]
+
     # ---------------------------------------------------------------
     # DELETE /entries/{entry_id}
     # ---------------------------------------------------------------
