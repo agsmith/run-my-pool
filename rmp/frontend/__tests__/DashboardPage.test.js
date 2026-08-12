@@ -71,7 +71,8 @@ describe('dashboard', () => {
     expect(screen.getByText('9')).toBeInTheDocument();
     expect(screen.getByText('BUF')).toBeInTheDocument();
 
-    expect(screen.queryByRole('button', { name: 'My Entries' })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /make or edit picks/i }));
+    expect(mockPush).toHaveBeenCalledWith('/pool/pool-1/entries');
     expect(screen.queryByRole('button', { name: 'Forum' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Admin' })).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Office Survivor' }));
@@ -84,6 +85,7 @@ describe('dashboard', () => {
 
     expect(await screen.findByRole('heading', { name: 'Office Survivor' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Office Survivor' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /make or edit picks/i })).toBeInTheDocument();
   });
 
   test('sends users with no pool memberships directly to Browse Pools', async () => {

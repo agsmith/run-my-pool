@@ -405,6 +405,10 @@ table {
 .broadcast-v2--dashboard .pool-card__title { margin:0!important; padding:1.15rem 6.8rem 1.05rem 3.65rem; color:var(--ink)!important; background:#0c1416; border-bottom:1px solid #2d3f43; font-size:1.65rem!important; font-weight:400!important; letter-spacing:.015em; line-height:1.05; }
 .pool-card__open { display:block; width:100%; padding:0; color:inherit; background:transparent; border:0; font:inherit; font-style:inherit; letter-spacing:inherit; text-align:left; text-transform:inherit; cursor:pointer; }
 .pool-card__open:hover { color:var(--lime); }
+.pool-card__actions { padding:0 1rem 1rem; }
+.pool-card__picks-action { display:flex; align-items:center; justify-content:space-between; width:100%; padding:.85rem 1rem; color:#071013; background:var(--lime); border:1px solid var(--lime); border-radius:0; font-size:.82rem; font-weight:900; letter-spacing:.04em; text-transform:uppercase; cursor:pointer; }
+.pool-card__picks-action:hover { background:#e2ff72; border-color:#e2ff72; }
+.pool-card__picks-action:focus-visible { outline:3px solid var(--ice); outline-offset:2px; }
 .pool-card__stats { margin:1rem 1rem .75rem!important; padding:0!important; background:#0c1416!important; border:1px solid #2e4145!important; border-radius:0!important; }
 .pool-card__stats--empty { padding:1.2rem!important; color:var(--muted)!important; }
 .broadcast-v2--dashboard .pool-card__stats-title { margin:0!important; padding:.7rem .85rem; color:#c9d4d3!important; border-bottom:1px solid #2e4145; font-size:.68rem!important; font-weight:900!important; letter-spacing:.11em; text-align:left!important; text-transform:uppercase; }

@@ -1107,6 +1107,16 @@ export default function Dashboard() {
                     
                     {/* Pool Stats Section */}
                     {renderPoolStats(league)}
+
+                    <div className="pool-card__actions">
+                      <button
+                        type="button"
+                        className="pool-card__picks-action"
+                        onClick={() => router.push(`/pool/${league.id}/entries`)}
+                      >
+                        Make or Edit Picks <span aria-hidden="true">→</span>
+                      </button>
+                    </div>
                     
                     {/* Week Selector Section */}
                     <div style={{ 
