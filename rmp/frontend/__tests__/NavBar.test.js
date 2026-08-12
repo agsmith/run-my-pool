@@ -32,11 +32,11 @@ beforeEach(() => {
 // Tests
 // ---------------------------------------------------------------------------
 describe('NavBar', () => {
-  test('renders global navigation links for Dashboard and Leagues', () => {
+  test('renders global navigation links for Dashboard and Pools', () => {
     render(<NavBar />)
 
     expect(screen.getByRole('link', { name: /dashboard/i })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /leagues/i })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /^pools$/i })).toHaveAttribute('href', '/leagues')
     expect(screen.queryByRole('link', { name: /message board/i })).not.toBeInTheDocument()
   })
 

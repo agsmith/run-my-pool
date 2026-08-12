@@ -129,7 +129,7 @@ export default function NavBar() {
           onMouseEnter={handleLinkHover}
           onMouseLeave={handleLinkLeave}
         >
-          Leagues
+          Pools
         </Link>
         <Link
           href="/install"
