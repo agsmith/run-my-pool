@@ -39,6 +39,25 @@ describe('Join a Pool', () => {
     expect(screen.getByRole('heading', { name: 'Private Pool' })).toBeInTheDocument();
     expect(screen.getByText('Public')).toBeInTheDocument();
     expect(screen.getByText('Private')).toBeInTheDocument();
+    const search = screen.getByRole('searchbox', { name: 'Search pools' });
+    expect(search).toHaveValue('');
+    expect(search).toHaveAttribute('autocomplete', 'off');
+    expect(search).toHaveAttribute('readonly');
+  });
+
+  test('activates search only after user interaction to prevent credential autofill', async () => {
+    const user = userEvent.setup();
+    render(<Leagues />);
+    await screen.findByRole('heading', { name: 'Public Pool' });
+    const search = screen.getByRole('searchbox', { name: 'Search pools' });
+
+    await user.click(search);
+    await user.type(search, 'Private');
+
+    expect(search).not.toHaveAttribute('readonly');
+    expect(search).toHaveValue('Private');
+    expect(screen.queryByRole('heading', { name: 'Public Pool' })).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Private Pool' })).toBeInTheDocument();
   });
 
   test('shows memberships in My Pools and excludes pools not joined', async () => {
@@ -80,6 +99,7 @@ describe('Join a Pool', () => {
     await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(3));
     expect(JSON.parse(global.fetch.mock.calls[2][1].body)).toEqual({ password: null });
     expect(await screen.findByRole('button', { name: /open pool/i })).toBeInTheDocument();
+    expect(mockPush).not.toHaveBeenCalled();
   });
 
   test('requires and submits a password for a private pool', async () => {
@@ -103,6 +123,7 @@ describe('Join a Pool', () => {
     await user.click(screen.getByRole('button', { name: /join private pool/i }));
     await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(3));
     expect(JSON.parse(global.fetch.mock.calls[2][1].body)).toEqual({ password: 'huddle42' });
+    expect(mockPush).not.toHaveBeenCalled();
   });
 
   test('loads a shared private pool that is absent from public discovery', async () => {

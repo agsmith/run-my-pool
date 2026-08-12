@@ -11,6 +11,7 @@ export default function Leagues() {
   const [joinedIds, setJoinedIds] = useState(new Set());
   const [activeView, setActiveView] = useState('browse');
   const [search, setSearch] = useState('');
+  const [searchActivated, setSearchActivated] = useState(false);
   const [visibility, setVisibility] = useState('all');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -143,8 +144,12 @@ export default function Leagues() {
         <section className="league-directory__controls" aria-label="Pool filters">
           <input
             type="search"
+            name="pool-directory-search"
             placeholder="Search pools"
             value={search}
+            autoComplete="off"
+            readOnly={!searchActivated}
+            onFocus={() => setSearchActivated(true)}
             onChange={(event) => setSearch(event.target.value)}
             aria-label="Search pools"
           />
