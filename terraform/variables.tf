@@ -75,7 +75,7 @@ variable "stripe_webhook_secret_arn" {
 variable "cors_origins" {
   description = "Allowed CORS origins for the backend (comma-separated or full URL)"
   type        = string
-  default     = "https://runmypool.net"
+  default     = "https://runmypool.net,https://www.runmypool.net"
 }
 
 variable "stripe_price_commissioner" {

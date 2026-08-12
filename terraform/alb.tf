@@ -124,6 +124,31 @@ resource "aws_lb_listener" "https" {
   }
 }
 
+# Keep one browser origin for authentication cookies, local storage, PWA data,
+# payment returns, and API requests. Preserve deep links and query strings from
+# invitations or marketing emails that use the www hostname.
+resource "aws_lb_listener_rule" "redirect_www_to_apex" {
+  listener_arn = aws_lb_listener.https.arn
+  priority     = 1
+
+  condition {
+    host_header {
+      values = ["www.runmypool.net"]
+    }
+  }
+
+  action {
+    type = "redirect"
+
+    redirect {
+      host        = "runmypool.net"
+      path        = "/#{path}"
+      query       = "#{query}"
+      status_code = "HTTP_301"
+    }
+  }
+}
+
 # Route API paths to backend — split across two rules (ALB limit: 5 values per condition)
 resource "aws_lb_listener_rule" "backend_api_1" {
   listener_arn = aws_lb_listener.https.arn
