@@ -29,8 +29,8 @@ function installDashboardApi({ pools = [pool], admin = true, failPools = false }
     if (path.endsWith('/pools/pool-1/picks-summary')) {
       return response({ 1: { teams: { BUF: 1 }, unlockedCount: 0 } });
     }
-    if (path.endsWith('/pools/pool-1/activity-summary')) {
-      return response({ accounts: 7, entries: 12, entries_with_selections: 9 });
+    if (path.includes('/pools/pool-1/activity-summary?week=')) {
+      return response({ entries_remaining: 12, week: 1, week_selections: 9 });
     }
     if (path.endsWith('/entries/pool/pool-1')) {
       return response([
@@ -65,10 +65,8 @@ describe('dashboard', () => {
 
     expect(await screen.findByRole('heading', { name: 'Office Survivor' })).toBeInTheDocument();
     expect(screen.getByText('Private')).toBeInTheDocument();
-    expect(screen.getByText('Accounts')).toBeInTheDocument();
-    expect(screen.getByText('Entries')).toBeInTheDocument();
-    expect(screen.getByText('With selections')).toBeInTheDocument();
-    expect(screen.getByText('7')).toBeInTheDocument();
+    expect(screen.getByText('Entries Remaining')).toBeInTheDocument();
+    expect(screen.getByText('Week 1 Selections')).toBeInTheDocument();
     expect(screen.getByText('12')).toBeInTheDocument();
     expect(screen.getByText('9')).toBeInTheDocument();
     expect(screen.getByText('BUF')).toBeInTheDocument();

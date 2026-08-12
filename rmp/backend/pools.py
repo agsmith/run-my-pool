@@ -283,6 +283,7 @@ def get_my_pools(
 @router.get("/{pool_id}/activity-summary")
 def get_pool_activity_summary(
     pool_id: str,
+    week: int = Query(default=1, ge=1, le=18),
     db: Session = Depends(deps.get_db),
     current_user: models.User = Depends(deps.get_current_user),
 ):
@@ -295,31 +296,25 @@ def get_pool_activity_summary(
     ):
         raise HTTPException(status_code=403, detail="League membership required")
 
-    account_ids = {
-        user_id
-        for query in (
-            db.query(models.PoolMember.user_id).filter(models.PoolMember.pool_id == pool_id),
-            db.query(models.PoolAdmin.user_id).filter(models.PoolAdmin.pool_id == pool_id),
-            db.query(models.Entry.user_id).filter(models.Entry.pool_id == pool_id),
-        )
-        for (user_id,) in query.all()
-        if user_id
-    }
-    if pool.owner_id:
-        account_ids.add(pool.owner_id)
-
-    total_entries = db.query(models.Entry).filter(models.Entry.pool_id == pool_id).count()
-    entries_with_selections = (
+    entries_remaining = db.query(models.Entry).filter(
+        models.Entry.pool_id == pool_id, models.Entry.alive.is_(True)
+    ).count()
+    week_selections = (
         db.query(func.count(func.distinct(models.Pick.entry_id)))
         .join(models.Entry, models.Entry.id == models.Pick.entry_id)
-        .filter(models.Entry.pool_id == pool_id, models.Pick.team.isnot(None), models.Pick.team != "")
+        .filter(
+            models.Entry.pool_id == pool_id,
+            models.Pick.week == week,
+            models.Pick.team.isnot(None),
+            models.Pick.team != "",
+        )
         .scalar()
         or 0
     )
     return {
-        "accounts": len(account_ids),
-        "entries": total_entries,
-        "entries_with_selections": entries_with_selections,
+        "entries_remaining": entries_remaining,
+        "week": week,
+        "week_selections": week_selections,
     }
 
 

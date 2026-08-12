@@ -165,14 +165,15 @@ export default function Dashboard() {
 
   const fetchPoolStats = async (leagueId, token) => {
     try {
-      const summaryRes = await fetch(process.env.NEXT_PUBLIC_API_URL + `/pools/${leagueId}/activity-summary`, {
+      const week = getCurrentWeek();
+      const summaryRes = await fetch(process.env.NEXT_PUBLIC_API_URL + `/pools/${leagueId}/activity-summary?week=${week}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (summaryRes.ok) return await summaryRes.json();
-      return { accounts: 0, entries: 0, entries_with_selections: 0 };
+      return { entries_remaining: 0, week, week_selections: 0 };
     } catch (err) {
       console.error(`Failed to fetch pool stats for league ${leagueId}:`, err);
-      return { accounts: 0, entries: 0, entries_with_selections: 0 };
+      return { entries_remaining: 0, week: getCurrentWeek(), week_selections: 0 };
     }
   };
 
@@ -420,10 +421,10 @@ export default function Dashboard() {
         </h4>
         <div className="pool-card__stat-grid" style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(3, 1fr)',
+          gridTemplateColumns: 'repeat(2, 1fr)',
           gap: '0.75rem'
         }}>
-          {[['Accounts', stats.accounts], ['Entries', stats.entries], ['With selections', stats.entries_with_selections]].map(([label, value]) => <div key={label} className="pool-card__stat" style={{
+          {[['Entries Remaining', stats.entries_remaining], [`Week ${stats.week} Selections`, stats.week_selections]].map(([label, value]) => <div key={label} className="pool-card__stat" style={{
             backgroundColor: '#ffffff',
             borderRadius: '6px',
             padding: '0.75rem',
@@ -453,7 +454,7 @@ export default function Dashboard() {
           fontSize: '0.75rem',
           color: '#6b7280'
         }}>
-          Entries with at least one saved pick
+          Saved selections across pool entries for the current week
         </div>
       </div>
     );
