@@ -74,6 +74,10 @@ describe('commissioner portal', () => {
     expect(await screen.findByRole('heading', { name: 'Office Survivor' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Pool Management' })).toBeInTheDocument();
     expect(screen.getByText('Pool lock settings')).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Create Pool' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Modify Pool' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Create Pool' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Modify Selected Pool' })).not.toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: /user management/i }));
     expect(screen.getByRole('heading', { name: 'User Management' })).toBeInTheDocument();
