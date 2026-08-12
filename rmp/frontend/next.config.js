@@ -12,6 +12,7 @@ const nextConfig = {
   output: 'standalone',
   poweredByHeader: false,
   async headers() {
+    const development = process.env.NODE_ENV === 'development'
     const contentSecurityPolicy = [
       "default-src 'self'",
       "base-uri 'self'",
@@ -21,9 +22,9 @@ const nextConfig = {
       "frame-ancestors 'none'",
       "img-src 'self' data: https:",
       "object-src 'none'",
-      "script-src 'self' 'unsafe-inline'",
+      `script-src 'self' 'unsafe-inline'${development ? " 'unsafe-eval'" : ''}`,
       "style-src 'self' 'unsafe-inline'",
-      "upgrade-insecure-requests",
+      ...(development ? [] : ["upgrade-insecure-requests"]),
     ].join('; ')
     return [{
       source: '/:path*',

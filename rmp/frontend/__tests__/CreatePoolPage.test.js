@@ -21,9 +21,7 @@ describe('CreatePool', () => {
 
   test('shows unique name suggestions and lets the owner select one', async () => {
     const user = userEvent.setup();
-    fetch
-      .mockResolvedValueOnce({ ok: true, json: async () => [] })
-      .mockResolvedValueOnce({
+    fetch.mockResolvedValueOnce({
         ok: false,
         json: async () => ({
           detail: {
@@ -36,10 +34,10 @@ describe('CreatePool', () => {
 
     render(<CreatePool />);
     await user.type(screen.getByPlaceholderText(/enter pool name/i), 'Office Pool');
-    await user.click(screen.getByRole('button', { name: /^create pool$/i }));
+    await user.click(screen.getByRole('button', { name: /create survivor pool/i }));
 
     expect(await screen.findByText(/already in use/i)).toBeInTheDocument();
-    const suggestion = screen.getByRole('button', { name: /use office pool 2026/i });
+    const suggestion = screen.getByRole('button', { name: /office pool 2026/i });
     expect(suggestion).toBeInTheDocument();
 
     await user.click(suggestion);
@@ -56,15 +54,46 @@ describe('CreatePool', () => {
 
   test('lets the commissioner choose Pick Em and sends the pool type', async () => {
     const user = userEvent.setup();
-    fetch.mockResolvedValue({ ok: true, json: async () => [] });
+    fetch.mockResolvedValue({ ok: true, json: async () => ({ id: 'pickem-pool' }) });
     render(<CreatePool />);
 
     await user.click(screen.getByRole('radio', { name: /pick ’em/i }));
+    expect(screen.getByText(/missing games receive no selection and no point/i)).toBeInTheDocument();
+    expect(screen.queryByText(/pick losers/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/auto-pick strategy/i)).not.toBeInTheDocument();
     await user.type(screen.getByPlaceholderText(/enter pool name/i), 'Office Pick Em');
-    await user.click(screen.getByRole('button', { name: /^create pool$/i }));
+    await user.click(screen.getByRole('button', { name: /create pick ’em pool/i }));
 
     const createCall = fetch.mock.calls.find(([url, options]) => String(url).endsWith('/pools/create') && options?.method === 'POST');
-    expect(JSON.parse(createCall[1].body)).toEqual(expect.objectContaining({ pool_type: 'pickem' }));
+    expect(JSON.parse(createCall[1].body)).toEqual(expect.objectContaining({
+      pool_type: 'pickem',
+      lock_day_of_week: 6,
+      lock_time_of_day: '13:00:00',
+      lock_timezone: 'America/New_York',
+      rule_values: [],
+    }));
+    expect(mockPush).toHaveBeenCalledWith('/pool/pickem-pool');
+  });
+
+  test('sends supported Survivor settings and a shareable private join code', async () => {
+    const user = userEvent.setup();
+    fetch.mockResolvedValue({ ok: true, json: async () => ({ id: 'survivor-pool' }) });
+    render(<CreatePool />);
+
+    expect(screen.getByText(/entries without a selection receive the best available automatic pick/i)).toBeInTheDocument();
+    await user.type(screen.getByPlaceholderText(/enter pool name/i), 'Family Survivor');
+    await user.selectOptions(screen.getByLabelText('Lock day'), '3');
+    await user.selectOptions(screen.getByLabelText('Lock time zone'), 'America/Chicago');
+    await user.click(screen.getByRole('radio', { name: /private/i }));
+    const joinCode = screen.getByPlaceholderText(/at least 6 characters/i);
+    expect(joinCode).toHaveAttribute('type', 'text');
+    await user.type(joinCode, 'huddle42');
+    await user.click(screen.getByRole('button', { name: /create survivor pool/i }));
+
+    expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual(expect.objectContaining({
+      pool_type: 'survivor', lock_day_of_week: 3, lock_timezone: 'America/Chicago',
+      is_private: true, join_password: 'huddle42',
+    }));
   });
 
   test('redirects the legacy create-league route to the splash page', () => {

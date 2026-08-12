@@ -1442,3 +1442,47 @@ table {
   .broadcast-v2 .product-main { padding-top:1rem!important; }
   .broadcast-v2 .pool-workspace-nav { padding:1rem 0 0!important; }
 }
+.create-pool-page { min-height: 100vh; background: #071311; color: #edf7f3; padding-bottom: 4rem; }
+.create-pool-header { min-height: 72px; padding: 0 5vw; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #27413c; background: rgba(7, 19, 17, .96); }
+.create-pool-brand, .create-pool-exit { border: 0; background: transparent; color: inherit; font: inherit; cursor: pointer; }
+.create-pool-brand { font-size: 1.15rem; font-weight: 800; }
+.create-pool-exit { padding: .6rem 1rem; border: 1px solid #45615b; border-radius: 8px; }
+.create-pool-form { width: min(820px, calc(100% - 2rem)); margin: 3rem auto 0; display: grid; gap: 1.25rem; }
+.create-pool-intro span { color: #d7ff3f; font-size: .78rem; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
+.create-pool-intro h1 { margin: .4rem 0; color: white; font-size: clamp(2rem, 5vw, 3.4rem); line-height: 1; }
+.create-pool-intro p, .create-pool-help { color: #a9bfba; }
+.create-pool-section { margin: 0; padding: 1.5rem; border: 1px solid #29443e; border-radius: 14px; background: #10231f; }
+.create-pool-section legend, .create-pool-section h2 { padding: 0; margin: 0 0 1.25rem; color: white; font-size: 1.1rem; font-weight: 800; }
+.create-pool-format-grid, .create-pool-access-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.create-pool-format-grid label, .create-pool-access-grid label { display: grid; gap: .4rem; padding: 1.2rem; border: 1px solid #3a5751; border-radius: 12px; cursor: pointer; background: #0b1a17; }
+.create-pool-format-grid label.is-selected, .create-pool-access-grid label.is-selected { border-color: #d7ff3f; box-shadow: 0 0 0 1px #d7ff3f; }
+.create-pool-format-grid input, .create-pool-access-grid input { accent-color: #d7ff3f; justify-self: start; }
+.create-pool-format-grid strong, .create-pool-access-grid strong { color: white; }
+.create-pool-format-grid small, .create-pool-access-grid small { color: #9fb5af; line-height: 1.45; }
+.create-pool-format-title { display: flex; align-items: center; justify-content: space-between; color: #d7ff3f; font-weight: 900; font-size: 1.15rem; }
+.create-pool-format-title b { padding: .2rem .45rem; border-radius: 999px; background: #29443e; color: #cfe0dc; font-size: .65rem; text-transform: uppercase; }
+.create-pool-field { display: grid; gap: .5rem; margin-top: 1rem; color: #dceae6; font-weight: 700; }
+.create-pool-field span { display: flex; justify-content: space-between; }
+.create-pool-field span b { color: #d7ff3f; }
+.create-pool-field span small, .create-pool-field > small { color: #91aaa4; font-weight: 500; }
+.create-pool-field input, .create-pool-field textarea, .create-pool-field select { box-sizing: border-box; width: 100%; padding: .8rem .9rem; border: 1px solid #45615b; border-radius: 8px; background: #071311; color: white; font: inherit; }
+.create-pool-field input:focus, .create-pool-field textarea:focus, .create-pool-field select:focus { outline: 2px solid #d7ff3f; outline-offset: 1px; }
+.create-pool-deadline-grid { display: grid; grid-template-columns: 1fr 1fr 1.4fr; gap: 1rem; }
+.create-pool-note { margin-top: 1.25rem; display: grid; gap: .25rem; padding: 1rem; border-left: 3px solid #d7ff3f; background: #0a1916; color: #b8cbc6; }
+.create-pool-note strong { color: white; }
+.create-pool-password { max-width: 430px; }
+.create-pool-error { display: grid; gap: .4rem; padding: 1rem; border: 1px solid #f87171; border-radius: 10px; background: #381715; color: #fecaca; }
+.create-pool-error div { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin-top: .5rem; }
+.create-pool-error button { padding: .4rem .65rem; border: 1px solid #fca5a5; border-radius: 999px; background: transparent; color: white; cursor: pointer; }
+.create-pool-actions { position: sticky; bottom: 1rem; display: flex; justify-content: flex-end; gap: .75rem; padding: 1rem; border: 1px solid #29443e; border-radius: 12px; background: rgba(7, 19, 17, .95); backdrop-filter: blur(10px); }
+.create-pool-actions button { padding: .75rem 1.15rem; border: 1px solid #49645e; border-radius: 8px; background: transparent; color: white; font-weight: 800; cursor: pointer; }
+.create-pool-actions button[type='submit'] { border-color: #d7ff3f; background: #d7ff3f; color: #071311; }
+.create-pool-actions button:disabled { cursor: not-allowed; opacity: .5; }
+@media (max-width: 640px) {
+  .create-pool-header { padding: 0 1rem; }
+  .create-pool-form { margin-top: 2rem; }
+  .create-pool-section { padding: 1.1rem; }
+  .create-pool-format-grid, .create-pool-access-grid, .create-pool-deadline-grid { grid-template-columns: 1fr; }
+  .create-pool-actions { bottom: .5rem; }
+  .create-pool-actions button { flex: 1; }
+}
