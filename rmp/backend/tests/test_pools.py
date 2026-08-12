@@ -29,6 +29,25 @@ class TestPoolEndpoints:
         assert data["is_private"] == test_pool_data["is_private"]
         assert "id" in data
 
+    def test_create_pickem_pool(self, client):
+        headers = _register(client, "pickem.owner@example.com")
+        response = client.post(
+            "/pools/create",
+            json={"name": "Pick Every Game", "pool_type": "pickem"},
+            headers=headers,
+        )
+        assert response.status_code == 200
+        assert response.json()["pool_type"] == "pickem"
+
+    def test_rejects_unknown_pool_type(self, client):
+        headers = _register(client, "bad.type@example.com")
+        response = client.post(
+            "/pools/create",
+            json={"name": "Bad Format", "pool_type": "confidence"},
+            headers=headers,
+        )
+        assert response.status_code == 422
+
     def test_create_pool_unauthorized(self, client, test_pool_data):
         """Test pool creation without authentication"""
         response = client.post("/pools/create", json=test_pool_data)
@@ -160,11 +179,51 @@ class TestPoolEndpoints:
 
         assert response.status_code == 200
         assert response.json() == {
+            "pool_type": "survivor",
             "entries_remaining": 2,
             "total_entries": 2,
             "week": 1,
             "week_selections": 1,
+            "week_selection_total": 2,
         }
+
+    def test_pickem_activity_counts_every_game_selection(self, client, db_session):
+        owner = _register(client, "pickem.activity@example.com")
+        pool = client.post(
+            "/pools/create",
+            json={"name": "Pick Every Game", "pool_type": "pickem"},
+            headers=owner,
+        ).json()
+        entry = client.post(
+            "/entries/create",
+            json={"pool_id": pool["id"], "name": "Weekly Card"},
+            headers=owner,
+        ).json()
+        teams = [
+            models.Team(id=9921, name="Team A", abbrv="TMA"),
+            models.Team(id=9922, name="Team B", abbrv="TMB"),
+            models.Team(id=9923, name="Team C", abbrv="TMC"),
+            models.Team(id=9924, name="Team D", abbrv="TMD"),
+        ]
+        db_session.add_all(teams + [
+            models.Schedule(game_id=99201, week_num=4, home_team_id=9921, away_team_id=9922, start_time=datetime(2026, 10, 1)),
+            models.Schedule(game_id=99202, week_num=4, home_team_id=9923, away_team_id=9924, start_time=datetime(2026, 10, 2)),
+        ])
+        db_session.commit()
+        assert client.post(
+            "/picks/create",
+            json={"entry_id": entry["id"], "week": 4, "game_id": 99201, "team": "TMA"},
+            headers=owner,
+        ).status_code == 200
+
+        response = client.get(
+            f"/pools/{pool['id']}/activity-summary?week=4", headers=owner
+        )
+
+        assert response.status_code == 200
+        assert response.json()["pool_type"] == "pickem"
+        assert response.json()["week_selections"] == 1
+        assert response.json()["week_selection_total"] == 2
 
     def test_pool_discovery_requires_auth_and_shows_private_leagues(self, client):
         owner = _register(client, "private.discovery.owner@example.com")

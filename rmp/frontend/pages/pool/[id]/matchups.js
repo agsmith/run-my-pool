@@ -49,7 +49,7 @@ export default function MatchupsPage() {
   }, [id, week]);
 
   return <ProtectedRoute><main className="product-page-shell">
-    <PoolWorkspaceNav poolId={id} poolName={pool?.name} active="matchups" />
+    <PoolWorkspaceNav poolId={id} poolName={pool?.name} poolType={pool?.pool_type} active="matchups" />
     <WorkspaceHeader
       eyebrow="Weekly board"
       title={`Week ${week} matchups`}

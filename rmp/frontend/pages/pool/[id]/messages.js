@@ -164,7 +164,7 @@ export default function MessageBoard() {
         padding: '2rem 1rem'
       }}>
         <main className="product-main messages-main" style={{ maxWidth: '800px', margin: '0 auto' }}>
-          <PoolWorkspaceNav poolId={poolId} poolName={pool?.name} active="messages" />
+          <PoolWorkspaceNav poolId={poolId} poolName={pool?.name} poolType={pool?.pool_type} active="messages" />
           <WorkspaceHeader
             eyebrow="Pool clubhouse"
             title="Pool messages"

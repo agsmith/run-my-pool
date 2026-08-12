@@ -201,6 +201,7 @@ def create_pool(
             id=str(uuid.uuid4()),
             name=pool_name,
             description=pool.description,
+            pool_type=pool.pool_type,
             lock_time=lock_time,
             lock_day_of_week=pool.lock_day_of_week,
             lock_time_of_day=recurring_time,
@@ -241,6 +242,7 @@ def create_pool(
             entity_data={
                 "name": pool_name,
                 "description": pool.description,
+                "pool_type": pool.pool_type,
                 "is_private": pool.is_private,
                 "owner_email": current_user.email,
             },
@@ -302,8 +304,13 @@ def get_pool_activity_summary(
     )
     total_entries = user_entries.count()
     entries_remaining = user_entries.filter(models.Entry.alive.is_(True)).count()
+    selection_counter = (
+        func.count(models.Pick.id)
+        if pool.pool_type == "pickem"
+        else func.count(func.distinct(models.Pick.entry_id))
+    )
     week_selections = (
-        db.query(func.count(func.distinct(models.Pick.entry_id)))
+        db.query(selection_counter)
         .join(models.Entry, models.Entry.id == models.Pick.entry_id)
         .filter(
             models.Entry.pool_id == pool_id,
@@ -316,11 +323,14 @@ def get_pool_activity_summary(
         .scalar()
         or 0
     )
+    scheduled_games = len(current_season_games(db, week)) if pool.pool_type == "pickem" else 1
     return {
+        "pool_type": pool.pool_type,
         "entries_remaining": entries_remaining,
         "total_entries": total_entries,
         "week": week,
         "week_selections": week_selections,
+        "week_selection_total": entries_remaining * scheduled_games,
     }
 
 

@@ -54,6 +54,19 @@ describe('CreatePool', () => {
     expect(getServerSideProps({ query: { source: 'splash' } })).toEqual({ props: {} });
   });
 
+  test('lets the commissioner choose Pick Em and sends the pool type', async () => {
+    const user = userEvent.setup();
+    fetch.mockResolvedValue({ ok: true, json: async () => [] });
+    render(<CreatePool />);
+
+    await user.click(screen.getByRole('radio', { name: /pick ’em/i }));
+    await user.type(screen.getByPlaceholderText(/enter pool name/i), 'Office Pick Em');
+    await user.click(screen.getByRole('button', { name: /^create pool$/i }));
+
+    const createCall = fetch.mock.calls.find(([url, options]) => String(url).endsWith('/pools/create') && options?.method === 'POST');
+    expect(JSON.parse(createCall[1].body)).toEqual(expect.objectContaining({ pool_type: 'pickem' }));
+  });
+
   test('redirects the legacy create-league route to the splash page', () => {
     expect(getLegacyCreateServerSideProps()).toEqual({
       redirect: { destination: '/', permanent: false },

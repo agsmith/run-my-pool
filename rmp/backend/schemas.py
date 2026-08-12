@@ -179,12 +179,21 @@ class PoolRuleValueCreate(BaseModel):
 class PoolBase(BaseModel):
     name: str
     description: Optional[str] = None
+    pool_type: str = "survivor"
     lock_time: Optional[str] = None
     lock_day_of_week: Optional[int] = None
     lock_time_of_day: Optional[str] = None
     lock_timezone: Optional[str] = None
     join_lock_time: Optional[str] = None
     is_private: bool = False
+
+    @field_validator("pool_type")
+    @classmethod
+    def validate_pool_type(cls, value: str) -> str:
+        normalized = (value or "survivor").strip().lower()
+        if normalized not in {"survivor", "pickem"}:
+            raise ValueError("Pool type must be survivor or pickem")
+        return normalized
 
 
 class PoolCreate(PoolBase):
@@ -246,6 +255,7 @@ class PoolOut(BaseModel):
     id: str
     name: str
     description: Optional[str] = None
+    pool_type: str = "survivor"
     lock_time: Optional[datetime] = None
     lock_day_of_week: Optional[int] = None
     lock_time_of_day: Optional[time] = None
@@ -305,6 +315,7 @@ class EntryOut(BaseModel):
 class PickBase(BaseModel):
     week: int = Field(ge=1, le=18)
     team: str
+    game_id: Optional[int] = None
 
 
 class PickCreate(PickBase):
@@ -328,6 +339,17 @@ class PickOut(PickBase):
     class Config:
         orm_mode = True
         json_encoders = {datetime: lambda v: v.isoformat() if v else None}
+
+
+class PickEmStandingOut(BaseModel):
+    rank: int
+    entry_id: str
+    entry_name: str
+    user_id: str
+    user_email: EmailStr
+    points: int
+    possible_points: int
+    picks_made: int
 
 
 class AuditLogOut(BaseModel):

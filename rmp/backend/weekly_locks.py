@@ -34,6 +34,15 @@ def lock_pool_week(
     """Idempotently freeze a week and create locked defaults for missing picks."""
     now = now or datetime.now(timezone.utc).replace(tzinfo=None)
     games = games_provider(db, week)
+    if pool.pool_type == "pickem":
+        entry_ids = [row[0] for row in db.query(models.Entry.id).filter(models.Entry.pool_id == pool.id)]
+        if entry_ids:
+            db.query(models.Pick).filter(
+                models.Pick.entry_id.in_(entry_ids), models.Pick.week == week,
+                models.Pick.locked == False,  # noqa: E712
+            ).update({"locked": True}, synchronize_session="fetch")
+        db.commit()
+        return 0
     frozen_lines = line_freezer(db, pool.id, week, games, captured_at=now)
     line_ranked_teams = [
         line.favorite_team.abbrv

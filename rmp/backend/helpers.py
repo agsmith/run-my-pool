@@ -13,6 +13,8 @@ from contextlib import contextmanager
 from datetime import datetime, timezone
 from unittest.mock import patch
 
+from sqlalchemy import select
+
 from sqlalchemy.orm import Session
 
 import models
@@ -72,15 +74,14 @@ def simulate_game_result(db: Session, game_id: int, winner_team_id: int) -> None
 
 
 def _eliminate_losing_entries(db: Session) -> None:
-    """Set alive=False for any entry that has a pick with result='loss'."""
-    loss_entry_ids = (
-        db.query(models.Pick.entry_id).filter(models.Pick.result == "loss").subquery()
-    )
+    """Eliminate survivor entries with losses; Pick 'Em entries always continue."""
+    loss_entry_ids = select(models.Pick.entry_id).where(models.Pick.result == "loss")
     (
         db.query(models.Entry)
         .filter(
             models.Entry.id.in_(loss_entry_ids),
             models.Entry.alive == True,  # noqa: E712
+            models.Entry.pool.has(models.Pool.pool_type == "survivor"),
         )
         .update({"alive": False}, synchronize_session="fetch")
     )

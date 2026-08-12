@@ -65,6 +65,7 @@ class Pool(Base):
     id = Column(String(36), primary_key=True, index=True)
     name = Column(String(255), nullable=False)
     description = Column(Text)
+    pool_type = Column(String(20), nullable=False, default="survivor")
     lock_time = Column(DateTime)
     lock_day_of_week = Column(Integer, nullable=True)
     lock_time_of_day = Column(Time, nullable=True)
@@ -133,9 +134,13 @@ class Entry(Base):
 
 class Pick(Base):
     __tablename__ = "picks"
+    __table_args__ = (
+        UniqueConstraint("entry_id", "week", "game_id", name="uq_picks_entry_week_game"),
+    )
     id = Column(String(36), primary_key=True, index=True)
     entry_id = Column(String(36), ForeignKey(ENTRIES_ID_FK))
     week = Column(Integer)
+    game_id = Column(Integer, ForeignKey("schedule.game_id"), nullable=True)
     team = Column(String(255))
     team_id = Column(Integer, ForeignKey(TEAMS_ID_FK))
     locked = Column(Boolean, default=False)
@@ -145,6 +150,7 @@ class Pick(Base):
     # relationships
     entry = relationship("Entry", back_populates="picks")
     team_obj = relationship("Team", back_populates="picks")
+    game = relationship("Schedule", foreign_keys=[game_id])
 
 
 class AuditLog(Base):

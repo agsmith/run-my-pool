@@ -18,12 +18,12 @@ export function WorkspaceHeader({ eyebrow, title, description, meta, actions }) 
   );
 }
 
-export function PoolWorkspaceNav({ poolId, poolName, active, showAdmin = false }) {
+export function PoolWorkspaceNav({ poolId, poolName, poolType = 'survivor', active, showAdmin = false }) {
   if (!poolId) return null;
 
   const items = [
     { id: 'overview', label: 'Pool Home', href: `/pool/${poolId}` },
-    { id: 'entries', label: 'My Entries', href: `/pool/${poolId}/entries` },
+    { id: 'entries', label: poolType === 'pickem' ? 'Pick ’Em Board' : 'My Entries', href: poolType === 'pickem' ? `/pool/${poolId}/pickem` : `/pool/${poolId}/entries` },
     { id: 'matchups', label: 'Weekly Matchups', href: `/pool/${poolId}/matchups` },
     { id: 'messages', label: 'Forum', href: `/pool/${poolId}/messages` },
   ];

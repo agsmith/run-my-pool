@@ -13,6 +13,7 @@ export default function CreatePool() {
   const [formData, setFormData] = useState({
     name: '',
     description: '',
+    pool_type: 'survivor',
     is_private: false,
     join_password: '',
     lock_time: ''
@@ -33,12 +34,12 @@ export default function CreatePool() {
 
   useEffect(() => {
     fetchAvailableRules();
-  }, []);
+  }, [formData.pool_type]);
 
   const fetchAvailableRules = async () => {
     try {
       const token = localStorage.getItem('access_token');
-      const res = await fetch(process.env.NEXT_PUBLIC_API_URL + '/rules?pool_type=survivor', {
+      const res = await fetch(process.env.NEXT_PUBLIC_API_URL + `/rules?pool_type=${formData.pool_type}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
@@ -192,6 +193,19 @@ export default function CreatePool() {
             border: '1px solid #e2e8f0'
           }}>
             <form onSubmit={handleSubmit}>
+              <fieldset className="pool-type-picker">
+                <legend>Pool format *</legend>
+                <label className={formData.pool_type === 'survivor' ? 'is-selected' : ''}>
+                  <input type="radio" name="pool_type" value="survivor" checked={formData.pool_type === 'survivor'} onChange={handleChange} />
+                  <strong>Survivor</strong>
+                  <span>Pick one team each week. A loss eliminates the entry.</span>
+                </label>
+                <label className={formData.pool_type === 'pickem' ? 'is-selected' : ''}>
+                  <input type="radio" name="pool_type" value="pickem" checked={formData.pool_type === 'pickem'} onChange={handleChange} />
+                  <strong>Pick ’Em</strong>
+                  <span>Pick every game with no spread. Each correct winner earns one point.</span>
+                </label>
+              </fieldset>
               {/* Basic Pool Information */}
               <div style={{ marginBottom: '1.5rem' }}>
                 <label style={{ 

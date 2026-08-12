@@ -90,6 +90,7 @@ export default function PoolDetail() {
   const isAdmin = Boolean(adminStatus?.is_admin);
   const hasAdminAccess = isOwner || isAdmin;
   const userRole = isOwner ? 'Commissioner' : isAdmin ? 'Admin' : 'Player';
+  const picksHref = pool?.pool_type === 'pickem' ? `/pool/${id}/pickem` : `/pool/${id}/entries`;
 
   return (
     <ProtectedRoute>
@@ -101,20 +102,20 @@ export default function PoolDetail() {
             <div className="pool-home-state pool-home-state--error">{error}</div>
           ) : pool ? (
             <>
-              <PoolWorkspaceNav poolId={id} poolName={pool.name} active="overview" showAdmin={hasAdminAccess} />
+              <PoolWorkspaceNav poolId={id} poolName={pool.name} poolType={pool.pool_type} active="overview" showAdmin={hasAdminAccess} />
               <WorkspaceHeader
                 eyebrow="Pool headquarters"
                 title={pool.name}
                 description={pool.description || 'Everything your pool needs for the week, organized in one place.'}
                 meta={`${pool.is_private ? 'Private' : 'Public'} pool`}
-                actions={<button className="workspace-primary-action" onClick={() => router.push(`/pool/${id}/entries`)}>Make picks</button>}
+                actions={<button className="workspace-primary-action" onClick={() => router.push(picksHref)}>Make picks</button>}
               />
 
               {successMessage && <div className="pool-home-notice pool-home-notice--success">{successMessage}</div>}
               {error && <div className="pool-home-notice pool-home-notice--error">{error}</div>}
 
               <section className="pool-home-actions" aria-label="Pool shortcuts">
-                <button onClick={() => router.push(`/pool/${id}/entries`)}><span>01</span><strong>My Entries</strong><small>Make selections and review entries</small></button>
+                <button onClick={() => router.push(picksHref)}><span>01</span><strong>{pool.pool_type === 'pickem' ? 'Pick ’Em Board' : 'My Entries'}</strong><small>Make selections and review entries</small></button>
                 <button onClick={() => router.push(`/pool/${id}/matchups`)}><span>02</span><strong>Weekly Matchups</strong><small>Review this week’s board</small></button>
                 <button onClick={() => router.push(`/pool/${id}/messages`)}><span>03</span><strong>Forum</strong><small>Talk with pool members</small></button>
               </section>
@@ -128,7 +129,7 @@ export default function PoolDetail() {
                   <div><dt>Access</dt><dd>{pool.is_private ? 'Private · Password required' : 'Public · Open joining'}</dd></div>
                   <div><dt>Pick lock</dt><dd>{formatPickLock(pool)}</dd></div>
                   <div><dt>Your role</dt><dd>{userRole}</dd></div>
-                  <div><dt>Season format</dt><dd>Weekly survivor</dd></div>
+                  <div><dt>Season format</dt><dd>{pool.pool_type === 'pickem' ? 'Season-long Pick ’Em · one point per win' : 'Weekly survivor'}</dd></div>
                 </dl>
               </section>
 

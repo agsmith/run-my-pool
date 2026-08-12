@@ -1674,7 +1674,7 @@ export default function AdminPortal() {
         padding: '2rem 1rem'
       }}>
         <main className="product-main admin-main" style={{ maxWidth: '1400px', margin: '0 auto' }}>
-          <PoolWorkspaceNav poolId={leagueId} poolName={league?.name} active="admin" showAdmin />
+          <PoolWorkspaceNav poolId={leagueId} poolName={league?.name} poolType={league?.pool_type} active="admin" showAdmin />
           <WorkspaceHeader
             eyebrow="Commissioner control room"
             title={league?.name || 'Pool administration'}

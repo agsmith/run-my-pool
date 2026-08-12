@@ -10,7 +10,7 @@ import requests
 import mysql.connector
 
 # Import models at the top level
-from models import Base, Schedule, Team, Pick, Entry
+from models import Base, Schedule, Team, Pick, Entry, Pool
 
 # Configure logging
 logger = logging.getLogger()
@@ -519,7 +519,12 @@ def eliminate_losing_entries(db) -> int:
         losing_entries = (
             db.query(Entry)
             .join(Pick)
-            .filter(and_(Entry.alive == True, Pick.result == "loss"))
+            .join(Pool, Pool.id == Entry.pool_id)
+            .filter(and_(
+                Entry.alive == True,
+                Pick.result == "loss",
+                Pool.pool_type == "survivor",
+            ))
             .distinct()
             .all()
         )

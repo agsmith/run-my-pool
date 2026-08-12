@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from sqlalchemy import and_, func, or_
+from sqlalchemy import and_, case, func, or_
 from typing import List
 import uuid
 from datetime import datetime, timedelta, timezone
@@ -8,7 +8,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from deps import get_db, get_current_user
 from models import Pick, Entry, Schedule, Team, Pool, User
-from schemas import PickCreate, PickUpdate, PickOut, PickBreakdownItem
+from schemas import PickCreate, PickUpdate, PickOut, PickBreakdownItem, PickEmStandingOut
 from audit_utils import log_create_operation, log_update_operation, log_delete_operation
 from admin import is_user_locked_in_pool
 from pool_access import is_pool_participant
@@ -32,6 +32,25 @@ def _pick_audit_context(entry: Entry, current_user):
         "pool_id": entry.pool_id,
         "username": current_user.email,
     }
+
+
+def _is_pickem(pool: Pool) -> bool:
+    return bool(pool and pool.pool_type == "pickem")
+
+
+def _pickem_game_and_team(db: Session, pick: PickCreate):
+    if pick.game_id is None:
+        raise HTTPException(status_code=400, detail="Pick 'Em selections require a game_id")
+    game = db.query(Schedule).filter(
+        Schedule.game_id == pick.game_id,
+        Schedule.week_num == pick.week,
+    ).first()
+    if not game:
+        raise HTTPException(status_code=400, detail="Game is not scheduled for this week")
+    team = db.query(Team).filter(Team.abbrv == pick.team).first()
+    if not team or team.id not in {game.home_team_id, game.away_team_id}:
+        raise HTTPException(status_code=400, detail="Selected team is not playing in this game")
+    return game, team
 
 
 # ---------------------------------------------------------------------------
@@ -160,10 +179,20 @@ async def create_pick(
     # Fetch the pool for lock time enforcement
     pool = db.query(Pool).filter(Pool.id == entry.pool_id).first()
 
-    # Check if a pick already exists for this entry and week (upsert path)
+    pickem = _is_pickem(pool)
+    game = None
+    selected_team = db.query(Team).filter(Team.abbrv == pick.team).first()
+    if pickem:
+        game, selected_team = _pickem_game_and_team(db, pick)
+
+    # Survivor has one selection per week; Pick 'Em has one per scheduled game.
     existing_pick = (
         db.query(Pick)
-        .filter(and_(Pick.entry_id == pick.entry_id, Pick.week == pick.week))
+        .filter(
+            Pick.entry_id == pick.entry_id,
+            Pick.week == pick.week,
+            *((Pick.game_id == pick.game_id,) if pickem else (Pick.game_id.is_(None),)),
+        )
         .first()
     )
 
@@ -181,6 +210,7 @@ async def create_pick(
         # Update existing pick
         old_team = existing_pick.team
         existing_pick.team = pick.team
+        existing_pick.team_id = selected_team.id if selected_team else None
         existing_pick.updated_at = datetime.now(timezone.utc)
         db.commit()
         db.refresh(existing_pick)
@@ -208,7 +238,7 @@ async def create_pick(
         _check_pick_lock(db, pool, pick.team, pick.week)
 
     # Check if the team has already been used in this entry
-    team_already_used = (
+    team_already_used = (not pickem) and (
         db.query(Pick)
         .filter(and_(Pick.entry_id == pick.entry_id, Pick.team == pick.team))
         .first()
@@ -225,7 +255,9 @@ async def create_pick(
         id=str(uuid.uuid4()),
         entry_id=pick.entry_id,
         week=pick.week,
+        game_id=pick.game_id if pickem else None,
         team=pick.team,
+        team_id=selected_team.id if selected_team else None,
         locked=False,
         created_at=datetime.now(timezone.utc),
         updated_at=datetime.now(timezone.utc),
@@ -250,6 +282,52 @@ async def create_pick(
     )
 
     return db_pick
+
+
+@router.get("/picks/pool/{pool_id}/standings", response_model=List[PickEmStandingOut])
+def get_pickem_standings(
+    pool_id: str,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    pool = db.query(Pool).filter(Pool.id == pool_id).first()
+    if not pool:
+        raise HTTPException(status_code=404, detail="Pool not found")
+    if not is_pool_participant(db, pool_id, current_user.id):
+        raise HTTPException(status_code=403, detail="Pool membership required")
+    if not _is_pickem(pool):
+        raise HTTPException(status_code=400, detail="Standings are only available for Pick 'Em pools")
+
+    rows = (
+        db.query(
+            Entry.id,
+            Entry.name,
+            Entry.user_id,
+            User.email,
+            func.sum(case((Pick.result == "win", 1), else_=0)).label("points"),
+            func.count(Pick.id).label("picks_made"),
+            func.sum(case((Pick.result.in_(["win", "loss"]), 1), else_=0)).label("possible_points"),
+        )
+        .join(User, User.id == Entry.user_id)
+        .outerjoin(Pick, Pick.entry_id == Entry.id)
+        .filter(Entry.pool_id == pool_id)
+        .group_by(Entry.id, Entry.name, Entry.user_id, User.email)
+        .all()
+    )
+    ordered = sorted(rows, key=lambda row: (-int(row.points or 0), row.name.casefold(), row.id))
+    return [
+        {
+            "rank": index + 1,
+            "entry_id": row.id,
+            "entry_name": row.name,
+            "user_id": row.user_id,
+            "user_email": row.email,
+            "points": int(row.points or 0),
+            "possible_points": int(row.possible_points or 0),
+            "picks_made": int(row.picks_made or 0),
+        }
+        for index, row in enumerate(ordered)
+    ]
 
 
 @router.get("/picks/entry/{entry_id}", response_model=List[PickOut])
@@ -321,9 +399,17 @@ async def update_pick(
         pool = db.query(Pool).filter(Pool.id == entry.pool_id).first()
         if pool:
             _check_pick_lock(db, pool, pick.team, pick.week)
+    else:
+        pool = None
 
     # If updating team, check if the new team is already used in this entry
-    if pick_update.team and pick_update.team != pick.team:
+    if pick_update.team and pick_update.team != pick.team and _is_pickem(pool):
+        game = db.query(Schedule).filter(Schedule.game_id == pick.game_id).first()
+        team = db.query(Team).filter(Team.abbrv == pick_update.team).first()
+        if not game or not team or team.id not in {game.home_team_id, game.away_team_id}:
+            raise HTTPException(status_code=400, detail="Selected team is not playing in this game")
+        pick.team_id = team.id
+    elif pick_update.team and pick_update.team != pick.team:
         team_already_used = (
             db.query(Pick)
             .filter(

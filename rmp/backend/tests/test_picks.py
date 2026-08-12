@@ -8,6 +8,7 @@ the db_session fixture — no HTTP-level lock endpoint exists.
 
 import pytest
 import models
+from datetime import datetime
 
 
 # ---------------------------------------------------------------------------
@@ -90,6 +91,67 @@ class TestPickEndpoints:
         assert "id" in data
         assert "created_at" in data
         assert "updated_at" in data
+
+    def test_pickem_requires_one_valid_selection_per_game(self, client, db_session):
+        token = _register_and_login(client, email="pickem.picks@example.com")
+        headers = _authed(token)
+        pool = client.post(
+            "/pools/create",
+            json={"name": "All Games Pool", "pool_type": "pickem"},
+            headers=headers,
+        ).json()
+        entry_id = _create_entry(client, headers, pool["id"])
+        ne = models.Team(id=9911, name="New England Patriots", abbrv="NE")
+        gb = models.Team(id=9912, name="Green Bay Packers", abbrv="GB")
+        db_session.add_all([ne, gb])
+        db_session.flush()
+        game = models.Schedule(
+            game_id=99101, week_num=3, home_team_id=ne.id, away_team_id=gb.id,
+            start_time=datetime(2026, 9, 20, 17),
+        )
+        db_session.add(game)
+        db_session.commit()
+
+        missing_game = _create_pick(client, headers, entry_id, week=3, team="NE")
+        assert missing_game.status_code == 400
+        created = client.post(
+            "/picks/create",
+            json={"entry_id": entry_id, "week": 3, "game_id": 99101, "team": "NE"},
+            headers=headers,
+        )
+        assert created.status_code == 200
+        assert created.json()["game_id"] == 99101
+
+        changed = client.post(
+            "/picks/create",
+            json={"entry_id": entry_id, "week": 3, "game_id": 99101, "team": "GB"},
+            headers=headers,
+        )
+        assert changed.status_code == 200
+        assert changed.json()["id"] == created.json()["id"]
+        assert changed.json()["team"] == "GB"
+
+    def test_pickem_standings_rank_each_correct_pick_as_one_point(self, client, db_session):
+        token = _register_and_login(client, email="pickem.standings@example.com")
+        headers = _authed(token)
+        pool = client.post(
+            "/pools/create",
+            json={"name": "Season Points Pool", "pool_type": "pickem"},
+            headers=headers,
+        ).json()
+        entry_id = _create_entry(client, headers, pool["id"], "First Place")
+        db_session.add_all([
+            models.Pick(id="standing-win", entry_id=entry_id, week=1, team="NE", result="win"),
+            models.Pick(id="standing-loss", entry_id=entry_id, week=1, team="GB", result="loss"),
+        ])
+        db_session.commit()
+
+        response = client.get(f"/picks/pool/{pool['id']}/standings", headers=headers)
+        assert response.status_code == 200
+        assert response.json()[0]["entry_name"] == "First Place"
+        assert response.json()[0]["rank"] == 1
+        assert response.json()[0]["points"] == 1
+        assert response.json()[0]["possible_points"] == 2
 
     def test_create_pick_upserts_existing_week(self, client):
         """POSTing a pick for the same entry+week replaces the existing pick's team."""

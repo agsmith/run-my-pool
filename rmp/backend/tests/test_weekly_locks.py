@@ -44,3 +44,22 @@ def test_due_recurring_pool_is_processed(db_session, monkeypatch):
 
     assert weekly_locks.process_due_weekly_locks(db_session, now) == 1
     assert called == [(pool.id, 4, owner.id, False)]
+
+
+def test_pickem_lock_freezes_submitted_games_without_autopicks(db_session):
+    owner = models.User(id="pickem-lock-owner", email="pickem.lock@example.com", hashed_password="unused", is_active=True)
+    pool = models.Pool(id="pickem-lock-pool", name="Pick Em Lock", owner_id=owner.id, pool_type="pickem")
+    entry = models.Entry(id="pickem-lock-entry", pool_id=pool.id, user_id=owner.id, name="Card")
+    pick = models.Pick(id="pickem-lock-pick", entry_id=entry.id, week=2, game_id=2001, team="BUF", locked=False)
+    db_session.add_all([owner, pool, entry, pick])
+    db_session.commit()
+
+    created = weekly_locks.lock_pool_week(
+        db_session, pool, 2, owner.id,
+        games_provider=lambda db, week: [],
+        line_freezer=lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("Pick 'Em must not freeze spreads")),
+    )
+
+    assert created == 0
+    assert db_session.query(models.Pick).one().locked is True
+    assert db_session.query(models.Pick).count() == 1

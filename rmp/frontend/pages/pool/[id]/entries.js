@@ -241,6 +241,10 @@ export default function LeagueEntries() {
       if (leagueRes.ok) {
         const leagueData = await leagueRes.json();
         setLeague(leagueData);
+        if (leagueData.pool_type === 'pickem') {
+          router.replace(`/pool/${id}/pickem`);
+          return;
+        }
       } else {
         setError('Failed to load league details');
         return;

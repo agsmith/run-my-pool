@@ -203,6 +203,25 @@ class TestSimulateGameResult:
         )
         assert entry.alive is True
 
+    def test_pickem_entry_remains_active_after_incorrect_pick(self, client, db_session):
+        """A Pick 'Em loss costs a point opportunity but never eliminates the entry."""
+        ids = self._setup(client, db_session)
+        pool = db_session.query(models.Pool).filter(models.Pool.id == ids["pool_id"]).first()
+        pool.pool_type = "pickem"
+        db_session.commit()
+
+        simulate_game_result(db_session, GAME_ID, NE_ID)
+
+        db_session.expire_all()
+        entry = db_session.query(models.Entry).filter(
+            models.Entry.id == ids["entry_b_id"]
+        ).first()
+        losing_pick = db_session.query(models.Pick).filter(
+            models.Pick.id == ids["pick_b_id"]
+        ).first()
+        assert losing_pick.result == "loss"
+        assert entry.alive is True
+
 
 # ---------------------------------------------------------------------------
 # Standalone elimination/pick gap tests
