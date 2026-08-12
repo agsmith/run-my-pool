@@ -75,6 +75,7 @@ describe('dashboard', () => {
     expect(screen.getByText('WSH')).toBeInTheDocument();
     expect(screen.getByText('No Pick')).toBeInTheDocument();
     expect(screen.queryByText('Unlocked')).not.toBeInTheDocument();
+    expect(document.querySelectorAll('.pool-card__pick-rank')).toHaveLength(0);
     expect(screen.getByAltText('WSH logo')).toHaveAttribute('src', '/nfl/wsh.svg');
 
     await user.click(screen.getByRole('button', { name: /entries remaining: 12\/15/i }));

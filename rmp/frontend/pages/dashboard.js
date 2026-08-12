@@ -675,7 +675,7 @@ export default function Dashboard() {
         flexDirection: 'column',
         gap: '0.5rem'
       }}>
-        {teamNames.map((team, index) => (
+        {teamNames.map((team) => (
           <div className="pool-card__pick-row"
             key={team}
             style={{
@@ -691,20 +691,6 @@ export default function Dashboard() {
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              <span className="pool-card__pick-rank" style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                width: '24px',
-                height: '24px',
-                backgroundColor: '#64748b',
-                color: 'white',
-                borderRadius: '50%',
-                fontSize: '0.75rem',
-                fontWeight: '700'
-              }}>
-                {index + 1}
-              </span>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 {NFL_TEAMS[team] && (
                   <img 
@@ -750,20 +736,6 @@ export default function Dashboard() {
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              <span className="pool-card__pick-rank" style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                width: '24px',
-                height: '24px',
-                backgroundColor: isWeekInPast ? '#ef4444' : '#64748b',
-                color: 'white',
-                borderRadius: '50%',
-                fontSize: '0.75rem',
-                fontWeight: '700'
-              }}>
-                {teamNames.length + 1}
-              </span>
               <span className="pool-card__team-code" style={{ fontWeight: '600', color: isWeekInPast ? '#dc2626' : '#475569' }}>
                 {isWeekInPast ? 'No Selection' : 'No Pick'}
               </span>

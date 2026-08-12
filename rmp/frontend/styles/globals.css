@@ -435,8 +435,6 @@ table {
 .pool-card__pick-row { padding:.62rem .7rem!important; color:#d8e2e0; background:#142024!important; border:1px solid #2d4145!important; border-radius:0!important; box-shadow:none!important; }
 .pool-card__pick-row--open { background:#111b1e!important; }
 .pool-card__pick-row--missed { border-color:rgba(255,129,122,.48)!important; }
-.pool-card__pick-rank { color:#091012!important; background:var(--ice)!important; border-radius:2px!important; }
-.pool-card__pick-row--missed .pool-card__pick-rank { background:var(--danger)!important; }
 .pool-card__team-code { color:#e6edeb!important; }
 .pool-card__pick-count { color:#091012!important; background:var(--lime)!important; border-radius:999px!important; }
 @media (max-width:600px) {
