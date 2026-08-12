@@ -27,7 +27,7 @@ function installDashboardApi({ pools = [pool], admin = true, failPools = false }
     const path = String(url);
     if (path.endsWith('/pools/my-pools')) return response(failPools ? { detail: 'failed' } : pools, !failPools);
     if (path.endsWith('/pools/pool-1/picks-summary')) {
-      return response({ 1: { teams: { WSH: 1 }, unlockedCount: 0 } });
+      return response({ 1: { teams: { WSH: 1 }, unlockedCount: 2 } });
     }
     if (path.includes('/pools/pool-1/activity-summary?week=')) {
       return response({ entries_remaining: 12, total_entries: 15, week: 1, week_selections: 9 });
@@ -73,7 +73,17 @@ describe('dashboard', () => {
     expect(screen.getByText('Entries Remaining')).toHaveStyle({ color: '#c9d4d3' });
     expect(screen.getByText('9/12')).toHaveClass('pool-card__stat-value');
     expect(screen.getByText('WSH')).toBeInTheDocument();
+    expect(screen.getByText('No Pick')).toBeInTheDocument();
+    expect(screen.queryByText('Unlocked')).not.toBeInTheDocument();
     expect(screen.getByAltText('WSH logo')).toHaveAttribute('src', '/nfl/wsh.svg');
+
+    await user.click(screen.getByRole('button', { name: /entries remaining: 12\/15/i }));
+    expect(mockPush).toHaveBeenCalledWith('/pool/pool-1/entries');
+    mockPush.mockClear();
+
+    await user.click(screen.getByRole('button', { name: /week 1 selections: 9\/12/i }));
+    expect(mockPush).toHaveBeenCalledWith('/pool/pool-1/entries');
+    mockPush.mockClear();
 
     await user.click(screen.getByRole('button', { name: /make or edit picks/i }));
     expect(mockPush).toHaveBeenCalledWith('/pool/pool-1/entries');

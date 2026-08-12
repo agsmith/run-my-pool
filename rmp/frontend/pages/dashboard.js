@@ -435,14 +435,20 @@ export default function Dashboard() {
             border: '1px solid #cbd5e1',
             textAlign: 'center'
           }}>
-            <div className="pool-card__stat-value" style={{
+            <button
+              type="button"
+              className="pool-card__stat-value"
+              aria-label={`${label}: ${value}. Open My Entries`}
+              onClick={() => router.push(`/pool/${league.id}/entries`)}
+              style={{
               fontSize: '1.25rem',
               fontWeight: '700',
               color: '#d7ff3f',
               marginBottom: '0.25rem'
-            }}>
+              }}
+            >
               {value ?? 0}
-            </div>
+            </button>
             <div className="pool-card__stat-label" style={{
               fontSize: '0.75rem',
               color: '#c9d4d3',
@@ -759,7 +765,7 @@ export default function Dashboard() {
                 {teamNames.length + 1}
               </span>
               <span className="pool-card__team-code" style={{ fontWeight: '600', color: isWeekInPast ? '#dc2626' : '#475569' }}>
-                {isWeekInPast ? 'No Selection' : 'Unlocked'}
+                {isWeekInPast ? 'No Selection' : 'No Pick'}
               </span>
             </div>
             <span className="pool-card__pick-count" style={{
