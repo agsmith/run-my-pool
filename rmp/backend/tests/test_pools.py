@@ -116,7 +116,7 @@ class TestPoolEndpoints:
         assert len(pools) >= 1
         assert any(pool["name"] == test_pool_data["name"] for pool in pools)
 
-    def test_activity_summary_counts_remaining_entries_and_week_selections(self, client):
+    def test_activity_summary_counts_only_current_users_entries_and_selections(self, client):
         owner = _register(client, "activity.owner@example.com")
         member = _register(client, "activity.member@example.com")
         pool = client.post(
@@ -142,6 +142,11 @@ class TestPoolEndpoints:
             json={"entry_id": member_entry["id"], "week": 1, "team": "DET"},
             headers=member,
         ).status_code == 200
+        assert client.post(
+            "/picks/create",
+            json={"entry_id": owner_entry["id"], "week": 1, "team": "WSH"},
+            headers=owner,
+        ).status_code == 200
 
         response = client.get(
             f"/pools/{pool['id']}/activity-summary?week=1", headers=member
@@ -149,7 +154,7 @@ class TestPoolEndpoints:
 
         assert response.status_code == 200
         assert response.json() == {
-            "entries_remaining": 2,
+            "entries_remaining": 1,
             "week": 1,
             "week_selections": 1,
         }

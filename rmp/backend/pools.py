@@ -287,7 +287,7 @@ def get_pool_activity_summary(
     db: Session = Depends(deps.get_db),
     current_user: models.User = Depends(deps.get_current_user),
 ):
-    """Return privacy-safe participation totals for a pool member's dashboard."""
+    """Return the signed-in user's participation totals for a pool dashboard."""
     pool = db.query(models.Pool).filter(models.Pool.id == pool_id).first()
     if not pool:
         raise HTTPException(status_code=404, detail="Pool not found")
@@ -297,13 +297,16 @@ def get_pool_activity_summary(
         raise HTTPException(status_code=403, detail="League membership required")
 
     entries_remaining = db.query(models.Entry).filter(
-        models.Entry.pool_id == pool_id, models.Entry.alive.is_(True)
+        models.Entry.pool_id == pool_id,
+        models.Entry.user_id == current_user.id,
+        models.Entry.alive.is_(True),
     ).count()
     week_selections = (
         db.query(func.count(func.distinct(models.Pick.entry_id)))
         .join(models.Entry, models.Entry.id == models.Pick.entry_id)
         .filter(
             models.Entry.pool_id == pool_id,
+            models.Entry.user_id == current_user.id,
             models.Pick.week == week,
             models.Pick.team.isnot(None),
             models.Pick.team != "",
