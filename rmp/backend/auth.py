@@ -90,29 +90,32 @@ def login(
     response: Response,
     db: Session = Depends(deps.get_db),
 ):
+    normalized_email = str(user.email).strip().lower()
     now = datetime.now(timezone.utc).replace(tzinfo=None)
     window_start = now - LOGIN_ATTEMPT_WINDOW
     recent_failures = db.query(models.LoginAttempt).filter(
-        models.LoginAttempt.email == str(user.email),
+        models.LoginAttempt.email == normalized_email,
         models.LoginAttempt.attempted_at >= window_start,
     ).count()
     if recent_failures >= LOGIN_ATTEMPT_LIMIT:
         raise HTTPException(status_code=429, detail="Too many login attempts. Try again later.")
 
-    db_user = db.query(models.User).filter(models.User.email == user.email).first()
+    db_user = db.query(models.User).filter(
+        func.lower(models.User.email) == normalized_email
+    ).first()
     if not db_user or not db_user.is_active or not verify_password(user.password, db_user.hashed_password):
-        db.add(models.LoginAttempt(id=str(uuid.uuid4()), email=str(user.email), attempted_at=now))
+        db.add(models.LoginAttempt(id=str(uuid.uuid4()), email=normalized_email, attempted_at=now))
         db.commit()
         # Log failed login attempt
         log_authentication_event(
             db=db,
             action="LOGIN_FAILED",
-            user_email=user.email,
+            user_email=normalized_email,
             additional_info={"reason": "invalid_credentials"}
         )
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
-    db.query(models.LoginAttempt).filter(models.LoginAttempt.email == str(user.email)).delete()
+    db.query(models.LoginAttempt).filter(models.LoginAttempt.email == normalized_email).delete()
     db.commit()
     
     # Log successful login
@@ -158,7 +161,10 @@ def forgot_password(request: schemas.ForgotPasswordRequest, db: Session = Depend
     Always returns success message for security (don't reveal if email exists).
     """
     try:
-        db_user = db.query(models.User).filter(models.User.email == request.email).first()
+        normalized_email = str(request.email).strip().lower()
+        db_user = db.query(models.User).filter(
+            func.lower(models.User.email) == normalized_email
+        ).first()
         if db_user:
             # Generate password reset token (expires in 1 hour)
             reset_token = create_access_token(

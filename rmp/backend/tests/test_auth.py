@@ -92,6 +92,13 @@ class TestAuthEndpoints:
         assert duplicate.status_code == 400
         assert duplicate.json()["detail"] == "Email already registered"
 
+        login = client.post(
+            "/auth/login",
+            json={"email": "Player.Case@Example.COM", "password": "password123"},
+        )
+        assert login.status_code == 200
+        assert "access_token" in login.json()
+
     def test_register_invalid_email(self, client):
         """Test registration with invalid email"""
         invalid_data = {"email": "invalid-email", "password": "testpassword123"}
