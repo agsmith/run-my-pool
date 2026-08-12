@@ -22,6 +22,15 @@ PLAN_DETAILS = {
 }
 
 
+def _upgrade_allowed(current_plan: Optional[str], target_plan: str) -> bool:
+    """Club Unlimited is an initial purchase, not an upgrade destination."""
+    if not current_plan:
+        return True
+    if target_plan == "club-unlimited":
+        return False
+    return PLAN_DETAILS.get(target_plan, {}).get("rank", 0) > PLAN_DETAILS.get(current_plan, {}).get("rank", 0)
+
+
 def _utcnow():
     return datetime.now(timezone.utc).replace(tzinfo=None)
 
@@ -90,8 +99,8 @@ def fulfill_checkout(db: Session, checkout_session):
         )
         db.add(entitlement)
 
-    current_rank = PLAN_DETAILS.get(entitlement.plan, {}).get("rank", 0)
-    if details["rank"] >= current_rank:
+    current_plan = entitlement.plan
+    if current_plan == order.plan or _upgrade_allowed(current_plan, order.plan):
         entitlement.plan = order.plan
         entitlement.status = "active"
         entitlement.included_entries = details["included_entries"]
@@ -119,7 +128,12 @@ def create_checkout_session(
         models.CommissionerEntitlement.season == request.season,
         models.CommissionerEntitlement.status == "active",
     ).first()
-    if existing and PLAN_DETAILS.get(existing.plan, {}).get("rank", 0) >= details["rank"]:
+    if existing and not _upgrade_allowed(existing.plan, plan):
+        if plan == "club-unlimited" and existing.plan != "club-unlimited":
+            raise HTTPException(
+                status_code=409,
+                detail="Club Unlimited must be selected before purchasing another seasonal plan and is not available as an upgrade.",
+            )
         raise HTTPException(status_code=409, detail=f"You already have {existing.plan} access for {request.season}")
 
     stripe.api_key = _require_setting("STRIPE_SECRET_KEY")

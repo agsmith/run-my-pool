@@ -52,7 +52,8 @@ describe('PricingPage', () => {
     expect(unlimitedCard).toHaveTextContent('Unlimited entries');
     expect(unlimitedCard).toHaveTextContent('Unlimited active pools');
     expect(unlimitedCard).toHaveTextContent('No usage charges');
-    expect(screen.getByText(/costs less once a Club account needs more than 900 entries/i)).toBeInTheDocument();
+    expect(screen.getByText(/separate plan, not an upgrade from Club/i)).toBeInTheDocument();
+    expect(screen.getByText(/purchasing Club does not provide a later path to Club Unlimited/i)).toBeInTheDocument();
   });
 
   test('offers a direct billing and account support email', () => {

@@ -1,4 +1,5 @@
 from types import SimpleNamespace
+from datetime import datetime
 
 import models
 
@@ -69,6 +70,40 @@ class TestCommissionerBilling:
             headers=_headers(token),
         )
         assert response.status_code == 400
+
+    def test_club_cannot_upgrade_to_club_unlimited(self, client, db_session, monkeypatch):
+        token = _register_and_login(client, "club-owner@example.com")
+        user = db_session.query(models.User).filter(models.User.email == "club-owner@example.com").one()
+        order = models.BillingOrder(
+            id="club-order", user_id=user.id, season=2026, plan="club", status="paid",
+            created_at=datetime(2026, 8, 1), updated_at=datetime(2026, 8, 1),
+        )
+        db_session.add(order)
+        db_session.add(models.CommissionerEntitlement(
+            id="club-entitlement",
+            user_id=user.id,
+            season=2026,
+            plan="club",
+            status="active",
+            included_entries=500,
+            max_pools=5,
+            unlimited_entries=False,
+            source_order_id=order.id,
+            activated_at=datetime(2026, 8, 1),
+            updated_at=datetime(2026, 8, 1),
+        ))
+        db_session.commit()
+        _configure_stripe(monkeypatch)
+
+        response = client.post(
+            "/billing/checkout-session",
+            json={"plan": "club-unlimited", "season": 2026},
+            headers=_headers(token),
+        )
+
+        assert response.status_code == 409
+        assert "not available as an upgrade" in response.json()["detail"]
+        assert db_session.query(models.BillingOrder).count() == 1
 
     def test_paid_webhook_activates_entitlement_once(self, client, db_session, monkeypatch):
         token = _register_and_login(client)
