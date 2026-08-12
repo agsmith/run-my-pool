@@ -26,7 +26,7 @@ export default function Home() {
     <div className="rmp-landing">
       <Seo
         title="Run My Pool"
-        description="Run a professional NFL survivor pool with automated picks, standings, deadlines, commissioner controls, and mobile access."
+        description="Run NFL Survivor or Pick 'Em pools with automated picks, standings, deadlines, commissioner controls, and mobile access."
         structuredData={{
           '@context': 'https://schema.org',
           '@type': 'SoftwareApplication',
@@ -34,7 +34,7 @@ export default function Home() {
           applicationCategory: 'SportsApplication',
           operatingSystem: 'Web',
           url: 'https://runmypool.net',
-          description: 'NFL survivor pool management software for commissioners and players.',
+          description: "NFL Survivor and Pick 'Em pool management software for commissioners and players.",
           offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
         }}
       />
@@ -63,7 +63,7 @@ export default function Home() {
               <p className="rmp-eyebrow"><span /> BUILT FOR FOOTBALL PEOPLE</p>
               <h1><span className="rmp-sr-only">Run My Pool: </span>RUN THE POOL.<br /><em>OWN THE SEASON.</em></h1>
               <h2>Highly Configurable, Affordable, Scalable Pool Management System</h2>
-              <p className="rmp-hero-intro">Run a survivor pool your crew talks about all week. Set it up in minutes, automate the busywork, and follow every pick from kickoff to the final whistle.</p>
+              <p className="rmp-hero-intro">Run a Survivor or Pick &apos;Em pool your crew talks about all week. Set it up in minutes, automate the busywork, and follow every pick from kickoff to the final whistle.</p>
               <div className="rmp-hero-actions">
                 <Link href={createPoolHref} className="rmp-button rmp-primary">Get Started Free <span>→</span></Link>
                 <a href="#how" className="rmp-button rmp-secondary"><i>▶</i> See how it works</a>
@@ -126,10 +126,23 @@ export default function Home() {
 
         <section className="rmp-pool-types" id="pool-types">
           <div className="rmp-shell">
-            <p className="rmp-eyebrow"><span /> CLASSIC SURVIVOR, DONE RIGHT</p>
-            <h2>ONE TEAM. EVERY WEEK.<br /><em>LAST ENTRY STANDING.</em></h2>
-            <p>Choose a team you haven&apos;t used. Win and advance. Lose and your run is over. Run My Pool keeps every entry, deadline, and result organized automatically.</p>
-            <Link href={createPoolHref} className="rmp-button rmp-primary">Create your survivor pool <span>→</span></Link>
+            <p className="rmp-eyebrow"><span /> TWO WAYS TO PLAY</p>
+            <h2>YOUR CREW.<br /><em>YOUR FORMAT.</em></h2>
+            <div className="rmp-format-grid">
+              <article>
+                <span>01 · SURVIVOR</span>
+                <h3>LAST ENTRY STANDING</h3>
+                <p>Pick one team each week without reusing it. Win and advance; lose and that entry is eliminated.</p>
+                <ul><li>One pick per surviving entry</li><li>Configurable weekly lock time</li><li>Automatic results and autopicks</li></ul>
+              </article>
+              <article>
+                <span>02 · PICK &apos;EM</span>
+                <h3>MOST WINS TAKES IT</h3>
+                <p>Pick the winner of every game each week with no point spreads. Every correct pick earns one point.</p>
+                <ul><li>Every NFL matchup each week</li><li>One point for every winner</li><li>Season-long standings</li></ul>
+              </article>
+            </div>
+            <Link href={createPoolHref} className="rmp-button rmp-primary">Compare packages and start <span>→</span></Link>
           </div>
         </section>
       </main>

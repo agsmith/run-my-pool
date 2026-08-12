@@ -61,6 +61,15 @@ describe('IndexPage', () => {
     expect(link).toHaveAttribute('href', '/pricing')
   })
 
+  test('explains both supported pool formats before signup', () => {
+    render(<IndexPage />)
+
+    expect(screen.getByRole('heading', { name: /last entry standing/i })).toBeInTheDocument()
+    expect(screen.getByText(/one pick per surviving entry/i)).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /most wins takes it/i })).toBeInTheDocument()
+    expect(screen.getByText(/one point for every winner/i)).toBeInTheDocument()
+  })
+
   test('shows a Login link in the header for unauthenticated users', () => {
     render(<IndexPage />)
 
