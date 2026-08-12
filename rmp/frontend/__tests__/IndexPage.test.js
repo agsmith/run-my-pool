@@ -58,7 +58,7 @@ describe('IndexPage', () => {
 
     const link = screen.getByRole('link', { name: /get started free/i })
     expect(link).toBeInTheDocument()
-    expect(link).toHaveAttribute('href', '/create-account?intent=create-pool')
+    expect(link).toHaveAttribute('href', '/pricing')
   })
 
   test('shows a Login link in the header for unauthenticated users', () => {

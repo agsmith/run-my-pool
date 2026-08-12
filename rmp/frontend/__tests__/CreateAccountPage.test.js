@@ -46,6 +46,15 @@ describe('CreateAccountPage', () => {
     expect(screen.getByRole('link', { name: /already have an account/i })).toHaveAttribute('href', '/login')
   })
 
+  test('shows the package selected on the pricing page and allows changing it', () => {
+    mockQuery = { plan: 'pro' }
+    render(<CreateAccountPage />)
+
+    const selection = screen.getByLabelText('Selected package')
+    expect(selection).toHaveTextContent('Pro')
+    expect(screen.getByRole('link', { name: /change package/i })).toHaveAttribute('href', '/pricing')
+  })
+
   test('shows the API reason when account creation is rejected', async () => {
     global.fetch = jest.fn().mockResolvedValue({
       ok: false,

@@ -13,6 +13,14 @@ function validatePassword(password) {
   return /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^\w\s]).{8,}$/.test(password);
 }
 
+const PLAN_LABELS = {
+  free: 'Free',
+  commissioner: 'Commish',
+  pro: 'Pro',
+  club: 'Club',
+  'club-unlimited': 'Club Unlimited',
+};
+
 function registrationError(detail) {
   if (detail === 'Email already registered') {
     return 'An account with this email already exists. If you just submitted this form, your account may have been created successfully. Please sign in.';
@@ -37,6 +45,7 @@ export default function CreateAccount() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const selectedPlan = typeof router.query?.plan === 'string' ? router.query.plan : '';
+  const selectedPlanLabel = PLAN_LABELS[selectedPlan];
   const createPoolIntent = router.query?.intent === 'create-pool';
 
   const handleSubmit = async (e) => {
@@ -105,6 +114,16 @@ export default function CreateAccount() {
           </h1>
           <p>Create your new account</p>
         </div>
+
+        {selectedPlanLabel && (
+          <div className="auth-plan-selection" aria-label="Selected package">
+            <div>
+              <span>Selected package</span>
+              <strong>{selectedPlanLabel}</strong>
+            </div>
+            <Link href="/pricing">Change package</Link>
+          </div>
+        )}
 
         {/* Error Message */}
         {error && (

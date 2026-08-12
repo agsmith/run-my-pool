@@ -20,7 +20,7 @@ function FootballMark() {
 
 export default function Home() {
   const { user } = useAuth();
-  const createPoolHref = user ? '/create-pool?source=splash' : '/create-account?intent=create-pool';
+  const createPoolHref = user ? '/create-pool?source=splash' : '/pricing';
 
   return (
     <div className="rmp-landing">
