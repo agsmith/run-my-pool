@@ -366,6 +366,49 @@ class TestPickBreakdown:
         assert resp.status_code == 200
         assert resp.json() == []
 
+    def test_weekly_lock_reveals_all_surviving_picks_and_groups_users(self, client, db_session):
+        from datetime import datetime, timedelta
+
+        owner_token = _register_and_login(client, "reveal.owner@example.com")
+        member_token = _register_and_login(client, "reveal.member@example.com")
+        owner_headers = _authed(owner_token)
+        member_headers = _authed(member_token)
+        pool_id = _create_pool(client, owner_headers)
+        assert client.post(f"/pools/{pool_id}/join", json={}, headers=member_headers).status_code == 200
+
+        owner_entry_1 = _create_entry(client, owner_headers, pool_id, "Owner One")
+        owner_entry_2 = _create_entry(client, owner_headers, pool_id, "Owner Two")
+        member_entry = _create_entry(client, member_headers, pool_id, "Member")
+        eliminated_entry = _create_entry(client, member_headers, pool_id, "Eliminated")
+        _seed_team(db_session, 30, "Buffalo Bills", "BUF")
+        _seed_team(db_session, 31, "Miami Dolphins", "MIA")
+        _seed_schedule(db_session, 1030, 9, 30, 31, datetime.utcnow() + timedelta(days=2))
+        for entry_id in (owner_entry_1, owner_entry_2, member_entry, eliminated_entry):
+            entry_headers = owner_headers if entry_id in (owner_entry_1, owner_entry_2) else member_headers
+            assert _create_pick(client, entry_headers, entry_id, 9, "BUF").status_code == 200
+        eliminated = db_session.query(models.Entry).filter(models.Entry.id == eliminated_entry).one()
+        eliminated.alive = False
+        db_session.commit()
+
+        pool = db_session.query(models.Pool).filter(models.Pool.id == pool_id).one()
+        pool.lock_time = datetime.utcnow() + timedelta(hours=1)
+        db_session.commit()
+        assert client.get(f"/picks/pool/{pool_id}/week/9/breakdown", headers=member_headers).json() == []
+
+        pool.lock_time = datetime.utcnow() - timedelta(seconds=1)
+        db_session.commit()
+        response = client.get(f"/picks/pool/{pool_id}/week/9/breakdown", headers=member_headers)
+
+        assert response.status_code == 200
+        item = response.json()[0]
+        assert item["team_abbrv"] == "BUF"
+        assert item["count"] == 3
+        assert item["users"] == [
+            {"user_id": item["users"][0]["user_id"], "email": "reveal.member@example.com", "entry_count": 1},
+            {"user_id": item["users"][1]["user_id"], "email": "reveal.owner@example.com", "entry_count": 2},
+        ]
+        assert sum(user["entry_count"] for user in item["users"]) == item["count"]
+
     def test_returns_counts_for_started_games(self, client, db_session):
         """Returns correct counts when some games have started."""
         from datetime import datetime, timedelta

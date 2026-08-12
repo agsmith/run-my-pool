@@ -4,6 +4,7 @@ Admin endpoints for administrative operations
 
 import csv
 import io
+import json
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
@@ -371,6 +372,60 @@ def update_pool_user_email(
         },
     )
     return user
+
+
+@router.get(
+    "/pools/{pool_id}/auto-picks",
+    response_model=list[schemas.LeagueAutoPickOut],
+)
+def pool_auto_picks(
+    pool_id: str,
+    week: Optional[int] = None,
+    db: Session = Depends(deps.get_db),
+    current_user: models.User = Depends(deps.get_current_user),
+):
+    """List system-generated picks for users in a managed league."""
+    if not verify_admin_access(pool_id, current_user, db):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    if week is not None and (week < 1 or week > 18):
+        raise HTTPException(status_code=400, detail="Week must be between 1 and 18")
+
+    entries = db.query(models.Entry).filter(models.Entry.pool_id == pool_id).all()
+    entries_by_id = {entry.id: entry for entry in entries}
+    user_ids = {entry.user_id for entry in entries if entry.user_id}
+    users_by_id = {
+        user.id: user for user in db.query(models.User).filter(models.User.id.in_(user_ids or [""])).all()
+    }
+    result = []
+    logs = db.query(models.AuditLog).filter(
+        models.AuditLog.action == "ADMIN_AUTO_PICK"
+    ).order_by(models.AuditLog.created_at.desc()).all()
+    for log in logs:
+        try:
+            payload = json.loads(log.details or "{}")
+        except (TypeError, json.JSONDecodeError):
+            continue
+        data = payload.get("additional_data") or {}
+        if data.get("pool_id") != pool_id:
+            continue
+        log_week = data.get("week")
+        if not isinstance(log_week, int) or (week is not None and log_week != week):
+            continue
+        entry_id = data.get("entry_id") or ""
+        entry = entries_by_id.get(entry_id)
+        user_id = data.get("user_id") or (entry.user_id if entry else None)
+        user = users_by_id.get(user_id)
+        result.append({
+            "audit_id": log.id,
+            "week": log_week,
+            "user_id": user_id,
+            "user_email": data.get("user_email") or (user.email if user else "Unknown user"),
+            "entry_id": entry_id,
+            "entry_name": data.get("entry_name") or (entry.name if entry else "Unknown entry"),
+            "team": data.get("team") or "Unknown",
+            "created_at": log.created_at,
+        })
+    return result
 
 
 @router.post("/pools/{pool_id}/transfer-entry")

@@ -619,6 +619,27 @@ class TestLockWeek:
         data = resp.json()
         assert data["auto_picks_created"] == 1
 
+        report = client.get(
+            f"/admin/pools/{pool_id}/auto-picks?week=1", headers=headers
+        )
+        assert report.status_code == 200
+        assert report.json() == [
+            {
+                "audit_id": report.json()[0]["audit_id"],
+                "week": 1,
+                "user_id": report.json()[0]["user_id"],
+                "user_email": "lock_member@example.com",
+                "entry_id": entry_b_id,
+                "entry_name": "Entry B",
+                "team": "NE",
+                "created_at": report.json()[0]["created_at"],
+            }
+        ]
+        assert client.get(
+            f"/admin/pools/{pool_id}/auto-picks?week=1",
+            headers=_authed(token_b),
+        ).status_code == 403
+
         # Entry B should now have a pick for week 1 equal to "NE"
         pick_b = (
             db_session.query(m.Pick)

@@ -7,11 +7,13 @@ from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from deps import get_db, get_current_user
-from models import Pick, Entry, Schedule, Team, Pool
+from models import Pick, Entry, Schedule, Team, Pool, User
 from schemas import PickCreate, PickUpdate, PickOut, PickBreakdownItem
 from audit_utils import log_create_operation, log_update_operation, log_delete_operation
 from admin import is_user_locked_in_pool
 from pool_access import is_pool_participant
+from schedule import current_season_games
+from weekly_locks import pool_week_lock_time
 
 router = APIRouter()
 
@@ -432,13 +434,19 @@ def get_pick_breakdown(
     current_user=Depends(get_current_user),
 ):
     """
-    Return per-team pick counts for alive entries in a pool/week.
-    Only includes teams whose game has already kicked off (Schedule.start_time < now).
-    Returns an empty list if no games have started yet.
+    Return per-team pick counts and per-user entry counts for surviving entries.
+    Configured pools reveal every pick once the weekly pool deadline passes.
+    Legacy pools without a weekly deadline retain kickoff-based revealing.
     """
     if not is_pool_participant(db, pool_id, current_user.id):
         raise HTTPException(status_code=403, detail="League membership required")
     now = datetime.now(timezone.utc).replace(tzinfo=None)
+    pool = db.query(Pool).filter(Pool.id == pool_id).first()
+    if not pool:
+        raise HTTPException(status_code=404, detail="Pool not found")
+    deadline = pool_week_lock_time(pool, current_season_games(db, week))
+    if deadline is not None and deadline > now:
+        return []
 
     # Subquery: team IDs with a game that has already started this week
     started_home = db.query(Schedule.home_team_id).filter(
@@ -449,27 +457,44 @@ def get_pick_breakdown(
     )
     started_team_ids = started_home.union(started_away).subquery()
 
+    filters = [Entry.pool_id == pool_id, Entry.alive == True, Pick.week == week]  # noqa: E712
+    if deadline is None:
+        filters.append(Pick.team_id.in_(started_team_ids))
+
     rows = (
         db.query(
             Pick.team,
-            Pick.team_id,
+            Team.id.label("team_id"),
             Team.name.label("team_name"),
             Team.abbrv.label("team_abbrv"),
             Team.logo.label("team_logo"),
             func.count(Pick.id).label("count"),
         )
         .join(Entry, Pick.entry_id == Entry.id)
-        .join(Team, Pick.team_id == Team.id)
-        .filter(
-            Entry.pool_id == pool_id,
-            Entry.alive == True,
-            Pick.week == week,
-            Pick.team_id.in_(started_team_ids),
-        )
-        .group_by(Pick.team, Pick.team_id, Team.name, Team.abbrv, Team.logo)
+        .join(Team, Team.abbrv == Pick.team)
+        .filter(*filters)
+        .group_by(Pick.team, Team.id, Team.name, Team.abbrv, Team.logo)
         .order_by(func.count(Pick.id).desc())
         .all()
     )
+
+    user_rows = (
+        db.query(Pick.team, User.id, User.email, func.count(Pick.id).label("entry_count"))
+        .join(Entry, Pick.entry_id == Entry.id)
+        .join(User, Entry.user_id == User.id)
+        .join(Team, Team.abbrv == Pick.team)
+        .filter(*filters)
+        .group_by(Pick.team, User.id, User.email)
+        .order_by(Pick.team, User.email)
+        .all()
+    )
+    users_by_team = {}
+    for row in user_rows:
+        users_by_team.setdefault(row.team, []).append({
+            "user_id": row.id,
+            "email": row.email,
+            "entry_count": row.entry_count,
+        })
 
     return [
         PickBreakdownItem(
@@ -479,6 +504,7 @@ def get_pick_breakdown(
             team_abbrv=row.team_abbrv,
             team_logo=row.team_logo,
             count=row.count,
+            users=users_by_team.get(row.team, []),
         )
         for row in rows
     ]

@@ -74,10 +74,13 @@ def lock_pool_week(
                            locked=True, created_at=now, updated_at=now)
         db.add(pick)
         db.flush()
+        entry_owner = db.query(models.User).filter(models.User.id == entry.user_id).first()
         log_admin_action(db=db, action="AUTO_PICK", admin_user_id=actor_id,
             details=f"Auto-picked {candidate} for entry {entry.id} in week {week}",
             target_entity_type="pick", target_entity_id=pick.id,
             additional_data={"pool_id": pool.id, "entry_id": entry.id, "week": week,
+                             "entry_name": entry.name, "user_id": entry.user_id,
+                             "user_email": entry_owner.email if entry_owner else None,
                              "team": candidate, "reason": "no_pick_at_lock"})
         created += 1
     db.commit()

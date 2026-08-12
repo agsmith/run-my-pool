@@ -136,6 +136,17 @@ class LeagueAdminUserOverview(BaseModel):
     users: List[LeagueAdminUserSummary]
 
 
+class LeagueAutoPickOut(BaseModel):
+    audit_id: str
+    week: int
+    user_id: Optional[str] = None
+    user_email: str
+    entry_id: str
+    entry_name: str
+    team: str
+    created_at: datetime
+
+
 class LeagueAdminAssignment(BaseModel):
     email: EmailStr
 
@@ -331,6 +342,12 @@ class AuditLogOut(BaseModel):
         orm_mode = True
 
 
+class PickBreakdownUser(BaseModel):
+    user_id: str
+    email: EmailStr
+    entry_count: int
+
+
 class PickBreakdownItem(BaseModel):
     team: str
     team_id: int
@@ -338,6 +355,7 @@ class PickBreakdownItem(BaseModel):
     team_abbrv: str
     team_logo: Optional[str] = None
     count: int
+    users: List[PickBreakdownUser] = Field(default_factory=list)
 
 
 class MessageBoardCreate(BaseModel):

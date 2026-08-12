@@ -19,7 +19,7 @@ const jsonResponse = (data, ok = true) => Promise.resolve({
   json: () => Promise.resolve(data),
 });
 
-function installApi({ pool = {}, entries = [], picks = {}, lockWeeks = {}, createdEntry = null } = {}) {
+function installApi({ pool = {}, entries = [], picks = {}, lockWeeks = {}, createdEntry = null, breakdown = [], breakdownByWeek = null } = {}) {
   let currentEntries = [...entries];
   global.fetch = jest.fn((url, options = {}) => {
     const path = String(url);
@@ -35,7 +35,8 @@ function installApi({ pool = {}, entries = [], picks = {}, lockWeeks = {}, creat
     if (path.endsWith('/entries/pool/pool-1')) return jsonResponse(currentEntries);
     const pickMatch = path.match(/\/picks\/entry\/([^/]+)$/);
     if (pickMatch) return jsonResponse(picks[pickMatch[1]] || []);
-    if (path.includes('/picks/pool/pool-1/week/')) return jsonResponse([]);
+    const breakdownMatch = path.match(/\/picks\/pool\/pool-1\/week\/(\d+)\/breakdown/);
+    if (breakdownMatch) return jsonResponse(breakdownByWeek?.[breakdownMatch[1]] ?? breakdown);
     if (path.endsWith('/schedule/week/2')) {
       return jsonResponse([{
         game_id: 20,
@@ -170,5 +171,58 @@ describe('player entries page', () => {
     render(<LeagueEntries />);
 
     expect(await screen.findByAltText('WSH logo')).toHaveAttribute('src', '/nfl/wsh.svg');
+  });
+
+  test('opens a team count overlay with users and surviving entry counts', async () => {
+    const user = userEvent.setup();
+    installApi({
+      entries: [{ id: 'entry-1', name: 'Alive', alive: true }],
+      breakdown: [{
+        team: 'BUF', team_id: 1, team_name: 'Buffalo Bills', team_abbrv: 'BUF', count: 3,
+        users: [
+          { user_id: 'user-1', email: 'player@example.com', entry_count: 2 },
+          { user_id: 'user-2', email: 'friend@example.com', entry_count: 1 },
+        ],
+      }],
+    });
+    render(<LeagueEntries />);
+
+    await user.click(await screen.findByRole('button', { name: 'Show users who picked BUF' }));
+    const dialog = screen.getByRole('dialog', { name: 'BUF picks' });
+    expect(within(dialog).getByText('player@example.com')).toBeInTheDocument();
+    expect(within(dialog).getByText('friend@example.com')).toBeInTheDocument();
+    expect(within(dialog).getByText('2')).toBeInTheDocument();
+    expect(within(dialog).getByText('1')).toBeInTheDocument();
+    await user.click(within(dialog).getByRole('button', { name: 'Close pick details' }));
+    expect(screen.queryByRole('dialog', { name: 'BUF picks' })).not.toBeInTheDocument();
+  });
+
+  test('keeps pre-lock weeks hidden and loads a selected locked week', async () => {
+    const user = userEvent.setup();
+    installApi({
+      entries: [{ id: 'entry-1', name: 'Alive', alive: true }],
+      breakdownByWeek: {
+        '1': [],
+        '2': [{
+          team: 'MIA', team_id: 2, team_name: 'Miami Dolphins', team_abbrv: 'MIA', count: 1,
+          users: [{ user_id: 'user-1', email: 'player@example.com', entry_count: 1 }],
+        }],
+      },
+    });
+    render(<LeagueEntries />);
+
+    expect(await screen.findByText('Alive')).toBeInTheDocument();
+    await waitFor(() => expect(fetch).toHaveBeenCalledWith(
+      expect.stringContaining('/picks/pool/pool-1/week/1/breakdown'),
+      expect.any(Object),
+    ));
+    expect(screen.queryByRole('button', { name: /show users who picked/i })).not.toBeInTheDocument();
+
+    await user.selectOptions(screen.getByLabelText('Pick breakdown week'), '2');
+    expect(await screen.findByRole('button', { name: 'Show users who picked MIA' })).toHaveTextContent('1');
+    expect(fetch).toHaveBeenCalledWith(
+      expect.stringContaining('/picks/pool/pool-1/week/2/breakdown'),
+      expect.any(Object),
+    );
   });
 });

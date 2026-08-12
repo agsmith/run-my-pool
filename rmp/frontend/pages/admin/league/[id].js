@@ -4,6 +4,7 @@ import ProtectedRoute from '../../../components/ProtectedRoute';
 import { useAuth } from '../../../context/AuthContext';
 import { PoolWorkspaceNav, WorkspaceHeader } from '../../../components/ProductWorkspace';
 import AdminUserOverview from '../../../components/AdminUserOverview';
+import AdminAutoPickReport from '../../../components/AdminAutoPickReport';
 import AdminAccessControl from '../../../components/AdminAccessControl';
 import OwnershipTransferControl from '../../../components/OwnershipTransferControl';
 import LeagueLockSettings from '../../../components/LeagueLockSettings';
@@ -37,6 +38,10 @@ export default function AdminPortal() {
   const [userOverview, setUserOverview] = useState(null);
   const [userOverviewLoading, setUserOverviewLoading] = useState(false);
   const [userOverviewError, setUserOverviewError] = useState('');
+  const [autoPickWeek, setAutoPickWeek] = useState(1);
+  const [autoPicks, setAutoPicks] = useState([]);
+  const [autoPicksLoading, setAutoPicksLoading] = useState(false);
+  const [autoPicksError, setAutoPicksError] = useState('');
 
   // User lock state
   const [lockMessage, setLockMessage] = useState('');
@@ -79,6 +84,10 @@ export default function AdminPortal() {
     if (activeSection === 'user-management' && leagueId) fetchUserOverview();
   }, [activeSection, leagueId]);
 
+  useEffect(() => {
+    if (activeSection === 'user-management' && leagueId) fetchAutoPicks(autoPickWeek);
+  }, [activeSection, leagueId, autoPickWeek]);
+
   const fetchUserOverview = async () => {
     setUserOverviewLoading(true);
     setUserOverviewError('');
@@ -94,6 +103,25 @@ export default function AdminPortal() {
       setUserOverviewError(err.message || 'Unable to load league users');
     } finally {
       setUserOverviewLoading(false);
+    }
+  };
+
+  const fetchAutoPicks = async (week) => {
+    setAutoPicksLoading(true);
+    setAutoPicksError('');
+    try {
+      const token = localStorage.getItem('access_token');
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/pools/${leagueId}/auto-picks?week=${week}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await response.json().catch(() => []);
+      if (!response.ok) throw new Error(data.detail || 'Unable to load autopicks');
+      setAutoPicks(data);
+    } catch (err) {
+      setAutoPicks([]);
+      setAutoPicksError(err.message || 'Unable to load autopicks');
+    } finally {
+      setAutoPicksLoading(false);
     }
   };
 
@@ -771,6 +799,8 @@ export default function AdminPortal() {
       </h3>
 
       <AdminUserOverview overview={userOverview} loading={userOverviewLoading} error={userOverviewError} onRefresh={fetchUserOverview} onChangeEmail={handleChangeUserEmail} />
+
+      <AdminAutoPickReport week={autoPickWeek} onWeekChange={setAutoPickWeek} records={autoPicks} loading={autoPicksLoading} error={autoPicksError} />
 
       <div style={{ marginBottom: '3rem' }}>
         <h4>Lock User Account</h4>

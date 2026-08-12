@@ -67,6 +67,7 @@ const MOCK_MATCHUPS = {
 };
 
 function PickBreakdownPanel({ data, week }) {
+  const [selectedBreakdown, setSelectedBreakdown] = useState(null);
   if (!data || data.length === 0) return null;
   const total = data.reduce((sum, item) => sum + item.count, 0);
   if (total === 0) return null;
@@ -121,12 +122,30 @@ function PickBreakdownPanel({ data, week }) {
                 transition: 'width 0.3s ease',
               }} />
             </div>
-            <span style={{ width: '64px', fontSize: '0.8rem', color: '#555', textAlign: 'right', flexShrink: 0 }}>
-              {item.count} ({pct}%)
+            <span style={{ width: '76px', fontSize: '0.8rem', color: '#c9d4d3', textAlign: 'right', flexShrink: 0 }}>
+              <button type="button" className="entries-breakdown__count" onClick={() => setSelectedBreakdown(item)} aria-label={`Show users who picked ${item.team_abbrv}`}>
+                {item.count}
+              </button> ({pct}%)
             </span>
           </div>
         );
       })}
+      {selectedBreakdown && <div className="modal-overlay" role="presentation" onMouseDown={() => setSelectedBreakdown(null)}>
+        <section className="modal-card entries-breakdown__modal" role="dialog" aria-modal="true" aria-labelledby="pick-users-title" onMouseDown={(event) => event.stopPropagation()}>
+          <div className="modal-card__header">
+            <div><span>Week {week}</span><h3 id="pick-users-title">{selectedBreakdown.team_abbrv} picks</h3></div>
+            <button type="button" aria-label="Close pick details" onClick={() => setSelectedBreakdown(null)}>×</button>
+          </div>
+          <p>{selectedBreakdown.count} surviving {selectedBreakdown.count === 1 ? 'entry' : 'entries'} selected {selectedBreakdown.team_name}.</p>
+          <div className="admin-user-overview__table-wrap"><table className="admin-user-overview__table">
+            <thead><tr><th>User</th><th>Entries</th></tr></thead>
+            <tbody>{(selectedBreakdown.users || []).map((pickedUser) => <tr key={pickedUser.user_id}>
+              <td data-label="User"><strong>{pickedUser.email}</strong></td>
+              <td data-label="Entries">{pickedUser.entry_count}</td>
+            </tr>)}</tbody>
+          </table></div>
+        </section>
+      </div>}
     </div>
   );
 }
@@ -145,6 +164,7 @@ export default function LeagueEntries() {
   const [error, setError] = useState('');
   const [lockClock, setLockClock] = useState(() => Date.now());
   const [selectedWeek, setSelectedWeek] = useState(null);
+  const [breakdownWeek, setBreakdownWeek] = useState(1);
   const [breakdownData, setBreakdownData] = useState([]);
   const [breakdownLoading, setBreakdownLoading] = useState(false);
   const [selectedEntry, setSelectedEntry] = useState(null);
@@ -341,8 +361,8 @@ export default function LeagueEntries() {
   };
 
   useEffect(() => {
-    if (selectedWeek) fetchBreakdown(selectedWeek);
-  }, [selectedWeek, id]);
+    if (breakdownWeek) fetchBreakdown(breakdownWeek);
+  }, [breakdownWeek, id]);
 
   const handlePickClick = async (entry, week) => {
     if (weekLockStatus[String(week)]?.locked) {
@@ -1190,7 +1210,13 @@ export default function LeagueEntries() {
           </div>
         ) : (
           <>
-            <PickBreakdownPanel data={breakdownData} week={selectedWeek} />
+            <div className="entries-breakdown-week">
+              <label htmlFor="entries-breakdown-week">Pick breakdown week</label>
+              <select id="entries-breakdown-week" value={breakdownWeek} onChange={(event) => setBreakdownWeek(Number(event.target.value))}>
+                {Array.from({ length: 18 }, (_, index) => index + 1).map((week) => <option key={week} value={week}>Week {week}</option>)}
+              </select>
+            </div>
+            <PickBreakdownPanel data={breakdownData} week={breakdownWeek} />
             <div className="entries-table-scroll" style={{
               overflowX: 'auto',
               borderRadius: '12px',
