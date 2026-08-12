@@ -38,6 +38,43 @@ resource "aws_ecs_cluster" "main" {
   }
 }
 
+# Keep enough images for quick rollback while preventing old CI builds from
+# accumulating indefinitely in ECR.
+resource "aws_ecr_lifecycle_policy" "application_images" {
+  for_each = toset(["runmypool-backend", "runmypool-frontend"])
+
+  repository = each.value
+  policy = jsonencode({
+    rules = [
+      {
+        rulePriority = 1
+        description  = "Expire untagged images after one day"
+        selection = {
+          tagStatus   = "untagged"
+          countType   = "sinceImagePushed"
+          countUnit   = "days"
+          countNumber = 1
+        }
+        action = {
+          type = "expire"
+        }
+      },
+      {
+        rulePriority = 2
+        description  = "Keep the ten most recent images"
+        selection = {
+          tagStatus   = "any"
+          countType   = "imageCountMoreThan"
+          countNumber = 10
+        }
+        action = {
+          type = "expire"
+        }
+      }
+    ]
+  })
+}
+
 resource "aws_ecs_cluster_capacity_providers" "main" {
   cluster_name       = aws_ecs_cluster.main.name
   capacity_providers = ["FARGATE", "FARGATE_SPOT"]
