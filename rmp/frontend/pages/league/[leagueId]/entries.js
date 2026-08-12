@@ -37,6 +37,7 @@ const NFL_TEAMS = {
   'SEA': { name: 'Seattle Seahawks', color: '#002244' },
   'TB': { name: 'Tampa Bay Buccaneers', color: '#D50A0A' },
   'TEN': { name: 'Tennessee Titans', color: '#0C2340' },
+  'WSH': { name: 'Washington Commanders', color: '#5A1414' },
   'WAS': { name: 'Washington Commanders', color: '#5A1414' }
 };
 

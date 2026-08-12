@@ -27,7 +27,7 @@ function installDashboardApi({ pools = [pool], admin = true, failPools = false }
     const path = String(url);
     if (path.endsWith('/pools/my-pools')) return response(failPools ? { detail: 'failed' } : pools, !failPools);
     if (path.endsWith('/pools/pool-1/picks-summary')) {
-      return response({ 1: { teams: { BUF: 1 }, unlockedCount: 0 } });
+      return response({ 1: { teams: { WSH: 1 }, unlockedCount: 0 } });
     }
     if (path.includes('/pools/pool-1/activity-summary?week=')) {
       return response({ entries_remaining: 12, week: 1, week_selections: 9 });
@@ -69,7 +69,8 @@ describe('dashboard', () => {
     expect(screen.getByText('Week 1 Selections')).toBeInTheDocument();
     expect(screen.getByText('12')).toBeInTheDocument();
     expect(screen.getByText('9')).toBeInTheDocument();
-    expect(screen.getByText('BUF')).toBeInTheDocument();
+    expect(screen.getByText('WSH')).toBeInTheDocument();
+    expect(screen.getByAltText('WSH logo')).toHaveAttribute('src', '/nfl/wsh.svg');
 
     await user.click(screen.getByRole('button', { name: /make or edit picks/i }));
     expect(mockPush).toHaveBeenCalledWith('/pool/pool-1/entries');

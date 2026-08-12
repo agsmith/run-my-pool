@@ -160,4 +160,15 @@ describe('player entries page', () => {
       expect.any(Object),
     );
   });
+
+  test('renders the Washington Commanders logo for WSH picks', async () => {
+    installApi({
+      entries: [{ id: 'entry-wsh', name: 'Commanders Pick', alive: true }],
+      picks: { 'entry-wsh': [{ id: 'pick-wsh', week: 1, team: 'WSH', locked: false }] },
+    });
+
+    render(<LeagueEntries />);
+
+    expect(await screen.findByAltText('WSH logo')).toHaveAttribute('src', '/nfl/wsh.svg');
+  });
 });

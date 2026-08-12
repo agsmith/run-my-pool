@@ -38,7 +38,8 @@ const NFL_TEAMS = {
   'SEA': { name: 'Seattle Seahawks', color: '#002244', logo: 'sea.svg' },
   'TB': { name: 'Tampa Bay Buccaneers', color: '#D50A0A', logo: 'tb.svg' },
   'TEN': { name: 'Tennessee Titans', color: '#0C2340', logo: 'ten.svg' },
-  'WAS': { name: 'Washington Commanders', color: '#5A1414', logo: 'was.svg' }
+  'WSH': { name: 'Washington Commanders', color: '#5A1414', logo: 'wsh.svg' },
+  'WAS': { name: 'Washington Commanders', color: '#5A1414', logo: 'wsh.svg' }
 };
 
 export default function Dashboard() {
