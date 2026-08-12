@@ -97,10 +97,10 @@ export default function AdminPortal() {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.detail || 'Unable to load league users');
+      if (!res.ok) throw new Error(data.detail || 'Unable to load pool users');
       setUserOverview(data);
     } catch (err) {
-      setUserOverviewError(err.message || 'Unable to load league users');
+      setUserOverviewError(err.message || 'Unable to load pool users');
     } finally {
       setUserOverviewLoading(false);
     }
@@ -184,10 +184,10 @@ export default function AdminPortal() {
         setLeague(data);
         setAccessSettings({ is_private: data.is_private, join_password: '' });
       } else {
-        setError('Failed to load league details');
+        setError('Failed to load pool details');
       }
     } catch (err) {
-      setError('Failed to load league details');
+      setError('Failed to load pool details');
     } finally {
       setLoading(false);
     }
@@ -205,7 +205,7 @@ export default function AdminPortal() {
         setLeagues(data);
       }
     } catch (err) {
-      console.error('Failed to load all leagues');
+      console.error('Failed to load all pools');
     }
   };
 
@@ -312,14 +312,14 @@ export default function AdminPortal() {
       
       {league && (
         <div className="admin-sidebar__league">
-          <span>Managing league</span>
+          <span>Managing pool</span>
           <strong>{league.name}</strong>
         </div>
       )}
       
       <nav aria-label="Admin sections">
         {[
-          { id: 'league-management', label: 'League Management', marker: 'LG' },
+          { id: 'league-management', label: 'Pool Management', marker: 'PL' },
           { id: 'user-management', label: 'User Management', marker: 'US' },
           { id: 'entry-management', label: 'Entry Management', marker: 'EN' },
           { id: 'audit-log', label: 'Audit Log', marker: 'AU' }
@@ -420,7 +420,7 @@ export default function AdminPortal() {
   const renderLeagueManagement = () => (
     <div className="admin-section admin-section--league" style={{ flex: 1 }}>
       <h3 style={{ color: '#1a202c', marginTop: 0, marginBottom: '2rem' }}>
-        League Management
+        Pool Management
       </h3>
 
       <div className="admin-access-panel">
@@ -480,7 +480,7 @@ export default function AdminPortal() {
       
       {/* View/Search Leagues */}
       <div style={{ marginBottom: '3rem' }}>
-        <h4 style={{ color: '#2d3748', marginBottom: '1rem' }}>View Leagues</h4>
+        <h4 style={{ color: '#2d3748', marginBottom: '1rem' }}>View Pools</h4>
         <div style={{ 
           backgroundColor: 'white', 
           padding: '1.5rem', 
@@ -489,13 +489,13 @@ export default function AdminPortal() {
         }}>
           <div style={{ marginBottom: '1rem' }}>
             <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500', color: '#374151' }}>
-              Search Leagues
+              Search Pools
             </label>
             <input
               type="text"
               value={leagueSearch}
               onChange={(e) => setLeagueSearch(e.target.value)}
-              placeholder="Search by league name..."
+              placeholder="Search by pool name..."
               style={{
                 width: '100%',
                 padding: '0.75rem',
@@ -546,7 +546,7 @@ export default function AdminPortal() {
 
       {/* Create League */}
       <div style={{ marginBottom: '3rem' }}>
-        <h4 style={{ color: '#2d3748', marginBottom: '1rem' }}>Create League</h4>
+        <h4 style={{ color: '#2d3748', marginBottom: '1rem' }}>Create Pool</h4>
         <div style={{ 
           backgroundColor: 'white', 
           padding: '1.5rem', 
@@ -556,11 +556,11 @@ export default function AdminPortal() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
             <div>
               <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500', color: '#374151' }}>
-                League Name
+                Pool Name
               </label>
               <input
                 type="text"
-                placeholder="Enter league name"
+                placeholder="Enter pool name"
                 style={{
                   width: '100%',
                   padding: '0.75rem',
@@ -588,10 +588,10 @@ export default function AdminPortal() {
           </div>
           <div style={{ marginBottom: '1rem' }}>
             <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500', color: '#374151' }}>
-              League Settings
+              Pool Settings
             </label>
             <textarea
-              placeholder="Enter league settings..."
+              placeholder="Enter pool settings..."
               rows={3}
               style={{
                 width: '100%',
@@ -605,10 +605,10 @@ export default function AdminPortal() {
           </div>
           <div style={{ marginBottom: '1rem' }}>
             <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500', color: '#374151' }}>
-              League Description
+              Pool Description
             </label>
             <textarea
-              placeholder="Enter league description..."
+              placeholder="Enter pool description..."
               rows={3}
               style={{
                 width: '100%',
@@ -632,14 +632,14 @@ export default function AdminPortal() {
               fontWeight: '500'
             }}
           >
-            Create League
+            Create Pool
           </button>
         </div>
       </div>
 
       {/* Modify League */}
       <div style={{ marginBottom: '3rem' }}>
-        <h4 style={{ color: '#2d3748', marginBottom: '1rem' }}>Modify League</h4>
+        <h4 style={{ color: '#2d3748', marginBottom: '1rem' }}>Modify Pool</h4>
         <div style={{ 
           backgroundColor: 'white', 
           padding: '1.5rem', 
@@ -648,7 +648,7 @@ export default function AdminPortal() {
         }}>
           <div style={{ marginBottom: '1rem' }}>
             <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500', color: '#374151' }}>
-              Select League to Modify
+              Select Pool to Modify
             </label>
             <select
               style={{
@@ -659,7 +659,7 @@ export default function AdminPortal() {
                 fontSize: '1rem'
               }}
             >
-              <option value="">Select a league...</option>
+              <option value="">Select a pool...</option>
               {leagues.map(league => (
                 <option key={league.id} value={league.id}>{league.name}</option>
               ))}
@@ -677,14 +677,14 @@ export default function AdminPortal() {
               fontWeight: '500'
             }}
           >
-            Modify Selected League
+            Modify Selected Pool
           </button>
         </div>
       </div>
 
       {/* Delete League */}
       <div style={{ marginBottom: '3rem' }}>
-        <h4 style={{ color: '#2d3748', marginBottom: '1rem' }}>Delete League</h4>
+        <h4 style={{ color: '#2d3748', marginBottom: '1rem' }}>Delete Pool</h4>
         <div style={{ 
           backgroundColor: '#fef2f2', 
           padding: '1.5rem', 
@@ -693,7 +693,7 @@ export default function AdminPortal() {
         }}>
           <div style={{ marginBottom: '1rem' }}>
             <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500', color: '#374151' }}>
-              Select League to Delete
+              Select Pool to Delete
             </label>
             <select
               style={{
@@ -704,7 +704,7 @@ export default function AdminPortal() {
                 fontSize: '1rem'
               }}
             >
-              <option value="">Select a league...</option>
+              <option value="">Select a pool...</option>
               {leagues.map(league => (
                 <option key={league.id} value={league.id}>{league.name}</option>
               ))}
@@ -718,7 +718,7 @@ export default function AdminPortal() {
             marginBottom: '1rem',
             fontSize: '0.875rem'
           }}>
-            ⚠️ Warning: This action cannot be undone. All entries and data associated with this league will be permanently deleted.
+            ⚠️ Warning: This action cannot be undone. All entries and data associated with this pool will be permanently deleted.
           </div>
           <button
             style={{
@@ -732,7 +732,7 @@ export default function AdminPortal() {
               fontWeight: '500'
             }}
           >
-            Delete Selected League
+            Delete Selected Pool
           </button>
         </div>
       </div>
@@ -773,7 +773,7 @@ export default function AdminPortal() {
       if (!res.ok) throw new Error(data.detail || 'Unable to find user');
       setUserLockStatus(data);
       setUserLockData((current) => ({ ...current, email: data.email, reason: data.reason || '' }));
-      setUserLockMessage(data.locked ? 'This user is locked in this league.' : 'This user is active in this league.');
+      setUserLockMessage(data.locked ? 'This user is locked in this pool.' : 'This user is active in this pool.');
     } catch (err) { setUserLockStatus(null); setUserLockMessage(err.message || 'Unable to find user'); }
   };
 
@@ -788,7 +788,7 @@ export default function AdminPortal() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || 'Unable to update user lock');
       setUserLockStatus(data);
-      setUserLockMessage(locked ? 'User locked in this league.' : 'User unlocked in this league.');
+      setUserLockMessage(locked ? 'User locked in this pool.' : 'User unlocked in this pool.');
     } catch (err) { setUserLockMessage(err.message || 'Unable to update user lock'); }
   };
 
@@ -805,7 +805,7 @@ export default function AdminPortal() {
       <div style={{ marginBottom: '3rem' }}>
         <h4>Lock User Account</h4>
         <div>
-          <p>Prevent a user from creating, deleting, or changing entries and picks in this league. Their login and other leagues remain available.</p>
+          <p>Prevent a user from creating, deleting, or changing entries and picks in this pool. Their login and other pools remain available.</p>
           <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
             <div>
               <label>Email Address</label>
@@ -1570,7 +1570,7 @@ export default function AdminPortal() {
             }}>
               <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📊</div>
               <h4 style={{ color: '#4a5568', marginBottom: '0.5rem' }}>No audit logs found</h4>
-              <p>No pick activity matches this league and search.</p>
+              <p>No pick activity matches this pool and search.</p>
             </div>
           ) : (
             <div style={{ maxHeight: '400px', overflowY: 'auto' }}>

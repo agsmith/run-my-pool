@@ -154,7 +154,7 @@ class TestAdminEndpoints:
         assert users["overview.member@example.com"]["surviving_entries"] == 1
         assert users["overview.member@example.com"]["picked_entries"] == 1
         assert users["overview.member@example.com"]["all_surviving_entries_picked"] is True
-        assert users["overview.member@example.com"]["admin_role"] == "League admin"
+        assert users["overview.member@example.com"]["admin_role"] == "Pool admin"
         assert "team" not in users["overview.member@example.com"]
 
     def test_pool_user_overview_rejects_non_admin_and_invalid_week(self, client):
@@ -247,7 +247,7 @@ class TestAdminEndpoints:
         )
 
         assert nonmember.status_code == 404
-        assert nonmember.json()["detail"] == "User not found in this league"
+        assert nonmember.json()["detail"] == "User not found in this pool"
         assert revoke_owner.status_code == 400
         assert "owner access cannot be revoked" in revoke_owner.json()["detail"]
 
@@ -292,7 +292,7 @@ class TestAdminEndpoints:
             headers=_authed(old_owner_token),
         ).json()
         roles = {user["email"]: user["admin_role"] for user in overview["users"]}
-        assert roles[old_owner.email] == "League admin"
+        assert roles[old_owner.email] == "Pool admin"
         assert roles[new_owner.email] == "Owner"
         assert "ADMIN_TRANSFER_LEAGUE_OWNERSHIP" in {
             log.action for log in db_session.query(m.AuditLog).all()
@@ -323,7 +323,7 @@ class TestAdminEndpoints:
 
         assert delegated.status_code == 403
         assert nonmember.status_code == 404
-        assert nonmember.json()["detail"] == "User not found in this league"
+        assert nonmember.json()["detail"] == "User not found in this pool"
         assert same_owner.status_code == 400
         assert "already owns" in same_owner.json()["detail"]
 
@@ -987,7 +987,7 @@ class TestUserLock:
         )
 
         assert response.status_code == 404
-        assert response.json()["detail"] == "User not found in this league"
+        assert response.json()["detail"] == "User not found in this pool"
 
 
 # ---------------------------------------------------------------------------

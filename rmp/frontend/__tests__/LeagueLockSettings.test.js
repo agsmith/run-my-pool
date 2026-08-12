@@ -48,7 +48,7 @@ describe('LeagueLockSettings', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
 
     await waitFor(() => expect(onSave).toHaveBeenCalledWith({ join_lock_time: '2026-09-08 16:00:00' }));
-    expect(await screen.findByText('League registration lock updated.')).toBeInTheDocument();
+    expect(await screen.findByText('Pool registration lock updated.')).toBeInTheDocument();
   });
 
   test('shows registration as open when no deadline is configured and closes dialogs with Escape', () => {

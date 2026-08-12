@@ -606,6 +606,9 @@ table {
   padding:1.25rem!important;
 }
 .message-card p { color:#d8e0df!important; font-family:Georgia,serif; }
+.broadcast-v2--community .message-card__author { color:#fff!important; font-size:1rem!important; font-weight:850!important; letter-spacing:.01em; }
+.broadcast-v2--community .message-card__you { color:var(--lime)!important; font-weight:800!important; }
+.broadcast-v2--community .message-card__timestamp { color:#aebbbc!important; }
 .admin-main { width:min(100% - 3rem,1460px)!important; }
 .admin-workspace { display:grid!important; grid-template-columns:260px minmax(0,1fr); gap:1rem!important; }
 .admin-sidebar {

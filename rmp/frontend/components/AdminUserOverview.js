@@ -18,7 +18,7 @@ export default function AdminUserOverview({ overview, loading, error, onRefresh,
   return <section className="admin-user-overview" aria-labelledby="admin-user-overview-title">
     <div className="admin-user-overview__head">
       <div>
-        <span>League participation</span>
+        <span>Pool participation</span>
         <h4 id="admin-user-overview-title">User overview</h4>
         <p>Entry totals and Week {overview?.current_week || '—'} completion. Individual picks remain private.</p>
       </div>
@@ -29,15 +29,15 @@ export default function AdminUserOverview({ overview, loading, error, onRefresh,
     </div>
 
     {error && <div className="admin-user-overview__state is-error" role="alert">{error}</div>}
-    {loading ? <div className="admin-user-overview__state">Loading league users…</div> : !error && users.length === 0 ?
+    {loading ? <div className="admin-user-overview__state">Loading pool users…</div> : !error && users.length === 0 ?
       <div className="admin-user-overview__state">No users match this search.</div> : !error &&
       <div className="admin-user-overview__table-wrap"><table className="admin-user-overview__table">
-        <thead><tr><th>User</th><th>League role</th><th>Total entries</th><th>Surviving</th><th>Week {overview?.current_week || '—'} picks</th><th>Actions</th></tr></thead>
+        <thead><tr><th>User</th><th>Pool role</th><th>Total entries</th><th>Surviving</th><th>Week {overview?.current_week || '—'} picks</th><th>Actions</th></tr></thead>
         <tbody>{users.map((user) => {
           const status = pickStatus(user);
           return <tr key={user.id}>
             <td data-label="User"><strong>{user.email}</strong></td>
-            <td data-label="League role"><span className={`admin-user-role ${user.is_admin ? 'is-admin' : ''}`}>{user.admin_role}</span></td>
+            <td data-label="Pool role"><span className={`admin-user-role ${user.is_admin ? 'is-admin' : ''}`}>{user.admin_role}</span></td>
             <td data-label="Total entries">{user.total_entries}</td>
             <td data-label="Surviving">{user.surviving_entries}</td>
             <td data-label={`Week ${overview?.current_week || ''} picks`}><span className={`admin-pick-status is-${status.tone}`}>{status.label}</span><small>{user.picked_entries} / {user.surviving_entries} picked</small></td>

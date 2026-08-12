@@ -25,7 +25,7 @@ describe('AdminAccessControl', () => {
       expect.stringContaining('/admin/pools/pool-1/admins'),
       expect.objectContaining({ method: 'PUT', body: JSON.stringify({ email: 'member@example.com' }) }),
     ));
-    expect(await screen.findByText('League admin access granted to member@example.com.')).toBeInTheDocument();
+    expect(await screen.findByText('Pool admin access granted to member@example.com.')).toBeInTheDocument();
     expect(onChanged).toHaveBeenCalledTimes(1);
   });
 
@@ -40,16 +40,16 @@ describe('AdminAccessControl', () => {
       expect.stringContaining('/admin/pools/pool-1/admins?email=member%40example.com'),
       expect.objectContaining({ method: 'DELETE' }),
     ));
-    expect(await screen.findByText('League admin access revoked from member@example.com.')).toBeInTheDocument();
+    expect(await screen.findByText('Pool admin access revoked from member@example.com.')).toBeInTheDocument();
   });
 
   test('shows backend validation errors', async () => {
-    fetch.mockResolvedValue({ ok: false, json: async () => ({ detail: 'User must join the league before becoming an administrator' }) });
+    fetch.mockResolvedValue({ ok: false, json: async () => ({ detail: 'User must join the pool before becoming an administrator' }) });
     render(<AdminAccessControl poolId="pool-1" />);
 
     fireEvent.change(screen.getByLabelText('Member email'), { target: { value: 'outsider@example.com' } });
     fireEvent.click(screen.getByRole('button', { name: 'Grant admin access' }));
 
-    expect(await screen.findByText('User must join the league before becoming an administrator')).toBeInTheDocument();
+    expect(await screen.findByText('User must join the pool before becoming an administrator')).toBeInTheDocument();
   });
 });

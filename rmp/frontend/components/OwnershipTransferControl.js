@@ -22,12 +22,12 @@ export default function OwnershipTransferControl({ poolId, poolName, onTransferr
         body: JSON.stringify({ email: email.trim() }),
       });
       const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(data.detail || 'Unable to transfer league ownership');
-      setMessage(`Ownership transferred to ${data.owner_email}. You remain a league admin.`);
+      if (!response.ok) throw new Error(data.detail || 'Unable to transfer pool ownership');
+      setMessage(`Ownership transferred to ${data.owner_email}. You remain a pool admin.`);
       setConfirmation('');
       if (onTransferred) await onTransferred(data);
     } catch (error) {
-      setMessage(error.message || 'Unable to transfer league ownership');
+      setMessage(error.message || 'Unable to transfer pool ownership');
     } finally {
       setSaving(false);
     }
@@ -35,8 +35,8 @@ export default function OwnershipTransferControl({ poolId, poolName, onTransferr
 
   return <section className="ownership-transfer-control" aria-labelledby="ownership-transfer-title">
     <span>High-impact action</span>
-    <h4 id="ownership-transfer-title">Transfer league ownership</h4>
-    <p>The new owner receives sole ownership authority. Your account remains a League Admin after the transfer.</p>
+    <h4 id="ownership-transfer-title">Transfer pool ownership</h4>
+    <p>The new owner receives sole ownership authority. Your account remains a Pool Admin after the transfer.</p>
     <div className="ownership-transfer-control__fields">
       <div><label htmlFor="new-owner-email">New owner email</label><input id="new-owner-email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="member@example.com" /></div>
       <div><label htmlFor="ownership-confirmation">Type {poolName} to confirm</label><input id="ownership-confirmation" value={confirmation} onChange={(event) => setConfirmation(event.target.value)} autoComplete="off" /></div>

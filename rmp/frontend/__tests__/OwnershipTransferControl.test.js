@@ -30,18 +30,18 @@ describe('OwnershipTransferControl', () => {
       expect.stringContaining('/admin/pools/pool-1/owner'),
       expect.objectContaining({ method: 'PUT', body: JSON.stringify({ email: 'new@example.com' }) }),
     ));
-    expect(await screen.findByText('Ownership transferred to new@example.com. You remain a league admin.')).toBeInTheDocument();
+    expect(await screen.findByText('Ownership transferred to new@example.com. You remain a pool admin.')).toBeInTheDocument();
     expect(onTransferred).toHaveBeenCalledWith({ owner_email: 'new@example.com' });
   });
 
   test('shows ownership validation errors from the backend', async () => {
-    fetch.mockResolvedValue({ ok: false, json: async () => ({ detail: 'New owner must join the league before ownership can be transferred' }) });
+    fetch.mockResolvedValue({ ok: false, json: async () => ({ detail: 'New owner must join the pool before ownership can be transferred' }) });
     render(<OwnershipTransferControl poolId="pool-1" poolName="Sunday Survivors" />);
 
     fireEvent.change(screen.getByLabelText('New owner email'), { target: { value: 'outsider@example.com' } });
     fireEvent.change(screen.getByLabelText('Type Sunday Survivors to confirm'), { target: { value: 'Sunday Survivors' } });
     fireEvent.click(screen.getByRole('button', { name: 'Transfer ownership' }));
 
-    expect(await screen.findByText('New owner must join the league before ownership can be transferred')).toBeInTheDocument();
+    expect(await screen.findByText('New owner must join the pool before ownership can be transferred')).toBeInTheDocument();
   });
 });

@@ -78,7 +78,7 @@ function Modal({ title, description, onClose, children, onSave, saving }) {
       <section className="lock-modal" role="dialog" aria-modal="true" aria-labelledby="lock-modal-title">
         <header className="lock-modal__header">
           <div>
-            <span>League settings</span>
+            <span>Pool settings</span>
             <h3 id="lock-modal-title">{title}</h3>
             <p>{description}</p>
           </div>
@@ -146,7 +146,7 @@ export default function LeagueLockSettings({ league, onSave }) {
     setMessage('');
     try {
       await onSave({ join_lock_time: joinLock });
-      setMessage('League registration lock updated.');
+      setMessage('Pool registration lock updated.');
       setActiveModal(null);
     } catch (error) {
       setMessage(error.message || 'Unable to update the registration lock.');
@@ -159,7 +159,7 @@ export default function LeagueLockSettings({ league, onSave }) {
     <section className="admin-lock-settings" aria-labelledby="lock-settings-title">
       <div className="admin-lock-settings__heading">
         <div>
-          <span>League deadlines</span>
+          <span>Pool deadlines</span>
           <h4 id="lock-settings-title">Lock Times</h4>
           <p>Review the active deadlines before making a change.</p>
         </div>
@@ -173,10 +173,10 @@ export default function LeagueLockSettings({ league, onSave }) {
           <button type="button" onClick={() => setActiveModal('weekly')}>Change weekly lock</button>
         </article>
         <article className="lock-setting-card">
-          <span className="lock-setting-card__eyebrow">League registration lock</span>
+          <span className="lock-setting-card__eyebrow">Pool registration lock</span>
           <strong>{registrationLabel || 'Not set'}</strong>
           <small>{registrationLabel ? 'New members and entries close at this deadline.' : 'Registration is currently open.'}</small>
-          <p>After this deadline, users cannot join the league or add or delete entries.</p>
+          <p>After this deadline, users cannot join the pool or add or delete entries.</p>
           <button type="button" onClick={() => setActiveModal('registration')}>Change registration lock</button>
         </article>
       </div>

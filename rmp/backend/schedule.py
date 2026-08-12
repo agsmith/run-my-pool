@@ -65,6 +65,13 @@ def utc_isoformat(value):
     return f"{value.isoformat()}Z"
 
 
+def matchup_spread(matchup):
+    """Return a sortable spread, preferring the pool's frozen official line."""
+    line = matchup["official_line"] or matchup["live_line"] or {}
+    spread = line.get("spread")
+    return abs(float(spread)) if spread is not None else -1
+
+
 @router.get("/week/{week_num}/matchups", response_model=List[dict])
 def get_week_matchups(
     week_num: int, pool_id: Optional[str] = None, db: Session = Depends(get_db)
@@ -82,7 +89,7 @@ def get_week_matchups(
             )
         }
 
-    return [{
+    matchups = [{
         "game_id": game.game_id,
         "week_num": game.week_num,
         "start_time": utc_isoformat(game.start_time),
@@ -97,6 +104,7 @@ def get_week_matchups(
             "captured_at": frozen[game.game_id].captured_at.isoformat(),
         } if game.game_id in frozen else None),
     } for game in games]
+    return sorted(matchups, key=matchup_spread, reverse=True)
 
 @router.get("/week/{week_num}", response_model=List[dict])
 def get_schedule_for_week(week_num: int, db: Session = Depends(get_db)):

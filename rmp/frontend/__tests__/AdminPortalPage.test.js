@@ -13,7 +13,7 @@ jest.mock('next/router', () => ({
 jest.mock('../components/ProtectedRoute', () => ({ children }) => children);
 jest.mock('../context/AuthContext', () => ({ useAuth: () => ({ user: mockUser }) }));
 jest.mock('../components/AdminUserOverview', () => function MockOverview({ overview }) {
-  return <div data-testid="user-overview">{overview ? `${overview.total_users} league users` : 'No overview'}</div>;
+  return <div data-testid="user-overview">{overview ? `${overview.total_users} pool users` : 'No overview'}</div>;
 });
 jest.mock('../components/AdminAccessControl', () => function MockAccess() {
   return <div>Admin access control</div>;
@@ -22,7 +22,7 @@ jest.mock('../components/OwnershipTransferControl', () => function MockTransfer(
   return <div>Ownership transfer control</div>;
 });
 jest.mock('../components/LeagueLockSettings', () => function MockLocks() {
-  return <div>League lock settings</div>;
+  return <div>Pool lock settings</div>;
 });
 jest.mock('../components/LeaguePasswordViewer', () => function MockPassword() {
   return <div>Current password viewer</div>;
@@ -72,12 +72,12 @@ describe('commissioner portal', () => {
     render(<AdminPortal />);
 
     expect(await screen.findByRole('heading', { name: 'Office Survivor' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'League Management' })).toBeInTheDocument();
-    expect(screen.getByText('League lock settings')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Pool Management' })).toBeInTheDocument();
+    expect(screen.getByText('Pool lock settings')).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: /user management/i }));
     expect(screen.getByRole('heading', { name: 'User Management' })).toBeInTheDocument();
-    expect(await screen.findByText('2 league users')).toBeInTheDocument();
+    expect(await screen.findByText('2 pool users')).toBeInTheDocument();
     expect(screen.getByText('Admin access control')).toBeInTheDocument();
     expect(screen.getByText('Ownership transfer control')).toBeInTheDocument();
 
@@ -99,7 +99,7 @@ describe('commissioner portal', () => {
     });
     const user = userEvent.setup();
     render(<AdminPortal />);
-    await screen.findByRole('heading', { name: 'League Management' });
+    await screen.findByRole('heading', { name: 'Pool Management' });
 
     await user.click(screen.getByRole('radio', { name: /private/i }));
     await user.type(screen.getByLabelText('Join password'), 'huddle42');
@@ -112,7 +112,7 @@ describe('commissioner portal', () => {
   test('validates entry lookup and pick correction before calling the API', async () => {
     const user = userEvent.setup();
     render(<AdminPortal />);
-    await screen.findByRole('heading', { name: 'League Management' });
+    await screen.findByRole('heading', { name: 'Pool Management' });
     await user.click(screen.getByRole('button', { name: /entry management/i }));
 
     await user.click(screen.getByRole('button', { name: /search entries/i }));
@@ -132,7 +132,7 @@ describe('commissioner portal', () => {
     });
     const user = userEvent.setup();
     render(<AdminPortal />);
-    await screen.findByRole('heading', { name: 'League Management' });
+    await screen.findByRole('heading', { name: 'Pool Management' });
     await user.click(screen.getByRole('button', { name: /audit log/i }));
 
     expect(await screen.findByText(/corrected week 2 pick/i)).toBeInTheDocument();

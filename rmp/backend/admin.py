@@ -59,7 +59,7 @@ def require_pool_owner(pool_id: str, current_user: models.User, db: Session) -> 
     if not pool:
         raise HTTPException(status_code=404, detail="Pool not found")
     if pool.owner_id != current_user.id and not is_platform_super_admin(current_user):
-        raise HTTPException(status_code=403, detail="Only the league owner can manage administrators")
+        raise HTTPException(status_code=403, detail="Only the pool owner can manage administrators")
     return pool
 
 
@@ -101,7 +101,7 @@ def require_pool_participant_by_email(
 ) -> models.User:
     user = find_user_by_email(email, db)
     if not is_pool_participant(db, pool_id, user.id):
-        raise HTTPException(status_code=404, detail="User not found in this league")
+        raise HTTPException(status_code=404, detail="User not found in this pool")
     return user
 
 
@@ -110,7 +110,7 @@ def require_pool_participant_by_id(
 ) -> models.User:
     user = db.query(models.User).filter(models.User.id == user_id).first()
     if not user or not is_pool_participant(db, pool_id, user.id):
-        raise HTTPException(status_code=404, detail="User not found in this league")
+        raise HTTPException(status_code=404, detail="User not found in this pool")
     return user
 
 
@@ -128,7 +128,7 @@ def grant_pool_admin(
     pool = require_pool_owner(pool_id, current_user, db)
     user = require_pool_participant_by_email(db, pool_id, assignment.email)
     if user.id == pool.owner_id:
-        raise HTTPException(status_code=400, detail="The league owner already has administrator access")
+        raise HTTPException(status_code=400, detail="The pool owner already has administrator access")
 
     existing = db.query(models.PoolAdmin).filter(
         models.PoolAdmin.pool_id == pool_id,
@@ -143,7 +143,7 @@ def grant_pool_admin(
         db=db,
         action="GRANT_LEAGUE_ADMIN",
         admin_user_id=current_user.id,
-        details=f"Granted league administrator access to {user.email}",
+        details=f"Granted pool administrator access to {user.email}",
         target_entity_type="user",
         target_entity_id=user.id,
         additional_data={"pool_id": pool_id, "username": user.email, "admin_email": current_user.email},
@@ -165,7 +165,7 @@ def revoke_pool_admin(
     pool = require_pool_owner(pool_id, current_user, db)
     user = require_pool_participant_by_email(db, pool_id, email)
     if user.id == pool.owner_id:
-        raise HTTPException(status_code=400, detail="League owner access cannot be revoked")
+        raise HTTPException(status_code=400, detail="Pool owner access cannot be revoked")
 
     existing = db.query(models.PoolAdmin).filter(
         models.PoolAdmin.pool_id == pool_id,
@@ -180,7 +180,7 @@ def revoke_pool_admin(
         db=db,
         action="REVOKE_LEAGUE_ADMIN",
         admin_user_id=current_user.id,
-        details=f"Revoked league administrator access from {user.email}",
+        details=f"Revoked pool administrator access from {user.email}",
         target_entity_type="user",
         target_entity_id=user.id,
         additional_data={"pool_id": pool_id, "username": user.email, "admin_email": current_user.email},
@@ -202,7 +202,7 @@ def transfer_pool_ownership(
     pool = require_pool_owner(pool_id, current_user, db)
     new_owner = require_pool_participant_by_email(db, pool_id, transfer.email)
     if new_owner.id == pool.owner_id:
-        raise HTTPException(status_code=400, detail="This user already owns the league")
+        raise HTTPException(status_code=400, detail="This user already owns the pool")
 
     previous_owner_id = pool.owner_id
     previous_owner_email = current_user.email
@@ -221,7 +221,7 @@ def transfer_pool_ownership(
         db=db,
         action="TRANSFER_LEAGUE_OWNERSHIP",
         admin_user_id=current_user.id,
-        details=f"Transferred league ownership from {previous_owner_email} to {new_owner.email}",
+        details=f"Transferred pool ownership from {previous_owner_email} to {new_owner.email}",
         target_entity_type="pool",
         target_entity_id=pool_id,
         additional_data={
@@ -306,7 +306,7 @@ def pool_users_overview(
         if user.id == pool.owner_id:
             admin_role = "Owner"
         elif user.id in admin_ids:
-            admin_role = "League admin"
+            admin_role = "Pool admin"
         else:
             admin_role = "Member"
         result.append({

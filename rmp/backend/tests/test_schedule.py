@@ -136,6 +136,37 @@ class TestScheduleEndpoints:
         assert response.status_code == 200
         assert [game["game_id"] for game in response.json()] == [7102]
 
+    def test_matchups_are_ordered_by_largest_spread_with_pending_lines_last(
+        self, client, db_session, monkeypatch
+    ):
+        home = models.Team(id=73, name="Home", abbrv="H73")
+        away = models.Team(id=74, name="Away", abbrv="A74")
+        db_session.add_all([home, away])
+        db_session.add_all([
+            models.Schedule(
+                game_id=7301, week_num=5, home_team_id=73, away_team_id=74,
+                start_time=datetime(2026, 9, 1, 17),
+            ),
+            models.Schedule(
+                game_id=7302, week_num=5, home_team_id=73, away_team_id=74,
+                start_time=datetime(2026, 9, 1, 18),
+            ),
+            models.Schedule(
+                game_id=7303, week_num=5, home_team_id=73, away_team_id=74,
+                start_time=datetime(2026, 9, 1, 19),
+            ),
+        ])
+        db_session.commit()
+        monkeypatch.setattr("schedule.fetch_week_lines", lambda games: {
+            7301: {"spread": 3.5, "details": "H73 -3.5", "provider": "ESPN"},
+            7302: {"spread": 10.0, "details": "H73 -10", "provider": "ESPN"},
+        })
+
+        response = client.get("/schedule/week/5/matchups")
+
+        assert response.status_code == 200
+        assert [game["game_id"] for game in response.json()] == [7302, 7301, 7303]
+
     def test_week_endpoints_exclude_preseason_games(self, client, db_session, monkeypatch):
         home = models.Team(id=81, name="Home", abbrv="HME")
         away = models.Team(id=82, name="Away", abbrv="AWY")

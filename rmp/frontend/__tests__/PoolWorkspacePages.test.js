@@ -131,6 +131,8 @@ describe('pool workspace pages', () => {
 
     expect(await screen.findByText('My update')).toBeInTheDocument();
     expect(screen.getByText('Other update')).toBeInTheDocument();
+    expect(screen.getByText('player@example.com').closest('.message-card__author')).toBeInTheDocument();
+    expect(screen.getByText('other@example.com')).toHaveClass('message-card__author');
     expect(screen.getAllByTitle('Delete your message')).toHaveLength(1);
 
     await user.type(screen.getByPlaceholderText(/share something/i), 'Sunday reminder');

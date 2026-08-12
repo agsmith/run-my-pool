@@ -351,14 +351,14 @@ export default function MessageBoard() {
                           {message.user_email?.charAt(0).toUpperCase() || '?'}
                         </span>
                         <div>
-                          <div style={{ 
+                          <div className="message-card__author" style={{
                             fontWeight: '600', 
                             color: '#1a202c',
                             fontSize: '0.9rem'
                           }}>
                             {message.user_email || 'Unknown User'}
                             {message.user_id === user?.id && (
-                              <span style={{ 
+                              <span className="message-card__you" style={{
                                 color: '#667eea', 
                                 fontWeight: '500',
                                 marginLeft: '0.5rem'
@@ -367,7 +367,7 @@ export default function MessageBoard() {
                               </span>
                             )}
                           </div>
-                          <div style={{ 
+                          <div className="message-card__timestamp" style={{
                             color: '#6b7280', 
                             fontSize: '0.75rem' 
                           }}>
