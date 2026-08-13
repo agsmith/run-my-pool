@@ -242,6 +242,10 @@ click @ https://files.pythonhosted.org/packages/ae/44/c1221527f6a71a01ec6fbad7fa
     # via
     #   -r rmp/backend/requirements.in
     #   uvicorn
+coolname==5.0.0 \
+    --hash=sha256:594bc6c98ebc75ddd51c0ce10efbb5d2556c14eac60b5b36900dfdd5db20eecf \
+    --hash=sha256:b86eea9670aa0620965167d1bfadfe654fabec839a5b51e8da611c4a64f86192
+    # via -r rmp/backend/requirements.in
 cryptography==50.0.0 \
     --hash=sha256:031e2d5dd4bb9caa3ca9c82e5a197fd8ae680232cee62603d1a813f3f07e3d03 \
     --hash=sha256:06a32a980526a6ab9a4b9bf8f7385800791e2bb960903cb6b530e4817509a3b7 \

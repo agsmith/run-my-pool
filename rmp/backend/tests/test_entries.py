@@ -104,6 +104,81 @@ class TestEntryLockEnforcement:
         assert picks.status_code == 200
         assert [(item["week"], item["team"]) for item in picks.json()] == [(1, "DET")]
 
+    def test_automatic_entry_names_are_football_themed_and_unique(
+        self, client, mocker
+    ):
+        token = _register_and_login(client, email="entry-names@example.com")
+        headers = _authed(client, token)
+        pool_id = self._create_pool(client, headers)
+        generated = iter([
+            ["Red Zone", "Raptors"],
+            ["Red Zone", "Raptors"],
+            ["Blitzing", "Badgers"],
+        ])
+        mocker.patch("entry_names._GENERATOR.generate", side_effect=lambda: next(generated))
+
+        first = client.post(
+            "/entries/create",
+            json={"pool_id": pool_id, "generate_name": True},
+            headers=headers,
+        )
+        second = client.post(
+            "/entries/create",
+            json={"pool_id": pool_id, "generate_name": True},
+            headers=headers,
+        )
+
+        assert first.status_code == 200
+        assert second.status_code == 200
+        assert first.json()["name"] == "Red Zone Raptors"
+        assert second.json()["name"] == "Blitzing Badgers"
+
+    def test_manual_entry_name_is_preserved(self, client):
+        token = _register_and_login(client, email="manual-entry-name@example.com")
+        headers = _authed(client, token)
+        pool_id = self._create_pool(client, headers)
+
+        response = self._create_entry(
+            client, headers, pool_id, name="The Smith Family"
+        )
+
+        assert response.status_code == 200
+        assert response.json()["name"] == "The Smith Family"
+
+    def test_automatic_name_uses_numbered_fallback_after_repeated_collisions(
+        self, client, mocker
+    ):
+        token = _register_and_login(client, email="entry-name-fallback@example.com")
+        headers = _authed(client, token)
+        pool_id = self._create_pool(client, headers)
+        mocker.patch("entry_names._candidate", return_value="Red Zone Raptors")
+
+        first = client.post(
+            "/entries/create",
+            json={"pool_id": pool_id, "generate_name": True},
+            headers=headers,
+        )
+        second = client.post(
+            "/entries/create",
+            json={"pool_id": pool_id, "generate_name": True},
+            headers=headers,
+        )
+
+        assert first.json()["name"] == "Red Zone Raptors"
+        assert second.json()["name"] == "Red Zone Raptors 2"
+
+    def test_missing_manual_entry_name_is_rejected(self, client):
+        token = _register_and_login(client, email="missing-entry-name@example.com")
+        headers = _authed(client, token)
+        pool_id = self._create_pool(client, headers)
+
+        response = client.post(
+            "/entries/create", json={"pool_id": pool_id}, headers=headers
+        )
+
+        assert response.status_code == 422
+        assert response.json()["detail"] == "Entry name is required"
+
     # ---------------------------------------------------------------
     # DELETE /entries/{entry_id}
     # ---------------------------------------------------------------

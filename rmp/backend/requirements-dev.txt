@@ -341,6 +341,10 @@ click @ https://files.pythonhosted.org/packages/ae/44/c1221527f6a71a01ec6fbad7fa
     #   -r rmp/backend/requirements.in
     #   black
     #   uvicorn
+coolname==5.0.0 \
+    --hash=sha256:594bc6c98ebc75ddd51c0ce10efbb5d2556c14eac60b5b36900dfdd5db20eecf \
+    --hash=sha256:b86eea9670aa0620965167d1bfadfe654fabec839a5b51e8da611c4a64f86192
+    # via -r rmp/backend/requirements.in
 coverage[toml]==7.10.7 \
     --hash=sha256:03ffc58aacdf65d2a82bbeb1ffe4d01ead4017a21bfd0454983b88ca73af94b9 \
     --hash=sha256:097c1591f5af4496226d5783d036bf6fd6cd0cbc132e071b33861de756efb880 \

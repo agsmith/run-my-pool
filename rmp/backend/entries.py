@@ -5,6 +5,7 @@ import models
 import schemas
 import deps
 import entitlements
+from entry_names import generate_unique_entry_name
 from datetime import datetime, timezone
 import uuid
 from audit_utils import (
@@ -79,7 +80,18 @@ def create_entry(
                     detail="Pool is locked. Entry creation is not allowed after the lock time.",
                 )
 
-        # Check if user already has an entry with this name in this pool
+        if entry.generate_name:
+            entry_name = generate_unique_entry_name(
+                db, current_user.id, entry.pool_id
+            )
+        else:
+            entry_name = (entry.name or "").strip()
+            if not entry_name:
+                raise HTTPException(
+                    status_code=422,
+                    detail="Entry name is required",
+                )
+
         # Check pool-level user lock
         if is_user_locked_in_pool(db, entry.pool_id, current_user.id):
             raise HTTPException(
@@ -93,7 +105,7 @@ def create_entry(
             .filter(
                 models.Entry.user_id == current_user.id,
                 models.Entry.pool_id == entry.pool_id,
-                models.Entry.name == entry.name,
+                models.Entry.name == entry_name,
             )
             .first()
         )
@@ -106,7 +118,7 @@ def create_entry(
 
         db_entry = models.Entry(
             id=str(uuid.uuid4()),
-            name=entry.name,
+            name=entry_name,
             user_id=current_user.id,
             pool_id=entry.pool_id,
             alive=True,
@@ -125,7 +137,7 @@ def create_entry(
             entity_id=db_entry.id,
             user_id=current_user.id,
             entity_data={
-                "name": entry.name,
+                "name": entry_name,
                 "pool_id": entry.pool_id,
                 "user_email": current_user.email,
             },

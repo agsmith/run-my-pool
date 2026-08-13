@@ -3,7 +3,6 @@ import { useRouter } from 'next/router';
 import ProtectedRoute from '../../../components/ProtectedRoute';
 import { useAuth } from '../../../context/AuthContext';
 import { isLeagueJoinLocked } from '../../../utils/leagueLock';
-import { nextDefaultEntryName } from '../../../utils/entryNames';
 
 // Mock NFL team data - in production this would come from an API
 const NFL_TEAMS = {
@@ -469,8 +468,6 @@ export default function LeagueEntries() {
     setError('');
     try {
       const token = localStorage.getItem('access_token');
-      const defaultName = nextDefaultEntryName(entries);
-      
       const res = await fetch(process.env.NEXT_PUBLIC_API_URL + '/entries/create', {
         method: 'POST',
         headers: { 
@@ -478,8 +475,8 @@ export default function LeagueEntries() {
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          name: defaultName,
-          league_id: id
+          pool_id: id,
+          generate_name: true
         })
       });
 

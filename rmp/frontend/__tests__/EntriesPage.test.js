@@ -179,7 +179,7 @@ describe('player entries page', () => {
     );
   });
 
-  test('creates consecutive entries with unique generated names', async () => {
+  test('requests server-generated names for consecutive entries', async () => {
     const user = userEvent.setup();
     installApi({
       entries: [{ id: 'entry-1', name: 'Entry 1', alive: true }],
@@ -200,28 +200,9 @@ describe('player entries page', () => {
       .filter(([url, options]) => String(url).endsWith('/entries/create') && options?.method === 'POST')
       .map(([, options]) => JSON.parse(options.body));
     expect(createBodies).toEqual([
-      { name: 'Entry 2', pool_id: 'pool-1' },
-      { name: 'Entry 3', pool_id: 'pool-1' },
+      { pool_id: 'pool-1', generate_name: true },
+      { pool_id: 'pool-1', generate_name: true },
     ]);
-  });
-
-  test('fills a free generated-name slot instead of relying on entry count', async () => {
-    const user = userEvent.setup();
-    installApi({
-      entries: [
-        { id: 'custom', name: 'Sunday Best', alive: true },
-        { id: 'entry-2', name: 'Entry 2', alive: true },
-      ],
-      createdEntry: { id: 'entry-1', name: 'Entry 1', alive: true },
-    });
-    render(<LeagueEntries />);
-
-    await screen.findByText('Sunday Best');
-    await user.click(screen.getByRole('button', { name: /create new entry/i }));
-    expect(fetch).toHaveBeenCalledWith(
-      expect.stringContaining('/entries/create'),
-      expect.objectContaining({ body: JSON.stringify({ name: 'Entry 1', pool_id: 'pool-1' }) }),
-    );
   });
 
   test('renders the Washington Commanders logo for WSH picks', async () => {

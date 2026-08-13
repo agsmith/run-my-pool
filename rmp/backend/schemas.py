@@ -334,8 +334,10 @@ class EntryBase(BaseModel):
     name: str
 
 
-class EntryCreate(EntryBase):
+class EntryCreate(BaseModel):
     pool_id: str
+    name: Optional[str] = None
+    generate_name: bool = False
 
 
 class EntryUpdate(BaseModel):
