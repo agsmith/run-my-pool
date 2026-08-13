@@ -149,6 +149,7 @@ class TestAdminEndpoints:
             "all_surviving_entries_picked": False,
             "is_admin": True,
             "admin_role": "Owner",
+            "dues_paid": False,
         }
         assert users["overview.member@example.com"]["total_entries"] == 2
         assert users["overview.member@example.com"]["surviving_entries"] == 1
@@ -156,6 +157,79 @@ class TestAdminEndpoints:
         assert users["overview.member@example.com"]["all_surviving_entries_picked"] is True
         assert users["overview.member@example.com"]["admin_role"] == "Pool admin"
         assert "team" not in users["overview.member@example.com"]
+
+    def test_pool_admin_can_mark_dues_paid_and_unpaid_with_audit(
+        self, client, db_session
+    ):
+        import json
+        import models as m
+
+        owner_token = _register_and_login(client, "dues.owner@example.com")
+        admin_token = _register_and_login(client, "dues.admin@example.com")
+        _register_and_login(client, "dues.member@example.com")
+        pool_id = _create_pool(client, _authed(owner_token))
+        admin_id = _add_pool_member(db_session, pool_id, "dues.admin@example.com")
+        member_id = _add_pool_member(db_session, pool_id, "dues.member@example.com")
+        db_session.add(m.PoolAdmin(pool_id=pool_id, user_id=admin_id))
+        db_session.commit()
+
+        paid = client.put(
+            f"/admin/pools/{pool_id}/users/{member_id}/dues",
+            json={"paid": True},
+            headers=_authed(admin_token),
+        )
+        assert paid.status_code == 200, paid.text
+        assert paid.json()["paid"] is True
+        overview = client.get(
+            f"/admin/pools/{pool_id}/users-overview?week=1",
+            headers=_authed(admin_token),
+        ).json()
+        member = next(user for user in overview["users"] if user["id"] == member_id)
+        assert member["dues_paid"] is True
+
+        unpaid = client.put(
+            f"/admin/pools/{pool_id}/users/{member_id}/dues",
+            json={"paid": False},
+            headers=_authed(admin_token),
+        )
+        assert unpaid.status_code == 200
+        assert unpaid.json()["paid"] is False
+        audit_rows = db_session.query(m.AuditLog).filter(
+            m.AuditLog.action == "ADMIN_POOL_DUES_STATUS_CHANGED"
+        ).all()
+        assert len(audit_rows) == 2
+        changes = [json.loads(row.details)["additional_data"] for row in audit_rows]
+        assert [(change["previous_paid"], change["paid"]) for change in changes] == [
+            (False, True),
+            (True, False),
+        ]
+        assert all(change["pool_id"] == pool_id for change in changes)
+
+    def test_dues_update_rejects_non_admin_and_user_outside_pool(
+        self, client, db_session
+    ):
+        owner_token = _register_and_login(client, "dues.guard.owner@example.com")
+        outsider_token = _register_and_login(client, "dues.guard.outsider@example.com")
+        _register_and_login(client, "dues.guard.member@example.com")
+        pool_id = _create_pool(client, _authed(owner_token))
+        member_id = _add_pool_member(db_session, pool_id, "dues.guard.member@example.com")
+        import models as m
+        outsider = db_session.query(m.User).filter(
+            m.User.email == "dues.guard.outsider@example.com"
+        ).one()
+
+        forbidden = client.put(
+            f"/admin/pools/{pool_id}/users/{member_id}/dues",
+            json={"paid": True},
+            headers=_authed(outsider_token),
+        )
+        missing = client.put(
+            f"/admin/pools/{pool_id}/users/{outsider.id}/dues",
+            json={"paid": True},
+            headers=_authed(owner_token),
+        )
+        assert forbidden.status_code == 403
+        assert missing.status_code == 404
 
     def test_pool_user_overview_rejects_non_admin_and_invalid_week(self, client):
         owner_token = _register_and_login(client, "overview.guard.owner@example.com")

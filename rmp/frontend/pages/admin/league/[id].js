@@ -143,6 +143,32 @@ export default function AdminPortal() {
     }
   };
 
+  const handleChangeUserDues = async (account, paid) => {
+    setUserOverviewError('');
+    try {
+      const token = localStorage.getItem('access_token');
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/admin/pools/${leagueId}/users/${account.id}/dues`,
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ paid }),
+        },
+      );
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.detail || 'Unable to update dues status');
+      setUserOverview((current) => current ? {
+        ...current,
+        users: current.users.map((user) => (
+          user.id === account.id ? { ...user, dues_paid: data.paid } : user
+        )),
+      } : current);
+    } catch (err) {
+      setUserOverviewError(err.message || 'Unable to update dues status');
+      throw err;
+    }
+  };
+
   const fetchAuditLogs = async (search = auditSearch) => {
     setAuditLoading(true);
     setAuditError('');
@@ -660,7 +686,7 @@ export default function AdminPortal() {
         User Management
       </h3>
 
-      <AdminUserOverview overview={userOverview} loading={userOverviewLoading} error={userOverviewError} onRefresh={fetchUserOverview} onChangeEmail={handleChangeUserEmail} />
+      <AdminUserOverview overview={userOverview} loading={userOverviewLoading} error={userOverviewError} onRefresh={fetchUserOverview} onChangeEmail={handleChangeUserEmail} onChangeDues={handleChangeUserDues} />
 
       <AdminAutoPickReport week={autoPickWeek} onWeekChange={setAutoPickWeek} records={autoPicks} loading={autoPicksLoading} error={autoPicksError} />
 

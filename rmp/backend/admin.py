@@ -263,10 +263,11 @@ def pool_users_overview(
         raise HTTPException(status_code=400, detail="Week must be between 1 and 18")
 
     entries = db.query(models.Entry).filter(models.Entry.pool_id == pool_id).all()
-    member_ids = {
-        user_id for (user_id,) in db.query(models.PoolMember.user_id)
-        .filter(models.PoolMember.pool_id == pool_id).all()
-    }
+    memberships = db.query(models.PoolMember).filter(
+        models.PoolMember.pool_id == pool_id
+    ).all()
+    membership_by_user = {membership.user_id: membership for membership in memberships}
+    member_ids = set(membership_by_user)
     member_ids.update(entry.user_id for entry in entries)
     admin_ids = {
         user_id for (user_id,) in db.query(models.PoolAdmin.user_id)
@@ -319,12 +320,77 @@ def pool_users_overview(
             "all_surviving_entries_picked": bool(surviving) and picked_count == len(surviving),
             "is_admin": admin_role != "Member",
             "admin_role": admin_role,
+            "dues_paid": bool(
+                membership_by_user.get(user.id)
+                and membership_by_user[user.id].dues_paid
+            ),
         })
     return {
         "pool_id": pool_id,
         "current_week": selected_week,
         "total_users": len(result),
         "users": result,
+    }
+
+
+@router.put(
+    "/pools/{pool_id}/users/{user_id}/dues",
+    response_model=schemas.PoolDuesStatusOut,
+)
+def update_pool_user_dues(
+    pool_id: str,
+    user_id: str,
+    update: schemas.PoolDuesStatusUpdate,
+    db: Session = Depends(deps.get_db),
+    current_user: models.User = Depends(deps.get_current_user),
+):
+    """Mark a pool participant's pool-specific dues as paid or unpaid."""
+    if not verify_admin_access(pool_id, current_user, db):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    user = require_pool_participant_by_id(db, pool_id, user_id)
+    membership = db.query(models.PoolMember).filter(
+        models.PoolMember.pool_id == pool_id,
+        models.PoolMember.user_id == user_id,
+    ).first()
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    if not membership:
+        membership = models.PoolMember(
+            pool_id=pool_id,
+            user_id=user_id,
+            joined_at=now,
+        )
+        db.add(membership)
+    previous = bool(membership.dues_paid)
+    membership.dues_paid = update.paid
+    membership.dues_updated_at = now
+    membership.dues_updated_by = current_user.id
+    db.commit()
+
+    if previous != update.paid:
+        log_admin_action(
+            db=db,
+            action="POOL_DUES_STATUS_CHANGED",
+            admin_user_id=current_user.id,
+            details=(
+                f"Marked dues {'paid' if update.paid else 'unpaid'} for "
+                f"{user.email} in pool {pool_id}"
+            ),
+            target_entity_type="user",
+            target_entity_id=user.id,
+            additional_data={
+                "pool_id": pool_id,
+                "user_id": user.id,
+                "user_email": user.email,
+                "previous_paid": previous,
+                "paid": update.paid,
+            },
+        )
+    return {
+        "pool_id": pool_id,
+        "user_id": user.id,
+        "paid": update.paid,
+        "updated_at": now,
+        "updated_by": current_user.id,
     }
 
 

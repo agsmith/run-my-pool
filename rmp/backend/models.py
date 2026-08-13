@@ -213,9 +213,12 @@ class PoolMember(Base):
     )
     user_id = Column(String(36), ForeignKey(USERS_ID_FK), primary_key=True)
     joined_at = Column(DateTime, nullable=False)
+    dues_paid = Column(Boolean, nullable=False, default=False, server_default="0")
+    dues_updated_at = Column(DateTime, nullable=True)
+    dues_updated_by = Column(String(36), ForeignKey(USERS_ID_FK), nullable=True)
 
     pool = relationship("Pool", back_populates="members")
-    user = relationship("User")
+    user = relationship("User", foreign_keys=[user_id])
 
 
 class PoolUserLock(Base):

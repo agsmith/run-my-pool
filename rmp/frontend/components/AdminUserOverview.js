@@ -7,8 +7,9 @@ function pickStatus(user) {
   return { label: 'Missing', tone: 'missing' };
 }
 
-export default function AdminUserOverview({ overview, loading, error, onRefresh, onChangeEmail }) {
+export default function AdminUserOverview({ overview, loading, error, onRefresh, onChangeEmail, onChangeDues }) {
   const [search, setSearch] = useState('');
+  const [savingDuesFor, setSavingDuesFor] = useState('');
   const users = useMemo(() => {
     const query = search.trim().toLowerCase();
     if (!query) return overview?.users || [];
@@ -32,12 +33,28 @@ export default function AdminUserOverview({ overview, loading, error, onRefresh,
     {loading ? <div className="admin-user-overview__state">Loading pool users…</div> : !error && users.length === 0 ?
       <div className="admin-user-overview__state">No users match this search.</div> : !error &&
       <div className="admin-user-overview__table-wrap"><table className="admin-user-overview__table">
-        <thead><tr><th>User</th><th>Pool role</th><th>Total entries</th><th>Surviving</th><th>Week {overview?.current_week || '—'} picks</th><th>Actions</th></tr></thead>
+        <thead><tr><th>User</th><th>Pool role</th><th>Dues paid</th><th>Total entries</th><th>Surviving</th><th>Week {overview?.current_week || '—'} picks</th><th>Actions</th></tr></thead>
         <tbody>{users.map((user) => {
           const status = pickStatus(user);
           return <tr key={user.id}>
             <td data-label="User"><strong>{user.email}</strong></td>
             <td data-label="Pool role"><span className={`admin-user-role ${user.is_admin ? 'is-admin' : ''}`}>{user.admin_role}</span></td>
+            <td data-label="Dues paid">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={Boolean(user.dues_paid)}
+                  disabled={savingDuesFor === user.id}
+                  onChange={async (event) => {
+                    setSavingDuesFor(user.id);
+                    try { await onChangeDues(user, event.target.checked); }
+                    finally { setSavingDuesFor(''); }
+                  }}
+                  aria-label={`Dues paid for ${user.email}`}
+                />
+                {user.dues_paid ? ' Paid' : ' Unpaid'}
+              </label>
+            </td>
             <td data-label="Total entries">{user.total_entries}</td>
             <td data-label="Surviving">{user.surviving_entries}</td>
             <td data-label={`Week ${overview?.current_week || ''} picks`}><span className={`admin-pick-status is-${status.tone}`}>{status.label}</span><small>{user.picked_entries} / {user.surviving_entries} picked</small></td>

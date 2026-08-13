@@ -159,6 +159,19 @@ class LeagueAdminUserSummary(BaseModel):
     all_surviving_entries_picked: bool
     is_admin: bool
     admin_role: str
+    dues_paid: bool
+
+
+class PoolDuesStatusUpdate(BaseModel):
+    paid: bool
+
+
+class PoolDuesStatusOut(BaseModel):
+    pool_id: str
+    user_id: str
+    paid: bool
+    updated_at: datetime
+    updated_by: str
 
 
 class LeagueAdminUserOverview(BaseModel):
