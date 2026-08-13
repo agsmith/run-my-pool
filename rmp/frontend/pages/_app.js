@@ -26,11 +26,11 @@ export default function MyApp({ Component, pageProps }) {
   const publicSeo = {
     '/': {
       title: 'Run My Pool',
-      description: 'Run a professional NFL survivor pool with automated picks, standings, deadlines, commissioner controls, and mobile access.',
+      description: "Run NFL Survivor or Pick 'Em pools with automated picks, standings, deadlines, commissioner controls, and mobile access.",
     },
     '/pricing': {
       title: 'Football Pool Pricing',
-      description: 'Simple season pricing for NFL survivor pool commissioners. Start free, grow by the hundred, or run unlimited entries for one predictable price.',
+      description: "Simple season pricing for NFL Survivor and Pick 'Em pool commissioners. Start free, grow by the hundred, or run unlimited entries for one predictable price.",
       path: '/pricing',
     },
     '/install': {

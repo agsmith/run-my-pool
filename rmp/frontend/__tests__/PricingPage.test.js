@@ -1,12 +1,33 @@
 import '@testing-library/jest-dom';
 import { render, screen } from '@testing-library/react';
 import PricingPage from '../pages/pricing';
+import userEvent from '@testing-library/user-event';
+
+const mockTrackLifecycleEvent = jest.fn();
+jest.mock('../lib/lifecycleAnalytics', () => ({
+  trackLifecycleEvent: (...args) => mockTrackLifecycleEvent(...args),
+}));
 
 const mockRouter = { query: {}, isReady: true };
 jest.mock('next/router', () => ({ useRouter: () => mockRouter }));
 jest.mock('../context/AuthContext', () => ({ useAuth: () => ({ user: null, token: null }) }));
 
 describe('PricingPage', () => {
+  beforeEach(() => mockTrackLifecycleEvent.mockClear());
+
+  test('records the pricing view and selected package', async () => {
+    const user = userEvent.setup();
+    render(<PricingPage />);
+
+    expect(mockTrackLifecycleEvent).toHaveBeenCalledWith('pricing_view', { page: 'pricing', source: 'homepage' });
+    await user.click(screen.getByRole('link', { name: /choose pro/i }));
+    expect(mockTrackLifecycleEvent).toHaveBeenCalledWith('plan_selected', {
+      page: 'pricing',
+      plan: 'pro',
+      source: 'pricing',
+    });
+  });
+
   test('shows the recommended plans and prices', () => {
     render(<PricingPage />);
     expect(screen.getByRole('heading', { name: 'Free' })).toBeInTheDocument();

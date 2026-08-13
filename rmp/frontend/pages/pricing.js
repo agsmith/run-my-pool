@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useAuth } from '../context/AuthContext';
 import Seo from '../components/Seo';
+import { trackLifecycleEvent } from '../lib/lifecycleAnalytics';
 
 const plans = [
   {
@@ -62,6 +63,10 @@ export default function PricingPage() {
   const [checkoutPlan, setCheckoutPlan] = useState('');
   const [checkoutError, setCheckoutError] = useState('');
   const continuedCheckout = useRef(false);
+
+  useEffect(() => {
+    trackLifecycleEvent('pricing_view', { page: 'pricing', source: 'homepage' });
+  }, []);
 
   const beginCheckout = useCallback(async (planSlug) => {
     const token = auth?.token || (typeof window !== 'undefined' ? localStorage.getItem('access_token') : null);
@@ -161,6 +166,11 @@ export default function PricingPage() {
                 className={`pricing-card__cta${checkoutPlan === (plan.slug || plan.name.toLowerCase()) ? ' is-loading' : ''}`}
                 aria-disabled={Boolean(checkoutPlan)}
                 onClick={(event) => {
+                  trackLifecycleEvent('plan_selected', {
+                    page: 'pricing',
+                    plan: plan.slug || plan.name.toLowerCase(),
+                    source: 'pricing',
+                  });
                   if (plan.name === 'Free' || !auth?.token) return;
                   event.preventDefault();
                   if (!checkoutPlan) beginCheckout(plan.slug || plan.name.toLowerCase());

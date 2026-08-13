@@ -1,6 +1,8 @@
 import Link from 'next/link';
+import { useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import Seo from '../components/Seo';
+import { trackLifecycleEvent } from '../lib/lifecycleAnalytics';
 
 const games = [
   { number: '01', time: 'SUN 1:00', away: 'BUF', awayName: 'Buffalo', home: 'NYJ', homeName: 'New York', className: 'blue' },
@@ -48,6 +50,10 @@ function FootballMark() {
 export default function Home() {
   const { user } = useAuth();
   const createPoolHref = user ? '/create-pool?source=splash' : '/pricing';
+
+  useEffect(() => {
+    trackLifecycleEvent('landing_view', { page: 'home', source: 'direct' });
+  }, []);
 
   return (
     <div className="rmp-landing">

@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { baseStyles } from '../styles/globalStyles';
 import PasswordVisibilityButton from '../components/PasswordVisibilityButton';
+import { trackLifecycleEvent } from '../lib/lifecycleAnalytics';
 
 function validateEmail(email) {
   return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email);
@@ -47,6 +48,15 @@ export default function CreateAccount() {
   const selectedPlan = typeof router.query?.plan === 'string' ? router.query.plan : '';
   const selectedPlanLabel = PLAN_LABELS[selectedPlan];
   const createPoolIntent = router.query?.intent === 'create-pool';
+
+  useEffect(() => {
+    if (router.isReady === false) return;
+    trackLifecycleEvent('account_creation_view', {
+      page: 'create_account',
+      ...(selectedPlan ? { plan: selectedPlan } : {}),
+      source: selectedPlan ? 'pricing' : 'direct',
+    });
+  }, [router.isReady, selectedPlan]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();

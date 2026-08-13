@@ -3,6 +3,11 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import CreateAccountPage from '../pages/create-account'
 
+const mockTrackLifecycleEvent = jest.fn()
+jest.mock('../lib/lifecycleAnalytics', () => ({
+  trackLifecycleEvent: (...args) => mockTrackLifecycleEvent(...args),
+}))
+
 const mockPush = jest.fn()
 let mockQuery = {}
 
@@ -17,6 +22,7 @@ jest.mock('../styles/globalStyles', () => ({
 describe('CreateAccountPage', () => {
   beforeEach(() => {
     mockPush.mockClear()
+    mockTrackLifecycleEvent.mockClear()
     mockQuery = {}
   })
 
@@ -53,6 +59,11 @@ describe('CreateAccountPage', () => {
     const selection = screen.getByLabelText('Selected package')
     expect(selection).toHaveTextContent('Pro')
     expect(screen.getByRole('link', { name: /change package/i })).toHaveAttribute('href', '/pricing')
+    expect(mockTrackLifecycleEvent).toHaveBeenCalledWith('account_creation_view', {
+      page: 'create_account',
+      plan: 'pro',
+      source: 'pricing',
+    })
   })
 
   test('shows the API reason when account creation is rejected', async () => {

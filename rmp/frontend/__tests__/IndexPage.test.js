@@ -2,6 +2,11 @@ import '@testing-library/jest-dom'
 import { render, screen } from '@testing-library/react'
 import IndexPage from '../pages/index'
 
+const mockTrackLifecycleEvent = jest.fn()
+jest.mock('../lib/lifecycleAnalytics', () => ({
+  trackLifecycleEvent: (...args) => mockTrackLifecycleEvent(...args),
+}))
+
 // ---------------------------------------------------------------------------
 // AuthContext mock
 // ---------------------------------------------------------------------------
@@ -37,6 +42,7 @@ jest.mock('../styles/globalStyles', () => ({
 beforeEach(() => {
   mockPush.mockClear()
   mockReplace.mockClear()
+  mockTrackLifecycleEvent.mockClear()
   // Default: unauthenticated
   useAuth.mockReturnValue({ user: null })
 })
@@ -59,6 +65,15 @@ describe('IndexPage', () => {
     const link = screen.getByRole('link', { name: /get started free/i })
     expect(link).toBeInTheDocument()
     expect(link).toHaveAttribute('href', '/pricing')
+  })
+
+  test('records a privacy-safe landing page view', () => {
+    render(<IndexPage />)
+
+    expect(mockTrackLifecycleEvent).toHaveBeenCalledWith('landing_view', {
+      page: 'home',
+      source: 'direct',
+    })
   })
 
   test('explains both supported pool formats before signup', () => {

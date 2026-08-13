@@ -1,5 +1,5 @@
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
-from typing import Optional, List
+from typing import Literal, Optional, List
 from datetime import datetime, time
 import enum
 import re
@@ -9,6 +9,21 @@ class UserRole(str, enum.Enum):
     USER = "USER"
     POOL_ADMIN = "POOL_ADMIN"
     SUPER_ADMIN = "SUPER_ADMIN"
+
+
+class LifecycleEvent(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    event: Literal[
+        "landing_view",
+        "pricing_view",
+        "plan_selected",
+        "account_creation_view",
+    ]
+    session_id: str = Field(min_length=16, max_length=64, pattern=r"^[A-Za-z0-9_-]+$")
+    page: Literal["home", "pricing", "create_account"]
+    plan: Optional[Literal["free", "commissioner", "pro", "club", "club-unlimited"]] = None
+    source: Optional[Literal["homepage", "pricing", "direct"]] = None
 
 
 class UserBase(BaseModel):
