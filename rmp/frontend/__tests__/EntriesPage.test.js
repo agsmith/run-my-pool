@@ -201,6 +201,7 @@ describe('player entries page', () => {
     const user = userEvent.setup();
     installApi({
       entries: [{ id: 'entry-1', name: 'Alive', alive: true }],
+      lockWeeks: { '1': { locked: false }, '2': { locked: true } },
       breakdownByWeek: {
         '1': [],
         '2': [{
@@ -216,6 +217,7 @@ describe('player entries page', () => {
       expect.stringContaining('/picks/pool/pool-1/week/1/breakdown'),
       expect.any(Object),
     ));
+    expect(screen.getByText('Week 1 picks will be revealed after the weekly lock time.')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /show users who picked/i })).not.toBeInTheDocument();
 
     await user.selectOptions(screen.getByLabelText('Pick breakdown week'), '2');
@@ -224,5 +226,21 @@ describe('player entries page', () => {
       expect.stringContaining('/picks/pool/pool-1/week/2/breakdown'),
       expect.any(Object),
     );
+    expect(screen.getByText('🔒 Locked')).toBeInTheDocument();
+  });
+
+  test('explains when a selected locked week has no surviving picks', async () => {
+    const user = userEvent.setup();
+    installApi({
+      entries: [{ id: 'entry-1', name: 'Alive', alive: true }],
+      lockWeeks: { '3': { locked: true } },
+      breakdownByWeek: { '1': [], '3': [] },
+    });
+    render(<LeagueEntries />);
+
+    await user.selectOptions(await screen.findByLabelText('Pick breakdown week'), '3');
+
+    expect(await screen.findByText('No surviving picks were recorded for Week 3.')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Week 3 Pick Breakdown' })).toBeInTheDocument();
   });
 });

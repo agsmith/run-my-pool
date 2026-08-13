@@ -1,10 +1,11 @@
 import json
 import os
 import logging
-from datetime import datetime, timezone, date
+from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional
+from zoneinfo import ZoneInfo
 import boto3
-from sqlalchemy import create_engine, and_, func
+from sqlalchemy import create_engine, and_, func, or_
 from sqlalchemy.orm import sessionmaker
 import requests
 import mysql.connector
@@ -23,41 +24,31 @@ SSM_GAMES_DONE_PARAM = os.environ.get(
 )
 
 ssm_client = boto3.client("ssm", region_name="us-east-1")
+EASTERN = ZoneInfo("America/New_York")
 
 
 def get_et_date_str() -> str:
     """Return today's date as YYYY-MM-DD in US Eastern Time."""
-    now_utc = datetime.now(timezone.utc)
-    et_hour = (now_utc.hour - 5) % 24
-    # If ET hour is less than UTC hour we've crossed midnight in ET
-    if et_hour > now_utc.hour:
-        # We're still on the previous UTC day in ET
-        from datetime import timedelta
-
-        et_date = (now_utc - timedelta(days=1)).date()
-    else:
-        et_date = now_utc.date()
-    return et_date.isoformat()
+    return datetime.now(timezone.utc).astimezone(EASTERN).date().isoformat()
 
 
-def all_games_final_today(db) -> bool:
+def all_games_final_for_week(db, week: int) -> bool:
     """
-    Return True if every game scheduled for the current week that was
-    supposed to be played today (ET) has a determined winner (winning_team_id != 99).
+    Return True if every game scheduled for the current week has a determined
+    winner (winning_team_id is neither null nor the unresolved sentinel 99).
     Returns False if any game is still unresolved or in-progress.
     """
-    current_week = get_current_nfl_week()
     unresolved = (
         db.query(Schedule)
         .filter(
             and_(
-                Schedule.week_num == current_week,
-                Schedule.winning_team_id == 99,
+                Schedule.week_num == week,
+                or_(Schedule.winning_team_id == 99, Schedule.winning_team_id.is_(None)),
             )
         )
         .count()
     )
-    logger.info(f"Week {current_week}: {unresolved} game(s) still unresolved in DB")
+    logger.info(f"Week {week}: {unresolved} game(s) still unresolved in DB")
     return unresolved == 0
 
 
@@ -95,40 +86,45 @@ def mark_done_for_today() -> None:
         logger.warning(f"Could not write SSM param {SSM_GAMES_DONE_PARAM}: {e}")
 
 
-def get_current_nfl_week() -> int:
-    """Calculate current NFL week based on date"""
-    now = datetime.now(timezone.utc)
-    current_year = now.year
+def get_current_nfl_context(db, now=None):
+    """Resolve the active season/week from the stored schedule."""
+    current = now or datetime.now(timezone.utc)
+    current_naive = current.astimezone(timezone.utc).replace(tzinfo=None)
+    nearby_games = (
+        db.query(Schedule)
+        .filter(
+            Schedule.start_time >= current_naive - timedelta(days=4),
+            Schedule.start_time <= current_naive + timedelta(days=4),
+        )
+        .all()
+    )
+    if not nearby_games:
+        raise RuntimeError("No scheduled NFL games found near the current date")
+    nearest = min(
+        nearby_games,
+        key=lambda game: abs((game.start_time - current_naive).total_seconds()),
+    )
+    season = nearest.start_time.year - (1 if nearest.start_time.month <= 2 else 0)
+    return season, nearest.week_num
 
-    # NFL Week 1 typically starts around September 7-14
-    # For 2025, let's assume Week 1 starts September 7, 2025
-    week1_start = datetime(current_year, 9, 7, tzinfo=timezone.utc)
 
-    if now < week1_start:
-        return 1
-
-    days_since_week1_end = (now - week1_start).days
-    week = (days_since_week1_end // 7) + 1
-
-    # Cap at Week 18
-    return min(week, 18)
+def get_current_nfl_week(db, now=None) -> int:
+    """Resolve the active week from the stored schedule rather than a guessed date."""
+    return get_current_nfl_context(db, now)[1]
 
 
-def is_nfl_game_time() -> bool:
+def is_nfl_game_time(now=None, current_week=None) -> bool:
     """
     Check if current time is during typical NFL game hours
     Returns True if it's likely that NFL games are being played
     """
-    now = datetime.now(timezone.utc)
-
-    # Convert to ET for easier comparison
-    # UTC is 4-5 hours ahead of ET depending on DST
-    # For simplicity, assume 5 hours (EST) during NFL season
-    et_hour = (now.hour - 5) % 24
-    et_weekday = now.weekday()  # 0=Monday, 6=Sunday
+    now_utc = now or datetime.now(timezone.utc)
+    local_now = now_utc.astimezone(EASTERN)
+    et_hour = local_now.hour
+    et_weekday = local_now.weekday()  # 0=Monday, 6=Sunday
 
     # Check if we're in NFL season (September through February)
-    if now.month not in [9, 10, 11, 12, 1, 2]:
+    if local_now.month not in [9, 10, 11, 12, 1, 2]:
         return False
 
     # Sunday (weekday 6): 1:00 PM - 11:30 PM ET
@@ -143,10 +139,15 @@ def is_nfl_game_time() -> bool:
     if et_weekday == 3 and 20 <= et_hour <= 23:
         return True
 
-    # Saturday (weekday 5): 1:00 PM - 11:30 PM ET (late season games)
-    # Only during weeks 15-18 and playoffs
-    current_week = get_current_nfl_week()
-    if et_weekday == 5 and 13 <= et_hour <= 23 and current_week >= 15:
+    # Continue polling shortly after midnight for games that ran late.
+    if et_hour <= 1 and et_weekday in {0, 1, 4}:
+        return True
+
+    # Saturday games are normally late-season only. Scheduler may invoke on
+    # earlier Saturdays, but the application gate keeps those runs inexpensive.
+    if et_weekday == 5 and 13 <= et_hour <= 23 and (current_week or 0) >= 15:
+        return True
+    if et_weekday == 6 and et_hour <= 1 and (current_week or 0) >= 15:
         return True
 
     return False
@@ -167,23 +168,11 @@ def lambda_handler(event, context):
        further invocations until the next game day
     """
     try:
+        event = event or {}
         logger.info("Starting NFL game results update process")
 
-        # Check if it's actually game time
-        if not is_nfl_game_time():
-            logger.info("Not during NFL game time, skipping update")
-            return {
-                "statusCode": 200,
-                "body": json.dumps(
-                    {
-                        "message": "Skipped - not during NFL game time",
-                        "timestamp": datetime.now(timezone.utc).isoformat(),
-                    }
-                ),
-            }
-
         # Check SSM flag — skip if all games were already marked final today
-        if is_done_for_today():
+        if not event.get("force") and is_done_for_today():
             return {
                 "statusCode": 200,
                 "body": json.dumps(
@@ -201,11 +190,22 @@ def lambda_handler(event, context):
 
         try:
             # Get current week
-            current_week = get_current_nfl_week()
-            logger.info(f"Processing games for week {current_week}")
+            season, current_week = get_current_nfl_context(db)
+            logger.info(f"Processing {season} season, week {current_week}")
+
+            if not event.get("force") and not is_nfl_game_time(current_week=current_week):
+                logger.info("Not during NFL game time, skipping update")
+                return {
+                    "statusCode": 200,
+                    "body": json.dumps({
+                        "message": "Skipped - not during NFL game time",
+                        "week": current_week,
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                    }),
+                }
 
             # Fetch game results from ESPN API
-            game_results = fetch_nfl_game_results(current_week)
+            game_results = fetch_nfl_game_results(current_week, season)
             logger.info(
                 f"Fetched {len(game_results)} game results for week {current_week}"
             )
@@ -216,15 +216,15 @@ def lambda_handler(event, context):
             # Update picks based on game results
             picks_updated = update_picks_results(db, game_results)
 
-            # Update entry status (eliminate losing entries)
-            entries_eliminated = eliminate_losing_entries(db)
+            # Reconcile Survivor elimination, including official corrections.
+            entries_reconciled = reconcile_survivor_entries(db)
 
             # Commit all changes
             db.commit()
 
             # Check if all games for this week are now final — if so, set the
             # SSM flag so we skip all remaining invocations today
-            games_done = all_games_final_today(db)
+            games_done = all_games_final_for_week(db, current_week)
             if games_done:
                 mark_done_for_today()
 
@@ -236,7 +236,7 @@ def lambda_handler(event, context):
                         "week": current_week,
                         "games_updated": updates_made,
                         "picks_updated": picks_updated,
-                        "entries_eliminated": entries_eliminated,
+                        "entries_reconciled": entries_reconciled,
                         "all_games_final": games_done,
                         "timestamp": datetime.now(timezone.utc).isoformat(),
                     }
@@ -253,13 +253,10 @@ def lambda_handler(event, context):
             db.close()
 
     except Exception as e:
-        logger.error(f"Error processing NFL game results: {str(e)}")
-        return {
-            "statusCode": 500,
-            "body": json.dumps(
-                {"error": str(e), "timestamp": datetime.now(timezone.utc).isoformat()}
-            ),
-        }
+        # Raising is intentional: EventBridge Scheduler can only retry and send
+        # the invocation to its DLQ when Lambda reports a failed invocation.
+        logger.exception("Error processing NFL game results")
+        raise
 
 
 def get_database_engine():
@@ -270,7 +267,7 @@ def get_database_engine():
         endpoint_url="https://secretsmanager.us-east-1.amazonaws.com",
     )
 
-    secret_name = "arn:aws:secretsmanager:us-east-1:739444271939:secret:runmypool/database-url-nRqy5o"
+    secret_name = os.environ["SECRETS_MANAGER_ARN"]
 
     try:
         response = secrets_manager.get_secret_value(SecretId=secret_name)
@@ -292,7 +289,7 @@ def get_database_engine():
         raise
 
 
-def fetch_nfl_game_results(week: int) -> List[Dict]:
+def fetch_nfl_game_results(week: int, season: Optional[int] = None) -> List[Dict]:
     """
     Fetch NFL game results from ESPN API
     Returns list of game results with team IDs and scores
@@ -306,7 +303,7 @@ def fetch_nfl_game_results(week: int) -> List[Dict]:
         params = {
             "week": week,
             "seasontype": 2,  # Regular season
-            "year": datetime.now().year,
+            "year": season or datetime.now(timezone.utc).astimezone(EASTERN).year,
         }
 
         response = requests.get(url, params=params, timeout=30)
@@ -433,7 +430,7 @@ def update_game_results(db, game_results: List[Dict]) -> int:
 
 
 def update_picks_results(db, game_results: List[Dict]) -> int:
-    """Update picks with win/loss results based on game outcomes"""
+    """Reconcile Survivor and Pick 'Em picks with final game outcomes."""
     picks_updated = 0
 
     # Get the week from game results (they should all be the same week)
@@ -477,14 +474,14 @@ def update_picks_results(db, game_results: List[Dict]) -> int:
                 logger.warning(f"Team not found in database: {team_abbrv}")
                 continue
 
-            # Find all picks for this team in the current week that don't have results yet
+            # Include previously resolved picks so official scoring corrections
+            # propagate to both Survivor and Pick 'Em pools.
             picks = (
                 db.query(Pick)
                 .filter(
                     and_(
                         func.lower(Pick.team) == team.abbrv.lower(),
                         Pick.week == current_week,
-                        Pick.result.is_(None),
                     )
                 )
                 .all()
@@ -495,6 +492,8 @@ def update_picks_results(db, game_results: List[Dict]) -> int:
             )
 
             for pick in picks:
+                if pick.result == result:
+                    continue
                 old_result = pick.result
                 pick.result = result
                 picks_updated += 1
@@ -508,6 +507,38 @@ def update_picks_results(db, game_results: List[Dict]) -> int:
 
     logger.info(f"Total picks updated: {picks_updated}")
     return picks_updated
+
+
+def reconcile_survivor_entries(db) -> int:
+    """Make Survivor entry status agree with its complete resolved pick history.
+
+    This handles both ordinary elimination and an official score correction that
+    changes an entry's only loss back to a win. Pick 'Em entries are never
+    eliminated.
+    """
+    changed = 0
+    survivor_entries = (
+        db.query(Entry)
+        .join(Pool, Pool.id == Entry.pool_id)
+        .filter(Pool.pool_type == "survivor")
+        .all()
+    )
+    for entry in survivor_entries:
+        has_loss = db.query(Pick.id).filter(
+            Pick.entry_id == entry.id,
+            Pick.result == "loss",
+        ).first() is not None
+        should_be_alive = not has_loss
+        if entry.alive != should_be_alive:
+            logger.info(
+                "Reconciled Survivor entry %s alive status: %s -> %s",
+                entry.id,
+                entry.alive,
+                should_be_alive,
+            )
+            entry.alive = should_be_alive
+            changed += 1
+    return changed
 
 
 def eliminate_losing_entries(db) -> int:

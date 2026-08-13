@@ -66,11 +66,11 @@ const MOCK_MATCHUPS = {
    ]
 };
 
-function PickBreakdownPanel({ data, week }) {
+function PickBreakdownPanel({ data, week, loading, error, locked }) {
   const [selectedBreakdown, setSelectedBreakdown] = useState(null);
-  if (!data || data.length === 0) return null;
-  const total = data.reduce((sum, item) => sum + item.count, 0);
-  if (total === 0) return null;
+  useEffect(() => setSelectedBreakdown(null), [week]);
+  const breakdown = data || [];
+  const total = breakdown.reduce((sum, item) => sum + item.count, 0);
 
   return (
     <div className="entries-breakdown" style={{
@@ -84,7 +84,7 @@ function PickBreakdownPanel({ data, week }) {
         <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: '600' }}>
           Week {week} Pick Breakdown
         </h3>
-        <span style={{
+        {locked && <span style={{
           fontSize: '0.75rem',
           backgroundColor: '#dc3545',
           color: '#fff',
@@ -93,13 +93,21 @@ function PickBreakdownPanel({ data, week }) {
           fontWeight: '500',
         }}>
           🔒 Locked
-        </span>
-        <span style={{ fontSize: '0.8rem', color: '#666', marginLeft: 'auto' }}>
+        </span>}
+        {total > 0 && <span style={{ fontSize: '0.8rem', color: '#c9d4d3', marginLeft: 'auto' }}>
           {total} alive {total === 1 ? 'entry' : 'entries'}
-        </span>
+        </span>}
       </div>
 
-      {data.map((item) => {
+      {loading && <p role="status" style={{ color: '#c9d4d3', margin: 0 }}>Loading Week {week} pick breakdown…</p>}
+      {!loading && error && <p role="alert" style={{ color: '#ff8e8e', margin: 0 }}>{error}</p>}
+      {!loading && !error && total === 0 && <p style={{ color: '#c9d4d3', margin: 0 }}>
+        {locked
+          ? `No surviving picks were recorded for Week ${week}.`
+          : `Week ${week} picks will be revealed after the weekly lock time.`}
+      </p>}
+
+      {!loading && !error && breakdown.map((item) => {
         const pct = Math.round((item.count / total) * 100);
         return (
           <div className="entries-breakdown__row" key={item.team_id} style={{ marginBottom: '0.4rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -167,6 +175,7 @@ export default function LeagueEntries() {
   const [breakdownWeek, setBreakdownWeek] = useState(1);
   const [breakdownData, setBreakdownData] = useState([]);
   const [breakdownLoading, setBreakdownLoading] = useState(false);
+  const [breakdownError, setBreakdownError] = useState('');
   const [selectedEntry, setSelectedEntry] = useState(null);
   const [showMatchupOverlay, setShowMatchupOverlay] = useState(false);
   const [selectedTeam, setSelectedTeam] = useState(null);
@@ -343,29 +352,36 @@ export default function LeagueEntries() {
     }
   };
 
-  const fetchBreakdown = async (week) => {
+  const fetchBreakdown = async (week, signal) => {
     if (!week || !id) return;
     setBreakdownLoading(true);
+    setBreakdownError('');
+    setBreakdownData([]);
     try {
       const token = localStorage.getItem('access_token');
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/picks/pool/${id}/week/${week}/breakdown`,
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` }, signal }
       );
       if (res.ok) {
-        setBreakdownData(await res.json());
+        const data = await res.json();
+        if (!signal?.aborted) setBreakdownData(data);
       } else {
-        setBreakdownData([]);
+        if (!signal?.aborted) setBreakdownError(`Unable to load the Week ${week} pick breakdown.`);
       }
-    } catch {
-      setBreakdownData([]);
+    } catch (err) {
+      if (err?.name !== 'AbortError') {
+        setBreakdownError(`Unable to load the Week ${week} pick breakdown.`);
+      }
     } finally {
-      setBreakdownLoading(false);
+      if (!signal?.aborted) setBreakdownLoading(false);
     }
   };
 
   useEffect(() => {
-    if (breakdownWeek) fetchBreakdown(breakdownWeek);
+    const controller = new AbortController();
+    if (breakdownWeek) fetchBreakdown(breakdownWeek, controller.signal);
+    return () => controller.abort();
   }, [breakdownWeek, id]);
 
   const handlePickClick = async (entry, week) => {
@@ -1220,7 +1236,13 @@ export default function LeagueEntries() {
                 {Array.from({ length: 18 }, (_, index) => index + 1).map((week) => <option key={week} value={week}>Week {week}</option>)}
               </select>
             </div>
-            <PickBreakdownPanel data={breakdownData} week={breakdownWeek} />
+            <PickBreakdownPanel
+              data={breakdownData}
+              week={breakdownWeek}
+              loading={breakdownLoading}
+              error={breakdownError}
+              locked={Boolean(weekLockStatus[String(breakdownWeek)]?.locked)}
+            />
             <div className="entries-table-scroll" style={{
               overflowX: 'auto',
               borderRadius: '12px',

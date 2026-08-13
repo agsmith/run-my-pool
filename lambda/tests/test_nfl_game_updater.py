@@ -46,11 +46,14 @@ sys.modules["boto3"] = boto3_mock
 # Now it is safe to import the module under test
 import nfl_game_updater  # noqa: E402
 from nfl_game_updater import (  # noqa: E402
+    all_games_final_for_week,
+    get_current_nfl_context,
     is_nfl_game_time,
     fetch_nfl_game_results,
     update_game_results,
     update_picks_results,
     eliminate_losing_entries,
+    reconcile_survivor_entries,
 )
 
 
@@ -184,8 +187,7 @@ class TestIsNflGameTime:
         # (0+248)%7 = 248%7 = 3 (248/7=35r3) → Thursday. ✓
         # et_hour=20 → UTC hour = 20+5=25 → 1 (next day), but we want UTC Thursday.
         # UTC hour 1 on Sep 5 → et_hour=(1-5)%24=20, et_weekday=Sep5.weekday()=3. ✓
-        fixed_dt = _utc(2024, 9, 5, 1, 20)
-        assert fixed_dt.weekday() == 3, "Sep 5 2024 must be Thursday"
+        fixed_dt = _utc(2024, 9, 6, 0, 20)  # Thu Sep 5 8:20 PM EDT
         with patch("nfl_game_updater.datetime") as mock_dt:
             mock_dt.now.return_value = fixed_dt
             mock_dt.side_effect = lambda *a, **kw: datetime(*a, **kw)
@@ -248,14 +250,16 @@ class TestIsNflGameTime:
         # Dec 21 2024 is Saturday. UTC 01:00 → ET 20:00.
         # Days to Dec 21: Jan31+Feb29+Mar31+Apr30+May31+Jun30+Jul31+Aug31+Sep30+Oct31+Nov30+20=355.
         # (0+355)%7=5→Saturday. ✓
-        fixed_dt = _utc(2024, 12, 21, 1, 0)
-        assert fixed_dt.weekday() == 5, "Dec 21 2024 must be Saturday"
+        fixed_dt = _utc(2024, 12, 22, 1, 0)  # Sat Dec 21 8:00 PM EST
         with patch("nfl_game_updater.datetime") as mock_dt:
             mock_dt.now.return_value = fixed_dt
             mock_dt.side_effect = lambda *a, **kw: datetime(*a, **kw)
-            with patch("nfl_game_updater.get_current_nfl_week", return_value=16):
-                result = is_nfl_game_time()
+            result = is_nfl_game_time(current_week=16)
         assert result is True
+
+    def test_uses_eastern_dst_and_local_weekday(self):
+        """Monday Night Football remains Monday locally after UTC rolls to Tuesday."""
+        assert is_nfl_game_time(_utc(2026, 9, 15, 0, 30), current_week=2) is True
 
 
 # ---------------------------------------------------------------------------
@@ -765,3 +769,113 @@ class TestEliminateLosingEntries:
         count = eliminate_losing_entries(db)
 
         assert count == 0
+
+
+# ---------------------------------------------------------------------------
+# Pool-aware correction and schedule-derived context tests
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def scoring_db():
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+    from sqlalchemy.pool import StaticPool
+    from models import Base
+
+    engine = create_engine(
+        "sqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(engine)
+    session = sessionmaker(bind=engine)()
+    try:
+        yield session
+    finally:
+        session.close()
+        Base.metadata.drop_all(engine)
+
+
+class TestPoolAwareScoring:
+    def _seed_pool_types(self, db):
+        from models import Entry, Pick, Pool, Team
+
+        db.add_all([
+            Team(id=1, name="New England Patriots", abbrv="NE"),
+            Team(id=2, name="Buffalo Bills", abbrv="BUF"),
+            Pool(id="survivor", name="Survivor", pool_type="survivor"),
+            Pool(id="pickem", name="Pick Em", pool_type="pickem"),
+            Entry(id="survivor-entry", pool_id="survivor", alive=False),
+            Entry(id="pickem-entry", pool_id="pickem", alive=True),
+            Pick(id="survivor-pick", entry_id="survivor-entry", week=4, team="NE", result="loss"),
+            Pick(id="pickem-pick", entry_id="pickem-entry", week=4, game_id=100, team="BUF", result="win"),
+        ])
+        db.commit()
+
+    def test_official_correction_updates_both_pool_types_and_restores_survivor(self, scoring_db):
+        from models import Entry, Pick
+
+        self._seed_pool_types(scoring_db)
+        results = [{
+            "home_team_abbrv": "NE",
+            "away_team_abbrv": "BUF",
+            "winning_team_abbrv": "NE",
+            "status": "STATUS_FINAL",
+            "week": 4,
+        }]
+
+        assert update_picks_results(scoring_db, results) == 2
+        assert reconcile_survivor_entries(scoring_db) == 1
+        assert scoring_db.get(Pick, "survivor-pick").result == "win"
+        assert scoring_db.get(Pick, "pickem-pick").result == "loss"
+        assert scoring_db.get(Entry, "survivor-entry").alive is True
+        assert scoring_db.get(Entry, "pickem-entry").alive is True
+
+    def test_pickem_loss_never_eliminates_entry(self, scoring_db):
+        from models import Entry
+
+        self._seed_pool_types(scoring_db)
+        assert reconcile_survivor_entries(scoring_db) == 0
+        assert scoring_db.get(Entry, "pickem-entry").alive is True
+
+
+class TestScheduleDerivedContext:
+    def test_resolves_week_and_previous_season_during_january(self, scoring_db):
+        from models import Schedule, Team
+
+        scoring_db.add_all([
+            Team(id=11, name="Home", abbrv="HME"),
+            Team(id=12, name="Away", abbrv="AWY"),
+            Schedule(
+                game_id=200,
+                week_num=18,
+                home_team_id=11,
+                away_team_id=12,
+                start_time=datetime(2027, 1, 10, 18, 0),
+                winning_team_id=None,
+            ),
+        ])
+        scoring_db.commit()
+
+        assert get_current_nfl_context(
+            scoring_db, _utc(2027, 1, 10, 17, 0)
+        ) == (2026, 18)
+        assert all_games_final_for_week(scoring_db, 18) is False
+
+
+class TestHandlerFailureSemantics:
+    def test_failures_are_raised_for_scheduler_retry_and_dlq(self):
+        with patch("nfl_game_updater.is_done_for_today", return_value=False), patch(
+            "nfl_game_updater.get_database_engine", side_effect=RuntimeError("database unavailable")
+        ):
+            with pytest.raises(RuntimeError, match="database unavailable"):
+                nfl_game_updater.lambda_handler({}, None)
+
+    def test_force_invocation_bypasses_daily_completion_marker(self):
+        with patch("nfl_game_updater.is_done_for_today") as done, patch(
+            "nfl_game_updater.get_database_engine", side_effect=RuntimeError("stop after guard")
+        ):
+            with pytest.raises(RuntimeError, match="stop after guard"):
+                nfl_game_updater.lambda_handler({"force": True}, None)
+        done.assert_not_called()

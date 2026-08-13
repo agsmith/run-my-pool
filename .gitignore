@@ -5,6 +5,9 @@ rmp/frontend/.next/
 rmp/frontend/public/sw.js
 rmp/frontend/public/swe-worker-*.js
 rmp/backend/tests/__pycache__/
+lambda/.terraform/
+lambda/src/__pycache__/
+lambda/tests/__pycache__/
 # dependencies
 /node_modules
 /.pnp
