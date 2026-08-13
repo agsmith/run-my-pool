@@ -9,11 +9,16 @@ jest.mock('../lib/lifecycleAnalytics', () => ({
 }));
 
 const mockRouter = { query: {}, isReady: true };
+let mockAuth = { user: null, token: null };
 jest.mock('next/router', () => ({ useRouter: () => mockRouter }));
-jest.mock('../context/AuthContext', () => ({ useAuth: () => ({ user: null, token: null }) }));
+jest.mock('../context/AuthContext', () => ({ useAuth: () => mockAuth }));
 
 describe('PricingPage', () => {
-  beforeEach(() => mockTrackLifecycleEvent.mockClear());
+  beforeEach(() => {
+    mockTrackLifecycleEvent.mockClear();
+    mockRouter.query = {};
+    mockAuth = { user: null, token: null };
+  });
 
   test('records the pricing view and selected package', async () => {
     const user = userEvent.setup();
@@ -54,6 +59,20 @@ describe('PricingPage', () => {
     expect(screen.getByRole('link', { name: /choose pro/i })).toHaveAttribute('href', '/create-account?plan=pro');
     expect(screen.getByRole('link', { name: /choose club/i })).toHaveAttribute('href', '/create-account?plan=club');
     expect(screen.getByRole('link', { name: /go unlimited/i })).toHaveAttribute('href', '/create-account?plan=club-unlimited');
+  });
+
+  test('takes a signed-in Free customer directly to pool setup', () => {
+    mockAuth = { user: { id: 'user-1' }, token: 'token' };
+    render(<PricingPage />);
+
+    expect(screen.getAllByRole('link', { name: /start free/i }).every((link) => link.getAttribute('href') === '/create-pool?source=splash')).toBe(true);
+  });
+
+  test('identifies the package when checkout is canceled', () => {
+    mockRouter.query = { checkout: 'cancelled', plan: 'pro' };
+    render(<PricingPage />);
+
+    expect(screen.getByText(/Pro checkout was canceled.*No payment was taken/i)).toBeInTheDocument();
   });
 
   test('positions Club around multiple pools and historical access', () => {

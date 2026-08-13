@@ -10,6 +10,25 @@ function validateEmail(email) {
   return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email);
 }
 
+const PLAN_LABELS = {
+  free: 'Free',
+  commissioner: 'Commish',
+  pro: 'Pro',
+  club: 'Club',
+  'club-unlimited': 'Club Unlimited',
+};
+
+function planFromNext(next) {
+  if (typeof next !== 'string' || !next.startsWith('/') || next.startsWith('//')) return '';
+  if (next === '/create-pool?source=splash') return 'free';
+  try {
+    const plan = new URL(next, 'https://runmypool.net').searchParams.get('checkout');
+    return PLAN_LABELS[plan] ? plan : '';
+  } catch (_invalidNext) {
+    return '';
+  }
+}
+
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -19,6 +38,7 @@ export default function Login() {
   const [isMobile, setIsMobile] = useState(false);
   const { login, loading } = useAuth();
   const router = useRouter();
+  const continuationPlan = planFromNext(router.query.next);
 
   useEffect(() => {
     if (router.query.message) {
@@ -101,6 +121,13 @@ export default function Login() {
             fontSize: isMobile ? '0.9rem' : '1rem'
           }}>
             {successMessage}
+          </div>
+        )}
+
+        {continuationPlan && (
+          <div className="auth-plan-selection" aria-label="Selected package">
+            <div><span>Continue with</span><strong>{PLAN_LABELS[continuationPlan]}</strong></div>
+            <Link href="/pricing">Change package</Link>
           </div>
         )}
 
@@ -191,7 +218,7 @@ export default function Login() {
             justifyContent: 'center'
           }}>
             <Link 
-              href="/create-account" 
+              href={continuationPlan ? `/create-account?plan=${continuationPlan}` : '/create-account'}
               style={{ 
                 color: '#667eea',
                 textDecoration: 'none',

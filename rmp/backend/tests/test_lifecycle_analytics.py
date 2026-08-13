@@ -104,3 +104,19 @@ def test_lifecycle_event_rejects_oversized_declared_body(client):
     )
 
     assert response.status_code == 413
+
+
+def test_buy_stage_payment_event_is_allowlisted(client):
+    response = client.post(
+        "/analytics/events",
+        headers={"x-forwarded-for": "198.51.100.74"},
+        json={
+            "event": "payment_confirmed",
+            "session_id": "paid-session-1234567890",
+            "page": "billing_success",
+            "plan": "commissioner",
+            "source": "pricing",
+        },
+    )
+
+    assert response.status_code == 204

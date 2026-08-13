@@ -15,12 +15,13 @@ import { useAuth } from '../context/AuthContext'
 // Router mock
 // ---------------------------------------------------------------------------
 const mockPush = jest.fn()
+let mockQuery = {}
 
 jest.mock('next/router', () => ({
   useRouter: () => ({
     push: mockPush,
     replace: jest.fn(),
-    query: {},
+    query: mockQuery,
     pathname: '/login',
   }),
 }))
@@ -41,6 +42,7 @@ jest.mock('../styles/globalStyles', () => ({
 
 beforeEach(() => {
   mockPush.mockClear()
+  mockQuery = {}
   // Default: not loading, login succeeds
   useAuth.mockReturnValue({
     login: jest.fn().mockResolvedValue(undefined),
@@ -105,6 +107,29 @@ describe('LoginPage', () => {
     const link = screen.getByRole('link', { name: /create new account/i })
     expect(link).toBeInTheDocument()
     expect(link).toHaveAttribute('href', '/create-account')
+  })
+
+  test('shows and preserves the package being continued after sign in', () => {
+    mockQuery = { next: '/pricing?checkout=pro' }
+    renderLogin()
+
+    expect(screen.getByLabelText('Selected package')).toHaveTextContent('Pro')
+    expect(screen.getByRole('link', { name: /create new account/i })).toHaveAttribute('href', '/create-account?plan=pro')
+  })
+
+  test('continues a selected Free package to pool setup', async () => {
+    const mockLogin = jest.fn().mockResolvedValue(undefined)
+    useAuth.mockReturnValue({ login: mockLogin, user: null, loading: false })
+    mockQuery = { next: '/create-pool?source=splash' }
+    const user = userEvent.setup()
+    renderLogin()
+
+    expect(screen.getByLabelText('Selected package')).toHaveTextContent('Free')
+    await user.type(screen.getByPlaceholderText(/enter your email/i), VALID_EMAIL)
+    await user.type(screen.getByPlaceholderText(/enter your password/i), VALID_PASSWORD)
+    await user.click(screen.getByRole('button', { name: /sign in/i }))
+
+    expect(mockLogin).toHaveBeenCalledWith(VALID_EMAIL, VALID_PASSWORD, '/create-pool?source=splash')
   })
 
   test('shows a link to the forgot-password page', () => {

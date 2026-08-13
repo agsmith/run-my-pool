@@ -63,6 +63,7 @@ export default function PricingPage() {
   const [checkoutPlan, setCheckoutPlan] = useState('');
   const [checkoutError, setCheckoutError] = useState('');
   const continuedCheckout = useRef(false);
+  const freeStartHref = auth?.user ? '/create-pool?source=splash' : '/create-account?plan=free';
 
   useEffect(() => {
     trackLifecycleEvent('pricing_view', { page: 'pricing', source: 'homepage' });
@@ -83,6 +84,7 @@ export default function PricingPage() {
       });
       const body = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(body.detail || 'Unable to start secure checkout.');
+      trackLifecycleEvent('checkout_started', { page: 'pricing', plan: planSlug, source: 'pricing' });
       window.location.assign(body.checkout_url);
       return true;
     } catch (error) {
@@ -134,7 +136,7 @@ export default function PricingPage() {
           </div>
           <div className="rmp-nav-actions">
             <Link href="/login" className="rmp-login">Login</Link>
-            <Link href="/create-account" className="rmp-nav-cta">Start free <span>↗</span></Link>
+            <Link href={freeStartHref} className="rmp-nav-cta">Start free <span>↗</span></Link>
           </div>
         </nav>
       </header>
@@ -147,7 +149,7 @@ export default function PricingPage() {
         </section>
 
         <section className="pricing-grid rmp-shell" aria-label="Pricing plans">
-          {router.query.checkout === 'cancelled' && <div className="pricing-checkout-notice">Checkout was canceled. No payment was taken.</div>}
+          {router.query.checkout === 'cancelled' && <div className="pricing-checkout-notice">{typeof router.query.plan === 'string' ? `${plans.find((item) => (item.slug || item.name.toLowerCase()) === router.query.plan)?.name || 'Plan'} checkout was canceled.` : 'Checkout was canceled.'} No payment was taken.</div>}
           {checkoutError && <div className="pricing-checkout-notice pricing-checkout-notice--error">{checkoutError}</div>}
           {plans.map((plan, index) => (
             <article className={`pricing-card${plan.featured ? ' pricing-card--featured' : ''}`} key={plan.name}>
@@ -162,7 +164,7 @@ export default function PricingPage() {
                 {plan.features.map((feature) => <li key={feature}><span>✓</span>{feature}</li>)}
               </ul>
               <Link
-                href={`/create-account?plan=${plan.slug || plan.name.toLowerCase()}`}
+                href={plan.name === 'Free' && auth?.user ? '/create-pool?source=splash' : `/create-account?plan=${plan.slug || plan.name.toLowerCase()}`}
                 className={`pricing-card__cta${checkoutPlan === (plan.slug || plan.name.toLowerCase()) ? ' is-loading' : ''}`}
                 aria-disabled={Boolean(checkoutPlan)}
                 onClick={(event) => {
@@ -200,7 +202,7 @@ export default function PricingPage() {
         </section>
 
         <section className="pricing-final">
-          <div className="rmp-shell"><p className="rmp-eyebrow"><span /> READY FOR KICKOFF</p><h2>YOUR LEAGUE.<br /><em>YOUR RULES.</em></h2><Link href="/create-account" className="rmp-button rmp-primary">Start your pool free <span>→</span></Link></div>
+          <div className="rmp-shell"><p className="rmp-eyebrow"><span /> READY FOR KICKOFF</p><h2>YOUR LEAGUE.<br /><em>YOUR RULES.</em></h2><Link href={freeStartHref} className="rmp-button rmp-primary">Start your pool free <span>→</span></Link></div>
         </section>
       </main>
 

@@ -1,12 +1,14 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import ProtectedRoute from '../../components/ProtectedRoute';
+import { trackLifecycleEvent } from '../../lib/lifecycleAnalytics';
 
 export default function BillingSuccess() {
   const router = useRouter();
   const [order, setOrder] = useState(null);
   const [error, setError] = useState('');
+  const trackedPaidOrder = useRef('');
 
   useEffect(() => {
     if (!router.isReady || typeof router.query.session_id !== 'string') return undefined;
@@ -35,6 +37,12 @@ export default function BillingSuccess() {
   }, [router.isReady, router.query.session_id]);
 
   const paid = order?.status === 'paid';
+  useEffect(() => {
+    if (!paid || !order?.id || trackedPaidOrder.current === order.id) return;
+    trackedPaidOrder.current = order.id;
+    trackLifecycleEvent('payment_confirmed', { page: 'billing_success', plan: order.plan, source: 'pricing' });
+  }, [order, paid]);
+
   return <ProtectedRoute><main className="billing-result-page">
     <section className="billing-result-card">
       <p className="rmp-eyebrow"><span /> SECURE CHECKOUT</p>
@@ -43,7 +51,7 @@ export default function BillingSuccess() {
         <p>Your <strong>{order.plan.replace('-', ' ')}</strong> commissioner plan is active for the {order.season} season.</p>
         <div className="billing-result-amount">{order.amount_total != null ? new Intl.NumberFormat('en-US', { style: 'currency', currency: (order.currency || 'usd').toUpperCase() }).format(order.amount_total / 100) : 'Paid'}</div>
       </> : <p>Stripe accepted your checkout. We’re waiting for the verified payment notification before activating access.</p>}
-      <div className="billing-result-actions"><Link href="/dashboard">Go to dashboard</Link><Link href="/pricing">View plans</Link></div>
+      <div className="billing-result-actions">{paid && <Link href="/create-pool?source=splash">Create your pool</Link>}<Link href="/dashboard">Go to dashboard</Link>{!paid && <Link href="/pricing">View plans</Link>}</div>
       <p>Questions about your payment? <a href="mailto:support@runmypool.net">Contact billing support</a>.</p>
     </section>
   </main></ProtectedRoute>;

@@ -161,7 +161,7 @@ def create_checkout_session(
             client_reference_id=current_user.id,
             line_items=[{"price": price_id, "quantity": 1}],
             success_url=f"{frontend_url}/billing/success?session_id={{CHECKOUT_SESSION_ID}}",
-            cancel_url=f"{frontend_url}/pricing?checkout=cancelled",
+            cancel_url=f"{frontend_url}/pricing?checkout=cancelled&plan={plan}",
             allow_promotion_codes=True,
             automatic_tax={"enabled": os.getenv("STRIPE_AUTOMATIC_TAX", "false").lower() == "true"},
             metadata=metadata,

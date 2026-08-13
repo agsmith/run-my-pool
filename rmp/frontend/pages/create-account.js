@@ -102,7 +102,9 @@ export default function CreateAccount() {
       ? '/create-pool?source=splash'
       : selectedPlan && selectedPlan !== 'free'
         ? `/pricing?checkout=${encodeURIComponent(selectedPlan)}`
-        : '/dashboard';
+        : selectedPlan === 'free'
+          ? '/create-pool?source=splash'
+          : '/dashboard';
     const loginUrl = `/login?message=${encodeURIComponent('Account created successfully! Please sign in with your new credentials.')}&next=${encodeURIComponent(checkoutNext)}`;
     try {
       await router.push(loginUrl);
@@ -295,7 +297,9 @@ export default function CreateAccount() {
           borderTop: '1px solid #e5e7eb'
         }}>
           <Link 
-            href={selectedPlan && selectedPlan !== 'free' ? `/login?next=${encodeURIComponent(`/pricing?checkout=${selectedPlan}`)}` : '/login'}
+            href={selectedPlan
+              ? `/login?next=${encodeURIComponent(selectedPlan === 'free' ? '/create-pool?source=splash' : `/pricing?checkout=${selectedPlan}`)}`
+              : '/login'}
             style={{ 
               color: '#6b7280',
               textDecoration: 'none',

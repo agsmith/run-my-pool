@@ -19,9 +19,11 @@ class LifecycleEvent(BaseModel):
         "pricing_view",
         "plan_selected",
         "account_creation_view",
+        "checkout_started",
+        "payment_confirmed",
     ]
     session_id: str = Field(min_length=16, max_length=64, pattern=r"^[A-Za-z0-9_-]+$")
-    page: Literal["home", "pricing", "create_account"]
+    page: Literal["home", "pricing", "create_account", "billing_success"]
     plan: Optional[Literal["free", "commissioner", "pro", "club", "club-unlimited"]] = None
     source: Optional[Literal["homepage", "pricing", "direct"]] = None
 
