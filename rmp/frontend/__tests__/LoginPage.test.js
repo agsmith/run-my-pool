@@ -72,7 +72,7 @@ describe('LoginPage', () => {
     expect(screen.getByRole('heading', { name: /run my pool/i })).toBeInTheDocument()
     expect(screen.getByText(/sign in to your account/i)).toBeInTheDocument()
     expect(container).not.toHaveTextContent('🏈')
-    expect(screen.getByRole('img', { name: /run my pool/i })).toHaveAttribute('src', '/brand/run-my-pool-wordmark.png')
+    expect(screen.getByRole('img', { name: /run my pool/i })).toHaveAttribute('src', '/brand/promotional/rmp-alt-compact-dark.png')
   })
 
   test('renders an email input field', () => {

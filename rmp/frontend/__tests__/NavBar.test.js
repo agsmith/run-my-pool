@@ -36,7 +36,7 @@ describe('NavBar', () => {
     render(<NavBar />)
 
     expect(screen.getByRole('link', { name: /run my pool home/i })).toHaveAttribute('href', '/')
-    expect(document.querySelector('.broadcast-nav__logo')).toHaveAttribute('src', '/brand/run-my-pool-wordmark.png')
+    expect(document.querySelector('.broadcast-nav__logo')).toHaveAttribute('src', '/brand/promotional/rmp-alt-horizontal-dark.png')
     expect(screen.getByRole('link', { name: /dashboard/i })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /^pools$/i })).toHaveAttribute('href', '/leagues')
     expect(screen.queryByRole('link', { name: /message board/i })).not.toBeInTheDocument()

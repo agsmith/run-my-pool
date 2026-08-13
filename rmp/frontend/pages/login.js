@@ -107,7 +107,7 @@ export default function Login() {
         {/* Logo/Brand area */}
         <div className="auth-brand">
           <h1>
-            <BrandLogo className="auth-brand__logo" alt="Run My Pool" priority />
+            <BrandLogo className="auth-brand__logo" alt="Run My Pool" variant="compact" priority />
           </h1>
           <p>Sign in to your account</p>
         </div>
