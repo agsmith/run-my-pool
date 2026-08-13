@@ -84,6 +84,10 @@ class Pool(Base):
     join_password_hash = Column(String(255), nullable=True)
     join_password_encrypted = Column(Text, nullable=True)
     owner_id = Column(String(36), ForeignKey(USERS_ID_FK))
+    billing_entitlement_id = Column(
+        String(36), ForeignKey("commissioner_entitlements.id"), nullable=True, index=True
+    )
+    billing_season = Column(Integer, nullable=True, index=True)
     created_at = Column(DateTime)
     updated_at = Column(DateTime)
     # relationships
@@ -93,6 +97,9 @@ class Pool(Base):
     pool_rule_values = relationship("PoolRuleValue", back_populates="pool")
     members = relationship(
         "PoolMember", back_populates="pool", cascade="all, delete-orphan"
+    )
+    billing_entitlement = relationship(
+        "CommissionerEntitlement", back_populates="pools"
     )
 
 
@@ -339,6 +346,7 @@ class CommissionerEntitlement(Base):
     updated_at = Column(DateTime, nullable=False)
 
     user = relationship("User", back_populates="commissioner_entitlements")
+    pools = relationship("Pool", back_populates="billing_entitlement")
 
 
 class StripeWebhookEvent(Base):

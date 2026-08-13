@@ -419,6 +419,11 @@ class TestAuditTrail:
             params={"pool_id": pool["id"], "event_type": "PICK"},
             headers=_h(token),
         ).json() == []
+        assert client.get(
+            "/audit/",
+            params={"pool_id": pool["id"], "date_from": "2999-01-01T00:00:00"},
+            headers=_h(token),
+        ).json() == []
 
     def test_audit_filter_options_reject_admin_for_another_pool(self, client):
         owner_a = _reg(client, "filter.scope.a@audit.example.com")
@@ -431,11 +436,6 @@ class TestAuditTrail:
             headers=_h(owner_a),
         )
         assert response.status_code == 403
-        assert client.get(
-            "/audit/",
-            params={"pool_id": pool["id"], "date_from": "2999-01-01T00:00:00"},
-            headers=_h(token),
-        ).json() == []
 
     def test_audit_feed_filters_by_username_without_exposing_user_id(self, client):
         token = _reg(client, "searchable.user@audit.example.com")

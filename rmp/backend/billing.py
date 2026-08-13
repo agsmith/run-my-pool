@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.orm import Session
 
 import deps
+import entitlements
 import models
 import schemas
 
@@ -109,6 +110,8 @@ def fulfill_checkout(db: Session, checkout_session):
         entitlement.stripe_customer_id = order.stripe_customer_id
         entitlement.source_order_id = order.id
         entitlement.updated_at = now
+        db.flush()
+        entitlements.assign_owner_pools(db, entitlement)
     return order
 
 

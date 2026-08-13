@@ -319,6 +319,8 @@ class PoolOut(BaseModel):
     join_lock_time: Optional[datetime] = None
     is_private: bool = False
     owner_id: str
+    billing_entitlement_id: Optional[str] = None
+    billing_season: Optional[int] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
     rule_values: Optional[List[PoolRuleValueOut]] = []

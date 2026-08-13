@@ -4,6 +4,7 @@ from typing import List
 import models
 import schemas
 import deps
+import entitlements
 from datetime import datetime, timezone
 import uuid
 from audit_utils import (
@@ -31,6 +32,11 @@ def create_entry(
         pool = db.query(models.Pool).filter(models.Pool.id == entry.pool_id).first()
         if not pool:
             raise HTTPException(status_code=404, detail="Pool not found")
+
+        # Capacity is always decided from the pool's durable, server-side
+        # commissioner entitlement. Client state and checkout redirects are
+        # never accepted as proof of payment.
+        entitlements.enforce_entry_capacity(db, pool)
 
         membership = db.query(models.PoolMember).filter(
             models.PoolMember.pool_id == entry.pool_id,

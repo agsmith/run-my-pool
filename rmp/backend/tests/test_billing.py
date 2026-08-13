@@ -169,6 +169,123 @@ class TestCommissionerBilling:
         assert entitlement.max_pools is None
         assert db_session.query(models.StripeWebhookEvent).count() == 1
 
+    def test_paid_webhook_persists_entitlement_on_existing_pool(
+        self, client, db_session, monkeypatch
+    ):
+        token = _register_and_login(client, "existing-pool-owner@example.com")
+        pool_response = client.post(
+            "/pools/create", json={"name": "Existing Paid Pool"}, headers=_headers(token)
+        )
+        assert pool_response.status_code == 200
+
+        _, captured = _checkout(client, monkeypatch, token, plan="commissioner")
+        event = {
+            "id": "evt_attach_existing_pool",
+            "type": "checkout.session.completed",
+            "data": {"object": {
+                "id": "cs_test_123",
+                "payment_status": "paid",
+                "metadata": {"order_id": captured["metadata"]["order_id"]},
+            }},
+        }
+        monkeypatch.setattr(
+            "billing.stripe.Webhook.construct_event",
+            lambda payload, signature, secret: event,
+        )
+
+        response = client.post(
+            "/billing/webhook", content=b"{}", headers={"stripe-signature": "valid"}
+        )
+
+        assert response.status_code == 200
+        entitlement = db_session.query(models.CommissionerEntitlement).one()
+        pool = db_session.query(models.Pool).filter_by(name="Existing Paid Pool").one()
+        assert pool.billing_entitlement_id == entitlement.id
+        assert pool.billing_season == 2026
+
+    def test_new_pool_persists_active_paid_entitlement(
+        self, client, db_session
+    ):
+        token = _register_and_login(client, "paid-before-pool@example.com")
+        user = db_session.query(models.User).filter_by(
+            email="paid-before-pool@example.com"
+        ).one()
+        order = models.BillingOrder(
+            id="paid-before-pool-order", user_id=user.id, season=2026,
+            plan="pro", status="paid", created_at=datetime(2026, 8, 1),
+            updated_at=datetime(2026, 8, 1),
+        )
+        entitlement = models.CommissionerEntitlement(
+            id="paid-before-pool-entitlement", user_id=user.id, season=2026,
+            plan="pro", status="active", included_entries=150, max_pools=1,
+            unlimited_entries=False, source_order_id=order.id,
+            activated_at=datetime(2026, 8, 1), updated_at=datetime(2026, 8, 1),
+        )
+        db_session.add_all([order, entitlement])
+        db_session.commit()
+
+        response = client.post(
+            "/pools/create", json={"name": "New Paid Pool"}, headers=_headers(token)
+        )
+
+        assert response.status_code == 200
+        assert response.json()["billing_entitlement_id"] == entitlement.id
+        assert response.json()["billing_season"] == 2026
+
+    def test_paid_plan_pool_limit_is_enforced_server_side(
+        self, client, db_session
+    ):
+        token = _register_and_login(client, "one-pool-plan@example.com")
+        user = db_session.query(models.User).filter_by(email="one-pool-plan@example.com").one()
+        order = models.BillingOrder(
+            id="one-pool-order", user_id=user.id, season=2026, plan="commissioner",
+            status="paid", created_at=datetime(2026, 8, 1), updated_at=datetime(2026, 8, 1),
+        )
+        db_session.add(order)
+        db_session.add(models.CommissionerEntitlement(
+            id="one-pool-entitlement", user_id=user.id, season=2026,
+            plan="commissioner", status="active", included_entries=50,
+            max_pools=1, unlimited_entries=False, source_order_id=order.id,
+            activated_at=datetime(2026, 8, 1), updated_at=datetime(2026, 8, 1),
+        ))
+        db_session.commit()
+
+        first = client.post("/pools/create", json={"name": "Allowed Pool"}, headers=_headers(token))
+        second = client.post("/pools/create", json={"name": "Blocked Pool"}, headers=_headers(token))
+
+        assert first.status_code == 200
+        assert second.status_code == 409
+        assert "allows 1 active pool" in second.json()["detail"]
+
+    def test_entry_limit_uses_persisted_pool_entitlement(
+        self, client, db_session
+    ):
+        token = _register_and_login(client, "capacity-owner@example.com")
+        user = db_session.query(models.User).filter_by(email="capacity-owner@example.com").one()
+        order = models.BillingOrder(
+            id="capacity-order", user_id=user.id, season=2026, plan="commissioner",
+            status="paid", created_at=datetime(2026, 8, 1), updated_at=datetime(2026, 8, 1),
+        )
+        db_session.add(order)
+        db_session.add(models.CommissionerEntitlement(
+            id="capacity-entitlement", user_id=user.id, season=2026,
+            plan="commissioner", status="active", included_entries=2,
+            max_pools=1, unlimited_entries=False, source_order_id=order.id,
+            activated_at=datetime(2026, 8, 1), updated_at=datetime(2026, 8, 1),
+        ))
+        db_session.commit()
+        pool = client.post(
+            "/pools/create", json={"name": "Capacity Pool"}, headers=_headers(token)
+        ).json()
+
+        first = client.post("/entries/create", json={"pool_id": pool["id"], "name": "One"}, headers=_headers(token))
+        second = client.post("/entries/create", json={"pool_id": pool["id"], "name": "Two"}, headers=_headers(token))
+        blocked = client.post("/entries/create", json={"pool_id": pool["id"], "name": "Three"}, headers=_headers(token))
+
+        assert first.status_code == second.status_code == 200
+        assert blocked.status_code == 409
+        assert "plan limit of 2 entries" in blocked.json()["detail"]
+
     def test_unpaid_completed_webhook_does_not_activate_access(
         self, client, db_session, monkeypatch
     ):

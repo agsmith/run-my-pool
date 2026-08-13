@@ -8,6 +8,7 @@ import hashlib
 import models
 import schemas
 import deps
+import entitlements
 from datetime import datetime, time, timedelta, timezone
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 import uuid
@@ -199,6 +200,10 @@ def create_pool(
             raise HTTPException(status_code=400, detail="Lock day must be between 0 and 6")
         join_lock_time = _parse_lock_time(pool.join_lock_time) if pool.join_lock_time else None
 
+        billing_season = entitlements.current_season()
+        entitlement = entitlements.entitlement_for_new_pool(
+            db, current_user.id, billing_season
+        )
         db_pool = models.Pool(
             id=str(uuid.uuid4()),
             name=pool_name,
@@ -216,6 +221,8 @@ def create_pool(
             join_password_hash=join_password_hash,
             join_password_encrypted=join_password_encrypted,
             owner_id=current_user.id,
+            billing_entitlement_id=entitlement.id if entitlement else None,
+            billing_season=billing_season,
             created_at=datetime.now(timezone.utc).replace(tzinfo=None),
             updated_at=datetime.now(timezone.utc).replace(tzinfo=None),
         )
