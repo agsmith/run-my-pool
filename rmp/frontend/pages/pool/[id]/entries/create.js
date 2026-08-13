@@ -12,30 +12,26 @@ export default function CreateEntry() {
   const { id } = router.query; // league id
 
   useEffect(() => {
-    if (id) {
-      fetchLeague();
-    }
-  }, [id]);
-
-  const fetchLeague = async () => {
-    try {
-      const token = localStorage.getItem('access_token');
-      const res = await fetch(process.env.NEXT_PUBLIC_API_URL + `/pools/${id}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      
-      if (res.ok) {
-        const data = await res.json();
-        setLeague(data);
-      } else {
-        setError('Failed to load league details');
+    if (!id) return;
+    let cancelled = false;
+    const fetchLeague = async () => {
+      try {
+        const token = localStorage.getItem('access_token');
+        const res = await fetch(process.env.NEXT_PUBLIC_API_URL + `/pools/${id}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (cancelled) return;
+        if (res.ok) setLeague(await res.json());
+        else setError('Failed to load pool details');
+      } catch (_error) {
+        if (!cancelled) setError('Failed to load pool details');
+      } finally {
+        if (!cancelled) setPageLoading(false);
       }
-    } catch (err) {
-      setError('Failed to load league details');
-    } finally {
-      setPageLoading(false);
-    }
-  };
+    };
+    fetchLeague();
+    return () => { cancelled = true; };
+  }, [id]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -72,7 +68,8 @@ export default function CreateEntry() {
       }
 
       const entry = await res.json();
-      router.push(`/pool/${id}/entries?message=Entry "${entryName}" created successfully!`);
+      const destination = league?.pool_type === 'pickem' ? 'pickem' : 'entries';
+      router.push(`/pool/${id}/${destination}?message=Entry "${entryName}" created successfully!`);
     } catch (err) {
       setError(err.message || 'Failed to create entry');
     } finally {

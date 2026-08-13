@@ -1091,6 +1091,13 @@ table {
 .pool-launch__email>div { display:flex; gap:.4rem; }
 .pool-launch__email input { min-width:0; flex:1; padding:.5rem; color:#d8e1df; background:#081013; border:1px solid #40575c; font-size:.72rem; }
 .pool-launch__later { display:block; margin-left:auto; }
+.member-pool-welcome { display:flex; align-items:center; justify-content:space-between; gap:2rem; margin:0 0 1rem; padding:1.4rem!important; background:linear-gradient(120deg,rgba(215,255,63,.12),#10191c 58%)!important; border:1px solid rgba(215,255,63,.4)!important; border-left:4px solid var(--lime)!important; }
+.member-pool-welcome span { color:var(--lime); font-size:.65rem; font-weight:950; letter-spacing:.15em; }
+.member-pool-welcome h2 { margin:.4rem 0; color:var(--ink); font-family:Impact,'Arial Narrow',sans-serif; font-size:clamp(1.8rem,4vw,2.7rem); font-style:italic; font-weight:400; }
+.member-pool-welcome p { max-width:680px; margin:0; color:#aab8b9; font-size:.8rem; line-height:1.6; }
+.member-pool-welcome__actions { display:grid; flex:none; gap:.5rem; }
+.member-pool-welcome__actions button { min-height:42px; padding:.65rem 1rem; color:#091012!important; background:var(--lime)!important; border:1px solid var(--lime)!important; border-radius:0!important; font-size:.7rem; font-weight:900; text-transform:uppercase; }
+.member-pool-welcome__actions button:last-child { color:var(--ice)!important; background:#10191c!important; border-color:#40575c!important; }
 @media (max-width:760px) {
   .pool-home-actions { grid-template-columns:1fr; }
   .pool-home-actions button { border-right:0!important; border-bottom:1px solid #314449!important; }
@@ -1104,6 +1111,8 @@ table {
   .pool-launch ol { grid-template-columns:1fr; }
   .pool-launch__invite { align-items:stretch; flex-direction:column; }
   .pool-launch__email>div { align-items:stretch; flex-direction:column; }
+  .member-pool-welcome { align-items:stretch; flex-direction:column; }
+  .member-pool-welcome__actions { width:100%; }
 }
 
 /* Community: message cards read like a live marketplace ticker. */

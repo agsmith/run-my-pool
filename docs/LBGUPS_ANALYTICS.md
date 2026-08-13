@@ -14,6 +14,7 @@ Run My Pool records privacy-safe lifecycle events as structured backend logs. Th
 | `payment_confirmed` | The authenticated success page observed a server-confirmed paid order. |
 | `pool_launch_checklist_view` | A new commissioner viewed the post-creation launch checklist. |
 | `pool_invite_link_copied` | A commissioner successfully copied the secure pool invitation link. |
+| `member_onboarding_view` | A newly joined member saw the pool-specific first-entry guidance. |
 
 All accepted events are explicitly allowlisted by the backend schema. Unknown events, properties, plans, pages, and sources are rejected.
 
@@ -52,3 +53,5 @@ fields lifecycle_event, session_id
 ```
 
 Registration success is already represented by the backend `user_registered` structured event. Later LBGUPS stages should use server-authoritative events for pool creation, invitations, picks, Stripe payments, and support outcomes wherever possible.
+
+Successful membership is recorded by the server-authoritative `pool_joined` structured event. It contains pool and user identifiers plus public/private status, but no pool password.

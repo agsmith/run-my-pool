@@ -134,3 +134,17 @@ def test_get_stage_launch_event_is_allowlisted(client):
     )
 
     assert response.status_code == 204
+
+
+def test_get_stage_member_onboarding_event_is_allowlisted(client):
+    response = client.post(
+        "/analytics/events",
+        headers={"x-forwarded-for": "198.51.100.76"},
+        json={
+            "event": "member_onboarding_view",
+            "session_id": "member-session-1234567890",
+            "page": "pool_home",
+        },
+    )
+
+    assert response.status_code == 204

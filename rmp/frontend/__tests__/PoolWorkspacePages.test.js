@@ -101,6 +101,21 @@ describe('pool workspace pages', () => {
     expect(screen.queryByRole('button', { name: 'Delete Pool' })).not.toBeInTheDocument();
   });
 
+  test('welcomes a newly joined member and opens first-entry creation', async () => {
+    mockRouter.query = { id: 'pool-1', joined: '1' };
+    global.fetch = jest.fn((url) => {
+      if (String(url).endsWith('/is-admin')) return response({ is_owner: false, is_admin: false, has_admin_access: false });
+      return response({ ...pool, owner_id: 'owner-2', pool_type: 'survivor' });
+    });
+    const user = userEvent.setup();
+    render(<PoolDetail />);
+
+    expect(await screen.findByRole('region', { name: /pool membership welcome/i })).toBeInTheDocument();
+    expect(mockTrackLifecycleEvent).toHaveBeenCalledWith('member_onboarding_view', { page: 'pool_home' });
+    await user.click(screen.getByRole('button', { name: /create your first entry/i }));
+    expect(mockPush).toHaveBeenCalledWith('/pool/pool-1/entries/create');
+  });
+
   test('renders official, live, and pending matchup lines and changes week', async () => {
     const games = [
       {

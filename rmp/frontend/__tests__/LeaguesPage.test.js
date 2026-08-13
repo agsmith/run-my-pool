@@ -99,8 +99,7 @@ describe('Join a Pool', () => {
 
     await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(3));
     expect(JSON.parse(global.fetch.mock.calls[2][1].body)).toEqual({ password: null });
-    expect(await screen.findByRole('button', { name: /open pool/i })).toBeInTheDocument();
-    expect(mockPush).not.toHaveBeenCalled();
+    expect(mockPush).toHaveBeenCalledWith('/pool/public-pool?joined=1');
   });
 
   test('requires and submits a password for a private pool', async () => {
@@ -122,7 +121,7 @@ describe('Join a Pool', () => {
     await user.click(screen.getByRole('button', { name: /submit join code/i }));
     await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(3));
     expect(JSON.parse(global.fetch.mock.calls[2][1].body)).toEqual({ password: 'huddle42' });
-    expect(mockPush).not.toHaveBeenCalled();
+    expect(mockPush).toHaveBeenCalledWith('/pool/private-pool?joined=1');
   });
 
   test('loads a shared private pool that is absent from public discovery', async () => {

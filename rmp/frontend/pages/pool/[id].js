@@ -4,6 +4,7 @@ import ProtectedRoute from '../../components/ProtectedRoute';
 import { useAuth } from '../../context/AuthContext';
 import { PoolWorkspaceNav, WorkspaceHeader } from '../../components/ProductWorkspace';
 import PoolLaunchChecklist from '../../components/PoolLaunchChecklist';
+import MemberPoolWelcome from '../../components/MemberPoolWelcome';
 import { trackLifecycleEvent } from '../../lib/lifecycleAnalytics';
 
 const DAYS_OF_WEEK = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
@@ -36,7 +37,9 @@ export default function PoolDetail() {
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [showLaunchChecklist, setShowLaunchChecklist] = useState(false);
+  const [showMemberWelcome, setShowMemberWelcome] = useState(false);
   const trackedLaunch = useRef(false);
+  const trackedMemberWelcome = useRef(false);
   const router = useRouter();
   const { user } = useAuth();
   const { id } = router.query;
@@ -47,7 +50,8 @@ export default function PoolDetail() {
 
   useEffect(() => {
     if (router.query.launched === '1') setShowLaunchChecklist(true);
-  }, [router.query.launched]);
+    if (router.query.joined === '1') setShowMemberWelcome(true);
+  }, [router.query.joined, router.query.launched]);
 
   useEffect(() => {
     if (!id) return;
@@ -115,6 +119,12 @@ export default function PoolDetail() {
     trackLifecycleEvent('pool_launch_checklist_view', { page: 'pool_home' });
   }, [isOwner, showLaunchChecklist]);
 
+  useEffect(() => {
+    if (!showMemberWelcome || isOwner || trackedMemberWelcome.current) return;
+    trackedMemberWelcome.current = true;
+    trackLifecycleEvent('member_onboarding_view', { page: 'pool_home' });
+  }, [isOwner, showMemberWelcome]);
+
   if (!router.isReady) return null;
 
   return (
@@ -146,6 +156,14 @@ export default function PoolDetail() {
                   onNavigate={(destination) => router.push(destination)}
                   onInviteCopied={() => trackLifecycleEvent('pool_invite_link_copied', { page: 'pool_home' })}
                   onSendInvite={sendPoolInvite}
+                />
+              )}
+
+              {!isOwner && showMemberWelcome && (
+                <MemberPoolWelcome
+                  pool={pool}
+                  onCreateEntry={() => router.push(`/pool/${id}/entries/create`)}
+                  onDismiss={() => setShowMemberWelcome(false)}
                 />
               )}
 

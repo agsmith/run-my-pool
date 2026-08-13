@@ -101,6 +101,7 @@ export default function Leagues() {
       setJoinedIds((current) => new Set([...current, pool.id]));
       setJoiningId(null);
       setPassword('');
+      router.push(`/pool/${pool.id}?joined=1`);
     } catch (err) {
       setJoinError(err.message || 'Unable to join pool');
       setJoinErrorId(pool.id);

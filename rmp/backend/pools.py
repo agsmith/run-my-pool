@@ -602,6 +602,14 @@ def join_pool(
             "username": current_user.email,
         },
     )
+    log_event(
+        logger,
+        logging.INFO,
+        "pool_joined",
+        pool_id=pool_id,
+        user_id=current_user.id,
+        is_private=pool.is_private,
+    )
     return {"message": "Pool joined successfully", "pool_id": pool_id}
 
 
