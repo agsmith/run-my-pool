@@ -926,6 +926,62 @@ class TestPickLockTimeEnforcement:
             f"Expected 423 after pool.lock_time on update, got {resp.status_code}: {resp.text}"
         )
 
+    def test_pick_delete_blocked_after_deadline_before_worker_sweep(self, client, db_session):
+        """DELETE recalculates the deadline even while Pick.locked is still false."""
+        token, pool_id, entry_id = self._setup(client, db_session, "plte_delete_lock")
+        create_resp = client.post(
+            "/picks/create",
+            json={"entry_id": entry_id, "week": 1, "team": "NE"},
+            headers=_h(token),
+        )
+        assert create_resp.status_code == 200
+        pick_id = create_resp.json()["id"]
+        _set_lock_time(db_session, pool_id, datetime.utcnow() - timedelta(hours=1))
+
+        pick = db_session.query(Pick).filter(Pick.id == pick_id).one()
+        assert pick.locked is False
+        resp = client.delete(f"/picks/{pick_id}", headers=_h(token))
+
+        assert resp.status_code == 423, resp.text
+        assert db_session.query(Pick).filter(Pick.id == pick_id).first() is not None
+
+    def test_recurring_lock_rejects_fabricated_survivor_team(self, client, db_session):
+        """A client cannot erase the calculated lock by submitting an unknown team."""
+        token, pool_id, entry_id = self._setup(client, db_session, "plte_fake_team")
+        pool = db_session.query(Pool).filter(Pool.id == pool_id).one()
+        pool.lock_day_of_week = 6
+        pool.lock_time_of_day = datetime.strptime("13:00", "%H:%M").time()
+        pool.lock_timezone = "America/New_York"
+        db_session.commit()
+
+        resp = client.post(
+            "/picks/create",
+            json={"entry_id": entry_id, "week": 1, "team": "NOT-A-TEAM"},
+            headers=_h(token),
+        )
+
+        assert resp.status_code == 400, resp.text
+        assert "recognized" in resp.json()["detail"].lower()
+
+    def test_recurring_lock_rejects_team_not_scheduled_for_week(self, client, db_session):
+        """A real team abbreviation cannot be used for a week it does not play."""
+        token, pool_id, entry_id = self._setup(client, db_session, "plte_unscheduled_team")
+        pool = db_session.query(Pool).filter(Pool.id == pool_id).one()
+        pool.lock_day_of_week = 6
+        pool.lock_time_of_day = datetime.strptime("13:00", "%H:%M").time()
+        pool.lock_timezone = "America/New_York"
+        _seed_team(db_session, 98701, "Known Team", "KNOWN")
+        db_session.commit()
+
+        resp = client.post(
+            "/picks/create",
+            json={"entry_id": entry_id, "week": 1, "team": "KNOWN"},
+            headers=_h(token),
+        )
+
+        assert resp.status_code == 400, resp.text
+        assert "scheduled" in resp.json()["detail"].lower()
+
     def test_pick_create_blocked_after_game_kickoff(self, client, db_session):
         """POST /picks/create returns HTTP 423 if the team's game has already kicked off."""
         token, pool_id, entry_id = self._setup(client, db_session, "plte_game_lock")

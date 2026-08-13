@@ -19,6 +19,7 @@ export default function CreatePool() {
   const router = useRouter();
   const [form, setForm] = useState({
     name: '', description: '', pool_type: 'survivor',
+    pickem_games_per_week: 'all',
     lock_day_of_week: 6, lock_time_of_day: '13:00', lock_timezone: 'America/New_York',
     is_private: false, join_password: '',
   });
@@ -52,6 +53,9 @@ export default function CreatePool() {
           name: form.name.trim(),
           description: form.description.trim() || null,
           pool_type: form.pool_type,
+          pickem_games_per_week: form.pool_type === 'pickem' && form.pickem_games_per_week !== 'all'
+            ? Number(form.pickem_games_per_week)
+            : null,
           lock_day_of_week: Number(form.lock_day_of_week),
           lock_time_of_day: `${form.lock_time_of_day}:00`,
           lock_timezone: form.lock_timezone,
@@ -103,14 +107,27 @@ export default function CreatePool() {
           <label className={isPickEm ? 'is-selected' : ''}>
             <input type="radio" name="pool_type" value="pickem" checked={isPickEm} onChange={() => selectType('pickem')} />
             <span className="create-pool-format-title">Pick ’Em</span>
-            <strong>Pick every game</strong>
-            <small>No spreads. Every correct winner earns one point. Most points at season end wins.</small>
+            <strong>Pick the weekly slate</strong>
+            <small>No spreads. Default to every game or require a smaller number. Every correct winner earns one point.</small>
           </label>
         </div>
       </fieldset>
 
+      {isPickEm && <section className="create-pool-section">
+        <h2>2. Pick ’Em slate</h2>
+        <p className="create-pool-help">Choose how many games each entry needs to pick every week. Members may select any games from that week&apos;s schedule.</p>
+        <label className="create-pool-field">
+          <span>Required games per week</span>
+          <select aria-label="Required games per week" value={form.pickem_games_per_week} onChange={(event) => update('pickem_games_per_week', event.target.value)}>
+            <option value="all">All scheduled games (default)</option>
+            {Array.from({ length: 16 }, (_, index) => index + 1).map((count) => <option key={count} value={count}>{count} game{count === 1 ? '' : 's'}</option>)}
+          </select>
+          <small>{form.pickem_games_per_week === 'all' ? 'The target automatically matches the number of games scheduled that week.' : `Each entry can make up to ${form.pickem_games_per_week} selections per week.`}</small>
+        </label>
+      </section>}
+
       <section className="create-pool-section">
-        <h2>2. Pool details</h2>
+        <h2>{isPickEm ? '3' : '2'}. Pool details</h2>
         <label className="create-pool-field">
           <span>Pool name <b>*</b></span>
           <input type="text" value={form.name} onChange={(event) => update('name', event.target.value)} required maxLength={255} placeholder="Enter pool name" autoFocus />
@@ -122,7 +139,7 @@ export default function CreatePool() {
       </section>
 
       <section className="create-pool-section">
-        <h2>3. Weekly pick deadline</h2>
+        <h2>{isPickEm ? '4' : '3'}. Weekly pick deadline</h2>
         <p className="create-pool-help">All selections lock at this time each week. Games that start earlier lock individually at kickoff.</p>
         <div className="create-pool-deadline-grid">
           <label className="create-pool-field"><span>Day</span><select aria-label="Lock day" value={form.lock_day_of_week} onChange={(event) => update('lock_day_of_week', event.target.value)}>{DAYS.map((day, index) => <option key={day} value={index}>{day}</option>)}</select></label>
@@ -133,7 +150,7 @@ export default function CreatePool() {
       </section>
 
       <section className="create-pool-section">
-        <h2>4. Player access</h2>
+        <h2>{isPickEm ? '5' : '4'}. Player access</h2>
         <div className="create-pool-access-grid">
           <label className={!form.is_private ? 'is-selected' : ''}><input type="radio" name="visibility" checked={!form.is_private} onChange={() => update('is_private', false)} /><strong>Public</strong><small>Anyone can find and join this pool.</small></label>
           <label className={form.is_private ? 'is-selected' : ''}><input type="radio" name="visibility" checked={form.is_private} onChange={() => update('is_private', true)} /><strong>Private</strong><small>Visible in the directory, but a join code is required.</small></label>

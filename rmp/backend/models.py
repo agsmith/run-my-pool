@@ -66,6 +66,7 @@ class Pool(Base):
     name = Column(String(255), nullable=False)
     description = Column(Text)
     pool_type = Column(String(20), nullable=False, default="survivor")
+    pickem_games_per_week = Column(Integer, nullable=True)
     lock_time = Column(DateTime)
     lock_day_of_week = Column(Integer, nullable=True)
     lock_time_of_day = Column(Time, nullable=True)

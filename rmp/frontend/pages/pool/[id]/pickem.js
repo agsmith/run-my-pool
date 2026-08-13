@@ -20,6 +20,8 @@ export default function PickEmPage() {
   const [savingGame, setSavingGame] = useState(null);
 
   const picksByGame = useMemo(() => Object.fromEntries(picks.filter((pick) => pick.week === week).map((pick) => [pick.game_id, pick])), [picks, week]);
+  const weeklyTarget = Math.min(pool?.pickem_games_per_week || games.length, games.length);
+  const targetReached = weeklyTarget > 0 && Object.keys(picksByGame).length >= weeklyTarget;
 
   useEffect(() => {
     if (!id) return;
@@ -62,7 +64,7 @@ export default function PickEmPage() {
 
   return <ProtectedRoute><main className="product-page-shell pickem-page">
     <PoolWorkspaceNav poolId={id} poolName={pool?.name} poolType="pickem" active="entries" />
-    <WorkspaceHeader eyebrow="Every game counts" title={`Week ${week} Pick ’Em`} description="Pick the winner of every game. No spread—each correct pick earns one point." meta={`${Object.keys(picksByGame).length} / ${games.length} selected`} />
+    <WorkspaceHeader eyebrow="Every pick counts" title={`Week ${week} Pick ’Em`} description={pool?.pickem_games_per_week ? `Choose any ${weeklyTarget} games. No spread—each correct pick earns one point.` : "Pick the winner of every game. No spread—each correct pick earns one point."} meta={`${Object.keys(picksByGame).length} / ${weeklyTarget} selected`} />
     {error && <div className="workspace-alert workspace-alert--error">{error}</div>}
     <section className="matchup-toolbar">
       <button disabled={week === 1} onClick={() => setWeek((value) => value - 1)}>← Previous</button>
@@ -81,7 +83,7 @@ export default function PickEmPage() {
     </section> :
       <section className="pickem-board">{games.map((game) => <article key={game.game_id} className="pickem-game">
         <time>{new Date(game.start_time).toLocaleString()}</time>
-        {[game.away_team, game.home_team].map((team) => <button key={team.id} disabled={savingGame === game.game_id} className={picksByGame[game.game_id]?.team === team.abbrv ? 'is-selected' : ''} onClick={() => selectWinner(game, team)}>
+        {[game.away_team, game.home_team].map((team) => <button key={team.id} disabled={savingGame === game.game_id || (targetReached && !picksByGame[game.game_id])} className={picksByGame[game.game_id]?.team === team.abbrv ? 'is-selected' : ''} onClick={() => selectWinner(game, team)}>
           <img src={`/nfl/${team.abbrv.toLowerCase()}.svg`} alt="" /><span><strong>{team.abbrv}</strong><small>{team.name}</small></span>{picksByGame[game.game_id]?.team === team.abbrv && <b>✓</b>}
         </button>)}
       </article>)}</section>}

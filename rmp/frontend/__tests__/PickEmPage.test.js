@@ -91,4 +91,32 @@ describe('PickEmPage', () => {
     );
     expect(screen.queryByRole('combobox', { name: /entry/i })).not.toBeInTheDocument();
   });
+
+  test('limits a configured weekly slate while allowing an existing selection to change', async () => {
+    const games = [101, 102].map((gameId, index) => ({
+      game_id: gameId,
+      start_time: '2026-09-13T17:00:00Z',
+      away_team: { id: 10 + index * 2, abbrv: index ? 'GB' : 'BUF', name: index ? 'Green Bay Packers' : 'Buffalo Bills' },
+      home_team: { id: 11 + index * 2, abbrv: index ? 'CHI' : 'MIA', name: index ? 'Chicago Bears' : 'Miami Dolphins' },
+    }));
+    global.fetch = jest.fn((url, options = {}) => {
+      const path = String(url);
+      if (path === '/pools/pool-1') return response({ id: 'pool-1', name: 'Five Game Pool', pool_type: 'pickem', pickem_games_per_week: 1 });
+      if (path === '/entries/pool/pool-1') return response([{ id: 'entry-1', name: 'My Card' }]);
+      if (path === '/picks/pool/pool-1/standings') return response([]);
+      if (path === '/schedule/week/1') return response(games);
+      if (path === '/picks/entry/entry-1') return response([{ id: 'pick-1', entry_id: 'entry-1', week: 1, game_id: 101, team: 'BUF' }]);
+      if (path === '/picks/create' && options.method === 'POST') return response({ id: 'pick-1', entry_id: 'entry-1', week: 1, game_id: 101, team: 'MIA' });
+      throw new Error(`Unexpected request ${path}`);
+    });
+
+    const user = userEvent.setup();
+    render(<PickEmPage />);
+
+    expect(await screen.findByText('1 / 1 selected')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /GB Green Bay Packers/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /MIA Miami Dolphins/i })).toBeEnabled();
+    await user.click(screen.getByRole('button', { name: /MIA Miami Dolphins/i }));
+    expect(global.fetch).toHaveBeenCalledWith('/picks/create', expect.objectContaining({ method: 'POST' }));
+  });
 });

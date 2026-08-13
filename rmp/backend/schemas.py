@@ -212,6 +212,7 @@ class PoolBase(BaseModel):
     name: str
     description: Optional[str] = None
     pool_type: str = "survivor"
+    pickem_games_per_week: Optional[int] = Field(default=None, ge=1, le=16)
     lock_time: Optional[str] = None
     lock_day_of_week: Optional[int] = None
     lock_time_of_day: Optional[str] = None
@@ -297,6 +298,7 @@ class PoolOut(BaseModel):
     name: str
     description: Optional[str] = None
     pool_type: str = "survivor"
+    pickem_games_per_week: Optional[int] = None
     lock_time: Optional[datetime] = None
     lock_day_of_week: Optional[int] = None
     lock_time_of_day: Optional[time] = None

@@ -39,6 +39,26 @@ class TestPoolEndpoints:
         )
         assert response.status_code == 200
         assert response.json()["pool_type"] == "pickem"
+        assert response.json()["pickem_games_per_week"] is None
+
+    def test_create_pickem_pool_with_fixed_weekly_game_count(self, client):
+        headers = _register(client, "pickem.five@example.com")
+        response = client.post(
+            "/pools/create",
+            json={"name": "Pick Five", "pool_type": "pickem", "pickem_games_per_week": 5},
+            headers=headers,
+        )
+        assert response.status_code == 200
+        assert response.json()["pickem_games_per_week"] == 5
+
+    def test_rejects_invalid_pickem_weekly_game_count(self, client):
+        headers = _register(client, "pickem.invalid@example.com")
+        response = client.post(
+            "/pools/create",
+            json={"name": "Pick Too Many", "pool_type": "pickem", "pickem_games_per_week": 17},
+            headers=headers,
+        )
+        assert response.status_code == 422
 
     def test_rejects_unknown_pool_type(self, client):
         headers = _register(client, "bad.type@example.com")

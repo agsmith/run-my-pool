@@ -75,6 +75,27 @@ describe('CreatePool', () => {
     expect(mockPush).toHaveBeenCalledWith('/pool/pickem-pool?launched=1');
   });
 
+  test('defaults Pick Em to all games and allows a fixed weekly slate', async () => {
+    const user = userEvent.setup();
+    fetch.mockResolvedValue({ ok: true, json: async () => ({ id: 'five-game-pool' }) });
+    render(<CreatePool />);
+
+    await user.click(screen.getByRole('radio', { name: /pick ’em/i }));
+    const gameCount = screen.getByRole('combobox', { name: /required games per week/i });
+    expect(gameCount).toHaveValue('all');
+    expect(screen.getByText(/target automatically matches/i)).toBeInTheDocument();
+
+    await user.selectOptions(gameCount, '5');
+    expect(screen.getByText(/up to 5 selections/i)).toBeInTheDocument();
+    await user.type(screen.getByPlaceholderText(/enter pool name/i), 'Five Game Pick Em');
+    await user.click(screen.getByRole('button', { name: /create pick ’em pool/i }));
+
+    expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual(expect.objectContaining({
+      pool_type: 'pickem',
+      pickem_games_per_week: 5,
+    }));
+  });
+
   test('sends supported Survivor settings and a shareable private join code', async () => {
     const user = userEvent.setup();
     fetch.mockResolvedValue({ ok: true, json: async () => ({ id: 'survivor-pool' }) });

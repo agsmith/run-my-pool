@@ -204,6 +204,9 @@ def create_pool(
             name=pool_name,
             description=pool.description,
             pool_type=pool.pool_type,
+            pickem_games_per_week=(
+                pool.pickem_games_per_week if pool.pool_type == "pickem" else None
+            ),
             lock_time=lock_time,
             lock_day_of_week=pool.lock_day_of_week,
             lock_time_of_day=recurring_time,
@@ -327,7 +330,10 @@ def get_pool_activity_summary(
         or 0
     )
     scheduled_games = (
-        len(current_season_games(db, selected_week))
+        min(
+            len(current_season_games(db, selected_week)),
+            pool.pickem_games_per_week or 16,
+        )
         if pool.pool_type == "pickem"
         else 1
     )

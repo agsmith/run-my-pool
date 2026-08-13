@@ -3,8 +3,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import and_, case, func, or_
 from typing import List
 import uuid
-from datetime import datetime, timedelta, timezone
-from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+from datetime import datetime, timezone
 
 from deps import get_db, get_current_user
 from models import Pick, Entry, Schedule, Team, Pool, User
@@ -90,23 +89,14 @@ def _get_effective_lock_time(db: Session, pool: Pool, team_abbrev: str, week: in
     candidates = []
     recurring_lock = None
     if (
-        game is not None
-        and pool.lock_day_of_week is not None
+        pool.lock_day_of_week is not None
         and pool.lock_time_of_day is not None
         and pool.lock_timezone
     ):
-        try:
-            pool_tz = ZoneInfo(pool.lock_timezone)
-            kickoff_utc = game.start_time.replace(tzinfo=timezone.utc)
-            kickoff_local = kickoff_utc.astimezone(pool_tz)
-            # An NFL week runs Tuesday through Monday. Anchor the configured
-            # weekday inside the same football week as this matchup.
-            week_start = kickoff_local.date() - timedelta(days=(kickoff_local.weekday() - 1) % 7)
-            target_date = week_start + timedelta(days=(pool.lock_day_of_week - 1) % 7)
-            recurring_local = datetime.combine(target_date, pool.lock_time_of_day, tzinfo=pool_tz)
-            recurring_lock = recurring_local.astimezone(timezone.utc).replace(tzinfo=None)
-        except ZoneInfoNotFoundError:
-            recurring_lock = None
+        # Derive the pool-wide deadline from the week's schedule, not from the
+        # submitted team. Otherwise an unknown or unscheduled team could make
+        # the deadline disappear and bypass a recurring lock.
+        recurring_lock = pool_week_lock_time(pool, current_season_games(db, week))
 
     if recurring_lock is not None:
         candidates.append(recurring_lock)
@@ -118,6 +108,24 @@ def _get_effective_lock_time(db: Session, pool: Pool, team_abbrev: str, week: in
         candidates.append(game.start_time)
 
     return min(candidates) if candidates else None
+
+
+def _validate_survivor_team(db: Session, pool: Pool, team: Team | None, week: int) -> None:
+    """Reject fabricated/unscheduled Survivor teams when recurring locks apply."""
+    if not (
+        pool.lock_day_of_week is not None
+        and pool.lock_time_of_day is not None
+        and pool.lock_timezone
+    ):
+        return
+    if team is None:
+        raise HTTPException(status_code=400, detail="Selected team is not recognized")
+    scheduled = db.query(Schedule.game_id).filter(
+        Schedule.week_num == week,
+        or_(Schedule.home_team_id == team.id, Schedule.away_team_id == team.id),
+    ).first()
+    if not scheduled:
+        raise HTTPException(status_code=400, detail="Selected team is not scheduled for this week")
 
 
 def _check_pick_lock(db: Session, pool: Pool, team_abbrev: str, week: int) -> None:
@@ -184,6 +192,8 @@ async def create_pick(
     selected_team = db.query(Team).filter(Team.abbrv == pick.team).first()
     if pickem:
         game, selected_team = _pickem_game_and_team(db, pick)
+    elif pool:
+        _validate_survivor_team(db, pool, selected_team, pick.week)
 
     # Survivor has one selection per week; Pick 'Em has one per scheduled game.
     existing_pick = (
@@ -232,6 +242,19 @@ async def create_pick(
         )
 
         return existing_pick
+
+    if pickem and pool.pickem_games_per_week:
+        weekly_pick_count = (
+            db.query(func.count(Pick.id))
+            .filter(Pick.entry_id == pick.entry_id, Pick.week == pick.week)
+            .scalar()
+            or 0
+        )
+        if weekly_pick_count >= pool.pickem_games_per_week:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"This pool requires {pool.pickem_games_per_week} Pick 'Em selections per week",
+            )
 
     # New pick — check pool lock time and per-game start_time
     if pool:
@@ -489,8 +512,15 @@ async def delete_pick(
             detail="Cannot delete a locked pick",
         )
 
-    # Log pick deletion before deleting
+    # The background sweep materializes the locked flag, but it is not the
+    # security boundary. Enforce the calculated deadline on every mutation so
+    # a delayed or failed worker cannot create a deletion window.
     entry = pick.entry
+    pool = db.query(Pool).filter(Pool.id == entry.pool_id).first()
+    if pool:
+        _check_pick_lock(db, pool, pick.team, pick.week)
+
+    # Log pick deletion before deleting
     log_delete_operation(
         db=db,
         entity_type="pick",

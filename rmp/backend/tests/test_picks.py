@@ -153,6 +153,37 @@ class TestPickEndpoints:
         assert response.json()[0]["points"] == 1
         assert response.json()[0]["possible_points"] == 2
 
+    def test_pickem_fixed_slate_rejects_extra_game_but_allows_changing_a_pick(self, client, db_session):
+        token = _register_and_login(client, email="pickem.limit@example.com")
+        headers = _authed(token)
+        pool = client.post(
+            "/pools/create",
+            json={"name": "One Game Pool", "pool_type": "pickem", "pickem_games_per_week": 1},
+            headers=headers,
+        ).json()
+        entry_id = _create_entry(client, headers, pool["id"])
+        teams = [
+            models.Team(id=9921, name="Buffalo Bills", abbrv="BUF"),
+            models.Team(id=9922, name="Miami Dolphins", abbrv="MIA"),
+            models.Team(id=9923, name="Green Bay Packers", abbrv="GB"),
+            models.Team(id=9924, name="Chicago Bears", abbrv="CHI"),
+        ]
+        db_session.add_all(teams)
+        db_session.flush()
+        db_session.add_all([
+            models.Schedule(game_id=99201, week_num=4, home_team_id=9922, away_team_id=9921, start_time=datetime(2026, 9, 20, 17)),
+            models.Schedule(game_id=99202, week_num=4, home_team_id=9924, away_team_id=9923, start_time=datetime(2026, 9, 20, 20)),
+        ])
+        db_session.commit()
+
+        first = client.post("/picks/create", json={"entry_id": entry_id, "week": 4, "game_id": 99201, "team": "BUF"}, headers=headers)
+        assert first.status_code == 200
+        changed = client.post("/picks/create", json={"entry_id": entry_id, "week": 4, "game_id": 99201, "team": "MIA"}, headers=headers)
+        assert changed.status_code == 200
+        extra = client.post("/picks/create", json={"entry_id": entry_id, "week": 4, "game_id": 99202, "team": "GB"}, headers=headers)
+        assert extra.status_code == 400
+        assert "requires 1 Pick 'Em selections" in extra.json()["detail"]
+
     def test_create_pick_upserts_existing_week(self, client):
         """POSTing a pick for the same entry+week replaces the existing pick's team."""
         token = _register_and_login(client, email="picks_upsert@example.com")
