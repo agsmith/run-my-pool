@@ -1378,6 +1378,7 @@ export default function AdminPortal() {
               </label>
               <input
                 type="datetime-local"
+                aria-label="From date and time"
                 value={auditSearch.dateFrom}
                 onChange={(e) => setAuditSearch({...auditSearch, dateFrom: e.target.value})}
                 style={{
@@ -1395,6 +1396,7 @@ export default function AdminPortal() {
               </label>
               <input
                 type="datetime-local"
+                aria-label="To date and time"
                 value={auditSearch.dateTo}
                 onChange={(e) => setAuditSearch({...auditSearch, dateTo: e.target.value})}
                 style={{
