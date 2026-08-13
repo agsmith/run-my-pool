@@ -203,7 +203,7 @@ export default function PricingPage() {
         </section>
       </main>
 
-      <footer className="rmp-footer"><div className="rmp-shell"><Link href="/" className="rmp-brand"><BrandLogo className="rmp-brand__logo" alt="Run My Pool" /></Link><p>Simple software pricing. No percentage of prizes. <a href="mailto:support@runmypool.net">Billing and account support</a></p><span>© 2026 Run My Pool</span></div></footer>
+      <footer className="rmp-footer"><div className="rmp-shell"><Link href="/" className="rmp-brand"><BrandLogo className="rmp-brand__logo" alt="Run My Pool" /></Link><p>Simple software pricing. No percentage of prizes. <Link href="/support">Billing and account support</Link></p><span>© 2026 Run My Pool</span></div></footer>
     </div>
   );
 }

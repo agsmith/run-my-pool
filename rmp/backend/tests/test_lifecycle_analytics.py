@@ -182,3 +182,18 @@ def test_pay_stage_billing_overview_event_is_allowlisted(client):
     )
 
     assert response.status_code == 204
+
+
+@pytest.mark.parametrize("event", ["support_hub_view", "support_contact_clicked"])
+def test_support_stage_events_are_allowlisted(client, event):
+    response = client.post(
+        "/analytics/events",
+        headers={"x-forwarded-for": "198.51.100.79"},
+        json={
+            "event": event,
+            "session_id": f"support-stage-{event}",
+            "page": "support",
+        },
+    )
+
+    assert response.status_code == 204

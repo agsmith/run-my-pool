@@ -27,9 +27,11 @@ class LifecycleEvent(BaseModel):
         "weekly_action_center_view",
         "weekly_picks_action_clicked",
         "billing_overview_view",
+        "support_hub_view",
+        "support_contact_clicked",
     ]
     session_id: str = Field(min_length=16, max_length=64, pattern=r"^[A-Za-z0-9_-]+$")
-    page: Literal["home", "pricing", "create_account", "billing_success", "pool_home", "profile"]
+    page: Literal["home", "pricing", "create_account", "billing_success", "pool_home", "profile", "support"]
     plan: Optional[Literal["free", "commissioner", "pro", "club", "club-unlimited"]] = None
     source: Optional[Literal["homepage", "pricing", "direct"]] = None
 

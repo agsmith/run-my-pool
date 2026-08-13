@@ -62,7 +62,7 @@ describe('profile billing overview', () => {
     render(<Profile />);
 
     expect(await screen.findByText(/unable to load billing details/i)).toBeInTheDocument();
-    expect(screen.getAllByRole('link', { name: /support/i })[0]).toHaveAttribute('href', 'mailto:support@runmypool.net');
+    expect(screen.getAllByRole('link', { name: /support/i })[0]).toHaveAttribute('href', '/support');
   });
 
   test('logs out from the account header', async () => {

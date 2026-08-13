@@ -12,6 +12,7 @@ export default function MyApp({ Component, pageProps }) {
   const getExperience = (pathname) => {
     if (['/login', '/register', '/create-account', '/forgot-password', '/reset-password'].includes(pathname)) return 'auth'
     if (pathname === '/offline') return 'utility'
+    if (pathname === '/support') return 'support'
     if (pathname.startsWith('/admin')) return 'admin'
     if (pathname.includes('/messages') || pathname === '/message-board') return 'community'
     if (pathname.includes('/entries')) return 'entries'
@@ -37,6 +38,11 @@ export default function MyApp({ Component, pageProps }) {
       title: 'Install the Run My Pool App',
       description: 'Install Run My Pool on iPhone, Android, or desktop for fast home-screen access to picks and standings.',
       path: '/install',
+    },
+    '/support': {
+      title: 'Support',
+      description: 'Get help with Run My Pool accounts, pools, picks, billing, and technical issues.',
+      path: '/support',
     },
   }[router.pathname]
 

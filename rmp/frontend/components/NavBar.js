@@ -144,15 +144,15 @@ export default function NavBar() {
         >
           Install App
         </Link>
-        <a
-          href="mailto:support@runmypool.net"
+        <Link
+          href="/support"
           style={navStyles.navLink}
           onClick={closeMobileMenu}
           onMouseEnter={handleLinkHover}
           onMouseLeave={handleLinkLeave}
         >
           Contact Support
-        </a>
+        </Link>
         {user ? (
           <>
             <Link 

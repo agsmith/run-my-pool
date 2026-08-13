@@ -40,7 +40,7 @@ describe('NavBar', () => {
     expect(screen.getByRole('link', { name: /dashboard/i })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /^pools$/i })).toHaveAttribute('href', '/leagues')
     expect(screen.queryByRole('link', { name: /message board/i })).not.toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /contact support/i })).toHaveAttribute('href', 'mailto:support@runmypool.net')
+    expect(screen.getByRole('link', { name: /contact support/i })).toHaveAttribute('href', '/support')
   })
 
   test('keeps administration out of the global navigation', () => {

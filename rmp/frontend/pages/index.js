@@ -204,12 +204,12 @@ export default function Home() {
                 </details>
               ))}
             </div>
-            <p className="rmp-home-faq__support">Still need help? <a href="mailto:support@runmypool.net">Contact support</a>.</p>
+            <p className="rmp-home-faq__support">Still need help? <Link href="/support">Contact support</Link>.</p>
           </div>
         </section>
       </main>
 
-      <footer className="rmp-footer"><div className="rmp-shell"><Link href="/" className="rmp-brand"><BrandLogo className="rmp-brand__logo" alt="Run My Pool" /></Link><p>Built for football fans, by football fans. <Link href="/pricing">Pricing</Link> · <Link href="/install">Install the app</Link> · <a href="mailto:support@runmypool.net">Contact support</a></p><span>© 2026 Run My Pool</span></div></footer>
+      <footer className="rmp-footer"><div className="rmp-shell"><Link href="/" className="rmp-brand"><BrandLogo className="rmp-brand__logo" alt="Run My Pool" /></Link><p>Built for football fans, by football fans. <Link href="/pricing">Pricing</Link> · <Link href="/install">Install the app</Link> · <Link href="/support">Contact support</Link></p><span>© 2026 Run My Pool</span></div></footer>
     </div>
   );
 }

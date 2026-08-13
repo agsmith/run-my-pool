@@ -96,8 +96,8 @@ describe('PricingPage', () => {
     expect(screen.getByText(/purchasing Club does not provide a later path to Club Unlimited/i)).toBeInTheDocument();
   });
 
-  test('offers a direct billing and account support email', () => {
+  test('links to billing and account support', () => {
     render(<PricingPage />);
-    expect(screen.getByRole('link', { name: /billing and account support/i })).toHaveAttribute('href', 'mailto:support@runmypool.net');
+    expect(screen.getByRole('link', { name: /billing and account support/i })).toHaveAttribute('href', '/support');
   });
 });

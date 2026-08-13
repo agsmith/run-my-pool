@@ -94,7 +94,7 @@ describe('IndexPage', () => {
     expect(screen.getByText('Do members have to pay?')).toBeInTheDocument()
     expect(screen.getByText('Does Run My Pool handle prize money?')).toBeInTheDocument()
     expect(screen.getAllByRole('link', { name: /contact support/i })).toEqual(
-      expect.arrayContaining([expect.objectContaining({ href: 'mailto:support@runmypool.net' })]),
+      expect.arrayContaining([expect.objectContaining({ href: 'http://localhost/support' })]),
     )
   })
 

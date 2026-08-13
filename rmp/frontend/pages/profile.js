@@ -69,7 +69,7 @@ export default function Profile() {
 
         <section className="account-identity" aria-labelledby="account-identity-title">
           <div><span>Signed in as</span><h2 id="account-identity-title">{user?.email}</h2></div>
-          <a href="mailto:support@runmypool.net">Account support</a>
+          <Link href="/support">Account support</Link>
         </section>
 
         <section className="billing-overview" aria-labelledby="billing-overview-title">
@@ -79,7 +79,7 @@ export default function Profile() {
           </div>
 
           {billingError ? (
-            <div className="workspace-alert workspace-alert--error">{billingError} <a href="mailto:support@runmypool.net">Contact billing support</a>.</div>
+            <div className="workspace-alert workspace-alert--error">{billingError} <Link href="/support">Contact billing support</Link>.</div>
           ) : !billing ? (
             <p className="billing-overview__state">Loading your billing details…</p>
           ) : (
