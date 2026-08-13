@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import AdminPortal from '../pages/admin/league/[id]';
 
@@ -50,6 +50,9 @@ function installApi(overrides = {}) {
     if (path.endsWith('/admin/pools/pool-1/users-overview')) {
       return response({ total_users: 2, users: [] });
     }
+    if (path.includes('/audit/filter-options')) return response({
+      event_types: [], users: [], includes_system_events: false,
+    });
     if (path.includes('/audit/')) return response([]);
     throw new Error(`Unexpected request: ${key}`);
   });
@@ -153,8 +156,12 @@ describe('commissioner portal', () => {
 
     await user.selectOptions(screen.getByLabelText('Audit event type'), 'UPDATE_PICK');
     await user.selectOptions(screen.getByLabelText('Audit user'), 'owner-1');
-    await user.type(screen.getByLabelText('From date and time'), '2026-09-01T08:30');
-    await user.type(screen.getByLabelText('To date and time'), '2026-09-01T12:45');
+    fireEvent.change(screen.getByLabelText('From date and time'), {
+      target: { value: '2026-09-01T08:30' },
+    });
+    fireEvent.change(screen.getByLabelText('To date and time'), {
+      target: { value: '2026-09-01T12:45' },
+    });
     await user.click(screen.getByRole('button', { name: 'Search Audit Log' }));
 
     await waitFor(() => expect(fetch).toHaveBeenCalledWith(

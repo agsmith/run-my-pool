@@ -203,7 +203,12 @@ export default function AdminPortal() {
         { headers: { Authorization: `Bearer ${token}` } },
       );
       if (!response.ok) throw new Error('Unable to load audit filters');
-      setAuditFilterOptions(await response.json());
+      const options = await response.json();
+      setAuditFilterOptions({
+        event_types: Array.isArray(options?.event_types) ? options.event_types : [],
+        users: Array.isArray(options?.users) ? options.users : [],
+        includes_system_events: options?.includes_system_events === true,
+      });
     } catch (err) {
       setAuditError(err.message || 'Unable to load audit filters');
     }
@@ -1347,7 +1352,7 @@ export default function AdminPortal() {
               >
                 <option value="">All users</option>
                 {auditFilterOptions.includes_system_events && <option value="__system__">System / automated</option>}
-                {auditFilterOptions.users.map((user) => <option key={user.id} value={user.id}>{user.email}</option>)}
+                {(auditFilterOptions.users || []).map((user) => <option key={user.id} value={user.id}>{user.email}</option>)}
               </select>
             </div>
             <div>
@@ -1367,7 +1372,7 @@ export default function AdminPortal() {
                 }}
               >
                 <option value="">All event types</option>
-                {auditFilterOptions.event_types.map((eventType) => <option key={eventType} value={eventType}>{eventType}</option>)}
+                {(auditFilterOptions.event_types || []).map((eventType) => <option key={eventType} value={eventType}>{eventType}</option>)}
               </select>
             </div>
           </div>
