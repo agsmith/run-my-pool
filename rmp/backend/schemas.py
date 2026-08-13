@@ -26,9 +26,10 @@ class LifecycleEvent(BaseModel):
         "member_onboarding_view",
         "weekly_action_center_view",
         "weekly_picks_action_clicked",
+        "billing_overview_view",
     ]
     session_id: str = Field(min_length=16, max_length=64, pattern=r"^[A-Za-z0-9_-]+$")
-    page: Literal["home", "pricing", "create_account", "billing_success", "pool_home"]
+    page: Literal["home", "pricing", "create_account", "billing_success", "pool_home", "profile"]
     plan: Optional[Literal["free", "commissioner", "pro", "club", "club-unlimited"]] = None
     source: Optional[Literal["homepage", "pricing", "direct"]] = None
 
@@ -121,6 +122,7 @@ class BillingOrderOut(BaseModel):
     amount_total: Optional[int] = None
     currency: Optional[str] = None
     paid_at: Optional[datetime] = None
+    created_at: Optional[datetime] = None
 
     class Config:
         orm_mode = True
@@ -137,6 +139,12 @@ class CommissionerEntitlementOut(BaseModel):
 
     class Config:
         orm_mode = True
+
+
+class BillingOverviewOut(BaseModel):
+    season: int
+    entitlement: Optional[CommissionerEntitlementOut] = None
+    orders: List[BillingOrderOut]
 
 
 class LeagueAdminUserSummary(BaseModel):

@@ -17,6 +17,7 @@ Run My Pool records privacy-safe lifecycle events as structured backend logs. Th
 | `member_onboarding_view` | A newly joined member saw the pool-specific first-entry guidance. |
 | `weekly_action_center_view` | A pool member saw their current-week entry and selection status. |
 | `weekly_picks_action_clicked` | A pool member opened entry creation or the weekly pick flow from the action center. |
+| `billing_overview_view` | A signed-in user viewed their seasonal plan and payment history. |
 
 All accepted events are explicitly allowlisted by the backend schema. Unknown events, properties, plans, pages, and sources are rejected.
 

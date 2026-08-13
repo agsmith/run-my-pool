@@ -251,6 +251,42 @@ table {
 .billing-result-actions { display:flex; flex-wrap:wrap; gap:.75rem; margin-top:2rem; }
 .billing-result-actions a { padding:.85rem 1rem; color:#091012; background:var(--lime); font-size:.75rem; font-weight:900; letter-spacing:.06em; text-decoration:none; text-transform:uppercase; }
 .billing-result-actions a:last-child { color:var(--ice); background:#152124; border:1px solid #40555a; }
+.account-page { width:min(100% - 2rem,1100px); min-height:calc(100vh - 70px); margin:0 auto; padding:clamp(1.5rem,4vw,3rem) 0; color:var(--ink); }
+.account-page__header { display:flex; align-items:flex-end; justify-content:space-between; gap:2rem; padding-bottom:1.5rem; border-bottom:1px solid #314449; }
+.account-page__header span,.account-identity span,.billing-overview__heading span,.billing-plan span { color:var(--lime); font-size:.64rem; font-weight:900; letter-spacing:.13em; text-transform:uppercase; }
+.account-page__header h1 { margin:.4rem 0; font-family:Impact,'Arial Narrow',sans-serif; font-size:clamp(3rem,8vw,5.8rem); font-style:italic; font-weight:400; line-height:.88; }
+.account-page__header p { margin:0; color:#aab8b9; }
+.account-page__header button { padding:.7rem 1rem; color:var(--ice); background:#10191c; border:1px solid #40555a; }
+.account-identity { display:flex; align-items:center; justify-content:space-between; gap:1rem; margin:1rem 0; padding:1.2rem; background:#10191c; border:1px solid #314449; }
+.account-identity h2 { margin:.35rem 0 0; font-size:1.1rem; }
+.account-identity a { color:var(--ice); font-size:.75rem; font-weight:850; }
+.billing-overview { padding:1.4rem; background:linear-gradient(145deg,#142124,#0e1719); border:1px solid #40555a; border-top:3px solid var(--lime); }
+.billing-overview__heading { display:flex; align-items:center; justify-content:space-between; gap:1rem; }
+.billing-overview__heading h2 { margin:.35rem 0 0; font-family:Impact,'Arial Narrow',sans-serif; font-size:2.2rem; font-style:italic; font-weight:400; text-transform:uppercase; }
+.billing-overview__heading a { padding:.65rem .85rem; color:#091012; background:var(--lime); font-size:.68rem; font-weight:900; text-decoration:none; text-transform:uppercase; }
+.billing-plan { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); margin-top:1.25rem; border:1px solid #314449; }
+.billing-plan div { padding:1rem; background:#0c1416; border-right:1px solid #314449; }
+.billing-plan div:last-child { border-right:0; }
+.billing-plan strong { display:block; margin-top:.4rem; color:var(--ice); font-size:1.2rem; text-transform:capitalize; }
+.billing-history { margin-top:1.4rem; }
+.billing-history h3 { margin:0 0 .75rem; font-size:.75rem; letter-spacing:.1em; text-transform:uppercase; }
+.billing-history__table { border:1px solid #314449; }
+.billing-history__row { display:grid; grid-template-columns:1fr 1fr 1fr 1fr; }
+.billing-history__row span { padding:.8rem; color:#d8e1df; border-right:1px solid #314449; border-bottom:1px solid #314449; font-size:.75rem; text-transform:capitalize; }
+.billing-history__row span:last-child { border-right:0; }
+.billing-history__row:last-child span { border-bottom:0; }
+.billing-history__row--head span { color:#8ea0a2; background:#081013; font-size:.6rem; font-weight:900; letter-spacing:.08em; text-transform:uppercase; }
+.billing-history__row .is-paid { color:var(--lime); }
+.billing-history__row .is-failed,.billing-history__row .is-expired { color:var(--danger); }
+.billing-overview__state { margin:1rem 0 0; padding:1rem; color:#aab8b9; background:#0c1416; border:1px dashed #40555a; }
+@media (max-width:700px) {
+  .account-page__header,.account-identity,.billing-overview__heading { align-items:stretch; flex-direction:column; }
+  .billing-plan { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .billing-plan div:nth-child(2) { border-right:0; }
+  .billing-plan div:nth-child(-n+2) { border-bottom:1px solid #314449; }
+  .billing-history__row { grid-template-columns:1fr 1fr; }
+  .billing-history__row--head { display:none; }
+}
 @media (max-width:1050px) and (min-width:801px) {
   .pricing-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
   .pricing-card--featured { transform:none; }

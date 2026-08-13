@@ -228,6 +228,35 @@ def billing_status(
     ).first()
 
 
+@router.get("/overview", response_model=schemas.BillingOverviewOut)
+def billing_overview(
+    season: int = Query(ge=2020, le=2100),
+    db: Session = Depends(deps.get_db),
+    current_user: models.User = Depends(deps.get_current_user),
+):
+    """Return only the signed-in user's plan and payment history for a season."""
+    entitlement = (
+        db.query(models.CommissionerEntitlement)
+        .filter(
+            models.CommissionerEntitlement.user_id == current_user.id,
+            models.CommissionerEntitlement.season == season,
+            models.CommissionerEntitlement.status == "active",
+        )
+        .first()
+    )
+    orders = (
+        db.query(models.BillingOrder)
+        .filter(
+            models.BillingOrder.user_id == current_user.id,
+            models.BillingOrder.season == season,
+        )
+        .order_by(models.BillingOrder.created_at.desc())
+        .limit(20)
+        .all()
+    )
+    return {"season": season, "entitlement": entitlement, "orders": orders}
+
+
 @router.get("/session/{session_id}", response_model=schemas.BillingOrderOut)
 def checkout_status(
     session_id: str,

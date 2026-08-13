@@ -228,3 +228,57 @@ class TestCommissionerBilling:
         assert owner.status_code == 200
         assert owner.json()["status"] == "pending"
         assert other.status_code == 404
+
+    def test_billing_overview_is_scoped_to_authenticated_user(
+        self, client, db_session, monkeypatch
+    ):
+        owner_token = _register_and_login(client, "overview-owner@example.com")
+        other_token = _register_and_login(client, "overview-other@example.com")
+        _, captured = _checkout(client, monkeypatch, owner_token, plan="pro")
+        order = (
+            db_session.query(models.BillingOrder)
+            .filter(models.BillingOrder.id == captured["metadata"]["order_id"])
+            .one()
+        )
+        order.status = "paid"
+        order.amount_total = 7900
+        order.currency = "usd"
+        order.paid_at = datetime(2026, 8, 12)
+        db_session.add(
+            models.CommissionerEntitlement(
+                id="overview-entitlement",
+                user_id=order.user_id,
+                season=2026,
+                plan="pro",
+                status="active",
+                included_entries=150,
+                max_pools=1,
+                unlimited_entries=False,
+                source_order_id=order.id,
+                activated_at=datetime(2026, 8, 12),
+                updated_at=datetime(2026, 8, 12),
+            )
+        )
+        db_session.commit()
+
+        owner = client.get(
+            "/billing/overview?season=2026", headers=_headers(owner_token)
+        )
+        other = client.get(
+            "/billing/overview?season=2026", headers=_headers(other_token)
+        )
+
+        assert owner.status_code == 200
+        assert owner.json()["entitlement"]["plan"] == "pro"
+        assert owner.json()["orders"][0]["amount_total"] == 7900
+        assert owner.json()["orders"][0]["created_at"] is not None
+        assert other.status_code == 200
+        assert other.json() == {
+            "season": 2026,
+            "entitlement": None,
+            "orders": [],
+        }
+
+    def test_billing_overview_requires_authentication(self, client):
+        response = client.get("/billing/overview?season=2026")
+        assert response.status_code in (401, 403)

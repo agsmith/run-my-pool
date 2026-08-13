@@ -168,3 +168,17 @@ def test_use_stage_weekly_action_events_are_allowlisted(client, event):
     )
 
     assert response.status_code == 204
+
+
+def test_pay_stage_billing_overview_event_is_allowlisted(client):
+    response = client.post(
+        "/analytics/events",
+        headers={"x-forwarded-for": "198.51.100.78"},
+        json={
+            "event": "billing_overview_view",
+            "session_id": "billing-overview-session-1234",
+            "page": "profile",
+        },
+    )
+
+    assert response.status_code == 204
