@@ -5,6 +5,11 @@ import PoolDetail from '../pages/pool/[id]';
 import MatchupsPage from '../pages/pool/[id]/matchups';
 import MessageBoard from '../pages/pool/[id]/messages';
 
+const mockTrackLifecycleEvent = jest.fn();
+jest.mock('../lib/lifecycleAnalytics', () => ({
+  trackLifecycleEvent: (...args) => mockTrackLifecycleEvent(...args),
+}));
+
 process.env.NEXT_PUBLIC_API_URL = '';
 const mockPush = jest.fn();
 const mockBack = jest.fn();
@@ -27,6 +32,7 @@ describe('pool workspace pages', () => {
     mockPush.mockReset();
     mockBack.mockReset();
     mockRouter.query = { id: 'pool-1' };
+    mockTrackLifecycleEvent.mockClear();
     localStorage.setItem('access_token', 'token');
   });
 
@@ -58,6 +64,20 @@ describe('pool workspace pages', () => {
 
     expect(global.confirm).toHaveBeenCalled();
     expect(mockPush).toHaveBeenCalledWith('/dashboard?message=Pool deleted successfully');
+  });
+
+  test('shows the launch checklist to the owner immediately after creation', async () => {
+    mockRouter.query = { id: 'pool-1', launched: '1' };
+    global.fetch = jest.fn((url) => {
+      if (String(url).endsWith('/is-admin')) return response({ is_owner: true, is_admin: true, has_admin_access: true });
+      return response(pool);
+    });
+
+    render(<PoolDetail />);
+
+    expect(await screen.findByRole('region', { name: /pool launch checklist/i })).toBeInTheDocument();
+    expect(screen.getByText(/1 of 4 launch steps complete/i)).toBeInTheDocument();
+    expect(mockTrackLifecycleEvent).toHaveBeenCalledWith('pool_launch_checklist_view', { page: 'pool_home' });
   });
 
   test('shows the current user’s pool administrator role and controls', async () => {

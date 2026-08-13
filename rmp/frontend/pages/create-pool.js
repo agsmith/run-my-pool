@@ -68,7 +68,7 @@ export default function CreatePool() {
         }
         throw new Error(typeof data.detail === 'string' ? data.detail : 'Failed to create pool');
       }
-      router.push(`/pool/${data.id}`);
+      router.push(`/pool/${data.id}?launched=1`);
     } catch (requestError) {
       setError(requestError.message || 'Failed to create pool');
     } finally {

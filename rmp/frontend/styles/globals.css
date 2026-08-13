@@ -1070,6 +1070,23 @@ table {
 .pool-home-notice,.pool-home-state { margin:0 0 1rem; padding:1rem; background:#10191c; border:1px solid #314449; }
 .pool-home-notice--success { color:var(--lime); border-color:rgba(215,255,63,.35); }
 .pool-home-notice--error,.pool-home-state--error { color:var(--danger); border-color:rgba(255,129,122,.4); }
+.pool-launch { margin:0 0 1rem; padding:1.25rem; background:linear-gradient(145deg,#142124,#0c1416); border:1px solid #40575c; border-top:3px solid var(--lime); }
+.pool-launch__header { display:flex; align-items:flex-start; justify-content:space-between; gap:1rem; padding-bottom:1rem; border-bottom:1px solid #314449; }
+.pool-launch__header span { color:var(--lime); font-size:.64rem; font-weight:900; letter-spacing:.13em; text-transform:uppercase; }
+.pool-launch__header h2 { margin:.35rem 0; color:var(--ink); font-family:Impact,'Arial Narrow',sans-serif; font-size:clamp(1.7rem,4vw,2.5rem); font-style:italic; font-weight:400; }
+.pool-launch__header p { margin:0; color:var(--muted); font-size:.75rem; }
+.pool-launch__header>button { width:36px; min-width:36px; height:36px; padding:0!important; color:var(--muted)!important; background:transparent!important; border:1px solid #40575c!important; font-size:1.25rem; }
+.pool-launch ol { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:1px; margin:1rem 0; padding:1px; background:#314449; list-style:none; }
+.pool-launch li { display:grid; grid-template-columns:36px 1fr; gap:.8rem; min-height:145px; padding:1rem; background:#0c1416; }
+.pool-launch li>span { display:grid; place-items:center; width:32px; height:32px; color:var(--ice); border:1px solid #40575c; border-radius:50%; font-size:.75rem; font-weight:900; }
+.pool-launch li.is-complete>span { color:#091012; background:var(--lime); border-color:var(--lime); }
+.pool-launch li strong { display:block; color:var(--ink); font-size:.75rem; letter-spacing:.04em; text-transform:uppercase; }
+.pool-launch li small { display:block; margin:.35rem 0 .75rem; color:var(--muted); font-size:.72rem; line-height:1.5; }
+.pool-launch li button,.pool-launch__later { min-height:36px; padding:.45rem .7rem!important; color:var(--ice)!important; background:#10191c!important; border:1px solid #40575c!important; border-radius:0!important; font-size:.66rem!important; font-weight:850!important; text-transform:uppercase; }
+.pool-launch__invite { display:flex; gap:.4rem; }
+.pool-launch__invite input { min-width:0; flex:1; padding:.5rem; color:#d8e1df; background:#081013; border:1px solid #40575c; font-size:.7rem; }
+.pool-launch__invite button { flex:none; }
+.pool-launch__later { display:block; margin-left:auto; }
 @media (max-width:760px) {
   .pool-home-actions { grid-template-columns:1fr; }
   .pool-home-actions button { border-right:0!important; border-bottom:1px solid #314449!important; }
@@ -1080,6 +1097,8 @@ table {
   .pool-home-details dl > div:nth-last-child(2) { border-bottom:1px solid #2f4246; }
   .pool-home-footer { align-items:stretch; flex-direction:column; }
   .pool-home-footer > div { display:grid; }
+  .pool-launch ol { grid-template-columns:1fr; }
+  .pool-launch__invite { align-items:stretch; flex-direction:column; }
 }
 
 /* Community: message cards read like a live marketplace ticker. */

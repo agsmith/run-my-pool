@@ -12,6 +12,8 @@ Run My Pool records privacy-safe lifecycle events as structured backend logs. Th
 | `account_creation_view` | A visitor reached account creation, optionally with a selected package. |
 | `checkout_started` | Stripe returned a secure checkout URL for the selected paid package. |
 | `payment_confirmed` | The authenticated success page observed a server-confirmed paid order. |
+| `pool_launch_checklist_view` | A new commissioner viewed the post-creation launch checklist. |
+| `pool_invite_link_copied` | A commissioner successfully copied the secure pool invitation link. |
 
 All accepted events are explicitly allowlisted by the backend schema. Unknown events, properties, plans, pages, and sources are rejected.
 

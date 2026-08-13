@@ -1,8 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/router';
 import ProtectedRoute from '../../components/ProtectedRoute';
 import { useAuth } from '../../context/AuthContext';
 import { PoolWorkspaceNav, WorkspaceHeader } from '../../components/ProductWorkspace';
+import PoolLaunchChecklist from '../../components/PoolLaunchChecklist';
+import { trackLifecycleEvent } from '../../lib/lifecycleAnalytics';
 
 const DAYS_OF_WEEK = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
@@ -33,6 +35,8 @@ export default function PoolDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
+  const [showLaunchChecklist, setShowLaunchChecklist] = useState(false);
+  const trackedLaunch = useRef(false);
   const router = useRouter();
   const { user } = useAuth();
   const { id } = router.query;
@@ -40,6 +44,10 @@ export default function PoolDetail() {
   useEffect(() => {
     if (router.query.message) setSuccessMessage(router.query.message);
   }, [router.query.message]);
+
+  useEffect(() => {
+    if (router.query.launched === '1') setShowLaunchChecklist(true);
+  }, [router.query.launched]);
 
   useEffect(() => {
     if (!id) return;
@@ -84,13 +92,19 @@ export default function PoolDetail() {
     }
   };
 
-  if (!router.isReady) return null;
-
   const isOwner = pool?.owner_id === user?.id;
   const isAdmin = Boolean(adminStatus?.is_admin);
   const hasAdminAccess = isOwner || isAdmin;
   const userRole = isOwner ? 'Commissioner' : isAdmin ? 'Admin' : 'Player';
   const picksHref = pool?.pool_type === 'pickem' ? `/pool/${id}/pickem` : `/pool/${id}/entries`;
+
+  useEffect(() => {
+    if (!showLaunchChecklist || !isOwner || trackedLaunch.current) return;
+    trackedLaunch.current = true;
+    trackLifecycleEvent('pool_launch_checklist_view', { page: 'pool_home' });
+  }, [isOwner, showLaunchChecklist]);
+
+  if (!router.isReady) return null;
 
   return (
     <ProtectedRoute>
@@ -113,6 +127,15 @@ export default function PoolDetail() {
 
               {successMessage && <div className="pool-home-notice pool-home-notice--success">{successMessage}</div>}
               {error && <div className="pool-home-notice pool-home-notice--error">{error}</div>}
+
+              {isOwner && showLaunchChecklist && (
+                <PoolLaunchChecklist
+                  pool={pool}
+                  onClose={() => setShowLaunchChecklist(false)}
+                  onNavigate={(destination) => router.push(destination)}
+                  onInviteCopied={() => trackLifecycleEvent('pool_invite_link_copied', { page: 'pool_home' })}
+                />
+              )}
 
               <section className="pool-home-actions" aria-label="Pool shortcuts">
                 <button onClick={() => router.push(picksHref)}><span>01</span><strong>{pool.pool_type === 'pickem' ? 'Pick ’Em Board' : 'My Entries'}</strong><small>Make selections and review entries</small></button>
@@ -137,6 +160,7 @@ export default function PoolDetail() {
                 <button onClick={() => router.push('/dashboard')}>Back to Dashboard</button>
                 {hasAdminAccess && (
                   <div>
+                    {isOwner && <button onClick={() => setShowLaunchChecklist(true)}>Launch Checklist</button>}
                     <button onClick={() => router.push(`/admin/league/${id}`)}>Commissioner Settings</button>
                     {isOwner && <button className="pool-home-delete" onClick={deletePool}>Delete Pool</button>}
                   </div>

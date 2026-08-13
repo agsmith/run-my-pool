@@ -120,3 +120,17 @@ def test_buy_stage_payment_event_is_allowlisted(client):
     )
 
     assert response.status_code == 204
+
+
+def test_get_stage_launch_event_is_allowlisted(client):
+    response = client.post(
+        "/analytics/events",
+        headers={"x-forwarded-for": "198.51.100.75"},
+        json={
+            "event": "pool_launch_checklist_view",
+            "session_id": "launch-session-1234567890",
+            "page": "pool_home",
+        },
+    )
+
+    assert response.status_code == 204

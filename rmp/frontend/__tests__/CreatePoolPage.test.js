@@ -72,7 +72,7 @@ describe('CreatePool', () => {
       lock_timezone: 'America/New_York',
       rule_values: [],
     }));
-    expect(mockPush).toHaveBeenCalledWith('/pool/pickem-pool');
+    expect(mockPush).toHaveBeenCalledWith('/pool/pickem-pool?launched=1');
   });
 
   test('sends supported Survivor settings and a shareable private join code', async () => {
