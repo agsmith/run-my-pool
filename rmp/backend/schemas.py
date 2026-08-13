@@ -24,6 +24,8 @@ class LifecycleEvent(BaseModel):
         "pool_launch_checklist_view",
         "pool_invite_link_copied",
         "member_onboarding_view",
+        "weekly_action_center_view",
+        "weekly_picks_action_clicked",
     ]
     session_id: str = Field(min_length=16, max_length=64, pattern=r"^[A-Za-z0-9_-]+$")
     page: Literal["home", "pricing", "create_account", "billing_success", "pool_home"]

@@ -289,6 +289,36 @@ class TestPoolEndpoints:
             "week_selection_total": 2,
         }
 
+    def test_activity_summary_defaults_to_current_schedule_week(
+        self, client, monkeypatch
+    ):
+        monkeypatch.setattr("pools.current_season_week", lambda db: 7)
+        owner = _register(client, "current.week.activity@example.com")
+        pool = client.post(
+            "/pools/create",
+            json={"name": "Current Week Activity"},
+            headers=owner,
+        ).json()
+        client.post(
+            "/entries/create",
+            json={"pool_id": pool["id"], "name": "Current Week Entry"},
+            headers=owner,
+        )
+
+        response = client.get(
+            f"/pools/{pool['id']}/activity-summary", headers=owner
+        )
+
+        assert response.status_code == 200
+        assert response.json() == {
+            "pool_type": "survivor",
+            "entries_remaining": 1,
+            "total_entries": 1,
+            "week": 7,
+            "week_selections": 0,
+            "week_selection_total": 1,
+        }
+
     def test_pickem_activity_counts_every_game_selection(self, client, db_session):
         owner = _register(client, "pickem.activity@example.com")
         pool = client.post(

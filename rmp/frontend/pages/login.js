@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { baseStyles, createHoverHandlers, hoverEffects, createFocusHandlers, mobileStyles, getResponsiveStyle } from '../styles/globalStyles';
 import { ResponsiveInput, ResponsiveButton, ResponsiveCard } from '../components/ResponsiveComponents';
 import PasswordVisibilityButton from '../components/PasswordVisibilityButton';
+import BrandLogo from '../components/BrandLogo';
 
 function validateEmail(email) {
   return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email);
@@ -106,8 +107,7 @@ export default function Login() {
         {/* Logo/Brand area */}
         <div className="auth-brand">
           <h1>
-            <span className="product-football-mark auth-brand__mark" aria-hidden="true"><i /><i /><i /></span>
-            <span>RUN MY <b>POOL</b></span>
+            <BrandLogo className="auth-brand__logo" alt="Run My Pool" priority />
           </h1>
           <p>Sign in to your account</p>
         </div>

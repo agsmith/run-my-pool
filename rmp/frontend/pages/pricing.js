@@ -4,6 +4,7 @@ import { useRouter } from 'next/router';
 import { useAuth } from '../context/AuthContext';
 import Seo from '../components/Seo';
 import { trackLifecycleEvent } from '../lib/lifecycleAnalytics';
+import BrandLogo from '../components/BrandLogo';
 
 const plans = [
   {
@@ -52,10 +53,6 @@ const plans = [
     badge: 'Best for large pools',
   },
 ];
-
-function FootballMark() {
-  return <span className="rmp-mark" aria-hidden="true"><i /><i /><i /></span>;
-}
 
 export default function PricingPage() {
   const auth = useAuth();
@@ -127,7 +124,7 @@ export default function PricingPage() {
       <header className="rmp-header">
         <nav className="rmp-shell" aria-label="Pricing navigation">
           <Link href="/" className="rmp-brand" aria-label="Run My Pool home">
-            <FootballMark /><span>RUN MY <b>POOL</b></span>
+            <BrandLogo className="rmp-brand__logo" priority />
           </Link>
           <div className="rmp-nav-links pricing-nav-links">
             <Link href="/#how">How it works</Link>
@@ -206,7 +203,7 @@ export default function PricingPage() {
         </section>
       </main>
 
-      <footer className="rmp-footer"><div className="rmp-shell"><Link href="/" className="rmp-brand"><FootballMark /><span>RUN MY <b>POOL</b></span></Link><p>Simple software pricing. No percentage of prizes. <a href="mailto:support@runmypool.net">Billing and account support</a></p><span>© 2026 Run My Pool</span></div></footer>
+      <footer className="rmp-footer"><div className="rmp-shell"><Link href="/" className="rmp-brand"><BrandLogo className="rmp-brand__logo" alt="Run My Pool" /></Link><p>Simple software pricing. No percentage of prizes. <a href="mailto:support@runmypool.net">Billing and account support</a></p><span>© 2026 Run My Pool</span></div></footer>
     </div>
   );
 }

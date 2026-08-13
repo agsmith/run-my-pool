@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { baseStyles } from '../styles/globalStyles';
 import PasswordVisibilityButton from '../components/PasswordVisibilityButton';
 import { trackLifecycleEvent } from '../lib/lifecycleAnalytics';
+import BrandLogo from '../components/BrandLogo';
 
 function validateEmail(email) {
   return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email);
@@ -128,8 +129,7 @@ export default function CreateAccount() {
         {/* Logo/Brand area */}
         <div className="auth-brand">
           <h1>
-            <span className="product-football-mark auth-brand__mark" aria-hidden="true"><i /><i /><i /></span>
-            <span>RUN MY <b>POOL</b></span>
+            <BrandLogo className="auth-brand__logo" alt="Run My Pool" priority />
           </h1>
           <p>Create your new account</p>
         </div>

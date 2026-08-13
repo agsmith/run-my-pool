@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import Seo from '../components/Seo';
 import { trackLifecycleEvent } from '../lib/lifecycleAnalytics';
+import BrandLogo from '../components/BrandLogo';
 
 const games = [
   { number: '01', time: 'SUN 1:00', away: 'BUF', awayName: 'Buffalo', home: 'NYJ', homeName: 'New York', className: 'blue' },
@@ -43,10 +44,6 @@ const homepageFaqs = [
   },
 ];
 
-function FootballMark() {
-  return <span className="rmp-mark" aria-hidden="true"><i /><i /><i /></span>;
-}
-
 export default function Home() {
   const { user } = useAuth();
   const createPoolHref = user ? '/create-pool?source=splash' : '/pricing';
@@ -86,7 +83,7 @@ export default function Home() {
       <header className="rmp-header">
         <nav className="rmp-shell" aria-label="Main navigation">
           <Link href="/" className="rmp-brand" aria-label="Run My Pool home">
-            <FootballMark /><span>RUN MY <b>POOL</b></span>
+            <BrandLogo className="rmp-brand__logo" priority />
           </Link>
           <div className="rmp-nav-links">
             <a href="#how">How it works</a>
@@ -212,7 +209,7 @@ export default function Home() {
         </section>
       </main>
 
-      <footer className="rmp-footer"><div className="rmp-shell"><Link href="/" className="rmp-brand"><FootballMark /><span>RUN MY <b>POOL</b></span></Link><p>Built for football fans, by football fans. <Link href="/pricing">Pricing</Link> · <Link href="/install">Install the app</Link> · <a href="mailto:support@runmypool.net">Contact support</a></p><span>© 2026 Run My Pool</span></div></footer>
+      <footer className="rmp-footer"><div className="rmp-shell"><Link href="/" className="rmp-brand"><BrandLogo className="rmp-brand__logo" alt="Run My Pool" /></Link><p>Built for football fans, by football fans. <Link href="/pricing">Pricing</Link> · <Link href="/install">Install the app</Link> · <a href="mailto:support@runmypool.net">Contact support</a></p><span>© 2026 Run My Pool</span></div></footer>
     </div>
   );
 }

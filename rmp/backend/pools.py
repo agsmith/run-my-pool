@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 import base64
 import hashlib
 import models
@@ -15,7 +15,7 @@ import logging
 from audit_utils import create_audit_log, log_create_operation, log_update_operation, log_delete_operation
 from auth import SECRET_KEY, get_password_hash, verify_password
 from pool_access import is_pool_participant
-from schedule import current_season_games
+from schedule import current_season_games, current_season_week
 from weekly_locks import pool_week_lock_time
 from cryptography.fernet import Fernet, InvalidToken
 from app_logging import log_event
@@ -287,7 +287,7 @@ def get_my_pools(
 @router.get("/{pool_id}/activity-summary")
 def get_pool_activity_summary(
     pool_id: str,
-    week: int = Query(default=1, ge=1, le=18),
+    week: Optional[int] = Query(default=None, ge=1, le=18),
     db: Session = Depends(deps.get_db),
     current_user: models.User = Depends(deps.get_current_user),
 ):
@@ -300,6 +300,7 @@ def get_pool_activity_summary(
     ):
         raise HTTPException(status_code=403, detail="League membership required")
 
+    selected_week = week if week is not None else current_season_week(db)
     user_entries = db.query(models.Entry).filter(
         models.Entry.pool_id == pool_id,
         models.Entry.user_id == current_user.id,
@@ -318,19 +319,23 @@ def get_pool_activity_summary(
             models.Entry.pool_id == pool_id,
             models.Entry.user_id == current_user.id,
             models.Entry.alive.is_(True),
-            models.Pick.week == week,
+            models.Pick.week == selected_week,
             models.Pick.team.isnot(None),
             models.Pick.team != "",
         )
         .scalar()
         or 0
     )
-    scheduled_games = len(current_season_games(db, week)) if pool.pool_type == "pickem" else 1
+    scheduled_games = (
+        len(current_season_games(db, selected_week))
+        if pool.pool_type == "pickem"
+        else 1
+    )
     return {
         "pool_type": pool.pool_type,
         "entries_remaining": entries_remaining,
         "total_entries": total_entries,
-        "week": week,
+        "week": selected_week,
         "week_selections": week_selections,
         "week_selection_total": entries_remaining * scheduled_games,
     }

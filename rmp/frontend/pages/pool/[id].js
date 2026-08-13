@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import { PoolWorkspaceNav, WorkspaceHeader } from '../../components/ProductWorkspace';
 import PoolLaunchChecklist from '../../components/PoolLaunchChecklist';
 import MemberPoolWelcome from '../../components/MemberPoolWelcome';
+import WeeklyActionCenter from '../../components/WeeklyActionCenter';
 import { trackLifecycleEvent } from '../../lib/lifecycleAnalytics';
 
 const DAYS_OF_WEEK = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
@@ -33,6 +34,8 @@ export function formatPickLock(pool) {
 export default function PoolDetail() {
   const [pool, setPool] = useState(null);
   const [adminStatus, setAdminStatus] = useState(null);
+  const [weeklySummary, setWeeklySummary] = useState(null);
+  const [weeklySummaryError, setWeeklySummaryError] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
@@ -40,6 +43,7 @@ export default function PoolDetail() {
   const [showMemberWelcome, setShowMemberWelcome] = useState(false);
   const trackedLaunch = useRef(false);
   const trackedMemberWelcome = useRef(false);
+  const trackedWeeklyAction = useRef(false);
   const router = useRouter();
   const { user } = useAuth();
   const { id } = router.query;
@@ -56,6 +60,9 @@ export default function PoolDetail() {
   useEffect(() => {
     if (!id) return;
     const loadPool = async () => {
+      setWeeklySummary(null);
+      setWeeklySummaryError(false);
+      trackedWeeklyAction.current = false;
       try {
         const token = localStorage.getItem('access_token');
         const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/pools/${id}`, {
@@ -63,6 +70,15 @@ export default function PoolDetail() {
         });
         if (!response.ok) throw new Error('Failed to load pool details');
         setPool(await response.json());
+        try {
+          const summaryResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/pools/${id}/activity-summary`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (!summaryResponse.ok) throw new Error('Failed to load weekly status');
+          setWeeklySummary(await summaryResponse.json());
+        } catch {
+          setWeeklySummaryError(true);
+        }
         try {
           const adminResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/pools/${id}/is-admin`, {
             headers: { Authorization: `Bearer ${token}` },
@@ -125,6 +141,17 @@ export default function PoolDetail() {
     trackLifecycleEvent('member_onboarding_view', { page: 'pool_home' });
   }, [isOwner, showMemberWelcome]);
 
+  useEffect(() => {
+    if (!weeklySummary || trackedWeeklyAction.current) return;
+    trackedWeeklyAction.current = true;
+    trackLifecycleEvent('weekly_action_center_view', { page: 'pool_home' });
+  }, [weeklySummary]);
+
+  const openWeeklyAction = (createEntry = false) => {
+    trackLifecycleEvent('weekly_picks_action_clicked', { page: 'pool_home' });
+    router.push(createEntry ? `/pool/${id}/entries/create` : picksHref);
+  };
+
   if (!router.isReady) return null;
 
   return (
@@ -166,6 +193,13 @@ export default function PoolDetail() {
                   onDismiss={() => setShowMemberWelcome(false)}
                 />
               )}
+
+              <WeeklyActionCenter
+                summary={weeklySummary}
+                loading={!weeklySummary && !weeklySummaryError}
+                error={weeklySummaryError}
+                onAction={openWeeklyAction}
+              />
 
               <section className="pool-home-actions" aria-label="Pool shortcuts">
                 <button onClick={() => router.push(picksHref)}><span>01</span><strong>{pool.pool_type === 'pickem' ? 'Pick ’Em Board' : 'My Entries'}</strong><small>Make selections and review entries</small></button>

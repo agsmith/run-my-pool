@@ -26,6 +26,10 @@ const pool = {
   id: 'pool-1', name: 'Office Survivor', owner_id: 'user-1', description: 'Make it through the season',
   is_private: true, lock_day_of_week: 6, lock_time_of_day: '13:00:00', lock_timezone: 'America/New_York',
 };
+const activitySummary = {
+  pool_type: 'survivor', entries_remaining: 2, total_entries: 3,
+  week: 5, week_selections: 1, week_selection_total: 2,
+};
 
 describe('pool workspace pages', () => {
   beforeEach(() => {
@@ -45,6 +49,7 @@ describe('pool workspace pages', () => {
     global.confirm = jest.fn(() => true);
     global.fetch = jest.fn((url, options = {}) => {
       if (String(url).endsWith('/is-admin')) return response({ is_owner: true, is_admin: true, has_admin_access: true });
+      if (String(url).endsWith('/activity-summary')) return response(activitySummary);
       if (!options.method) return response(pool);
       if (options.method === 'DELETE') return response({ message: 'deleted' });
       throw new Error(`Unexpected request ${url}`);
@@ -70,6 +75,7 @@ describe('pool workspace pages', () => {
     mockRouter.query = { id: 'pool-1', launched: '1' };
     global.fetch = jest.fn((url, options = {}) => {
       if (String(url).endsWith('/is-admin')) return response({ is_owner: true, is_admin: true, has_admin_access: true });
+      if (String(url).endsWith('/activity-summary')) return response(activitySummary);
       if (String(url).endsWith('/invite-email') && options.method === 'POST') return response({ message: 'Invitation email sent' });
       return response(pool);
     });
@@ -91,6 +97,7 @@ describe('pool workspace pages', () => {
   test('shows the current user’s pool administrator role and controls', async () => {
     global.fetch = jest.fn((url) => {
       if (String(url).endsWith('/is-admin')) return response({ is_owner: false, is_admin: true, has_admin_access: true });
+      if (String(url).endsWith('/activity-summary')) return response(activitySummary);
       return response({ ...pool, owner_id: 'another-user' });
     });
 
@@ -105,6 +112,7 @@ describe('pool workspace pages', () => {
     mockRouter.query = { id: 'pool-1', joined: '1' };
     global.fetch = jest.fn((url) => {
       if (String(url).endsWith('/is-admin')) return response({ is_owner: false, is_admin: false, has_admin_access: false });
+      if (String(url).endsWith('/activity-summary')) return response({ ...activitySummary, entries_remaining: 0, total_entries: 0, week_selections: 0, week_selection_total: 0 });
       return response({ ...pool, owner_id: 'owner-2', pool_type: 'survivor' });
     });
     const user = userEvent.setup();
@@ -112,7 +120,11 @@ describe('pool workspace pages', () => {
 
     expect(await screen.findByRole('region', { name: /pool membership welcome/i })).toBeInTheDocument();
     expect(mockTrackLifecycleEvent).toHaveBeenCalledWith('member_onboarding_view', { page: 'pool_home' });
-    await user.click(screen.getByRole('button', { name: /create your first entry/i }));
+    expect(screen.getByRole('heading', { name: 'Week 5 Action Center' })).toBeInTheDocument();
+    await user.click(
+      screen.getByRole('region', { name: /pool membership welcome/i })
+        .querySelector('button'),
+    );
     expect(mockPush).toHaveBeenCalledWith('/pool/pool-1/entries/create');
   });
 

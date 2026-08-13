@@ -1,5 +1,7 @@
 import logging
 
+import pytest
+
 
 def test_lifecycle_event_is_logged_without_personal_data(client, caplog):
     caplog.set_level(logging.INFO, logger="runmypool.lifecycle")
@@ -143,6 +145,24 @@ def test_get_stage_member_onboarding_event_is_allowlisted(client):
         json={
             "event": "member_onboarding_view",
             "session_id": "member-session-1234567890",
+            "page": "pool_home",
+        },
+    )
+
+    assert response.status_code == 204
+
+
+@pytest.mark.parametrize(
+    "event",
+    ["weekly_action_center_view", "weekly_picks_action_clicked"],
+)
+def test_use_stage_weekly_action_events_are_allowlisted(client, event):
+    response = client.post(
+        "/analytics/events",
+        headers={"x-forwarded-for": "198.51.100.77"},
+        json={
+            "event": event,
+            "session_id": f"use-stage-{event}",
             "page": "pool_home",
         },
     )

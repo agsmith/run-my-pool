@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
+import BrandLogo from './BrandLogo';
 
 export default function NavBar() {
   const MOBILE_NAV_BREAKPOINT = 960;
@@ -28,13 +29,8 @@ export default function NavBar() {
 
   const navStyles = {
     brand: {
-      fontSize: '1.25rem',
-      fontWeight: '800',
-      color: '#fff',
       textDecoration: 'none',
       marginRight: '2rem',
-      fontStyle: 'italic',
-      letterSpacing: '0.04em'
     },
     menuToggle: {
       display: isMobile ? 'block' : 'none',
@@ -95,9 +91,8 @@ export default function NavBar() {
   return (
     <nav className="broadcast-nav">
       <div style={{ display: 'flex', alignItems: 'center', width: isMobile ? '100%' : 'auto', justifyContent: isMobile ? 'space-between' : 'flex-start' }}>
-        <Link href="/" className="broadcast-nav__brand" style={navStyles.brand} onClick={closeMobileMenu}>
-          <span className="product-football-mark" aria-hidden="true"><i /><i /><i /></span>
-          <span>RUN MY <b>POOL</b></span>
+        <Link href="/" className="broadcast-nav__brand" style={navStyles.brand} onClick={closeMobileMenu} aria-label="Run My Pool home">
+          <BrandLogo className="broadcast-nav__logo" priority />
         </Link>
         
         <button 

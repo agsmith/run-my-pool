@@ -29,7 +29,7 @@ describe('CreateAccountPage', () => {
   test('uses the Broadcast Night product brand without an emoji', () => {
     const { container } = render(<CreateAccountPage />)
     expect(screen.getByRole('heading', { name: /run my pool/i })).toBeInTheDocument()
-    expect(container.querySelector('.product-football-mark')).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: /run my pool/i })).toHaveAttribute('src', '/brand/run-my-pool-wordmark.png')
     expect(container).not.toHaveTextContent('🏈')
   })
 
