@@ -18,7 +18,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 import models
-
+from services.nfl_results import NflGameResult
+from services.scoring import apply_final_results
 
 # ---------------------------------------------------------------------------
 # Game result simulation (replicates Lambda logic without AWS/boto3)
@@ -42,34 +43,24 @@ def simulate_game_result(db: Session, game_id: int, winner_team_id: int) -> None
     if game is None:
         raise ValueError(f"Game {game_id} not found")
 
-    loser_team_id = (
-        game.away_team_id if game.home_team_id == winner_team_id else game.home_team_id
+    if winner_team_id not in {game.home_team_id, game.away_team_id}:
+        raise ValueError(f"Team {winner_team_id} is not playing in game {game_id}")
+    home_won = winner_team_id == game.home_team_id
+    apply_final_results(
+        db,
+        [
+            NflGameResult(
+                game_id=game.game_id,
+                season=game.season,
+                week=game.week_num,
+                status="final",
+                home_abbreviation=game.home_team.abbrv,
+                away_abbreviation=game.away_team.abbrv,
+                home_score=1 if home_won else 0,
+                away_score=0 if home_won else 1,
+            )
+        ],
     )
-
-    game.winning_team_id = winner_team_id
-    db.flush()
-
-    # Update pick results for this week's matching picks
-    (
-        db.query(models.Pick)
-        .filter(
-            models.Pick.week == game.week_num,
-            models.Pick.team_id == winner_team_id,
-        )
-        .update({"result": "win"}, synchronize_session="fetch")
-    )
-
-    (
-        db.query(models.Pick)
-        .filter(
-            models.Pick.week == game.week_num,
-            models.Pick.team_id == loser_team_id,
-        )
-        .update({"result": "loss"}, synchronize_session="fetch")
-    )
-
-    db.flush()
-    _eliminate_losing_entries(db)
     db.commit()
 
 
@@ -161,7 +152,9 @@ def get_alive_entries(db: Session, pool_id: str) -> list:
     """Return all alive Entry objects for a pool."""
     return (
         db.query(models.Entry)
-        .filter(models.Entry.pool_id == pool_id, models.Entry.alive == True)  # noqa: E712
+        .filter(
+            models.Entry.pool_id == pool_id, models.Entry.alive == True
+        )  # noqa: E712
         .all()
     )
 

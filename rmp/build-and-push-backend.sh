@@ -24,7 +24,7 @@ BACKEND_REPO=runmypool-backend
 
 # Tags
 TIMESTAMP=$(date +%Y%m%d-%H%M%S)
-BACKEND_TAG="${ENVIRONMENT}-${TIMESTAMP}"
+BACKEND_TAG=${IMAGE_TAG:-"${ENVIRONMENT}-${TIMESTAMP}"}
 
 echo "=========================================="
 echo "Building and pushing BACKEND Docker image"

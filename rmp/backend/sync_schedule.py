@@ -16,7 +16,6 @@ from sqlalchemy.orm import Session
 from database import SessionLocal
 from models import PoolGameLine, Schedule, Team
 
-
 ESPN_SCOREBOARD_URL = (
     "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard"
 )
@@ -59,12 +58,16 @@ def _parse_week(payload: dict, season: int, week: int) -> list[ScheduleGame]:
 
         competitions = event.get("competitions", [])
         if len(competitions) != 1:
-            raise ScheduleSyncError(f"Game {event.get('id')} has an invalid competition")
+            raise ScheduleSyncError(
+                f"Game {event.get('id')} has an invalid competition"
+            )
         competitors = competitions[0].get("competitors", [])
         home = [c for c in competitors if c.get("homeAway") == "home"]
         away = [c for c in competitors if c.get("homeAway") == "away"]
         if len(home) != 1 or len(away) != 1:
-            raise ScheduleSyncError(f"Game {event.get('id')} has invalid home/away teams")
+            raise ScheduleSyncError(
+                f"Game {event.get('id')} has invalid home/away teams"
+            )
 
         games.append(
             ScheduleGame(
@@ -110,7 +113,9 @@ def fetch_season_schedule(
             timeout=30,
         )
         response.raise_for_status()
-        all_games.extend(validate_week(_parse_week(response.json(), season, week), week))
+        all_games.extend(
+            validate_week(_parse_week(response.json(), season, week), week)
+        )
     return all_games
 
 
@@ -136,7 +141,9 @@ def sync_season_schedule(
         validate_week((game for game in games if game.week_num == week), week)
 
     teams_by_abbrv = {team.abbrv.upper(): team for team in db.query(Team).all()}
-    source_abbrvs = {abbrv for game in games for abbrv in (game.home_abbrv, game.away_abbrv)}
+    source_abbrvs = {
+        abbrv for game in games for abbrv in (game.home_abbrv, game.away_abbrv)
+    }
     missing_teams = sorted(source_abbrvs - teams_by_abbrv.keys())
     if missing_teams:
         raise ScheduleSyncError(
@@ -144,14 +151,16 @@ def sync_season_schedule(
         )
 
     existing = [
-        game for game in db.query(Schedule).all()
+        game
+        for game in db.query(Schedule).all()
         if _football_season(game.start_time) == season
     ]
     existing_by_id = {game.game_id: game for game in existing}
     source_ids = {game.game_id for game in games}
     stale_ids = sorted(set(existing_by_id) - source_ids)
     referenced_stale_ids = {
-        game_id for (game_id,) in db.query(PoolGameLine.game_id)
+        game_id
+        for (game_id,) in db.query(PoolGameLine.game_id)
         .filter(PoolGameLine.game_id.in_(stale_ids or [-1]))
         .all()
     }
@@ -176,8 +185,9 @@ def sync_season_schedule(
     for source in games:
         target = existing_by_id.get(source.game_id)
         if target is None:
-            target = Schedule(game_id=source.game_id, winning_team_id=99)
+            target = Schedule(game_id=source.game_id, season=season)
             db.add(target)
+        target.season = season
         target.week_num = source.week_num
         target.home_team_id = teams_by_abbrv[source.home_abbrv].id
         target.away_team_id = teams_by_abbrv[source.away_abbrv].id

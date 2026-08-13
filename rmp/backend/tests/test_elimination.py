@@ -16,7 +16,6 @@ import pytest
 
 from helpers import simulate_game_result, _eliminate_losing_entries, get_alive_entries
 
-
 # ---------------------------------------------------------------------------
 # Auth helpers
 # ---------------------------------------------------------------------------
@@ -206,19 +205,33 @@ class TestSimulateGameResult:
     def test_pickem_entry_remains_active_after_incorrect_pick(self, client, db_session):
         """A Pick 'Em loss costs a point opportunity but never eliminates the entry."""
         ids = self._setup(client, db_session)
-        pool = db_session.query(models.Pool).filter(models.Pool.id == ids["pool_id"]).first()
+        pool = (
+            db_session.query(models.Pool)
+            .filter(models.Pool.id == ids["pool_id"])
+            .first()
+        )
         pool.pool_type = "pickem"
+        # Pick 'Em scoring is intentionally game-specific. This test starts
+        # from Survivor-style fixtures, so associate the converted picks with
+        # the game just as the Pick 'Em creation endpoint does.
+        db_session.query(models.Pick).filter(
+            models.Pick.id.in_([ids["pick_a_id"], ids["pick_b_id"]])
+        ).update({"game_id": GAME_ID}, synchronize_session="fetch")
         db_session.commit()
 
         simulate_game_result(db_session, GAME_ID, NE_ID)
 
         db_session.expire_all()
-        entry = db_session.query(models.Entry).filter(
-            models.Entry.id == ids["entry_b_id"]
-        ).first()
-        losing_pick = db_session.query(models.Pick).filter(
-            models.Pick.id == ids["pick_b_id"]
-        ).first()
+        entry = (
+            db_session.query(models.Entry)
+            .filter(models.Entry.id == ids["entry_b_id"])
+            .first()
+        )
+        losing_pick = (
+            db_session.query(models.Pick)
+            .filter(models.Pick.id == ids["pick_b_id"])
+            .first()
+        )
         assert losing_pick.result == "loss"
         assert entry.alive is True
 
@@ -248,9 +261,9 @@ def test_dead_entry_cannot_pick(client, db_session):
         json={"entry_id": entry_id, "week": 1, "team": "NE"},
         headers=_h(token),
     )
-    assert resp.status_code == 403, (
-        f"Expected 403 for dead entry pick, got {resp.status_code}: {resp.text}"
-    )
+    assert (
+        resp.status_code == 403
+    ), f"Expected 403 for dead entry pick, got {resp.status_code}: {resp.text}"
     assert "eliminated" in resp.json().get("detail", "").lower()
 
 
@@ -352,9 +365,9 @@ class TestAutoPick:
             .first()
         )
         assert pick is not None, "Auto-pick was not created"
-        assert pick.team not in used_teams, (
-            f"Auto-pick reused a previously chosen team: {pick.team}"
-        )
+        assert (
+            pick.team not in used_teams
+        ), f"Auto-pick reused a previously chosen team: {pick.team}"
 
     def test_autopick_skipped_no_eligible_teams(self, client, db_session):
         """
@@ -443,9 +456,9 @@ class TestAdminOps:
             .filter(models.User.email == "xfr_b@example.com")
             .first()
         )
-        assert entry.user_id == user_b.id, (
-            "Entry user_id was not updated after transfer"
-        )
+        assert (
+            entry.user_id == user_b.id
+        ), "Entry user_id was not updated after transfer"
 
         # Pick is preserved
         surviving_pick = (
@@ -488,9 +501,9 @@ class TestAdminOps:
             f"/admin/pools/{pool_id}/lock-week/1",
             headers=_h(token_plain),
         )
-        assert lock_resp.status_code == 403, (
-            f"Expected 403 from lock-week for non-admin, got {lock_resp.status_code}"
-        )
+        assert (
+            lock_resp.status_code == 403
+        ), f"Expected 403 from lock-week for non-admin, got {lock_resp.status_code}"
 
         # admin pick edit — non-admin must get 403
         patch_resp = client.patch(
@@ -498,6 +511,6 @@ class TestAdminOps:
             json={"team": "SEA"},
             headers=_h(token_plain),
         )
-        assert patch_resp.status_code == 403, (
-            f"Expected 403 from admin pick edit for non-admin, got {patch_resp.status_code}"
-        )
+        assert (
+            patch_resp.status_code == 403
+        ), f"Expected 403 from admin pick edit for non-admin, got {patch_resp.status_code}"

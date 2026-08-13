@@ -313,8 +313,8 @@ def seed():
         for row in SCHEDULE_2025:
             conn.execute(
                 text("""
-                INSERT INTO schedule (game_id, week_num, home_team_id, away_team_id, start_time, winning_team_id)
-                VALUES (:game_id, :week_num, :home_team_id, :away_team_id, :start_time, 99)
+                INSERT INTO schedule (game_id, season, week_num, home_team_id, away_team_id, start_time, status, winning_team_id)
+                VALUES (:game_id, 2025, :week_num, :home_team_id, :away_team_id, :start_time, 'scheduled', NULL)
                 ON DUPLICATE KEY UPDATE week_num=VALUES(week_num)
             """),
                 {

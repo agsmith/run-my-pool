@@ -58,6 +58,24 @@ output "rds_security_group_id" {
   value       = aws_security_group.rds.id
 }
 
+output "result_updater_task_definition" {
+  description = "Task definition family used for manual result updater canaries"
+  value       = aws_ecs_task_definition.result_updater.family
+}
+
+output "result_updater_state_machine_arn" {
+  description = "Step Functions workflow that runs and monitors the updater task"
+  value       = aws_sfn_state_machine.result_updater.arn
+}
+
+output "result_updater_schedule_state" {
+  description = "Updater schedules remain disabled until the controlled cutover"
+  value = merge(
+    { for name, schedule in aws_scheduler_schedule.result_updater_game_windows : name => schedule.state },
+    { corrections = aws_scheduler_schedule.result_updater_corrections.state },
+  )
+}
+
 output "rds_endpoint" {
   description = "RDS instance endpoint (hostname)"
   value       = aws_db_instance.main.address

@@ -13,6 +13,7 @@ from sqlalchemy import (
     Index,
 )
 from sqlalchemy.orm import relationship, declarative_base
+from datetime import datetime, timezone
 import enum
 
 # Constants for foreign key relationships
@@ -23,6 +24,11 @@ TEAMS_ID_FK = "teams.id"
 RULES_ID_FK = "rules.id"
 
 Base = declarative_base()
+
+
+def current_football_season() -> int:
+    now = datetime.now(timezone.utc)
+    return now.year - (1 if now.month <= 2 else 0)
 
 
 class UserRole(enum.Enum):
@@ -56,7 +62,9 @@ class User(Base):
     pools = relationship("Pool", back_populates="owner")
     entries = relationship("Entry", back_populates="user")
     billing_orders = relationship("BillingOrder", back_populates="user")
-    commissioner_entitlements = relationship("CommissionerEntitlement", back_populates="user")
+    commissioner_entitlements = relationship(
+        "CommissionerEntitlement", back_populates="user"
+    )
 
 
 class Pool(Base):
@@ -83,7 +91,9 @@ class Pool(Base):
     entries = relationship("Entry", back_populates="pool")
     pool_rules = relationship("PoolRule", back_populates="pool")
     pool_rule_values = relationship("PoolRuleValue", back_populates="pool")
-    members = relationship("PoolMember", back_populates="pool", cascade="all, delete-orphan")
+    members = relationship(
+        "PoolMember", back_populates="pool", cascade="all, delete-orphan"
+    )
 
 
 class Rule(Base):
@@ -136,7 +146,9 @@ class Entry(Base):
 class Pick(Base):
     __tablename__ = "picks"
     __table_args__ = (
-        UniqueConstraint("entry_id", "week", "game_id", name="uq_picks_entry_week_game"),
+        UniqueConstraint(
+            "entry_id", "week", "game_id", name="uq_picks_entry_week_game"
+        ),
     )
     id = Column(String(36), primary_key=True, index=True)
     entry_id = Column(String(36), ForeignKey(ENTRIES_ID_FK))
@@ -196,7 +208,9 @@ class PoolAdmin(Base):
 
 class PoolMember(Base):
     __tablename__ = "pool_members"
-    pool_id = Column(String(36), ForeignKey(POOLS_ID_FK, ondelete="CASCADE"), primary_key=True)
+    pool_id = Column(
+        String(36), ForeignKey(POOLS_ID_FK, ondelete="CASCADE"), primary_key=True
+    )
     user_id = Column(String(36), ForeignKey(USERS_ID_FK), primary_key=True)
     joined_at = Column(DateTime, nullable=False)
 
@@ -219,18 +233,49 @@ class Schedule(Base):
     __tablename__ = "schedule"
     __table_args__ = (
         Index("ix_schedule_week_start", "week_num", "start_time"),
+        Index("ix_schedule_season_week_status", "season", "week_num", "status"),
         Index("ix_schedule_start_time", "start_time"),
     )
     game_id = Column(Integer, primary_key=True)
+    season = Column(Integer, nullable=False, default=current_football_season)
     week_num = Column(Integer, nullable=False)
     home_team_id = Column(Integer, ForeignKey(TEAMS_ID_FK), nullable=False)
     away_team_id = Column(Integer, ForeignKey(TEAMS_ID_FK), nullable=False)
     start_time = Column(DateTime, nullable=False)
-    winning_team_id = Column(Integer, nullable=True, default=99)
+    status = Column(String(20), nullable=False, default="scheduled")
+    home_score = Column(Integer, nullable=True)
+    away_score = Column(Integer, nullable=True)
+    winning_team_id = Column(Integer, nullable=True)
+    result_updated_at = Column(DateTime, nullable=True)
+    provider_updated_at = Column(DateTime, nullable=True)
 
     # relationships
     home_team = relationship("Team", foreign_keys=[home_team_id])
     away_team = relationship("Team", foreign_keys=[away_team_id])
+
+
+class UpdaterRun(Base):
+    """Durable execution record for the scheduled NFL result updater."""
+
+    __tablename__ = "updater_runs"
+    id = Column(String(36), primary_key=True)
+    job_name = Column(String(64), nullable=False, index=True)
+    image_revision = Column(String(255), nullable=True)
+    season = Column(Integer, nullable=True)
+    week_num = Column(Integer, nullable=True)
+    source = Column(String(32), nullable=False, default="espn")
+    dry_run = Column(Boolean, nullable=False, default=False)
+    status = Column(String(20), nullable=False, index=True)
+    started_at = Column(DateTime, nullable=False)
+    completed_at = Column(DateTime, nullable=True)
+    games_fetched = Column(Integer, nullable=False, default=0)
+    final_games = Column(Integer, nullable=False, default=0)
+    games_changed = Column(Integer, nullable=False, default=0)
+    picks_changed = Column(Integer, nullable=False, default=0)
+    entries_changed = Column(Integer, nullable=False, default=0)
+    discrepancies = Column(Integer, nullable=False, default=0)
+    summary = Column(Text, nullable=True)
+    error = Column(Text, nullable=True)
 
 
 class PoolGameLine(Base):
@@ -284,7 +329,9 @@ class CommissionerEntitlement(Base):
     max_pools = Column(Integer, nullable=True)
     unlimited_entries = Column(Boolean, nullable=False, default=False)
     stripe_customer_id = Column(String(255), nullable=True)
-    source_order_id = Column(String(36), ForeignKey("billing_orders.id"), nullable=False)
+    source_order_id = Column(
+        String(36), ForeignKey("billing_orders.id"), nullable=False
+    )
     activated_at = Column(DateTime, nullable=False)
     updated_at = Column(DateTime, nullable=False)
 

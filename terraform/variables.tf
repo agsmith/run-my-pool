@@ -174,6 +174,18 @@ variable "backend_db_max_overflow" {
   default     = 5
 }
 
+variable "result_updater_schedule_enabled" {
+  description = "Enable the new ECS result updater only after dry-run validation and Lambda cutover"
+  type        = bool
+  default     = false
+}
+
+variable "result_updater_alert_email" {
+  description = "Email address that receives result updater failure notifications"
+  type        = string
+  default     = "support@runmypool.net"
+}
+
 # ──────────────────────────────────────────────────────────────────────────────
 # Database
 # ──────────────────────────────────────────────────────────────────────────────
