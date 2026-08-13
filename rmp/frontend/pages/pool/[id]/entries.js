@@ -1,11 +1,12 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/router';
 import ProtectedRoute from '../../../components/ProtectedRoute';
 import { useAuth } from '../../../context/AuthContext';
 import { PoolWorkspaceNav, WorkspaceHeader } from '../../../components/ProductWorkspace';
 import { getPickAvailability } from '../../../utils/pickAvailability';
 import { isLeagueJoinLocked } from '../../../utils/leagueLock';
+import { nextDefaultEntryName } from '../../../utils/entryNames';
 
 // Mock NFL team data - in production this would come from an API
 const NFL_TEAMS = {
@@ -165,6 +166,8 @@ export default function LeagueEntries() {
   };
   const [league, setLeague] = useState(null);
   const [entries, setEntries] = useState([]);
+  const [creatingEntry, setCreatingEntry] = useState(false);
+  const creatingEntryRef = useRef(false);
   const [allPicks, setAllPicks] = useState({});
   const [weekLockStatus, setWeekLockStatus] = useState({});
   const [scheduleData, setScheduleData] = useState({}); // Store schedule data by week
@@ -862,15 +865,17 @@ export default function LeagueEntries() {
   };
 
   const handleCreateEntry = async () => {
+    if (creatingEntryRef.current) return;
     if (isPoolLocked()) {
       setError('Pool is locked. No new entries can be created.');
       return;
     }
+    creatingEntryRef.current = true;
+    setCreatingEntry(true);
+    setError('');
     try {
       const token = localStorage.getItem('access_token');
-      // Generate default entry name: "Entry " + entry count
-      const entryCount = entries.length + 1;
-      const defaultName = `Entry ${entryCount}`;
+      const defaultName = nextDefaultEntryName(entries);
       const res = await fetch(process.env.NEXT_PUBLIC_API_URL + '/entries/create', {
         method: 'POST',
         headers: { 
@@ -884,7 +889,9 @@ export default function LeagueEntries() {
       });
       if (res.ok) {
         const newEntry = await res.json();
-        console.log('Created new entry:', newEntry);
+        setEntries((current) => current.some((item) => item.id === newEntry.id)
+          ? current
+          : [...current, newEntry]);
         // Reload the complete entry/pick map from the server. This prevents an
         // entry creation render from temporarily replacing an existing pick
         // with an empty client-side slot when several entries are managed in
@@ -897,6 +904,9 @@ export default function LeagueEntries() {
     } catch (err) {
       console.error('Failed to create entry:', err);
       setError('Failed to create entry');
+    } finally {
+      creatingEntryRef.current = false;
+      setCreatingEntry(false);
     }
   };
 
@@ -1158,8 +1168,9 @@ export default function LeagueEntries() {
                   <>
                   <button className="entries-action entries-action--create"
                     onClick={handleCreateEntry}
+                    disabled={creatingEntry}
                   >
-                    <span aria-hidden="true">+</span> Create New Entry
+                    <span aria-hidden="true">+</span> {creatingEntry ? 'Creating Entry…' : 'Create New Entry'}
                   </button>
                   {entries.length > 0 && !isWeekOneLocked && (
                     <button className="entries-action entries-action--delete"
@@ -1213,6 +1224,7 @@ export default function LeagueEntries() {
             {!isPoolLocked() && (
               <button className="entries-action entries-action--create"
                 onClick={handleCreateEntry}
+                disabled={creatingEntry}
                 style={{ 
                   background: '#d7ff3f',
                   color: 'white', 
@@ -1236,7 +1248,7 @@ export default function LeagueEntries() {
                   e.target.style.boxShadow = '0 8px 24px rgba(215, 255, 63, 0.14)';
                 }}
               >
-                Create Your First Entry
+                {creatingEntry ? 'Creating Entry…' : 'Create Your First Entry'}
               </button>
             )}
           </div>

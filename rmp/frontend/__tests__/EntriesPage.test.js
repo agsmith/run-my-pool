@@ -19,8 +19,9 @@ const jsonResponse = (data, ok = true) => Promise.resolve({
   json: () => Promise.resolve(data),
 });
 
-function installApi({ pool = {}, entries = [], picks = {}, lockWeeks = {}, createdEntry = null, breakdown = [], breakdownByWeek = null } = {}) {
+function installApi({ pool = {}, entries = [], picks = {}, lockWeeks = {}, createdEntry = null, createEntries = [], breakdown = [], breakdownByWeek = null } = {}) {
   let currentEntries = [...entries];
+  let createIndex = 0;
   global.fetch = jest.fn((url, options = {}) => {
     const path = String(url);
     if (path.endsWith('/pools/pool-1')) {
@@ -49,9 +50,13 @@ function installApi({ pool = {}, entries = [], picks = {}, lockWeeks = {}, creat
       const request = JSON.parse(options.body);
       return jsonResponse({ id: 'pick-new', ...request, locked: false });
     }
-    if (path.endsWith('/entries/create') && options.method === 'POST' && createdEntry) {
-      currentEntries = [...currentEntries, createdEntry];
-      return jsonResponse(createdEntry);
+    if (path.endsWith('/entries/create') && options.method === 'POST' && (createdEntry || createEntries.length)) {
+      const requested = JSON.parse(options.body);
+      const nextEntry = createEntries[createIndex++] || createdEntry || {
+        id: `entry-${currentEntries.length + 1}`, name: requested.name, alive: true,
+      };
+      currentEntries = [...currentEntries, nextEntry];
+      return jsonResponse(nextEntry);
     }
     const entryMatch = path.match(/\/entries\/([^/]+)$/);
     if (entryMatch && options.method === 'PUT') {
@@ -171,6 +176,51 @@ describe('player entries page', () => {
     expect(fetch).toHaveBeenCalledWith(
       expect.stringContaining('/picks/entry/entry-1'),
       expect.any(Object),
+    );
+  });
+
+  test('creates consecutive entries with unique generated names', async () => {
+    const user = userEvent.setup();
+    installApi({
+      entries: [{ id: 'entry-1', name: 'Entry 1', alive: true }],
+      createEntries: [
+        { id: 'entry-2', name: 'Entry 2', alive: true },
+        { id: 'entry-3', name: 'Entry 3', alive: true },
+      ],
+    });
+    render(<LeagueEntries />);
+
+    await screen.findByText('Entry 1');
+    await user.click(screen.getByRole('button', { name: /create new entry/i }));
+    await screen.findByText('Entry 2');
+    await user.click(screen.getByRole('button', { name: /create new entry/i }));
+    await screen.findByText('Entry 3');
+
+    const createBodies = fetch.mock.calls
+      .filter(([url, options]) => String(url).endsWith('/entries/create') && options?.method === 'POST')
+      .map(([, options]) => JSON.parse(options.body));
+    expect(createBodies).toEqual([
+      { name: 'Entry 2', pool_id: 'pool-1' },
+      { name: 'Entry 3', pool_id: 'pool-1' },
+    ]);
+  });
+
+  test('fills a free generated-name slot instead of relying on entry count', async () => {
+    const user = userEvent.setup();
+    installApi({
+      entries: [
+        { id: 'custom', name: 'Sunday Best', alive: true },
+        { id: 'entry-2', name: 'Entry 2', alive: true },
+      ],
+      createdEntry: { id: 'entry-1', name: 'Entry 1', alive: true },
+    });
+    render(<LeagueEntries />);
+
+    await screen.findByText('Sunday Best');
+    await user.click(screen.getByRole('button', { name: /create new entry/i }));
+    expect(fetch).toHaveBeenCalledWith(
+      expect.stringContaining('/entries/create'),
+      expect.objectContaining({ body: JSON.stringify({ name: 'Entry 1', pool_id: 'pool-1' }) }),
     );
   });
 

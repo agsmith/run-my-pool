@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/router';
 import ProtectedRoute from '../../../components/ProtectedRoute';
 import { useAuth } from '../../../context/AuthContext';
 import { isLeagueJoinLocked } from '../../../utils/leagueLock';
+import { nextDefaultEntryName } from '../../../utils/entryNames';
 
 // Mock NFL team data - in production this would come from an API
 const NFL_TEAMS = {
@@ -70,6 +71,8 @@ export default function LeagueEntries() {
   };
   const [league, setLeague] = useState(null);
   const [entries, setEntries] = useState([]);
+  const [creatingEntry, setCreatingEntry] = useState(false);
+  const creatingEntryRef = useRef(false);
   const [allPicks, setAllPicks] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -460,12 +463,13 @@ export default function LeagueEntries() {
   };
 
   const handleCreateEntry = async () => {
+    if (creatingEntryRef.current) return;
+    creatingEntryRef.current = true;
+    setCreatingEntry(true);
+    setError('');
     try {
       const token = localStorage.getItem('access_token');
-      
-      // Generate default entry name: "Entry " + entry count
-      const entryCount = entries.length + 1;
-      const defaultName = `Entry ${entryCount}`;
+      const defaultName = nextDefaultEntryName(entries);
       
       const res = await fetch(process.env.NEXT_PUBLIC_API_URL + '/entries/create', {
         method: 'POST',
@@ -480,7 +484,11 @@ export default function LeagueEntries() {
       });
 
       if (res.ok) {
-        fetchLeagueAndEntries(); // Refresh the list to show the new entry
+        const newEntry = await res.json();
+        setEntries((current) => current.some((item) => item.id === newEntry.id)
+          ? current
+          : [...current, newEntry]);
+        await fetchLeagueAndEntries();
       } else {
         const errorData = await res.json();
         setError(errorData.detail || 'Failed to create entry');
@@ -488,6 +496,9 @@ export default function LeagueEntries() {
     } catch (err) {
       console.error('Failed to create entry:', err);
       setError('Failed to create entry');
+    } finally {
+      creatingEntryRef.current = false;
+      setCreatingEntry(false);
     }
   };
 
@@ -550,6 +561,7 @@ export default function LeagueEntries() {
             <>
               <button 
                 onClick={handleCreateEntry}
+                disabled={creatingEntry}
                 style={{ 
                   backgroundColor: '#0070f3', 
                   color: 'white', 
@@ -560,7 +572,7 @@ export default function LeagueEntries() {
                   fontSize: '16px'
                 }}
               >
-                Create New Entry
+                {creatingEntry ? 'Creating Entry…' : 'Create New Entry'}
               </button>
               {entries.length > 0 && (
                 <button 
@@ -597,6 +609,7 @@ export default function LeagueEntries() {
             {!isPoolLocked() && (
               <button 
                 onClick={handleCreateEntry}
+                disabled={creatingEntry}
                 style={{ 
                   backgroundColor: '#0070f3', 
                   color: 'white', 
@@ -607,7 +620,7 @@ export default function LeagueEntries() {
                   fontSize: '16px'
                 }}
               >
-                Create Your First Entry
+                {creatingEntry ? 'Creating Entry…' : 'Create Your First Entry'}
               </button>
             )}
           </div>
