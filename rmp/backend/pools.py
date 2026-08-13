@@ -8,11 +8,11 @@ import hashlib
 import models
 import schemas
 import deps
-from datetime import datetime, time, timezone
+from datetime import datetime, time, timedelta, timezone
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 import uuid
 import logging
-from audit_utils import log_create_operation, log_update_operation, log_delete_operation
+from audit_utils import create_audit_log, log_create_operation, log_update_operation, log_delete_operation
 from auth import SECRET_KEY, get_password_hash, verify_password
 from pool_access import is_pool_participant
 from schedule import current_season_games
@@ -20,6 +20,7 @@ from weekly_locks import pool_week_lock_time
 from cryptography.fernet import Fernet, InvalidToken
 from app_logging import log_event
 from platform_admin import is_platform_super_admin
+from email_service import send_pool_invitation_email
 
 logger = logging.getLogger("runmypool.pools")
 
@@ -27,6 +28,7 @@ router = APIRouter(prefix="/pools", tags=["pools"])
 
 MIN_JOIN_PASSWORD_LENGTH = 6
 MAX_POOL_NAME_LENGTH = 255
+POOL_INVITE_EMAIL_LIMIT = 20
 
 
 def _password_cipher() -> Fernet:
@@ -360,6 +362,49 @@ def get_pool_invite(
     if not pool:
         raise HTTPException(status_code=404, detail="Pool invitation not found")
     return pool
+
+
+@router.post("/{pool_id}/invite-email", response_model=schemas.PoolEmailInviteOut)
+def email_pool_invitation(
+    pool_id: str,
+    invitation: schemas.PoolEmailInviteRequest,
+    db: Session = Depends(deps.get_db),
+    current_user: models.User = Depends(deps.get_current_user),
+):
+    """Allow a pool administrator to send a bounded, password-free SES invitation."""
+    pool = db.query(models.Pool).filter(models.Pool.id == pool_id).first()
+    if not pool:
+        raise HTTPException(status_code=404, detail="Pool not found")
+    if not _has_admin_access(db, pool, current_user.id):
+        raise HTTPException(status_code=403, detail="Only pool admins can send invitations")
+
+    window_start = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=1)
+    recent_sends = db.query(models.AuditLog).filter(
+        models.AuditLog.user_id == current_user.id,
+        models.AuditLog.action == "POOL_INVITE_EMAIL_REQUESTED",
+        models.AuditLog.created_at >= window_start,
+    ).count()
+    if recent_sends >= POOL_INVITE_EMAIL_LIMIT:
+        raise HTTPException(status_code=429, detail="Invitation email limit reached. Try again later.")
+
+    create_audit_log(
+        db=db,
+        action="POOL_INVITE_EMAIL_REQUESTED",
+        details=f"Requested a pool invitation email for pool {pool.id}",
+        user_id=current_user.id,
+        entity_type="pool",
+        entity_id=pool.id,
+    )
+    try:
+        send_pool_invitation_email(str(invitation.email), pool.id, pool.name, pool.is_private)
+    except Exception as exc:
+        logger.exception(
+            "pool_invitation_email_failed",
+            extra={"event": "pool_invitation_email_failed", "pool_id": pool.id, "user_id": current_user.id},
+        )
+        raise HTTPException(status_code=502, detail="Unable to send the invitation email") from exc
+    log_event(logger, logging.INFO, "pool_invitation_email_sent", pool_id=pool.id, user_id=current_user.id)
+    return {"message": "Invitation email sent"}
 
 
 @router.get("/{pool_id}", response_model=schemas.PoolOut)

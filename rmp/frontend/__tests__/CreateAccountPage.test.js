@@ -136,4 +136,24 @@ describe('CreateAccountPage', () => {
       `next=${encodeURIComponent('/create-pool?source=splash')}`,
     ))
   })
+
+  test('returns a newly registered invitee to the original pool invitation', async () => {
+    mockQuery = { next: '/leagues?invite=pool-1' }
+    global.fetch = jest.fn().mockResolvedValue({ ok: true })
+    const user = userEvent.setup()
+    render(<CreateAccountPage />)
+
+    expect(screen.getByRole('link', { name: /already have an account/i })).toHaveAttribute(
+      'href',
+      `/login?next=${encodeURIComponent('/leagues?invite=pool-1')}`,
+    )
+    await user.type(screen.getByPlaceholderText(/enter your email/i), 'invitee@example.com')
+    await user.type(screen.getByPlaceholderText(/^enter your password$/i), 'ValidPass1!')
+    await user.type(screen.getByPlaceholderText(/confirm your password/i), 'ValidPass1!')
+    await user.click(screen.getByRole('button', { name: 'Create Account' }))
+
+    expect(mockPush).toHaveBeenCalledWith(expect.stringContaining(
+      `next=${encodeURIComponent('/leagues?invite=pool-1')}`,
+    ))
+  })
 })

@@ -56,3 +56,50 @@ def send_password_reset_email(recipient: str, token: str) -> str:
     message_id = response["MessageId"]
     log_event(logger, logging.INFO, "password_reset_email_queued", message_id=message_id)
     return message_id
+
+
+def send_pool_invitation_email(recipient: str, pool_id: str, pool_name: str, is_private: bool) -> str:
+    """Send a pool invitation without including a private pool join code."""
+    region = os.getenv("AWS_SES_REGION", "us-east-1")
+    frontend_url = os.getenv("FRONTEND_URL", "https://runmypool.net").rstrip("/")
+    sender = os.getenv("EMAIL_FROM", "Run My Pool Accounts <accounts@runmypool.net>")
+    reply_to = os.getenv("EMAIL_REPLY_TO", "support@runmypool.net")
+    next_path = f"/leagues?{urlencode({'invite': pool_id})}"
+    invite_url = f"{frontend_url}/login?{urlencode({'next': next_path})}"
+    safe_url = html.escape(invite_url, quote=True)
+    plain_name = " ".join(pool_name.split())
+    safe_name = html.escape(plain_name, quote=True)
+    access_note = (
+        "This is a private pool. Ask the commissioner for the join code separately."
+        if is_private
+        else "This is a public pool and can be joined from the invitation page."
+    )
+
+    response = boto3.client("sesv2", region_name=region).send_email(
+        FromEmailAddress=sender,
+        Destination={"ToAddresses": [recipient]},
+        ReplyToAddresses=[reply_to],
+        Content={
+            "Simple": {
+                "Subject": {"Data": f"You're invited to {plain_name} on Run My Pool", "Charset": "UTF-8"},
+                "Body": {
+                    "Text": {
+                        "Data": f"You're invited to join {plain_name}.\n\nOpen invitation: {invite_url}\n\n{access_note}",
+                        "Charset": "UTF-8",
+                    },
+                    "Html": {
+                        "Data": (
+                            f"<h1>You're invited to {safe_name}</h1>"
+                            "<p>A commissioner invited you to join their pool on Run My Pool.</p>"
+                            f'<p><a href="{safe_url}">Open pool invitation</a></p>'
+                            f"<p>{html.escape(access_note)}</p>"
+                        ),
+                        "Charset": "UTF-8",
+                    },
+                },
+            }
+        },
+    )
+    message_id = response["MessageId"]
+    log_event(logger, logging.INFO, "pool_invitation_email_queued", message_id=message_id, pool_id=pool_id)
+    return message_id

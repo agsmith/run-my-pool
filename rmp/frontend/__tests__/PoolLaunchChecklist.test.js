@@ -8,6 +8,7 @@ describe('PoolLaunchChecklist', () => {
     const user = userEvent.setup();
     const onNavigate = jest.fn();
     const onInviteCopied = jest.fn();
+    const onSendInvite = jest.fn().mockResolvedValue(undefined);
     const writeText = jest.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } });
 
@@ -16,6 +17,7 @@ describe('PoolLaunchChecklist', () => {
       onClose={jest.fn()}
       onNavigate={onNavigate}
       onInviteCopied={onInviteCopied}
+      onSendInvite={onSendInvite}
     />);
 
     expect(screen.getByText(/1 of 4 launch steps complete/i)).toBeInTheDocument();
@@ -24,6 +26,11 @@ describe('PoolLaunchChecklist', () => {
     expect(writeText).toHaveBeenCalledWith('http://localhost/leagues?invite=pool-1');
     expect(await screen.findByText(/send the pool join code separately/i)).toBeInTheDocument();
     expect(onInviteCopied).toHaveBeenCalledTimes(1);
+
+    await user.type(screen.getByLabelText(/or send by email/i), 'player@example.com');
+    await user.click(screen.getByRole('button', { name: /send invite/i }));
+    expect(onSendInvite).toHaveBeenCalledWith('player@example.com');
+    expect(await screen.findByText(/invitation sent.*join code separately/i)).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: /review settings/i }));
     expect(onNavigate).toHaveBeenCalledWith('/admin/league/pool-1');
@@ -38,6 +45,7 @@ describe('PoolLaunchChecklist', () => {
       pool={{ id: 'pickem-1', name: 'Pick Em', is_private: false, pool_type: 'pickem' }}
       onClose={jest.fn()}
       onNavigate={onNavigate}
+      onSendInvite={jest.fn()}
     />);
 
     await user.click(screen.getByRole('button', { name: /open Pick ’Em board/i }));

@@ -18,8 +18,12 @@ const PLAN_LABELS = {
   'club-unlimited': 'Club Unlimited',
 };
 
+function safeInternalNext(next) {
+  return typeof next === 'string' && next.startsWith('/') && !next.startsWith('//') ? next : '';
+}
+
 function planFromNext(next) {
-  if (typeof next !== 'string' || !next.startsWith('/') || next.startsWith('//')) return '';
+  if (!safeInternalNext(next)) return '';
   if (next === '/create-pool?source=splash') return 'free';
   try {
     const plan = new URL(next, 'https://runmypool.net').searchParams.get('checkout');
@@ -38,6 +42,7 @@ export default function Login() {
   const [isMobile, setIsMobile] = useState(false);
   const { login, loading } = useAuth();
   const router = useRouter();
+  const requestedNext = safeInternalNext(router.query.next);
   const continuationPlan = planFromNext(router.query.next);
 
   useEffect(() => {
@@ -68,9 +73,7 @@ export default function Login() {
       return;
     }
     try {
-      const next = typeof router.query.next === 'string' && router.query.next.startsWith('/') && !router.query.next.startsWith('//')
-        ? router.query.next
-        : null;
+      const next = requestedNext || null;
       if (next) await login(email, password, next);
       else await login(email, password);
       // Cookie/session handling is done in backend and AuthContext
@@ -218,7 +221,11 @@ export default function Login() {
             justifyContent: 'center'
           }}>
             <Link 
-              href={continuationPlan ? `/create-account?plan=${continuationPlan}` : '/create-account'}
+              href={continuationPlan
+                ? `/create-account?plan=${continuationPlan}`
+                : requestedNext
+                  ? `/create-account?next=${encodeURIComponent(requestedNext)}`
+                  : '/create-account'}
               style={{ 
                 color: '#667eea',
                 textDecoration: 'none',

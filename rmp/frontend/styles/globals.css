@@ -1086,6 +1086,10 @@ table {
 .pool-launch__invite { display:flex; gap:.4rem; }
 .pool-launch__invite input { min-width:0; flex:1; padding:.5rem; color:#d8e1df; background:#081013; border:1px solid #40575c; font-size:.7rem; }
 .pool-launch__invite button { flex:none; }
+.pool-launch__email { margin-top:.75rem; }
+.pool-launch__email label { display:block; margin-bottom:.35rem; color:#aab8b9; font-size:.64rem; font-weight:800; letter-spacing:.04em; text-transform:uppercase; }
+.pool-launch__email>div { display:flex; gap:.4rem; }
+.pool-launch__email input { min-width:0; flex:1; padding:.5rem; color:#d8e1df; background:#081013; border:1px solid #40575c; font-size:.72rem; }
 .pool-launch__later { display:block; margin-left:auto; }
 @media (max-width:760px) {
   .pool-home-actions { grid-template-columns:1fr; }
@@ -1099,6 +1103,7 @@ table {
   .pool-home-footer > div { display:grid; }
   .pool-launch ol { grid-template-columns:1fr; }
   .pool-launch__invite { align-items:stretch; flex-direction:column; }
+  .pool-launch__email>div { align-items:stretch; flex-direction:column; }
 }
 
 /* Community: message cards read like a live marketplace ticker. */

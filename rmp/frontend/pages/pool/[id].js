@@ -92,6 +92,17 @@ export default function PoolDetail() {
     }
   };
 
+  const sendPoolInvite = async (email) => {
+    const token = localStorage.getItem('access_token');
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/pools/${id}/invite-email`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ email }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.detail || 'Unable to send the invitation.');
+  };
+
   const isOwner = pool?.owner_id === user?.id;
   const isAdmin = Boolean(adminStatus?.is_admin);
   const hasAdminAccess = isOwner || isAdmin;
@@ -134,6 +145,7 @@ export default function PoolDetail() {
                   onClose={() => setShowLaunchChecklist(false)}
                   onNavigate={(destination) => router.push(destination)}
                   onInviteCopied={() => trackLifecycleEvent('pool_invite_link_copied', { page: 'pool_home' })}
+                  onSendInvite={sendPoolInvite}
                 />
               )}
 

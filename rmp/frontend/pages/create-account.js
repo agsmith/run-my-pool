@@ -22,6 +22,10 @@ const PLAN_LABELS = {
   'club-unlimited': 'Club Unlimited',
 };
 
+function safeInternalNext(next) {
+  return typeof next === 'string' && next.startsWith('/') && !next.startsWith('//') ? next : '';
+}
+
 function registrationError(detail) {
   if (detail === 'Email already registered') {
     return 'An account with this email already exists. If you just submitted this form, your account may have been created successfully. Please sign in.';
@@ -48,6 +52,7 @@ export default function CreateAccount() {
   const selectedPlan = typeof router.query?.plan === 'string' ? router.query.plan : '';
   const selectedPlanLabel = PLAN_LABELS[selectedPlan];
   const createPoolIntent = router.query?.intent === 'create-pool';
+  const requestedNext = safeInternalNext(router.query?.next);
 
   useEffect(() => {
     if (router.isReady === false) return;
@@ -100,11 +105,13 @@ export default function CreateAccount() {
     setSuccess('Account created successfully! Taking you to sign in…');
     const checkoutNext = createPoolIntent
       ? '/create-pool?source=splash'
-      : selectedPlan && selectedPlan !== 'free'
-        ? `/pricing?checkout=${encodeURIComponent(selectedPlan)}`
-        : selectedPlan === 'free'
-          ? '/create-pool?source=splash'
-          : '/dashboard';
+      : requestedNext
+        ? requestedNext
+        : selectedPlan && selectedPlan !== 'free'
+          ? `/pricing?checkout=${encodeURIComponent(selectedPlan)}`
+          : selectedPlan === 'free'
+            ? '/create-pool?source=splash'
+            : '/dashboard';
     const loginUrl = `/login?message=${encodeURIComponent('Account created successfully! Please sign in with your new credentials.')}&next=${encodeURIComponent(checkoutNext)}`;
     try {
       await router.push(loginUrl);
@@ -299,7 +306,9 @@ export default function CreateAccount() {
           <Link 
             href={selectedPlan
               ? `/login?next=${encodeURIComponent(selectedPlan === 'free' ? '/create-pool?source=splash' : `/pricing?checkout=${selectedPlan}`)}`
-              : '/login'}
+              : requestedNext
+                ? `/login?next=${encodeURIComponent(requestedNext)}`
+                : '/login'}
             style={{ 
               color: '#6b7280',
               textDecoration: 'none',

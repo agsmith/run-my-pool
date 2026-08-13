@@ -132,6 +132,16 @@ describe('LoginPage', () => {
     expect(mockLogin).toHaveBeenCalledWith(VALID_EMAIL, VALID_PASSWORD, '/create-pool?source=splash')
   })
 
+  test('preserves a pool invitation when a new user needs an account', () => {
+    mockQuery = { next: '/leagues?invite=pool-1' }
+    renderLogin()
+
+    expect(screen.getByRole('link', { name: /create new account/i })).toHaveAttribute(
+      'href',
+      `/create-account?next=${encodeURIComponent('/leagues?invite=pool-1')}`,
+    )
+  })
+
   test('shows a link to the forgot-password page', () => {
     renderLogin()
     const link = screen.getByRole('link', { name: /forgot your password/i })

@@ -55,6 +55,93 @@ class TestPoolEndpoints:
         # FastAPI HTTPBearer returns 403 when no credentials are provided
         assert response.status_code in (401, 403)
 
+    @patch("pools.send_pool_invitation_email")
+    def test_owner_can_email_private_pool_invitation_without_password(
+        self, send_invitation, client, db_session
+    ):
+        owner = _register(client, "invite.owner@example.com")
+        created = client.post(
+            "/pools/create",
+            json={"name": "Invite Pool", "is_private": True, "join_password": "huddle42"},
+            headers=owner,
+        ).json()
+        send_invitation.return_value = "message-1"
+
+        response = client.post(
+            f"/pools/{created['id']}/invite-email",
+            json={"email": "player@example.com"},
+            headers=owner,
+        )
+
+        assert response.status_code == 200
+        assert response.json() == {"message": "Invitation email sent"}
+        send_invitation.assert_called_once_with(
+            "player@example.com", created["id"], "Invite Pool", True
+        )
+        audit = (
+            db_session.query(models.AuditLog)
+            .filter(models.AuditLog.action == "POOL_INVITE_EMAIL_REQUESTED")
+            .one()
+        )
+        assert "player@example.com" not in audit.details
+        assert "huddle42" not in audit.details
+
+    @patch("pools.send_pool_invitation_email")
+    def test_non_admin_cannot_email_pool_invitation(
+        self, send_invitation, client
+    ):
+        owner = _register(client, "invite.admin@example.com")
+        stranger = _register(client, "invite.stranger@example.com")
+        created = client.post(
+            "/pools/create", json={"name": "Admin Only Invites"}, headers=owner
+        ).json()
+
+        response = client.post(
+            f"/pools/{created['id']}/invite-email",
+            json={"email": "player@example.com"},
+            headers=stranger,
+        )
+
+        assert response.status_code == 403
+        send_invitation.assert_not_called()
+
+    @patch("pools.send_pool_invitation_email")
+    def test_pool_invitation_email_is_rate_limited(
+        self, send_invitation, client, db_session
+    ):
+        owner = _register(client, "invite.limit@example.com")
+        created = client.post(
+            "/pools/create", json={"name": "Limited Invites"}, headers=owner
+        ).json()
+        user = (
+            db_session.query(models.User)
+            .filter(models.User.email == "invite.limit@example.com")
+            .one()
+        )
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
+        db_session.add_all(
+            [
+                models.AuditLog(
+                    id=f"invite-audit-{index}",
+                    user_id=user.id,
+                    action="POOL_INVITE_EMAIL_REQUESTED",
+                    details="{}",
+                    created_at=now,
+                )
+                for index in range(20)
+            ]
+        )
+        db_session.commit()
+
+        response = client.post(
+            f"/pools/{created['id']}/invite-email",
+            json={"email": "player@example.com"},
+            headers=owner,
+        )
+
+        assert response.status_code == 429
+        send_invitation.assert_not_called()
+
     def test_create_pool_rejects_duplicate_name_and_suggests_unique_names(self, client):
         owner = _register(client, "duplicate.owner@example.com")
         other_owner = _register(client, "duplicate.other@example.com")

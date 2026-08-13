@@ -238,6 +238,15 @@ class PoolJoin(BaseModel):
     password: Optional[str] = None
 
 
+class PoolEmailInviteRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    email: EmailStr
+
+
+class PoolEmailInviteOut(BaseModel):
+    message: str
+
+
 class PoolInviteOut(BaseModel):
     id: str
     name: str

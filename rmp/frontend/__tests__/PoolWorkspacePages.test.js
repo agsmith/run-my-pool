@@ -68,16 +68,24 @@ describe('pool workspace pages', () => {
 
   test('shows the launch checklist to the owner immediately after creation', async () => {
     mockRouter.query = { id: 'pool-1', launched: '1' };
-    global.fetch = jest.fn((url) => {
+    global.fetch = jest.fn((url, options = {}) => {
       if (String(url).endsWith('/is-admin')) return response({ is_owner: true, is_admin: true, has_admin_access: true });
+      if (String(url).endsWith('/invite-email') && options.method === 'POST') return response({ message: 'Invitation email sent' });
       return response(pool);
     });
+    const user = userEvent.setup();
 
     render(<PoolDetail />);
 
     expect(await screen.findByRole('region', { name: /pool launch checklist/i })).toBeInTheDocument();
     expect(screen.getByText(/1 of 4 launch steps complete/i)).toBeInTheDocument();
     expect(mockTrackLifecycleEvent).toHaveBeenCalledWith('pool_launch_checklist_view', { page: 'pool_home' });
+    await user.type(screen.getByLabelText(/or send by email/i), 'player@example.com');
+    await user.click(screen.getByRole('button', { name: /send invite/i }));
+    await waitFor(() => expect(global.fetch).toHaveBeenCalledWith(
+      '/pools/pool-1/invite-email',
+      expect.objectContaining({ method: 'POST', body: JSON.stringify({ email: 'player@example.com' }) }),
+    ));
   });
 
   test('shows the current user’s pool administrator role and controls', async () => {
