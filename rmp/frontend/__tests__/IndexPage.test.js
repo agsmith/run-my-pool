@@ -67,6 +67,18 @@ describe('IndexPage', () => {
     expect(link).toHaveAttribute('href', '/pricing')
   })
 
+  test('explains the complete commissioner and member workflow', () => {
+    render(<IndexPage />)
+
+    expect(screen.getByRole('heading', { name: 'BUILD YOUR POOL' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'BRING IN YOUR CREW' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'MAKE THE PICKS' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'FOLLOW THE RESULTS' })).toBeInTheDocument()
+    expect(screen.getByText(/at lock, surviving-entry picks are revealed/i)).toBeInTheDocument()
+    expect(screen.getByText(/identify autopicks, manage locks and members/i)).toBeInTheDocument()
+    expect(screen.getByText(/see your remaining entries and weekly progress/i)).toBeInTheDocument()
+  })
+
   test('records a privacy-safe landing page view', () => {
     render(<IndexPage />)
 
@@ -127,30 +139,18 @@ describe('IndexPage', () => {
     expect(screen.queryByText(/redirecting/i)).not.toBeInTheDocument()
   })
 
-  test('renders the "Highly Configurable" feature heading', () => {
+  test('explains the complete pool-management feature set', () => {
     render(<IndexPage />)
 
-    // The h2 subtitle also contains this text, so scope to h4 level
-    const headings = screen.getAllByRole('heading', { name: /highly configurable/i })
-    const h4 = headings.find((el) => el.tagName === 'H4')
-    expect(h4).toBeInTheDocument()
-  })
-
-  test('renders the "Affordable" feature heading', () => {
-    render(<IndexPage />)
-
-    // The h2 subtitle also contains "Affordable", scope to h4
-    const headings = screen.getAllByRole('heading', { name: /^affordable$/i })
-    const h4 = headings.find((el) => el.tagName === 'H4')
-    expect(h4).toBeInTheDocument()
-  })
-
-  test('renders the "Mobile App" feature heading', () => {
-    render(<IndexPage />)
-
-    expect(
-      screen.getByRole('heading', { name: /mobile app/i })
-    ).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /configurable pool setup/i })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /weekly automation/i })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /member experience/i })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /commissioner controls/i })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /transparent competition/i })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /affordable growth/i })).toBeInTheDocument()
+    expect(screen.getByText(/all surviving picks revealed at weekly lock/i)).toBeInTheDocument()
+    expect(screen.getByText(/pool-scoped users, entries, picks, and roles/i)).toBeInTheDocument()
+    expect(screen.getByText(/club expansion blocks and an unlimited option/i)).toBeInTheDocument()
   })
 
   test('renders the "Why Choose Run My Pool?" features section heading', () => {

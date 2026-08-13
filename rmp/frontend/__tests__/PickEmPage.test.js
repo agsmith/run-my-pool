@@ -71,4 +71,24 @@ describe('PickEmPage', () => {
     render(<PickEmPage />);
     await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/pool/pool-1/entries'));
   });
+
+  test('prominently directs a member without entries to create their first entry', async () => {
+    global.fetch = jest.fn((url) => {
+      const path = String(url);
+      if (path === '/pools/pool-1') return response({ id: 'pool-1', name: 'Office Pick Em', pool_type: 'pickem' });
+      if (path === '/entries/pool/pool-1' || path === '/picks/pool/pool-1/standings' || path === '/schedule/week/1') return response([]);
+      throw new Error(`Unexpected request ${path}`);
+    });
+
+    render(<PickEmPage />);
+
+    expect(await screen.findByRole('heading', { name: /create an entry to start picking/i })).toBeInTheDocument();
+    expect(screen.getByText(/your entry is your pick 'em card for the season/i)).toBeInTheDocument();
+    expect(screen.getByText('No entries yet')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /create your first entry/i })).toHaveAttribute(
+      'href',
+      '/pool/pool-1/entries/create',
+    );
+    expect(screen.queryByRole('combobox', { name: /entry/i })).not.toBeInTheDocument();
+  });
 });

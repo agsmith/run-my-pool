@@ -12,9 +12,43 @@ const games = [
 ];
 
 const features = [
-  { number: '01', title: 'Highly Configurable', copy: 'Set lock times, entry rules, autopicks, scoring, and tiebreakers. Your pool, your call.' },
-  { number: '02', title: 'Affordable', copy: 'Everything your commissioner needs without enterprise pricing or surprise fees.' },
-  { number: '03', title: 'Mobile App', copy: 'Make picks, check results, and follow the leaderboard from any screen.' },
+  { number: '01', icon: '≡', title: 'Configurable Pool Setup', copy: 'Start with the format and access model that fits your group.', details: ["Survivor and Pick 'Em formats", 'Public or password-protected pools', 'Custom lock schedule, timezone, and entry rules'] },
+  { number: '02', icon: '⚡', title: 'Weekly Automation', copy: 'Keep every NFL week moving without spreadsheets or reminder chains.', details: ['Scheduled weekly pick locks', 'Eligible Survivor autopicks', 'Automatic winners, eliminations, points, and standings'] },
+  { number: '03', icon: '↗', title: 'Member Experience', copy: 'Give every player a clear, mobile-friendly place to manage the season.', details: ['Multiple named entries per account', 'Pick progress and entries remaining', 'Weekly matchups, standings, and forum access'] },
+  { number: '04', icon: '⌁', title: 'Commissioner Controls', copy: 'Manage the pool without exposing platform-wide users or data.', details: ['Pool-scoped users, entries, picks, and roles', 'Lock management, pick corrections, and transfers', 'Autopick review and participation reporting'] },
+  { number: '05', icon: '✓', title: 'Transparent Competition', copy: 'Make the rules and weekly activity understandable to the entire pool.', details: ['All surviving picks revealed at weekly lock', 'Clickable team totals with member and entry detail', 'Exportable audit history for administrative changes'] },
+  { number: '06', icon: '+', title: 'Affordable Growth', copy: 'Begin free and add capacity only when the pool actually needs it.', details: ['Free entry-level package', 'Season plans for 50, 150, or 500 entries', 'Club expansion blocks and an unlimited option'] },
+];
+
+const howSteps = [
+  {
+    number: '01',
+    eyebrow: 'COMMISSIONER SETUP',
+    title: 'BUILD YOUR POOL',
+    copy: "Choose Survivor or Pick 'Em, name the pool, and make it public or password-protected.",
+    details: ['Set weekly lock day, time, and timezone', 'Choose entry limits, rules, and autopick behavior'],
+  },
+  {
+    number: '02',
+    eyebrow: 'INVITE & ENTER',
+    title: 'BRING IN YOUR CREW',
+    copy: 'Share the pool link. Members create a free account, join the correct pool, and add their entries.',
+    details: ['Private pools require the join password', 'Each member can manage all of their own entries'],
+  },
+  {
+    number: '03',
+    eyebrow: 'EVERY WEEK',
+    title: 'MAKE THE PICKS',
+    copy: 'Members make or change selections until the commissioner-defined weekly deadline.',
+    details: ['Missing Survivor picks can receive an eligible autopick', 'At lock, surviving-entry picks are revealed to the pool'],
+  },
+  {
+    number: '04',
+    eyebrow: 'KICKOFF TO FINAL',
+    title: 'FOLLOW THE RESULTS',
+    copy: 'Run My Pool records winners, updates entry status and standings, and keeps the conversation together.',
+    details: ['Survivor winners advance; losing entries are eliminated', "Pick 'Em awards one point for each correct winner"],
+  },
 ];
 
 const homepageFaqs = [
@@ -148,11 +182,20 @@ export default function Home() {
         <section className="rmp-how" id="how">
           <div className="rmp-shell">
             <div className="rmp-section-kicker"><span>01</span><b>GAME PLAN</b></div>
-            <div className="rmp-section-heading"><h2>FROM GROUP CHAT<br />TO <em>GAME ON.</em></h2><p>We handle the repetitive stuff. You set the rules, invite your people, and enjoy the season.</p></div>
+            <div className="rmp-section-heading"><h2>FROM SETUP<br />TO <em>GAME DAY.</em></h2><p>A clear path for commissioners and members—from choosing a format to making picks, locking the week, and following the standings.</p></div>
             <div className="rmp-steps">
-              <article><span>01</span><div className="rmp-step-icon rmp-sliders"><i/><i/><i/></div><h3>SET THE RULES</h3><p>Choose your schedule, lock time, entry limits, and autopick behavior.</p></article>
-              <article><span>02</span><div className="rmp-step-icon rmp-people"><i/><i/><i/></div><h3>INVITE THE CREW</h3><p>Share one simple link. Players can join and make picks from any device.</p></article>
-              <article><span>03</span><div className="rmp-step-icon rmp-trophy"><i>★</i></div><h3>LET IT RUN</h3><p>Results and standings update automatically. You just bring the banter.</p></article>
+              {howSteps.map((step) => (
+                <article key={step.number}>
+                  <div className="rmp-step-number"><span>{step.number}</span><b>{step.eyebrow}</b></div>
+                  <h3>{step.title}</h3>
+                  <p>{step.copy}</p>
+                  <ul>{step.details.map((detail) => <li key={detail}>{detail}</li>)}</ul>
+                </article>
+              ))}
+            </div>
+            <div className="rmp-how-roles">
+              <div><span>FOR COMMISSIONERS</span><p>See participation, identify autopicks, manage locks and members, correct entries when needed, and export the audit log.</p></div>
+              <div><span>FOR MEMBERS</span><p>See your remaining entries and weekly progress, change unlocked picks, review revealed pick counts, follow standings, and join the forum.</p></div>
             </div>
           </div>
         </section>
@@ -162,7 +205,7 @@ export default function Home() {
             <div className="rmp-section-kicker rmp-light"><span>02</span><b>COMMISSIONER ADVANTAGE</b></div>
             <div className="rmp-feature-heading"><div><h3>Why Choose Run My Pool?</h3><h2>LESS ADMIN.<br /><em>MORE FOOTBALL.</em></h2></div><p>Everything you need to run a polished pool without chasing picks, fixing formulas, or spending Monday morning on standings.</p></div>
             <div className="rmp-feature-grid">
-              {features.map((feature) => <article key={feature.title}><span>{feature.number}</span><div className="rmp-feature-icon">{feature.number === '01' ? '≡' : feature.number === '02' ? '$' : '↗'}</div><h4>{feature.title}</h4><p>{feature.copy}</p></article>)}
+              {features.map((feature) => <article key={feature.title}><span>{feature.number}</span><div className="rmp-feature-icon">{feature.icon}</div><h4>{feature.title}</h4><p>{feature.copy}</p><ul>{feature.details.map((detail) => <li key={detail}>{detail}</li>)}</ul></article>)}
             </div>
           </div>
         </section>

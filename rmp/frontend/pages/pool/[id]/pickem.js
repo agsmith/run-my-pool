@@ -66,11 +66,19 @@ export default function PickEmPage() {
     {error && <div className="workspace-alert workspace-alert--error">{error}</div>}
     <section className="matchup-toolbar">
       <button disabled={week === 1} onClick={() => setWeek((value) => value - 1)}>← Previous</button>
-      <label>Entry <select value={entryId} onChange={(event) => setEntryId(event.target.value)}>{entries.map((entry) => <option key={entry.id} value={entry.id}>{entry.name}</option>)}</select></label>
+      {entries.length ? <label>Entry <select value={entryId} onChange={(event) => setEntryId(event.target.value)}>{entries.map((entry) => <option key={entry.id} value={entry.id}>{entry.name}</option>)}</select></label> : <span className="matchup-toolbar__status">No entries yet</span>}
       <label>Week <select value={week} onChange={(event) => setWeek(Number(event.target.value))}>{Array.from({ length: 18 }, (_, index) => <option key={index + 1}>{index + 1}</option>)}</select></label>
       <button disabled={week === 18} onClick={() => setWeek((value) => value + 1)}>Next →</button>
     </section>
-    {!entries.length ? <div className="matchup-empty">Create an entry before making picks. <Link href={`/pool/${id}/entries/create`}>Create entry</Link></div> :
+    {!entries.length ? <section className="pickem-entry-required" aria-labelledby="pickem-entry-required-title">
+      <div className="pickem-entry-required__icon" aria-hidden="true">+</div>
+      <div>
+        <span>ONE QUICK STEP</span>
+        <h2 id="pickem-entry-required-title">Create an entry to start picking</h2>
+        <p>Your entry is your Pick &apos;Em card for the season. Name it once, then choose a winner for every weekly matchup.</p>
+      </div>
+      <Link className="pickem-entry-required__cta" href={`/pool/${id}/entries/create`}>Create your first entry <b>→</b></Link>
+    </section> :
       <section className="pickem-board">{games.map((game) => <article key={game.game_id} className="pickem-game">
         <time>{new Date(game.start_time).toLocaleString()}</time>
         {[game.away_team, game.home_team].map((team) => <button key={team.id} disabled={savingGame === game.game_id} className={picksByGame[game.game_id]?.team === team.abbrv ? 'is-selected' : ''} onClick={() => selectWinner(game, team)}>
