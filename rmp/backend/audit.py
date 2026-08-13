@@ -25,6 +25,40 @@ def _require_audit_scope(db: Session, current_user: models.User, pool_id: Option
     if not has_access:
         raise HTTPException(status_code=403, detail="Admin access required")
 
+
+def _pool_audit_query(db: Session, pool_id: str):
+    return db.query(models.AuditLog).filter(
+        models.AuditLog.details.contains(f'"pool_id": "{pool_id}"')
+    )
+
+
+@router.get("/filter-options", response_model=schemas.AuditFilterOptions)
+def audit_filter_options(
+    pool_id: str,
+    db: Session = Depends(deps.get_db),
+    current_user=Depends(deps.get_current_user),
+):
+    """Return exact event and actor choices available within one pool."""
+    _require_audit_scope(db, current_user, pool_id)
+    scoped = _pool_audit_query(db, pool_id)
+    event_types = [
+        action for (action,) in scoped.with_entities(models.AuditLog.action)
+        .distinct().order_by(models.AuditLog.action).all()
+    ]
+    actor_ids = {
+        user_id for (user_id,) in scoped.with_entities(models.AuditLog.user_id)
+        .filter(models.AuditLog.user_id.isnot(None)).distinct().all()
+    }
+    users = db.query(models.User).filter(
+        models.User.id.in_(actor_ids or [""])
+    ).order_by(models.User.email).all()
+    includes_system_events = scoped.filter(models.AuditLog.user_id.is_(None)).first() is not None
+    return {
+        "event_types": event_types,
+        "users": [{"id": user.id, "email": user.email} for user in users],
+        "includes_system_events": includes_system_events,
+    }
+
 @router.get("/", response_model=List[schemas.AuditLogOut])
 def list_audit_logs(
     skip: int = 0,
@@ -32,6 +66,7 @@ def list_audit_logs(
     user_id: Optional[str] = None,
     username: Optional[str] = None,
     action: Optional[str] = None,
+    event_type: Optional[str] = None,
     pool_id: Optional[str] = None,
     date_from: Optional[datetime] = None,
     date_to: Optional[datetime] = None,
@@ -42,7 +77,11 @@ def list_audit_logs(
     _require_audit_scope(db, current_user, pool_id)
     query = db.query(models.AuditLog)
     if user_id:
-        query = query.filter(models.AuditLog.user_id == user_id)
+        query = query.filter(
+            models.AuditLog.user_id.is_(None)
+            if user_id == "__system__"
+            else models.AuditLog.user_id == user_id
+        )
     if username:
         matching_user_ids = [
             user_id
@@ -56,6 +95,8 @@ def list_audit_logs(
     if action:
         pattern = f"%{action}%"
         query = query.filter(models.AuditLog.action.ilike(pattern))
+    if event_type:
+        query = query.filter(models.AuditLog.action == event_type)
     if pool_id:
         # Pool context is stored in the structured audit details JSON. Quoting
         # the value avoids partial UUID matches while remaining DB portable.

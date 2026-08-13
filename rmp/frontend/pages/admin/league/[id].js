@@ -58,11 +58,12 @@ export default function AdminPortal() {
   
   // Audit Log State
   const [auditSearch, setAuditSearch] = useState({ 
-    username: '',
+    userId: '',
     dateFrom: '', 
     dateTo: '', 
-    actionSearch: '' 
+    eventType: ''
   });
+  const [auditFilterOptions, setAuditFilterOptions] = useState({ event_types: [], users: [], includes_system_events: false });
   const [auditLogs, setAuditLogs] = useState([]);
   const [auditLoading, setAuditLoading] = useState(false);
   const [auditError, setAuditError] = useState('');
@@ -77,6 +78,7 @@ export default function AdminPortal() {
   useEffect(() => {
     if (activeSection === 'audit-log' && leagueId) {
       fetchAuditLogs();
+      fetchAuditFilterOptions();
     }
   }, [activeSection, leagueId]);
 
@@ -175,10 +177,10 @@ export default function AdminPortal() {
     try {
       const token = localStorage.getItem('access_token');
       const params = new URLSearchParams({ pool_id: leagueId, limit: '500' });
-      if (search.username) params.set('username', search.username.trim());
-      if (search.actionSearch) params.set('action', search.actionSearch.trim());
-      if (search.dateFrom) params.set('date_from', `${search.dateFrom}T00:00:00`);
-      if (search.dateTo) params.set('date_to', `${search.dateTo}T23:59:59`);
+      if (search.userId) params.set('user_id', search.userId);
+      if (search.eventType) params.set('event_type', search.eventType);
+      if (search.dateFrom) params.set('date_from', new Date(search.dateFrom).toISOString());
+      if (search.dateTo) params.set('date_to', new Date(search.dateTo).toISOString());
 
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/audit/?${params}`, {
         headers: { 'Authorization': `Bearer ${token}` }
@@ -190,6 +192,20 @@ export default function AdminPortal() {
       setAuditError(err.message || 'Unable to load audit events');
     } finally {
       setAuditLoading(false);
+    }
+  };
+
+  const fetchAuditFilterOptions = async () => {
+    try {
+      const token = localStorage.getItem('access_token');
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/audit/filter-options?pool_id=${encodeURIComponent(leagueId)}`,
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      if (!response.ok) throw new Error('Unable to load audit filters');
+      setAuditFilterOptions(await response.json());
+    } catch (err) {
+      setAuditError(err.message || 'Unable to load audit filters');
     }
   };
 
@@ -1315,13 +1331,12 @@ export default function AdminPortal() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
             <div>
               <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500', color: '#374151' }}>
-                Username
+                User
               </label>
-              <input
-                type="text"
-                value={auditSearch.username}
-                onChange={(e) => setAuditSearch({...auditSearch, username: e.target.value})}
-                placeholder="Enter username or email"
+              <select
+                value={auditSearch.userId}
+                onChange={(e) => setAuditSearch({...auditSearch, userId: e.target.value})}
+                aria-label="Audit user"
                 style={{
                   width: '100%',
                   padding: '0.75rem',
@@ -1329,17 +1344,20 @@ export default function AdminPortal() {
                   borderRadius: '6px',
                   fontSize: '1rem'
                 }}
-              />
+              >
+                <option value="">All users</option>
+                {auditFilterOptions.includes_system_events && <option value="__system__">System / automated</option>}
+                {auditFilterOptions.users.map((user) => <option key={user.id} value={user.id}>{user.email}</option>)}
+              </select>
             </div>
             <div>
               <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500', color: '#374151' }}>
-                Action Contains Text
+                Event Type
               </label>
-              <input
-                type="text"
-                value={auditSearch.actionSearch}
-                onChange={(e) => setAuditSearch({...auditSearch, actionSearch: e.target.value})}
-                placeholder="Fuzzy search in action description"
+              <select
+                value={auditSearch.eventType}
+                onChange={(e) => setAuditSearch({...auditSearch, eventType: e.target.value})}
+                aria-label="Audit event type"
                 style={{
                   width: '100%',
                   padding: '0.75rem',
@@ -1347,16 +1365,19 @@ export default function AdminPortal() {
                   borderRadius: '6px',
                   fontSize: '1rem'
                 }}
-              />
+              >
+                <option value="">All event types</option>
+                {auditFilterOptions.event_types.map((eventType) => <option key={eventType} value={eventType}>{eventType}</option>)}
+              </select>
             </div>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
             <div>
               <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500', color: '#374151' }}>
-                Date From
+                From date and time
               </label>
               <input
-                type="date"
+                type="datetime-local"
                 value={auditSearch.dateFrom}
                 onChange={(e) => setAuditSearch({...auditSearch, dateFrom: e.target.value})}
                 style={{
@@ -1370,10 +1391,10 @@ export default function AdminPortal() {
             </div>
             <div>
               <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500', color: '#374151' }}>
-                Date To
+                To date and time
               </label>
               <input
-                type="date"
+                type="datetime-local"
                 value={auditSearch.dateTo}
                 onChange={(e) => setAuditSearch({...auditSearch, dateTo: e.target.value})}
                 style={{
@@ -1405,7 +1426,7 @@ export default function AdminPortal() {
           </button>
           <button
             onClick={() => {
-              const emptySearch = { username: '', dateFrom: '', dateTo: '', actionSearch: '' };
+              const emptySearch = { userId: '', dateFrom: '', dateTo: '', eventType: '' };
               setAuditSearch(emptySearch);
               fetchAuditLogs(emptySearch);
             }}

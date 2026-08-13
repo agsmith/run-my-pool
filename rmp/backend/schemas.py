@@ -420,6 +420,17 @@ class AuditLogOut(BaseModel):
         orm_mode = True
 
 
+class AuditFilterUser(BaseModel):
+    id: str
+    email: EmailStr
+
+
+class AuditFilterOptions(BaseModel):
+    event_types: List[str]
+    users: List[AuditFilterUser]
+    includes_system_events: bool = False
+
+
 class PickBreakdownUser(BaseModel):
     user_id: str
     email: EmailStr

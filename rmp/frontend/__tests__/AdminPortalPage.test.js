@@ -129,6 +129,11 @@ describe('commissioner portal', () => {
 
   test('shows scoped audit events and applies search filters', async () => {
     installApi({
+      'GET /audit/filter-options?pool_id=pool-1': () => response({
+        event_types: ['CREATE_PICK', 'UPDATE_PICK'],
+        users: [{ id: 'owner-1', email: 'owner@example.com' }],
+        includes_system_events: true,
+      }),
       'GET /audit/?pool_id=pool-1&limit=500': () => response([{
         id: 'audit-1', action: 'UPDATE_PICK', user_email: 'admin@example.com',
         created_at: '2026-09-01T12:00:00Z', details: JSON.stringify({ description: 'Corrected week 2 pick' }),
@@ -143,6 +148,29 @@ describe('commissioner portal', () => {
     expect(screen.getByRole('button', { name: 'Export CSV' })).toBeEnabled();
     expect(fetch).toHaveBeenCalledWith(
       expect.stringContaining('pool_id=pool-1'),
+      expect.any(Object),
+    );
+
+    await user.selectOptions(screen.getByLabelText('Audit event type'), 'UPDATE_PICK');
+    await user.selectOptions(screen.getByLabelText('Audit user'), 'owner-1');
+    await user.type(screen.getByLabelText('From date and time'), '2026-09-01T08:30');
+    await user.type(screen.getByLabelText('To date and time'), '2026-09-01T12:45');
+    await user.click(screen.getByRole('button', { name: 'Search Audit Log' }));
+
+    await waitFor(() => expect(fetch).toHaveBeenCalledWith(
+      expect.stringMatching(/event_type=UPDATE_PICK/),
+      expect.any(Object),
+    ));
+    expect(fetch).toHaveBeenCalledWith(
+      expect.stringMatching(/user_id=owner-1/),
+      expect.any(Object),
+    );
+    expect(fetch).toHaveBeenCalledWith(
+      expect.stringMatching(/date_from=/),
+      expect.any(Object),
+    );
+    expect(fetch).toHaveBeenCalledWith(
+      expect.stringMatching(/date_to=/),
       expect.any(Object),
     );
   });

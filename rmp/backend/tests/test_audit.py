@@ -385,6 +385,52 @@ class TestAuditTrail:
             params={"pool_id": pool["id"], "user_id": str(uuid.uuid4())},
             headers=_h(token),
         ).json() == []
+
+    def test_audit_filter_options_and_exact_event_type_are_pool_scoped(
+        self, client
+    ):
+        token = _reg(client, "filter.options@audit.example.com")
+        pool = _create_pool(client, token)
+        entry = _create_entry(client, token, pool["id"])
+        _create_pick(client, token, entry["id"], team="NE")
+
+        options = client.get(
+            "/audit/filter-options",
+            params={"pool_id": pool["id"]},
+            headers=_h(token),
+        )
+        assert options.status_code == 200, options.text
+        payload = options.json()
+        assert "CREATE_PICK" in payload["event_types"]
+        assert {
+            "id": client.get("/auth/me", headers=_h(token)).json()["id"],
+            "email": "filter.options@audit.example.com",
+        } in payload["users"]
+
+        exact = client.get(
+            "/audit/",
+            params={"pool_id": pool["id"], "event_type": "CREATE_PICK"},
+            headers=_h(token),
+        )
+        assert exact.status_code == 200
+        assert [event["action"] for event in exact.json()] == ["CREATE_PICK"]
+        assert client.get(
+            "/audit/",
+            params={"pool_id": pool["id"], "event_type": "PICK"},
+            headers=_h(token),
+        ).json() == []
+
+    def test_audit_filter_options_reject_admin_for_another_pool(self, client):
+        owner_a = _reg(client, "filter.scope.a@audit.example.com")
+        owner_b = _reg(client, "filter.scope.b@audit.example.com")
+        pool_b = _create_pool(client, owner_b)
+
+        response = client.get(
+            "/audit/filter-options",
+            params={"pool_id": pool_b["id"]},
+            headers=_h(owner_a),
+        )
+        assert response.status_code == 403
         assert client.get(
             "/audit/",
             params={"pool_id": pool["id"], "date_from": "2999-01-01T00:00:00"},
