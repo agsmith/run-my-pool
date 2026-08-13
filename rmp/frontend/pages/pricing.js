@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useAuth } from '../context/AuthContext';
@@ -59,8 +59,11 @@ export default function PricingPage() {
   const router = useRouter();
   const [checkoutPlan, setCheckoutPlan] = useState('');
   const [checkoutError, setCheckoutError] = useState('');
-  const continuedCheckout = useRef(false);
   const freeStartHref = auth?.user ? '/create-pool?source=splash' : '/create-account?plan=free';
+  const requestedCheckout = typeof router.query.checkout === 'string' ? router.query.checkout : '';
+  const selectedCheckoutPlan = plans.find(
+    (plan) => (plan.slug || plan.name.toLowerCase()) === requestedCheckout && plan.name !== 'Free',
+  );
 
   useEffect(() => {
     trackLifecycleEvent('pricing_view', { page: 'pricing', source: 'homepage' });
@@ -90,13 +93,6 @@ export default function PricingPage() {
       return false;
     }
   }, [auth?.token]);
-
-  useEffect(() => {
-    const plan = typeof router.query.checkout === 'string' ? router.query.checkout : '';
-    if (!router.isReady || !auth?.token || continuedCheckout.current || !plans.some((item) => (item.slug || item.name.toLowerCase()) === plan)) return;
-    continuedCheckout.current = true;
-    beginCheckout(plan);
-  }, [auth?.token, beginCheckout, router.isReady, router.query.checkout]);
 
   return (
     <div className="rmp-landing pricing-page">
@@ -147,6 +143,25 @@ export default function PricingPage() {
 
         <section className="pricing-grid rmp-shell" aria-label="Pricing plans">
           {router.query.checkout === 'cancelled' && <div className="pricing-checkout-notice">{typeof router.query.plan === 'string' ? `${plans.find((item) => (item.slug || item.name.toLowerCase()) === router.query.plan)?.name || 'Plan'} checkout was canceled.` : 'Checkout was canceled.'} No payment was taken.</div>}
+          {selectedCheckoutPlan && (
+            <div className="pricing-checkout-confirmation" aria-label="Selected package">
+              <div>
+                <span>YOU&apos;RE PURCHASING</span>
+                <strong>{selectedCheckoutPlan.name}</strong>
+                <p><b>{selectedCheckoutPlan.price}</b> {selectedCheckoutPlan.cadence}</p>
+              </div>
+              {auth?.token ? (
+                <button type="button" disabled={Boolean(checkoutPlan)} onClick={() => beginCheckout(requestedCheckout)}>
+                  {checkoutPlan ? 'Opening secure checkout…' : 'Continue to secure checkout'} <span>→</span>
+                </button>
+              ) : (
+                <Link href={`/login?next=${encodeURIComponent(`/pricing?checkout=${requestedCheckout}`)}`}>
+                  Sign in to continue <span>→</span>
+                </Link>
+              )}
+              <Link href="/pricing" className="pricing-checkout-confirmation__change">Change package</Link>
+            </div>
+          )}
           {checkoutError && <div className="pricing-checkout-notice pricing-checkout-notice--error">{checkoutError}</div>}
           {plans.map((plan, index) => (
             <article className={`pricing-card${plan.featured ? ' pricing-card--featured' : ''}`} key={plan.name}>
@@ -172,7 +187,7 @@ export default function PricingPage() {
                   });
                   if (plan.name === 'Free' || !auth?.token) return;
                   event.preventDefault();
-                  if (!checkoutPlan) beginCheckout(plan.slug || plan.name.toLowerCase());
+                  if (!checkoutPlan) router.push(`/pricing?checkout=${plan.slug || plan.name.toLowerCase()}`);
                 }}
               >{checkoutPlan === (plan.slug || plan.name.toLowerCase()) ? 'Opening secure checkout…' : plan.cta}<span>→</span></Link>
             </article>

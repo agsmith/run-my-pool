@@ -8,7 +8,8 @@ jest.mock('../lib/lifecycleAnalytics', () => ({
   trackLifecycleEvent: (...args) => mockTrackLifecycleEvent(...args),
 }));
 
-const mockRouter = { query: {}, isReady: true };
+const mockPush = jest.fn();
+const mockRouter = { query: {}, isReady: true, push: mockPush };
 let mockAuth = { user: null, token: null };
 jest.mock('next/router', () => ({ useRouter: () => mockRouter }));
 jest.mock('../context/AuthContext', () => ({ useAuth: () => mockAuth }));
@@ -16,6 +17,7 @@ jest.mock('../context/AuthContext', () => ({ useAuth: () => mockAuth }));
 describe('PricingPage', () => {
   beforeEach(() => {
     mockTrackLifecycleEvent.mockClear();
+    mockPush.mockClear();
     mockRouter.query = {};
     mockAuth = { user: null, token: null };
   });
@@ -66,6 +68,50 @@ describe('PricingPage', () => {
     render(<PricingPage />);
 
     expect(screen.getAllByRole('link', { name: /start free/i }).every((link) => link.getAttribute('href') === '/create-pool?source=splash')).toBe(true);
+  });
+
+  test('keeps a signed-in customer in the buy flow and shows the paid package first', async () => {
+    const user = userEvent.setup();
+    mockAuth = { user: { id: 'user-1' }, token: 'token' };
+    render(<PricingPage />);
+
+    await user.click(screen.getByRole('link', { name: /choose pro/i }));
+
+    expect(mockPush).toHaveBeenCalledWith('/pricing?checkout=pro');
+  });
+
+  test('starts secure checkout only after the returning user confirms the package', async () => {
+    const user = userEvent.setup();
+    mockRouter.query = { checkout: 'pro' };
+    mockAuth = { user: { id: 'user-1' }, token: 'token' };
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: false,
+      json: async () => ({ detail: 'Test checkout stop' }),
+    });
+    render(<PricingPage />);
+
+    const selection = screen.getByLabelText('Selected package');
+    expect(selection).toHaveTextContent('Pro');
+    expect(selection).toHaveTextContent('$79');
+    expect(global.fetch).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole('button', { name: /continue to secure checkout/i }));
+
+    expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('/billing/checkout-session'), expect.objectContaining({
+      method: 'POST',
+      body: expect.stringContaining('"plan":"pro"'),
+    }));
+  });
+
+  test('preserves the package when a returning customer still needs to sign in', () => {
+    mockRouter.query = { checkout: 'club' };
+    render(<PricingPage />);
+
+    expect(screen.getByLabelText('Selected package')).toHaveTextContent('Club');
+    expect(screen.getByRole('link', { name: /sign in to continue/i })).toHaveAttribute(
+      'href',
+      `/login?next=${encodeURIComponent('/pricing?checkout=club')}`,
+    );
   });
 
   test('identifies the package when checkout is canceled', () => {

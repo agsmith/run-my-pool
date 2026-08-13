@@ -225,6 +225,15 @@ table {
 .pricing-card__cta.is-loading,.pricing-card__cta[aria-disabled="true"] { opacity:.62; pointer-events:none; }
 .pricing-checkout-notice { grid-column:1/-1; padding:1rem 1.2rem; color:var(--ice); background:#10191c; border:1px solid #40555a; }
 .pricing-checkout-notice--error { color:#ffd9d5; border-color:rgba(255,129,122,.55); }
+.pricing-checkout-confirmation { grid-column:1/-1; display:grid; grid-template-columns:1fr auto; align-items:center; gap:.75rem 1.5rem; padding:1.25rem 1.5rem; border:1px solid rgba(190,255,35,.45); background:linear-gradient(135deg,rgba(190,255,35,.12),rgba(74,220,255,.08)); }
+.pricing-checkout-confirmation span,.pricing-checkout-confirmation strong,.pricing-checkout-confirmation p { display:block; }
+.pricing-checkout-confirmation > div > span { color:var(--lime); font-size:.72rem; font-weight:800; letter-spacing:.12em; }
+.pricing-checkout-confirmation strong { margin-top:.2rem; color:var(--ice); font-size:1.5rem; }
+.pricing-checkout-confirmation p { margin:.2rem 0 0; color:var(--muted); }
+.pricing-checkout-confirmation p b { display:inline; color:var(--ice); }
+.pricing-checkout-confirmation button,.pricing-checkout-confirmation > a:not(.pricing-checkout-confirmation__change) { padding:.85rem 1rem; border:0; background:var(--lime); color:#071014; font-weight:800; cursor:pointer; text-decoration:none; }
+.pricing-checkout-confirmation button:disabled { cursor:wait; opacity:.7; }
+.pricing-checkout-confirmation__change { grid-column:2; color:var(--cyan); font-size:.85rem; text-align:center; }
 .pricing-promise { display:grid; grid-template-columns:repeat(3,1fr); margin-bottom:80px; padding-top:24px; border-top:1px solid #314146; }
 .pricing-promise > div { display:grid; gap:8px; padding:0 24px; border-right:1px solid #314146; }
 .pricing-promise > div:last-child { border-right:0; }
@@ -327,6 +336,8 @@ table {
   .pricing-hero { padding-top:58px; }
   .pricing-hero h1 { font-size:clamp(55px,16vw,76px); }
   .pricing-grid { grid-template-columns:1fr; gap:14px; }
+  .pricing-checkout-confirmation { grid-template-columns:1fr; }
+  .pricing-checkout-confirmation__change { grid-column:1; }
   .pricing-card--featured { transform:none; }
   .pricing-card > p { min-height:0; }
   .pricing-promise { grid-template-columns:1fr; gap:20px; }
