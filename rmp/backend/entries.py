@@ -13,6 +13,8 @@ from audit_utils import (
     log_admin_action,
 )
 from admin import is_user_locked_in_pool
+from schedule import current_season_games
+from weekly_locks import pool_week_lock_time
 
 router = APIRouter(prefix="/entries", tags=["entries"])
 
@@ -273,6 +275,15 @@ def delete_entry(
 
         # Enforce pool lock time — coerce to datetime if SQLite returned a string
         pool = db.query(models.Pool).filter(models.Pool.id == entry.pool_id).first()
+        week_one_deadline = (
+            pool_week_lock_time(pool, current_season_games(db, 1)) if pool else None
+        )
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
+        if week_one_deadline and week_one_deadline <= now:
+            raise HTTPException(
+                status_code=423,
+                detail="Week 1 is locked. Entry deletion is no longer allowed.",
+            )
         if pool and (pool.join_lock_time is not None or (pool.lock_day_of_week is None and pool.lock_time is not None)):
             lock_time = pool.join_lock_time if pool.join_lock_time is not None else pool.lock_time
             if isinstance(lock_time, str):
@@ -280,9 +291,7 @@ def delete_entry(
                     lock_time = datetime.fromisoformat(lock_time)
                 except ValueError:
                     lock_time = None
-            if lock_time and lock_time < datetime.now(timezone.utc).replace(
-                tzinfo=None
-            ):
+            if lock_time and lock_time < now:
                 raise HTTPException(
                     status_code=423,
                     detail="Pool is locked. Entry deletion is not allowed after the lock time.",

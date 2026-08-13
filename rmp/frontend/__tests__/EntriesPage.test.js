@@ -53,6 +53,18 @@ function installApi({ pool = {}, entries = [], picks = {}, lockWeeks = {}, creat
       currentEntries = [...currentEntries, createdEntry];
       return jsonResponse(createdEntry);
     }
+    const entryMatch = path.match(/\/entries\/([^/]+)$/);
+    if (entryMatch && options.method === 'PUT') {
+      const update = JSON.parse(options.body);
+      currentEntries = currentEntries.map((entry) => (
+        entry.id === entryMatch[1] ? { ...entry, ...update } : entry
+      ));
+      return jsonResponse(currentEntries.find((entry) => entry.id === entryMatch[1]));
+    }
+    if (entryMatch && options.method === 'DELETE') {
+      currentEntries = currentEntries.filter((entry) => entry.id !== entryMatch[1]);
+      return jsonResponse({ message: 'Entry deleted successfully' });
+    }
     throw new Error(`Unexpected request: ${path}`);
   });
 }
@@ -171,6 +183,57 @@ describe('player entries page', () => {
     render(<LeagueEntries />);
 
     expect(await screen.findByAltText('WSH logo')).toHaveAttribute('src', '/nfl/wsh.svg');
+  });
+
+  test('canceling a rename does not save the edited name', async () => {
+    const user = userEvent.setup();
+    installApi({ entries: [{ id: 'entry-1', name: 'Original Name', alive: true }] });
+    render(<LeagueEntries />);
+
+    await user.click(await screen.findByRole('button', { name: /original name/i }));
+    const input = screen.getByDisplayValue('Original Name');
+    await user.clear(input);
+    await user.type(input, 'Changed Name');
+    await user.click(screen.getByRole('button', { name: 'Cancel renaming Original Name' }));
+
+    expect(screen.getByText('Original Name')).toBeInTheDocument();
+    expect(fetch).not.toHaveBeenCalledWith(
+      expect.stringContaining('/entries/entry-1'),
+      expect.objectContaining({ method: 'PUT' }),
+    );
+  });
+
+  test('deletes the explicitly selected entry regardless of creation or display order', async () => {
+    const user = userEvent.setup();
+    installApi({
+      entries: [
+        { id: 'old-entry', name: 'Zulu', alive: true, created_at: '2026-01-01T00:00:00Z' },
+        { id: 'new-entry', name: 'Alpha', alive: true, created_at: '2026-02-01T00:00:00Z' },
+      ],
+    });
+    render(<LeagueEntries />);
+
+    await user.click(await screen.findByRole('button', { name: /delete entry/i }));
+    await user.selectOptions(screen.getByLabelText('Entry'), 'old-entry');
+    await user.click(screen.getByRole('button', { name: 'Delete Selected Entry' }));
+
+    await waitFor(() => expect(fetch).toHaveBeenCalledWith(
+      expect.stringContaining('/entries/old-entry'),
+      expect.objectContaining({ method: 'DELETE' }),
+    ));
+    expect(screen.queryByText('Zulu')).not.toBeInTheDocument();
+    expect(screen.getByText('Alpha')).toBeInTheDocument();
+  });
+
+  test('hides entry deletion as soon as Week 1 locks', async () => {
+    installApi({
+      entries: [{ id: 'entry-1', name: 'Locked Entry', alive: true }],
+      lockWeeks: { '1': { locked: true, deadline: '2026-09-06T17:00:00Z' } },
+    });
+    render(<LeagueEntries />);
+
+    expect(await screen.findByText('Locked Entry')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /delete entry/i })).not.toBeInTheDocument();
   });
 
   test('opens a team count overlay with users and surviving entry counts', async () => {

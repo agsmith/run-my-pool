@@ -156,6 +156,21 @@ class TestEntryLockEnforcement:
 
         assert response.status_code == 200
 
+    def test_delete_entry_after_week_one_lock_returns_423(self, client, mocker):
+        """The server rejects deletion once the computed Week 1 lock passes."""
+        token = _register_and_login(client, email="week1-delete-lock@example.com")
+        headers = _authed(client, token)
+        pool_id = self._create_pool(client, headers, lock_time=None)
+        entry_id = self._create_entry(client, headers, pool_id).json()["id"]
+        past = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(minutes=1)
+        mocker.patch("entries.current_season_games", return_value=[object()])
+        mocker.patch("entries.pool_week_lock_time", return_value=past)
+
+        response = client.delete(f"/entries/{entry_id}", headers=headers)
+
+        assert response.status_code == 423
+        assert "week 1" in response.json()["detail"].lower()
+
     def test_create_entry_no_token_returns_403(self, client):
         """Entry creation without auth token returns 403."""
         response = client.post(

@@ -186,6 +186,8 @@ export default function LeagueEntries() {
   }, []);
   const [editingEntryId, setEditingEntryId] = useState(null);
   const [editingEntryName, setEditingEntryName] = useState('');
+  const [deleteEntryId, setDeleteEntryId] = useState('');
+  const [showDeleteEntryDialog, setShowDeleteEntryDialog] = useState(false);
   const [showAccountMenu, setShowAccountMenu] = useState(false); // Track account dropdown state
   const router = useRouter();
   const { user } = useAuth();
@@ -898,27 +900,37 @@ export default function LeagueEntries() {
     }
   };
 
-  const handleDeleteLastEntry = async () => {
-    if (isPoolLocked()) {
-      setError('Pool is locked. Entries cannot be deleted.');
+  const isWeekOneLocked = Boolean(weekLockStatus['1']?.locked);
+
+  const handleOpenDeleteEntryDialog = () => {
+    if (isWeekOneLocked) {
+      setError('Week 1 is locked. Entries can no longer be deleted.');
       return;
     }
     if (entries.length === 0) {
       setError('No entries to delete');
       return;
     }
-    // Find the most recently created entry (highest created_at timestamp)
-    const lastEntry = entries.reduce((latest, current) => {
-      return new Date(current.created_at) > new Date(latest.created_at) ? current : latest;
-    });
+    setDeleteEntryId('');
+    setShowDeleteEntryDialog(true);
+  };
+
+  const handleDeleteEntry = async () => {
+    const entry = entries.find((candidate) => candidate.id === deleteEntryId);
+    if (!entry) {
+      setError('Select the entry you want to delete.');
+      return;
+    }
     try {
       const token = localStorage.getItem('access_token');
-      const res = await fetch(process.env.NEXT_PUBLIC_API_URL + `/entries/${lastEntry.id}`, {
+      const res = await fetch(process.env.NEXT_PUBLIC_API_URL + `/entries/${entry.id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
-        fetchLeagueAndEntries(); // Refresh the list
+        setShowDeleteEntryDialog(false);
+        setDeleteEntryId('');
+        await fetchLeagueAndEntries();
       } else {
         const errorData = await res.json();
         setError(errorData.detail || 'Failed to delete entry');
@@ -1149,9 +1161,9 @@ export default function LeagueEntries() {
                   >
                     <span aria-hidden="true">+</span> Create New Entry
                   </button>
-                  {entries.length > 0 && (
+                  {entries.length > 0 && !isWeekOneLocked && (
                     <button className="entries-action entries-action--delete"
-                      onClick={handleDeleteLastEntry}
+                      onClick={handleOpenDeleteEntryDialog}
                     >
                       <span aria-hidden="true">−</span> Delete Entry
                     </button>
@@ -1314,7 +1326,6 @@ export default function LeagueEntries() {
                             value={editingEntryName}
                             onChange={(e) => setEditingEntryName(e.target.value)}
                             onKeyDown={(e) => handleEntryNameKeyPress(e, entry.id)}
-                            onBlur={() => handleSaveEntryName(entry.id)}
                             autoFocus
                             style={{
                               border: '2px solid #9fefff',
@@ -1346,6 +1357,7 @@ export default function LeagueEntries() {
                           </button>
                           <button
                             onClick={handleCancelEditingEntryName}
+                            aria-label={`Cancel renaming ${entry.name}`}
                             style={{
                               backgroundColor: '#e53e3e',
                               color: 'white',
@@ -1426,6 +1438,46 @@ export default function LeagueEntries() {
           </>
         )}
 
+            {showDeleteEntryDialog && (
+              <div className="entries-overlay" role="presentation" style={{
+                position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.75)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
+              }}>
+                <div className="entries-overlay__dialog" role="dialog" aria-modal="true" aria-labelledby="delete-entry-title" style={{
+                  width: 'min(92vw, 480px)', padding: '2rem', backgroundColor: '#0e1719',
+                }}>
+                  <div className="entries-overlay__header">
+                    <h2 id="delete-entry-title">Delete an entry</h2>
+                    <p>Select the specific entry to permanently delete. Its picks will also be removed.</p>
+                  </div>
+                  <div style={{ display: 'grid', gap: '.5rem', margin: '1.5rem 0' }}>
+                    <label htmlFor="delete-entry-select">Entry</label>
+                    <select
+                      id="delete-entry-select"
+                      value={deleteEntryId}
+                      onChange={(event) => setDeleteEntryId(event.target.value)}
+                      style={{ minHeight: '44px', padding: '.65rem', fontSize: '1rem' }}
+                    >
+                      <option value="">Select an entry</option>
+                      {[...entries].sort((a, b) => a.name.localeCompare(b.name)).map((entry) => (
+                        <option key={entry.id} value={entry.id}>{entry.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="entries-overlay__footer" style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
+                    <button type="button" className="entries-action" onClick={() => setShowDeleteEntryDialog(false)}>Cancel</button>
+                    <button
+                      type="button"
+                      className="entries-action entries-action--delete"
+                      onClick={handleDeleteEntry}
+                      disabled={!deleteEntryId}
+                    >
+                      Delete Selected Entry
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
             {renderMatchupOverlay()}
           </div>
         </main>
