@@ -40,4 +40,31 @@ describe('BillingSuccessPage', () => {
       source: 'pricing',
     }));
   });
+
+  test('confirms Club capacity without presenting it as a new plan', async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        id: 'order-blocks',
+        plan: 'club-entry-block',
+        order_type: 'entry_blocks',
+        quantity: 3,
+        season: 2026,
+        status: 'paid',
+        amount_total: 7500,
+        currency: 'usd',
+      }),
+    });
+
+    render(<BillingSuccessPage />);
+
+    expect(await screen.findByText(/capacity increased by/i)).toHaveTextContent('300 entries');
+    expect(screen.getByRole('link', { name: /return to billing/i })).toHaveAttribute('href', '/profile');
+    expect(screen.queryByRole('link', { name: /create your pool/i })).not.toBeInTheDocument();
+    await waitFor(() => expect(mockTrackLifecycleEvent).toHaveBeenCalledWith('payment_confirmed', {
+      page: 'billing_success',
+      plan: 'club',
+      source: 'billing',
+    }));
+  });
 });

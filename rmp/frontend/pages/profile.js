@@ -9,7 +9,11 @@ const PLAN_LABELS = {
   pro: 'Pro',
   club: 'Club',
   'club-unlimited': 'Club Unlimited',
+  'club-entry-block': 'Club +100 entries',
 };
+
+const PLAN_PRICES = { commissioner: 39, pro: 79, club: 129 };
+const PLAN_RANKS = { commissioner: 1, pro: 2, club: 3 };
 
 function formatMoney(amount, currency = 'usd') {
   if (amount == null) return 'Amount pending';
@@ -29,6 +33,9 @@ export default function Profile() {
   const { user, logout } = useAuth();
   const [billing, setBilling] = useState(null);
   const [billingError, setBillingError] = useState('');
+  const [checkoutError, setCheckoutError] = useState('');
+  const [checkoutBusy, setCheckoutBusy] = useState('');
+  const [entryBlocks, setEntryBlocks] = useState(1);
   const trackedOverview = useRef(false);
   const season = Number(process.env.NEXT_PUBLIC_NFL_SEASON) || new Date().getFullYear();
 
@@ -59,6 +66,32 @@ export default function Profile() {
   }, [billing]);
 
   const entitlement = billing?.entitlement;
+  const currentPlanPrice = PLAN_PRICES[entitlement?.plan] || 0;
+  const upgradePlans = Object.keys(PLAN_RANKS).filter(
+    (plan) => PLAN_RANKS[plan] > (PLAN_RANKS[entitlement?.plan] || 0),
+  );
+
+  const beginCheckout = async ({ plan, orderType = 'plan', quantity = 1 }) => {
+    const busyKey = orderType === 'entry_blocks' ? 'entry-blocks' : plan;
+    setCheckoutBusy(busyKey);
+    setCheckoutError('');
+    try {
+      const token = localStorage.getItem('access_token');
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/billing/checkout-session`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        credentials: 'include',
+        body: JSON.stringify({ plan, season, order_type: orderType, quantity }),
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body.detail || 'Unable to start secure checkout.');
+      trackLifecycleEvent('checkout_started', { page: 'profile', plan: plan || 'club', source: 'billing' });
+      window.location.assign(body.checkout_url);
+    } catch (error) {
+      setCheckoutError(error.message || 'Unable to start secure checkout.');
+      setCheckoutBusy('');
+    }
+  };
   return (
     <ProtectedRoute>
       <main className="account-page">
@@ -87,9 +120,41 @@ export default function Profile() {
               <div className="billing-plan">
                 <div><span>Current plan</span><strong>{entitlement ? PLAN_LABELS[entitlement.plan] || entitlement.plan : 'Free'}</strong></div>
                 <div><span>Status</span><strong>{entitlement?.status === 'active' ? 'Active' : 'No paid plan'}</strong></div>
-                <div><span>Entry capacity</span><strong>{entitlement?.unlimited_entries ? 'Unlimited' : entitlement?.included_entries ?? 10}</strong></div>
+                <div><span>Entry usage</span><strong>{entitlement?.unlimited_entries ? `${billing.used_entries} / Unlimited` : `${billing.used_entries} / ${entitlement?.included_entries ?? 10}`}</strong></div>
                 <div><span>Pool capacity</span><strong>{entitlement?.max_pools ?? (entitlement?.unlimited_entries ? 'Unlimited' : 1)}</strong></div>
               </div>
+
+              {(upgradePlans.length > 0 || entitlement?.plan === 'club') && (
+                <div className="billing-actions" aria-labelledby="billing-actions-title">
+                  <h3 id="billing-actions-title">Grow your plan</h3>
+                  <p>You pay only the difference for this season. Your pools, entries, and picks stay in place.</p>
+                  <div className="billing-actions__options">
+                    {upgradePlans.map((plan) => (
+                      <button
+                        type="button"
+                        key={plan}
+                        disabled={Boolean(checkoutBusy)}
+                        onClick={() => beginCheckout({ plan })}
+                      >
+                        Upgrade to {PLAN_LABELS[plan]} — ${PLAN_PRICES[plan] - currentPlanPrice}
+                      </button>
+                    ))}
+                  </div>
+                  {entitlement?.plan === 'club' && (
+                    <div className="billing-entry-blocks">
+                      <label htmlFor="entry-block-count">Additional 100-entry blocks</label>
+                      <select id="entry-block-count" value={entryBlocks} onChange={(event) => setEntryBlocks(Number(event.target.value))}>
+                        {[1, 2, 3, 4, 5, 10].map((count) => <option value={count} key={count}>{count} (+{count * 100} entries)</option>)}
+                      </select>
+                      <button type="button" disabled={Boolean(checkoutBusy)} onClick={() => beginCheckout({ orderType: 'entry_blocks', quantity: entryBlocks })}>
+                        Add {entryBlocks * 100} entries — ${entryBlocks * 25}
+                      </button>
+                    </div>
+                  )}
+                  {checkoutBusy && <p role="status">Opening secure checkout…</p>}
+                  {checkoutError && <div className="workspace-alert workspace-alert--error">{checkoutError}</div>}
+                </div>
+              )}
 
               <div className="billing-history">
                 <h3>Payment history</h3>
@@ -101,7 +166,7 @@ export default function Profile() {
                     {billing.orders.map((order) => (
                       <div className="billing-history__row" role="row" key={order.id}>
                         <span role="cell">{formatDate(order.paid_at || order.created_at)}</span>
-                        <span role="cell">{PLAN_LABELS[order.plan] || order.plan}</span>
+                        <span role="cell">{order.order_type === 'entry_blocks' ? `${order.quantity} × 100 entries` : PLAN_LABELS[order.plan] || order.plan}</span>
                         <span role="cell" className={`is-${order.status}`}>{order.status}</span>
                         <span role="cell">{formatMoney(order.amount_total, order.currency)}</span>
                       </div>

@@ -37,21 +37,24 @@ export default function BillingSuccess() {
   }, [router.isReady, router.query.session_id]);
 
   const paid = order?.status === 'paid';
+  const entryBlocks = order?.order_type === 'entry_blocks';
   useEffect(() => {
     if (!paid || !order?.id || trackedPaidOrder.current === order.id) return;
     trackedPaidOrder.current = order.id;
-    trackLifecycleEvent('payment_confirmed', { page: 'billing_success', plan: order.plan, source: 'pricing' });
-  }, [order, paid]);
+    trackLifecycleEvent('payment_confirmed', { page: 'billing_success', plan: entryBlocks ? 'club' : order.plan, source: entryBlocks ? 'billing' : 'pricing' });
+  }, [entryBlocks, order, paid]);
 
   return <ProtectedRoute><main className="billing-result-page">
     <section className="billing-result-card">
       <p className="rmp-eyebrow"><span /> SECURE CHECKOUT</p>
       <h1>{paid ? 'PAYMENT CONFIRMED' : 'CONFIRMING PAYMENT'}</h1>
       {error ? <div className="workspace-alert workspace-alert--error">{error}</div> : paid ? <>
-        <p>Your <strong>{order.plan.replace('-', ' ')}</strong> commissioner plan is active for the {order.season} season.</p>
+        <p>{entryBlocks
+          ? <>Your Club capacity increased by <strong>{order.quantity * 100} entries</strong> for the {order.season} season.</>
+          : <>Your <strong>{order.plan.replace('-', ' ')}</strong> commissioner plan is active for the {order.season} season.</>}</p>
         <div className="billing-result-amount">{order.amount_total != null ? new Intl.NumberFormat('en-US', { style: 'currency', currency: (order.currency || 'usd').toUpperCase() }).format(order.amount_total / 100) : 'Paid'}</div>
       </> : <p>Stripe accepted your checkout. We’re waiting for the verified payment notification before activating access.</p>}
-      <div className="billing-result-actions">{paid && <Link href="/create-pool?source=splash">Create your pool</Link>}<Link href="/dashboard">Go to dashboard</Link>{!paid && <Link href="/pricing">View plans</Link>}</div>
+      <div className="billing-result-actions">{paid && !entryBlocks && <Link href="/create-pool?source=splash">Create your pool</Link>}{paid && entryBlocks && <Link href="/profile">Return to billing</Link>}<Link href="/dashboard">Go to dashboard</Link>{!paid && <Link href="/pricing">View plans</Link>}</div>
       <p>Questions about your payment? <a href="mailto:support@runmypool.net">Contact billing support</a>.</p>
     </section>
   </main></ProtectedRoute>;

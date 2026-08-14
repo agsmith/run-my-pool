@@ -36,6 +36,7 @@ describe('profile billing overview', () => {
     global.fetch = jest.fn(() => response({
       season: 2026,
       entitlement: { plan: 'pro', status: 'active', included_entries: 150, max_pools: 1, unlimited_entries: false },
+      used_entries: 12,
       orders: [{ id: 'order-1', plan: 'pro', status: 'paid', amount_total: 7900, currency: 'usd', paid_at: '2026-08-12T12:00:00' }],
     }));
     render(<Profile />);
@@ -43,7 +44,7 @@ describe('profile billing overview', () => {
     expect(await screen.findAllByText('Pro')).toHaveLength(2);
     expect(screen.getByText('$79.00')).toBeInTheDocument();
     expect(screen.getByText('Active')).toBeInTheDocument();
-    expect(screen.getByText('150')).toBeInTheDocument();
+    expect(screen.getByText('12 / 150')).toBeInTheDocument();
     expect(global.fetch).toHaveBeenCalledWith('/billing/overview?season=2026', expect.objectContaining({ credentials: 'include' }));
     expect(mockTrackLifecycleEvent).toHaveBeenCalledWith('billing_overview_view', { page: 'profile' });
   });
@@ -73,5 +74,45 @@ describe('profile billing overview', () => {
     await user.click(screen.getByRole('button', { name: 'Logout' }));
     expect(mockLogout).toHaveBeenCalledTimes(1);
     await waitFor(() => expect(global.fetch).toHaveBeenCalled());
+  });
+
+  test('starts a difference-priced upgrade from the billing page', async () => {
+    global.fetch = jest.fn()
+      .mockImplementationOnce(() => response({
+        season: 2026,
+        entitlement: { plan: 'commissioner', status: 'active', included_entries: 50, max_pools: 1, unlimited_entries: false },
+        used_entries: 20,
+        orders: [],
+      }))
+      .mockImplementationOnce(() => response({ detail: 'Test checkout stop' }, false));
+    const user = userEvent.setup();
+    render(<Profile />);
+
+    await user.click(await screen.findByRole('button', { name: 'Upgrade to Pro — $40' }));
+
+    expect(global.fetch).toHaveBeenLastCalledWith('/billing/checkout-session', expect.objectContaining({
+      method: 'POST',
+      body: JSON.stringify({ plan: 'pro', season: 2026, order_type: 'plan', quantity: 1 }),
+    }));
+  });
+
+  test('buys multiple Club entry blocks', async () => {
+    global.fetch = jest.fn()
+      .mockImplementationOnce(() => response({
+        season: 2026,
+        entitlement: { plan: 'club', status: 'active', included_entries: 500, entry_block_count: 0, max_pools: 5, unlimited_entries: false },
+        used_entries: 490,
+        orders: [],
+      }))
+      .mockImplementationOnce(() => response({ detail: 'Test checkout stop' }, false));
+    const user = userEvent.setup();
+    render(<Profile />);
+
+    await user.selectOptions(await screen.findByLabelText('Additional 100-entry blocks'), '3');
+    await user.click(screen.getByRole('button', { name: 'Add 300 entries — $75' }));
+
+    expect(global.fetch).toHaveBeenLastCalledWith('/billing/checkout-session', expect.objectContaining({
+      body: JSON.stringify({ plan: undefined, season: 2026, order_type: 'entry_blocks', quantity: 3 }),
+    }));
   });
 });

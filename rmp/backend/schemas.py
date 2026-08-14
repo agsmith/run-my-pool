@@ -1,8 +1,9 @@
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
-from typing import Literal, Optional, List
-from datetime import datetime, time
 import enum
 import re
+from datetime import datetime, time
+from typing import List, Literal, Optional
+
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 
 class UserRole(str, enum.Enum):
@@ -31,9 +32,19 @@ class LifecycleEvent(BaseModel):
         "support_contact_clicked",
     ]
     session_id: str = Field(min_length=16, max_length=64, pattern=r"^[A-Za-z0-9_-]+$")
-    page: Literal["home", "pricing", "create_account", "billing_success", "pool_home", "profile", "support"]
-    plan: Optional[Literal["free", "commissioner", "pro", "club", "club-unlimited"]] = None
-    source: Optional[Literal["homepage", "pricing", "direct"]] = None
+    page: Literal[
+        "home",
+        "pricing",
+        "create_account",
+        "billing_success",
+        "pool_home",
+        "profile",
+        "support",
+    ]
+    plan: Optional[Literal["free", "commissioner", "pro", "club", "club-unlimited"]] = (
+        None
+    )
+    source: Optional[Literal["homepage", "pricing", "billing", "direct"]] = None
 
 
 class UserBase(BaseModel):
@@ -106,8 +117,10 @@ class AdminUserDashboardOut(BaseModel):
 
 
 class CheckoutSessionCreate(BaseModel):
-    plan: str
+    plan: Optional[str] = None
     season: int = Field(ge=2020, le=2100)
+    order_type: str = "plan"
+    quantity: int = Field(default=1, ge=1, le=50)
 
 
 class CheckoutSessionOut(BaseModel):
@@ -119,6 +132,8 @@ class CheckoutSessionOut(BaseModel):
 class BillingOrderOut(BaseModel):
     id: str
     plan: str
+    order_type: str = "plan"
+    quantity: int = 1
     season: int
     status: str
     amount_total: Optional[int] = None
@@ -135,6 +150,7 @@ class CommissionerEntitlementOut(BaseModel):
     season: int
     status: str
     included_entries: Optional[int] = None
+    entry_block_count: int = 0
     max_pools: Optional[int] = None
     unlimited_entries: bool = False
     activated_at: datetime
@@ -147,6 +163,7 @@ class BillingOverviewOut(BaseModel):
     season: int
     entitlement: Optional[CommissionerEntitlementOut] = None
     orders: List[BillingOrderOut]
+    used_entries: int = 0
 
 
 class LeagueAdminUserSummary(BaseModel):

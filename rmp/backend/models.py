@@ -1,20 +1,21 @@
+import enum
+from datetime import datetime, timezone
+
 from sqlalchemy import (
-    Column,
-    String,
     Boolean,
+    Column,
     DateTime,
-    ForeignKey,
     Enum,
-    Text,
-    Integer,
     Float,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
     Time,
     UniqueConstraint,
-    Index,
 )
-from sqlalchemy.orm import relationship, declarative_base
-from datetime import datetime, timezone
-import enum
+from sqlalchemy.orm import declarative_base, relationship
 
 # Constants for foreign key relationships
 USERS_ID_FK = "users.id"
@@ -85,7 +86,10 @@ class Pool(Base):
     join_password_encrypted = Column(Text, nullable=True)
     owner_id = Column(String(36), ForeignKey(USERS_ID_FK))
     billing_entitlement_id = Column(
-        String(36), ForeignKey("commissioner_entitlements.id"), nullable=True, index=True
+        String(36),
+        ForeignKey("commissioner_entitlements.id"),
+        nullable=True,
+        index=True,
     )
     billing_season = Column(Integer, nullable=True, index=True)
     created_at = Column(DateTime)
@@ -312,6 +316,8 @@ class BillingOrder(Base):
     id = Column(String(36), primary_key=True)
     user_id = Column(String(36), ForeignKey(USERS_ID_FK), nullable=False, index=True)
     plan = Column(String(32), nullable=False)
+    order_type = Column(String(24), nullable=False, default="plan")
+    quantity = Column(Integer, nullable=False, default=1)
     season = Column(Integer, nullable=False)
     status = Column(String(24), nullable=False, default="pending", index=True)
     stripe_checkout_session_id = Column(String(255), unique=True, nullable=True)
@@ -336,6 +342,7 @@ class CommissionerEntitlement(Base):
     plan = Column(String(32), nullable=False)
     status = Column(String(24), nullable=False, default="active")
     included_entries = Column(Integer, nullable=True)
+    entry_block_count = Column(Integer, nullable=False, default=0)
     max_pools = Column(Integer, nullable=True)
     unlimited_entries = Column(Boolean, nullable=False, default=False)
     stripe_customer_id = Column(String(255), nullable=True)

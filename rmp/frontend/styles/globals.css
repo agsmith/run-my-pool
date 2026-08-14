@@ -296,6 +296,15 @@ table {
 .billing-history__row .is-paid { color:var(--lime); }
 .billing-history__row .is-failed,.billing-history__row .is-expired { color:var(--danger); }
 .billing-overview__state { margin:1rem 0 0; padding:1rem; color:#aab8b9; background:#0c1416; border:1px dashed #40555a; }
+.billing-actions { margin-top:1.4rem; padding:1rem; background:#0c1416; border:1px solid #314449; }
+.billing-actions h3 { margin:0; color:var(--ice); font-size:.85rem; letter-spacing:.1em; text-transform:uppercase; }
+.billing-actions > p { color:#aab8b9; font-size:.8rem; }
+.billing-actions__options,.billing-entry-blocks { display:flex; flex-wrap:wrap; align-items:center; gap:.65rem; }
+.billing-actions button { padding:.75rem .9rem; color:#091012; background:var(--lime); border:0; cursor:pointer; font-size:.68rem; font-weight:900; text-transform:uppercase; }
+.billing-actions button:disabled { cursor:wait; opacity:.6; }
+.billing-entry-blocks { margin-top:1rem; padding-top:1rem; border-top:1px solid #314449; }
+.billing-entry-blocks label { color:var(--ice); font-size:.75rem; font-weight:700; }
+.billing-entry-blocks select { padding:.65rem; color:var(--ice); background:#101c1f; border:1px solid #40555a; }
 .support-page { width:min(100% - 2rem,1180px); min-height:calc(100vh - 70px); margin:0 auto; padding:clamp(1.5rem,5vw,4rem) 0; color:var(--ink); }
 .support-hero { display:grid; grid-template-columns:minmax(0,1.5fr) minmax(290px,.7fr); gap:1px; background:#40555a; border:1px solid #40555a; border-top:4px solid var(--lime); }
 .support-hero>div { padding:clamp(1.4rem,4vw,3rem); background:linear-gradient(145deg,#142124,#0e1719); }
