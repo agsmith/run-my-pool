@@ -11,13 +11,16 @@
 # ==============================================================================
 
 resource "aws_db_instance" "main" {
-  identifier                  = "runmypool-db"
+  identifier                  = "runmypool-db-encrypted"
   engine                      = "mysql"
   engine_version              = "8.4.10"
   allow_major_version_upgrade = true
+  apply_immediately           = true
   instance_class              = "db.t4g.small"
   allocated_storage           = 20
   storage_type                = "gp2"
+  storage_encrypted           = true
+  kms_key_id                  = data.aws_kms_alias.rds.target_key_arn
 
   db_name  = "runmypooldb"
   username = "admin"
@@ -30,13 +33,15 @@ resource "aws_db_instance" "main" {
   multi_az            = false
   publicly_accessible = false
 
-  # Backups — 7-day retention, no specific window preference
-  backup_retention_period = 7
-  skip_final_snapshot     = true
+  # Backups — 30-day point-in-time recovery plus a mandatory final snapshot.
+  backup_retention_period   = 30
+  copy_tags_to_snapshot     = true
+  skip_final_snapshot       = false
+  final_snapshot_identifier = "runmypool-db-final"
 
   # Allow compatible minor upgrades within the pinned MySQL 8.4 major version.
   auto_minor_version_upgrade = true
-  deletion_protection        = false
+  deletion_protection        = true
 
   tags = {
     Project = "runmypool"
@@ -47,6 +52,10 @@ resource "aws_db_instance" "main" {
     # Password rotation is managed through the database URL secret, not Terraform.
     ignore_changes = [password]
   }
+}
+
+data "aws_kms_alias" "rds" {
+  name = "alias/aws/rds"
 }
 
 # Update the existing Secrets Manager secret with the new connection string
