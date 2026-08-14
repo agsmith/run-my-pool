@@ -96,20 +96,28 @@ def enforce_entry_capacity(db: Session, pool: models.Pool) -> None:
         pool_ids = db.query(models.Pool.id).filter(
             models.Pool.billing_entitlement_id == entitlement.id
         )
-        used = db.query(func.count(models.Entry.id)).filter(
+        entry_count = db.query(func.count(models.Entry.id)).filter(
             models.Entry.pool_id.in_(pool_ids)
         ).scalar() or 0
+        square_count = db.query(func.count(models.SquareClaim.id)).filter(
+            models.SquareClaim.pool_id.in_(pool_ids)
+        ).scalar() or 0
+        used = entry_count + square_count
         limit = entitlement.included_entries
         plan = entitlement.plan
     else:
-        used = db.query(func.count(models.Entry.id)).filter(
+        entry_count = db.query(func.count(models.Entry.id)).filter(
             models.Entry.pool_id == pool.id
         ).scalar() or 0
+        square_count = db.query(func.count(models.SquareClaim.id)).filter(
+            models.SquareClaim.pool_id == pool.id
+        ).scalar() or 0
+        used = entry_count + square_count
         limit = FREE_INCLUDED_ENTRIES
         plan = "free"
 
     if used >= limit:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail=f"This pool has reached the {plan} plan limit of {limit} entries. The pool owner must upgrade before another entry can be created.",
+            detail=f"This pool has reached the {plan} plan limit of {limit} entries or squares. The pool owner must upgrade before another can be created.",
         )

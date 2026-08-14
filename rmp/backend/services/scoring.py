@@ -2,9 +2,12 @@
 
 from dataclasses import dataclass
 from datetime import datetime, timezone
+import json
+import secrets
+import uuid
 
 from sqlalchemy import and_, func, or_
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 import models
 from services.nfl_results import NflGameResult
@@ -165,3 +168,82 @@ def apply_final_results(
     summary.entries_changed = _reconcile_survivor_entries(db, affected_entries)
     db.flush()
     return summary
+
+
+def _reconcile_square_payouts(db: Session, game: models.Schedule, result: NflGameResult, changed_at: datetime) -> None:
+    pools = db.query(models.Pool).options(joinedload(models.Pool.square_board)).filter(
+        models.Pool.pool_type == "squares", models.Pool.squares_game_id == game.game_id
+    ).all()
+    checkpoints = [
+        ("q1", 1, result.home_q1_score, result.away_q1_score, "q1_percent"),
+        ("halftime", 2, result.home_half_score, result.away_half_score, "halftime_percent"),
+        ("q3", 3, result.home_q3_score, result.away_q3_score, "q3_percent"),
+        ("final", 4, result.home_score, result.away_score, "final_percent"),
+    ]
+    for pool in pools:
+        board = pool.square_board
+        if not board.locked_at:
+            generator = secrets.SystemRandom()
+            board.home_digits = json.dumps(generator.sample(range(10), 10), separators=(",", ":"))
+            board.away_digits = json.dumps(generator.sample(range(10), 10), separators=(",", ":"))
+            board.locked_at = changed_at
+            board.updated_at = changed_at
+        home_digits, away_digits = json.loads(board.home_digits), json.loads(board.away_digits)
+        for checkpoint, period, home_score, away_score, percent_field in checkpoints:
+            if result.completed_period < period or home_score is None or away_score is None:
+                continue
+            row = home_digits.index(home_score % 10)
+            column = away_digits.index(away_score % 10)
+            claim = db.query(models.SquareClaim).filter(
+                models.SquareClaim.pool_id == pool.id,
+                models.SquareClaim.row_index == row,
+                models.SquareClaim.column_index == column,
+            ).first()
+            payout = db.query(models.SquarePayout).filter(
+                models.SquarePayout.pool_id == pool.id,
+                models.SquarePayout.checkpoint == checkpoint,
+            ).first()
+            if not payout:
+                payout = models.SquarePayout(id=str(uuid.uuid4()), pool_id=pool.id, checkpoint=checkpoint)
+                db.add(payout)
+            payout.home_score = home_score
+            payout.away_score = away_score
+            payout.winning_row = row
+            payout.winning_column = column
+            payout.winner_user_id = claim.user_id if claim else None
+            payout.amount_cents = (
+                round(board.total_pot_cents * getattr(board, percent_field) / 100)
+                if board.total_pot_cents is not None else None
+            )
+            payout.determined_at = changed_at
+
+
+def apply_game_results(db: Session, results: list[NflGameResult], *, now: datetime | None = None) -> ScoringSummary:
+    """Persist live scores/checkpoints and apply final Survivor/Pick Em scoring."""
+    changed_at = ((now or datetime.now(timezone.utc)).astimezone(timezone.utc).replace(tzinfo=None))
+    if len({result.game_id for result in results}) != len(results):
+        raise ScoringDiscrepancy("Provider response contains duplicate game IDs")
+    if not results:
+        return ScoringSummary()
+    games = db.query(models.Schedule).filter(models.Schedule.game_id.in_([r.game_id for r in results])).all()
+    by_id = {game.game_id: game for game in games}
+    missing = sorted({result.game_id for result in results} - set(by_id))
+    if missing:
+        raise ScoringDiscrepancy(f"Unknown provider game IDs: {missing}")
+    for result in results:
+        game = by_id[result.game_id]
+        _validate_match(game, result)
+        game.status = result.status
+        game.home_score = result.home_score
+        game.away_score = result.away_score
+        game.home_q1_score = result.home_q1_score if result.completed_period >= 1 else game.home_q1_score
+        game.away_q1_score = result.away_q1_score if result.completed_period >= 1 else game.away_q1_score
+        game.home_half_score = result.home_half_score if result.completed_period >= 2 else game.home_half_score
+        game.away_half_score = result.away_half_score if result.completed_period >= 2 else game.away_half_score
+        game.home_q3_score = result.home_q3_score if result.completed_period >= 3 else game.home_q3_score
+        game.away_q3_score = result.away_q3_score if result.completed_period >= 3 else game.away_q3_score
+        game.provider_updated_at = result.provider_updated_at
+        _reconcile_square_payouts(db, game, result, changed_at)
+    db.flush()
+    final_summary = apply_final_results(db, results, now=now)
+    return final_summary

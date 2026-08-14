@@ -200,6 +200,19 @@ def create_pool(
             raise HTTPException(status_code=400, detail="Lock day must be between 0 and 6")
         join_lock_time = _parse_lock_time(pool.join_lock_time) if pool.join_lock_time else None
 
+        squares_game = None
+        if pool.pool_type == "squares":
+            if pool.squares_game_id is None:
+                raise HTTPException(status_code=400, detail="Squares pools require an NFL game")
+            squares_game = db.get(models.Schedule, pool.squares_game_id)
+            if squares_game is None:
+                raise HTTPException(status_code=400, detail="Selected NFL game was not found")
+            now = datetime.now(timezone.utc).replace(tzinfo=None)
+            if squares_game.start_time <= now:
+                raise HTTPException(status_code=409, detail="Squares pools must use a game that has not started")
+        elif pool.squares_game_id is not None:
+            raise HTTPException(status_code=400, detail="Only Squares pools may select a Squares game")
+
         billing_season = entitlements.current_season()
         entitlement = entitlements.entitlement_for_new_pool(
             db, current_user.id, billing_season
@@ -212,6 +225,7 @@ def create_pool(
             pickem_games_per_week=(
                 pool.pickem_games_per_week if pool.pool_type == "pickem" else None
             ),
+            squares_game_id=pool.squares_game_id if pool.pool_type == "squares" else None,
             lock_time=lock_time,
             lock_day_of_week=pool.lock_day_of_week,
             lock_time_of_day=recurring_time,
@@ -228,6 +242,9 @@ def create_pool(
         )
 
         db.add(db_pool)
+        if pool.pool_type == "squares":
+            now = datetime.now(timezone.utc).replace(tzinfo=None)
+            db.add(models.SquareBoard(pool_id=db_pool.id, created_at=now, updated_at=now))
         try:
             db.commit()
         except IntegrityError:
@@ -311,6 +328,19 @@ def get_pool_activity_summary(
         raise HTTPException(status_code=403, detail="League membership required")
 
     selected_week = week if week is not None else current_season_week(db)
+    if pool.pool_type == "squares":
+        claimed = db.query(func.count(models.SquareClaim.id)).filter(
+            models.SquareClaim.pool_id == pool_id,
+            models.SquareClaim.user_id == current_user.id,
+        ).scalar() or 0
+        return {
+            "pool_type": "squares",
+            "entries_remaining": claimed,
+            "total_entries": claimed,
+            "week": selected_week,
+            "week_selections": claimed,
+            "week_selection_total": claimed,
+        }
     user_entries = db.query(models.Entry).filter(
         models.Entry.pool_id == pool_id,
         models.Entry.user_id == current_user.id,

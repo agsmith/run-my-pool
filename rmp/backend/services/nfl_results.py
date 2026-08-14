@@ -38,6 +38,13 @@ class NflGameResult:
     away_abbreviation: str
     home_score: int | None
     away_score: int | None
+    home_q1_score: int | None = None
+    away_q1_score: int | None = None
+    home_half_score: int | None = None
+    away_half_score: int | None = None
+    home_q3_score: int | None = None
+    away_q3_score: int | None = None
+    completed_period: int = 0
     provider_updated_at: datetime | None = None
 
     @property
@@ -72,6 +79,19 @@ def _parse_provider_time(value: Any) -> datetime | None:
     except ValueError as exc:
         raise ResultProviderError(f"Invalid provider timestamp: {value!r}") from exc
     return parsed.astimezone(timezone.utc).replace(tzinfo=None)
+
+
+def _period_scores(competitor: dict[str, Any]) -> tuple[int | None, int | None, int | None]:
+    values: dict[int, int] = {}
+    for index, item in enumerate(competitor.get("linescores") or [], start=1):
+        try:
+            period = int(item.get("period", index))
+            values[period] = int(float(item["value"]))
+        except (KeyError, TypeError, ValueError) as exc:
+            raise ResultProviderError("Invalid ESPN period score") from exc
+    def cumulative(period: int) -> int | None:
+        return sum(values.get(number, 0) for number in range(1, period + 1)) if period in values else None
+    return cumulative(1), cumulative(2), cumulative(3)
 
 
 def parse_scoreboard(
@@ -125,6 +145,17 @@ def parse_scoreboard(
             raise ResultProviderError(f"Game {game_id} has an empty team abbreviation")
 
         final = status == "final"
+        raw_period = int(event.get("status", {}).get("period") or 0)
+        if final:
+            completed_period = 4
+        elif raw_status == "STATUS_HALFTIME":
+            completed_period = 2
+        elif raw_status == "STATUS_END_PERIOD":
+            completed_period = raw_period
+        else:
+            completed_period = max(raw_period - 1, 0)
+        home_periods = _period_scores(by_side["home"])
+        away_periods = _period_scores(by_side["away"])
         results.append(
             NflGameResult(
                 game_id=game_id,
@@ -135,6 +166,13 @@ def parse_scoreboard(
                 away_abbreviation=away_abbr,
                 home_score=_parse_score(by_side["home"].get("score"), final=final),
                 away_score=_parse_score(by_side["away"].get("score"), final=final),
+                home_q1_score=home_periods[0],
+                away_q1_score=away_periods[0],
+                home_half_score=home_periods[1],
+                away_half_score=away_periods[1],
+                home_q3_score=home_periods[2],
+                away_q3_score=away_periods[2],
+                completed_period=completed_period,
                 provider_updated_at=_parse_provider_time(
                     event.get("status", {}).get("type", {}).get("lastUpdated")
                 ),

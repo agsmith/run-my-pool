@@ -127,7 +127,7 @@ export default function PoolDetail() {
   const isAdmin = Boolean(adminStatus?.is_admin);
   const hasAdminAccess = isOwner || isAdmin;
   const userRole = isOwner ? 'Commissioner' : isAdmin ? 'Admin' : 'Player';
-  const picksHref = pool?.pool_type === 'pickem' ? `/pool/${id}/pickem` : `/pool/${id}/entries`;
+  const picksHref = pool?.pool_type === 'pickem' ? `/pool/${id}/pickem` : pool?.pool_type === 'squares' ? `/pool/${id}/squares` : `/pool/${id}/entries`;
 
   useEffect(() => {
     if (!showLaunchChecklist || !isOwner || trackedLaunch.current) return;
@@ -189,7 +189,7 @@ export default function PoolDetail() {
               {!isOwner && showMemberWelcome && (
                 <MemberPoolWelcome
                   pool={pool}
-                  onCreateEntry={() => router.push(`/pool/${id}/entries/create`)}
+                  onCreateEntry={() => router.push(pool.pool_type === 'squares' ? `/pool/${id}/squares` : `/pool/${id}/entries/create`)}
                   onDismiss={() => setShowMemberWelcome(false)}
                 />
               )}
@@ -202,7 +202,7 @@ export default function PoolDetail() {
               />
 
               <section className="pool-home-actions" aria-label="Pool shortcuts">
-                <button onClick={() => router.push(picksHref)}><span>01</span><strong>{pool.pool_type === 'pickem' ? 'Pick ’Em Board' : 'My Entries'}</strong><small>Make selections and review entries</small></button>
+                <button onClick={() => router.push(picksHref)}><span>01</span><strong>{pool.pool_type === 'pickem' ? 'Pick ’Em Board' : pool.pool_type === 'squares' ? 'Squares Board' : 'My Entries'}</strong><small>{pool.pool_type === 'squares' ? 'Claim squares and follow quarter winners' : 'Make selections and review entries'}</small></button>
                 <button onClick={() => router.push(`/pool/${id}/matchups`)}><span>02</span><strong>Weekly Matchups</strong><small>Review this week’s board</small></button>
                 <button onClick={() => router.push(`/pool/${id}/messages`)}><span>03</span><strong>Forum</strong><small>Talk with pool members</small></button>
               </section>
@@ -216,7 +216,7 @@ export default function PoolDetail() {
                   <div><dt>Access</dt><dd>{pool.is_private ? 'Private · Password required' : 'Public · Open joining'}</dd></div>
                   <div><dt>Pick lock</dt><dd>{formatPickLock(pool)}</dd></div>
                   <div><dt>Your role</dt><dd>{userRole}</dd></div>
-                  <div><dt>Season format</dt><dd>{pool.pool_type === 'pickem' ? 'Season-long Pick ’Em · one point per win' : 'Weekly survivor'}</dd></div>
+                  <div><dt>Season format</dt><dd>{pool.pool_type === 'pickem' ? 'Season-long Pick ’Em · one point per win' : pool.pool_type === 'squares' ? 'Single-game 10×10 Squares' : 'Weekly survivor'}</dd></div>
                 </dl>
               </section>
 

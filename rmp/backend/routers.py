@@ -13,6 +13,7 @@ import rules
 import billing
 import platform_admin_api
 import lifecycle_analytics
+import squares
 
 router = APIRouter()
 router.include_router(auth.router)
@@ -29,3 +30,4 @@ router.include_router(rules.router)
 router.include_router(billing.router)
 router.include_router(platform_admin_api.router)
 router.include_router(lifecycle_analytics.router)
+router.include_router(squares.router)

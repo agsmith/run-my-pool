@@ -1639,6 +1639,23 @@ table {
 .create-pool-section { margin: 0; padding: 1.5rem; border: 1px solid #29443e; border-radius: 14px; background: #10231f; }
 .create-pool-section legend, .create-pool-section h2 { padding: 0; margin: 0 0 1.25rem; color: white; font-size: 1.1rem; font-weight: 800; }
 .create-pool-format-grid, .create-pool-access-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.create-pool-format-grid { grid-template-columns: repeat(3, 1fr); }
+.squares-instructions { color: #a9bcb7; margin: 1rem 0; }
+.squares-scroll { overflow-x: auto; padding-bottom: 1rem; }
+.squares-grid { display: grid; grid-template-columns: 92px repeat(10, minmax(64px, 1fr)); min-width: 820px; gap: 3px; background: #17312b; padding: 3px; border-radius: 12px; }
+.squares-row { display: contents; }
+.squares-corner, .squares-axis { min-height: 58px; display: grid; place-items: center; text-align: center; background: #10231f; color: #d7ff3f; font-weight: 800; }
+.squares-cell { min-height: 64px; border: 0; background: #edf7f3; color: #18342d; font-size: .78rem; overflow: hidden; padding: .3rem; }
+.squares-cell:not(:disabled):hover { background: #d7ff3f; }
+.squares-cell.is-claimed { background: #8ccfc2; font-weight: 700; }
+.squares-cell.is-mine { background: #d7ff3f; }
+.squares-results { margin-top: 2rem; }
+.squares-results > div { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
+.squares-results article { display: grid; gap: .35rem; padding: 1rem; border: 1px solid #35534c; border-radius: 10px; background: #0c1b18; }
+.squares-pot { margin-top: 2rem; display: flex; align-items: end; gap: 1rem; padding: 1.25rem; border: 1px solid #35534c; border-radius: 12px; }
+.squares-pot > div { flex: 1; }
+.squares-pot h2, .squares-pot p { margin: 0 0 .35rem; }
+.squares-pot label { display: grid; gap: .35rem; }
 .create-pool-format-grid label, .create-pool-access-grid label { display: grid; gap: .4rem; padding: 1.2rem; border: 1px solid #3a5751; border-radius: 12px; cursor: pointer; background: #0b1a17; }
 .create-pool-format-grid label.is-selected, .create-pool-access-grid label.is-selected { border-color: #d7ff3f; box-shadow: 0 0 0 1px #d7ff3f; }
 .create-pool-format-grid input, .create-pool-access-grid input { accent-color: #d7ff3f; justify-self: start; }

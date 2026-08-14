@@ -243,6 +243,7 @@ class PoolBase(BaseModel):
     description: Optional[str] = None
     pool_type: str = "survivor"
     pickem_games_per_week: Optional[int] = Field(default=None, ge=1, le=16)
+    squares_game_id: Optional[int] = None
     lock_time: Optional[str] = None
     lock_day_of_week: Optional[int] = None
     lock_time_of_day: Optional[str] = None
@@ -254,8 +255,8 @@ class PoolBase(BaseModel):
     @classmethod
     def validate_pool_type(cls, value: str) -> str:
         normalized = (value or "survivor").strip().lower()
-        if normalized not in {"survivor", "pickem"}:
-            raise ValueError("Pool type must be survivor or pickem")
+        if normalized not in {"survivor", "pickem", "squares"}:
+            raise ValueError("Pool type must be survivor, pickem, or squares")
         return normalized
 
 
@@ -329,6 +330,7 @@ class PoolOut(BaseModel):
     description: Optional[str] = None
     pool_type: str = "survivor"
     pickem_games_per_week: Optional[int] = None
+    squares_game_id: Optional[int] = None
     lock_time: Optional[datetime] = None
     lock_day_of_week: Optional[int] = None
     lock_time_of_day: Optional[time] = None
@@ -345,6 +347,23 @@ class PoolOut(BaseModel):
     class Config:
         orm_mode = True
         json_encoders = {datetime: lambda v: v.isoformat() if v else None}
+
+
+class SquareClaimCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    row_index: int = Field(ge=0, le=9)
+    column_index: int = Field(ge=0, le=9)
+    user_id: Optional[str] = None
+    display_name: Optional[str] = Field(default=None, max_length=100)
+
+
+class SquarePayoutConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    total_pot_cents: Optional[int] = Field(default=None, ge=0)
+    q1_percent: int = Field(ge=0, le=100)
+    halftime_percent: int = Field(ge=0, le=100)
+    q3_percent: int = Field(ge=0, le=100)
+    final_percent: int = Field(ge=0, le=100)
 
 
 class EntryBase(BaseModel):

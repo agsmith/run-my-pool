@@ -76,6 +76,7 @@ class Pool(Base):
     description = Column(Text)
     pool_type = Column(String(20), nullable=False, default="survivor")
     pickem_games_per_week = Column(Integer, nullable=True)
+    squares_game_id = Column(Integer, ForeignKey("schedule.game_id"), nullable=True)
     lock_time = Column(DateTime)
     lock_day_of_week = Column(Integer, nullable=True)
     lock_time_of_day = Column(Time, nullable=True)
@@ -104,6 +105,10 @@ class Pool(Base):
     )
     billing_entitlement = relationship(
         "CommissionerEntitlement", back_populates="pools"
+    )
+    squares_game = relationship("Schedule", foreign_keys=[squares_game_id])
+    square_board = relationship(
+        "SquareBoard", back_populates="pool", uselist=False, cascade="all, delete-orphan"
     )
 
 
@@ -259,6 +264,12 @@ class Schedule(Base):
     status = Column(String(20), nullable=False, default="scheduled")
     home_score = Column(Integer, nullable=True)
     away_score = Column(Integer, nullable=True)
+    home_q1_score = Column(Integer, nullable=True)
+    away_q1_score = Column(Integer, nullable=True)
+    home_half_score = Column(Integer, nullable=True)
+    away_half_score = Column(Integer, nullable=True)
+    home_q3_score = Column(Integer, nullable=True)
+    away_q3_score = Column(Integer, nullable=True)
     winning_team_id = Column(Integer, nullable=True)
     result_updated_at = Column(DateTime, nullable=True)
     provider_updated_at = Column(DateTime, nullable=True)
@@ -266,6 +277,66 @@ class Schedule(Base):
     # relationships
     home_team = relationship("Team", foreign_keys=[home_team_id])
     away_team = relationship("Team", foreign_keys=[away_team_id])
+
+
+class SquareBoard(Base):
+    """A single-game 10x10 squares board. Digits are absent until lock."""
+
+    __tablename__ = "square_boards"
+    pool_id = Column(String(36), ForeignKey(POOLS_ID_FK, ondelete="CASCADE"), primary_key=True)
+    home_digits = Column(String(32), nullable=True)
+    away_digits = Column(String(32), nullable=True)
+    total_pot_cents = Column(Integer, nullable=True)
+    q1_percent = Column(Integer, nullable=False, default=25)
+    halftime_percent = Column(Integer, nullable=False, default=25)
+    q3_percent = Column(Integer, nullable=False, default=25)
+    final_percent = Column(Integer, nullable=False, default=25)
+    locked_at = Column(DateTime, nullable=True)
+    locked_by = Column(String(36), ForeignKey(USERS_ID_FK), nullable=True)
+    created_at = Column(DateTime, nullable=False)
+    updated_at = Column(DateTime, nullable=False)
+
+    pool = relationship("Pool", back_populates="square_board")
+    claims = relationship("SquareClaim", back_populates="board", cascade="all, delete-orphan")
+    payouts = relationship("SquarePayout", back_populates="board", cascade="all, delete-orphan")
+
+
+class SquareClaim(Base):
+    __tablename__ = "square_claims"
+    __table_args__ = (
+        UniqueConstraint("pool_id", "row_index", "column_index", name="uq_square_claim_cell"),
+    )
+    id = Column(String(36), primary_key=True)
+    pool_id = Column(String(36), ForeignKey("square_boards.pool_id", ondelete="CASCADE"), nullable=False, index=True)
+    row_index = Column(Integer, nullable=False)
+    column_index = Column(Integer, nullable=False)
+    user_id = Column(String(36), ForeignKey(USERS_ID_FK), nullable=False, index=True)
+    assigned_by = Column(String(36), ForeignKey(USERS_ID_FK), nullable=False)
+    display_name = Column(String(100), nullable=True)
+    claimed_at = Column(DateTime, nullable=False)
+
+    board = relationship("SquareBoard", back_populates="claims")
+    user = relationship("User", foreign_keys=[user_id])
+
+
+class SquarePayout(Base):
+    __tablename__ = "square_payouts"
+    __table_args__ = (
+        UniqueConstraint("pool_id", "checkpoint", name="uq_square_payout_checkpoint"),
+    )
+    id = Column(String(36), primary_key=True)
+    pool_id = Column(String(36), ForeignKey("square_boards.pool_id", ondelete="CASCADE"), nullable=False, index=True)
+    checkpoint = Column(String(16), nullable=False)
+    home_score = Column(Integer, nullable=False)
+    away_score = Column(Integer, nullable=False)
+    winning_row = Column(Integer, nullable=False)
+    winning_column = Column(Integer, nullable=False)
+    winner_user_id = Column(String(36), ForeignKey(USERS_ID_FK), nullable=True)
+    amount_cents = Column(Integer, nullable=True)
+    determined_at = Column(DateTime, nullable=False)
+
+    board = relationship("SquareBoard", back_populates="payouts")
+    winner = relationship("User", foreign_keys=[winner_user_id])
 
 
 class UpdaterRun(Base):

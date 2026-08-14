@@ -426,7 +426,7 @@ export default function Dashboard() {
           gap: '0.75rem'
         }}>
           {[
-            [league.pool_type === 'pickem' ? 'Entries' : 'Entries Remaining', `${stats.entries_remaining ?? 0}/${stats.total_entries ?? stats.entries_remaining ?? 0}`],
+            [league.pool_type === 'pickem' ? 'Entries' : league.pool_type === 'squares' ? 'Your Squares' : 'Entries Remaining', league.pool_type === 'squares' ? `${stats.total_entries ?? 0}` : `${stats.entries_remaining ?? 0}/${stats.total_entries ?? stats.entries_remaining ?? 0}`],
             [`Week ${stats.week} Selections`, `${stats.week_selections ?? 0}/${stats.week_selection_total ?? stats.entries_remaining ?? 0}`],
           ].map(([label, value]) => <div key={label} className="pool-card__stat" style={{
             backgroundColor: '#ffffff',
@@ -439,7 +439,7 @@ export default function Dashboard() {
               type="button"
               className="pool-card__stat-value"
               aria-label={`${label}: ${value}. Open My Entries`}
-              onClick={() => router.push(league.pool_type === 'pickem' ? `/pool/${league.id}/pickem` : `/pool/${league.id}/entries`)}
+              onClick={() => router.push(league.pool_type === 'pickem' ? `/pool/${league.id}/pickem` : league.pool_type === 'squares' ? `/pool/${league.id}/squares` : `/pool/${league.id}/entries`)}
               style={{
               fontSize: '1.25rem',
               fontWeight: '700',
@@ -1094,7 +1094,7 @@ export default function Dashboard() {
                       <button
                         type="button"
                         className="pool-card__picks-action"
-                        onClick={() => router.push(league.pool_type === 'pickem' ? `/pool/${league.id}/pickem` : `/pool/${league.id}/entries`)}
+                        onClick={() => router.push(league.pool_type === 'pickem' ? `/pool/${league.id}/pickem` : league.pool_type === 'squares' ? `/pool/${league.id}/squares` : `/pool/${league.id}/entries`)}
                       >
                         Make or Edit Picks <span aria-hidden="true">→</span>
                       </button>

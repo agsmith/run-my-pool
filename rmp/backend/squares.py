@@ -1,0 +1,232 @@
+"""Authoritative single-game 10x10 Squares boards."""
+
+import json
+import secrets
+import uuid
+from datetime import datetime, timezone
+
+from fastapi import APIRouter, Depends, HTTPException, Response, status
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session, joinedload
+
+import deps
+import entitlements
+import models
+import schemas
+from audit_utils import create_audit_log
+from platform_admin import is_platform_super_admin
+from pool_access import is_pool_participant
+
+router = APIRouter(prefix="/squares", tags=["squares"])
+
+
+def _now() -> datetime:
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
+def _pool(db: Session, pool_id: str) -> models.Pool:
+    pool = (
+        db.query(models.Pool)
+        .options(joinedload(models.Pool.squares_game).joinedload(models.Schedule.home_team),
+                 joinedload(models.Pool.squares_game).joinedload(models.Schedule.away_team),
+                 joinedload(models.Pool.square_board))
+        .filter(models.Pool.id == pool_id)
+        .first()
+    )
+    if not pool or pool.pool_type != "squares" or not pool.square_board:
+        raise HTTPException(status_code=404, detail="Squares pool not found")
+    return pool
+
+
+def _is_admin(db: Session, pool: models.Pool, user: models.User) -> bool:
+    return bool(
+        is_platform_super_admin(user)
+        or pool.owner_id == user.id
+        or db.query(models.PoolAdmin).filter(
+            models.PoolAdmin.pool_id == pool.id,
+            models.PoolAdmin.user_id == user.id,
+        ).first()
+    )
+
+
+def _require_participant(db: Session, pool: models.Pool, user: models.User) -> None:
+    if not is_platform_super_admin(user) and not is_pool_participant(db, pool.id, user.id):
+        raise HTTPException(status_code=403, detail="Pool membership required")
+
+
+def _lock_board(board: models.SquareBoard, *, actor_id: str | None = None) -> bool:
+    if board.locked_at:
+        return False
+    generator = secrets.SystemRandom()
+    board.home_digits = json.dumps(generator.sample(range(10), 10), separators=(",", ":"))
+    board.away_digits = json.dumps(generator.sample(range(10), 10), separators=(",", ":"))
+    board.locked_at = _now()
+    board.locked_by = actor_id
+    board.updated_at = board.locked_at
+    return True
+
+
+def ensure_board_locked_for_kickoff(db: Session, pool: models.Pool) -> bool:
+    """Automatically lock at kickoff so a missing commissioner action cannot expose digits."""
+    if pool.square_board.locked_at or _now() < pool.squares_game.start_time:
+        return False
+    db.query(models.SquareBoard).filter(models.SquareBoard.pool_id == pool.id).with_for_update().one()
+    db.refresh(pool.square_board)
+    changed = _lock_board(pool.square_board)
+    if changed:
+        db.commit()
+    return changed
+
+
+def _claim_payload(claim: models.SquareClaim) -> dict:
+    return {
+        "id": claim.id,
+        "row_index": claim.row_index,
+        "column_index": claim.column_index,
+        "user_id": claim.user_id,
+        "user_email": claim.user.email,
+        "display_name": claim.display_name,
+        "claimed_at": claim.claimed_at,
+    }
+
+
+def board_payload(db: Session, pool: models.Pool, user: models.User) -> dict:
+    ensure_board_locked_for_kickoff(db, pool)
+    db.refresh(pool.square_board)
+    board = pool.square_board
+    claims = db.query(models.SquareClaim).options(joinedload(models.SquareClaim.user)).filter(
+        models.SquareClaim.pool_id == pool.id
+    ).all()
+    payouts = db.query(models.SquarePayout).options(joinedload(models.SquarePayout.winner)).filter(
+        models.SquarePayout.pool_id == pool.id
+    ).all()
+    game = pool.squares_game
+    admin = _is_admin(db, pool, user)
+    members = []
+    if admin:
+        members = [{"id": member.id, "email": member.email} for member in (
+            db.query(models.User).join(models.PoolMember, models.PoolMember.user_id == models.User.id)
+            .filter(models.PoolMember.pool_id == pool.id).order_by(models.User.email).all()
+        )]
+    return {
+        "pool_id": pool.id,
+        "pool_name": pool.name,
+        "game": {
+            "game_id": game.game_id,
+            "start_time": game.start_time,
+            "status": game.status,
+            "home_team": {"id": game.home_team_id, "name": game.home_team.name, "abbrv": game.home_team.abbrv},
+            "away_team": {"id": game.away_team_id, "name": game.away_team.name, "abbrv": game.away_team.abbrv},
+            "home_score": game.home_score,
+            "away_score": game.away_score,
+        },
+        "locked": board.locked_at is not None,
+        "locked_at": board.locked_at,
+        "home_digits": json.loads(board.home_digits) if board.home_digits else None,
+        "away_digits": json.loads(board.away_digits) if board.away_digits else None,
+        "total_pot_cents": board.total_pot_cents,
+        "payout_percentages": {"q1": board.q1_percent, "halftime": board.halftime_percent, "q3": board.q3_percent, "final": board.final_percent},
+        "claims": [_claim_payload(claim) for claim in claims],
+        "payouts": [{
+            "checkpoint": payout.checkpoint,
+            "home_score": payout.home_score,
+            "away_score": payout.away_score,
+            "winning_row": payout.winning_row,
+            "winning_column": payout.winning_column,
+            "winner_user_id": payout.winner_user_id,
+            "winner_email": payout.winner.email if payout.winner else None,
+            "amount_cents": payout.amount_cents,
+            "determined_at": payout.determined_at,
+        } for payout in payouts],
+        "members": members,
+        "permissions": {"is_admin": admin, "can_claim": board.locked_at is None and _now() < game.start_time},
+    }
+
+
+@router.get("/{pool_id}")
+def get_board(pool_id: str, db: Session = Depends(deps.get_db), current_user: models.User = Depends(deps.get_current_user)):
+    pool = _pool(db, pool_id)
+    _require_participant(db, pool, current_user)
+    return board_payload(db, pool, current_user)
+
+
+@router.post("/{pool_id}/claims", status_code=status.HTTP_201_CREATED)
+def claim_square(pool_id: str, request: schemas.SquareClaimCreate, db: Session = Depends(deps.get_db), current_user: models.User = Depends(deps.get_current_user)):
+    pool = _pool(db, pool_id)
+    _require_participant(db, pool, current_user)
+    admin = _is_admin(db, pool, current_user)
+    target_id = request.user_id or current_user.id
+    if target_id != current_user.id and not admin:
+        raise HTTPException(status_code=403, detail="Only a pool admin may assign a square to another member")
+    if not is_pool_participant(db, pool.id, target_id):
+        raise HTTPException(status_code=400, detail="Squares may only be assigned to pool members")
+    db.query(models.SquareBoard).filter(models.SquareBoard.pool_id == pool.id).with_for_update().one()
+    db.refresh(pool.square_board)
+    if pool.square_board.locked_at or _now() >= pool.squares_game.start_time:
+        raise HTTPException(status_code=409, detail="This Squares board is locked")
+    entitlements.enforce_entry_capacity(db, pool)
+    claim = models.SquareClaim(
+        id=str(uuid.uuid4()), pool_id=pool.id, row_index=request.row_index,
+        column_index=request.column_index, user_id=target_id, assigned_by=current_user.id,
+        display_name=(request.display_name or "").strip() or None, claimed_at=_now(),
+    )
+    db.add(claim)
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="That square has already been claimed")
+    create_audit_log(db, "CLAIM_SQUARE", f"Claimed square ({request.row_index}, {request.column_index})", current_user.id, "square", claim.id, {"pool_id": pool.id, "assigned_to": target_id})
+    return {"id": claim.id, "row_index": claim.row_index, "column_index": claim.column_index, "user_id": claim.user_id}
+
+
+@router.delete("/{pool_id}/claims/{claim_id}", status_code=status.HTTP_204_NO_CONTENT)
+def release_square(pool_id: str, claim_id: str, db: Session = Depends(deps.get_db), current_user: models.User = Depends(deps.get_current_user)):
+    pool = _pool(db, pool_id)
+    _require_participant(db, pool, current_user)
+    claim = db.query(models.SquareClaim).filter(models.SquareClaim.id == claim_id, models.SquareClaim.pool_id == pool.id).first()
+    if not claim:
+        raise HTTPException(status_code=404, detail="Square claim not found")
+    if claim.user_id != current_user.id and not _is_admin(db, pool, current_user):
+        raise HTTPException(status_code=403, detail="You cannot release another member's square")
+    if pool.square_board.locked_at or _now() >= pool.squares_game.start_time:
+        raise HTTPException(status_code=409, detail="This Squares board is locked")
+    cell = [claim.row_index, claim.column_index]
+    db.delete(claim)
+    db.commit()
+    create_audit_log(db, "RELEASE_SQUARE", f"Released square ({cell[0]}, {cell[1]})", current_user.id, "square", claim_id, {"pool_id": pool.id})
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post("/{pool_id}/lock")
+def lock_board(pool_id: str, db: Session = Depends(deps.get_db), current_user: models.User = Depends(deps.get_current_user)):
+    pool = _pool(db, pool_id)
+    if not _is_admin(db, pool, current_user):
+        raise HTTPException(status_code=403, detail="Pool admin access required")
+    db.query(models.SquareBoard).filter(models.SquareBoard.pool_id == pool.id).with_for_update().one()
+    db.refresh(pool.square_board)
+    if pool.square_board.locked_at:
+        raise HTTPException(status_code=409, detail="This Squares board is already locked")
+    _lock_board(pool.square_board, actor_id=current_user.id)
+    db.commit()
+    create_audit_log(db, "LOCK_SQUARE_BOARD", "Randomized digits and locked Squares board", current_user.id, "pool", pool.id)
+    return board_payload(db, pool, current_user)
+
+
+@router.patch("/{pool_id}/payouts")
+def update_payouts(pool_id: str, request: schemas.SquarePayoutConfig, db: Session = Depends(deps.get_db), current_user: models.User = Depends(deps.get_current_user)):
+    pool = _pool(db, pool_id)
+    if not _is_admin(db, pool, current_user):
+        raise HTTPException(status_code=403, detail="Pool admin access required")
+    if pool.square_board.locked_at or _now() >= pool.squares_game.start_time:
+        raise HTTPException(status_code=409, detail="Payout settings cannot change after the board locks")
+    percentages = [request.q1_percent, request.halftime_percent, request.q3_percent, request.final_percent]
+    if sum(percentages) != 100:
+        raise HTTPException(status_code=400, detail="Payout percentages must total 100")
+    board = pool.square_board
+    board.total_pot_cents = request.total_pot_cents
+    board.q1_percent, board.halftime_percent, board.q3_percent, board.final_percent = percentages
+    board.updated_at = _now()
+    db.commit()
+    create_audit_log(db, "UPDATE_SQUARE_PAYOUTS", "Updated Squares payout configuration", current_user.id, "pool", pool.id, request.model_dump())
+    return board_payload(db, pool, current_user)

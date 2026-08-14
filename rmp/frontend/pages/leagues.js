@@ -192,11 +192,11 @@ export default function Leagues() {
                     <span className={`league-directory__badge league-directory__badge--${pool.is_private ? 'private' : 'public'}`}>
                       {pool.is_private ? 'Private' : 'Public'}
                     </span>
-                    <span className="league-directory__badge">{pool.pool_type === 'pickem' ? 'Pick ’Em' : 'Survivor'}</span>
+                    <span className="league-directory__badge">{pool.pool_type === 'pickem' ? 'Pick ’Em' : pool.pool_type === 'squares' ? 'Squares' : 'Survivor'}</span>
                     {joined && <span className="league-directory__joined">Joined</span>}
                   </div>
                   <h2>{pool.name}</h2>
-                  <p>{pool.description || (pool.pool_type === 'pickem' ? 'Pick every game and compete for the most points.' : 'A survivor pool ready for kickoff.')}</p>
+                  <p>{pool.description || (pool.pool_type === 'pickem' ? 'Pick every game and compete for the most points.' : pool.pool_type === 'squares' ? 'Claim a square and follow the score at every quarter.' : 'A survivor pool ready for kickoff.')}</p>
 
                   {enteringPassword && !joined && !registrationClosed && (
                     <div className="league-directory__password">

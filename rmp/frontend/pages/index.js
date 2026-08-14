@@ -12,7 +12,7 @@ const games = [
 ];
 
 const features = [
-  { number: '01', icon: '≡', title: 'Configurable Pool Setup', copy: 'Start with the format and access model that fits your group.', details: ["Survivor and Pick 'Em formats", 'Public or password-protected pools', 'Custom lock schedule, timezone, and entry rules'] },
+  { number: '01', icon: '≡', title: 'Configurable Pool Setup', copy: 'Start with the format and access model that fits your group.', details: ["Survivor, Pick 'Em, and Squares formats", 'Public or password-protected pools', 'Custom lock schedule, timezone, and entry rules'] },
   { number: '02', icon: '⚡', title: 'Weekly Automation', copy: 'Keep every NFL week moving without spreadsheets or reminder chains.', details: ['Scheduled weekly pick locks', 'Eligible Survivor autopicks', 'Automatic winners, eliminations, points, and standings'] },
   { number: '03', icon: '↗', title: 'Member Experience', copy: 'Give every player a clear, mobile-friendly place to manage the season.', details: ['Multiple named entries per account', 'Pick progress and entries remaining', 'Weekly matchups, standings, and forum access'] },
   { number: '04', icon: '⌁', title: 'Commissioner Controls', copy: 'Manage the pool without exposing platform-wide users or data.', details: ['Pool-scoped users, entries, picks, and roles', 'Lock management, pick corrections, and transfers', 'Autopick review and participation reporting'] },
@@ -25,7 +25,7 @@ const howSteps = [
     number: '01',
     eyebrow: 'COMMISSIONER SETUP',
     title: 'BUILD YOUR POOL',
-    copy: "Choose Survivor or Pick 'Em, name the pool, and make it public or password-protected.",
+    copy: "Choose Survivor, Pick 'Em, or single-game Squares, name the pool, and make it public or password-protected.",
     details: ['Set weekly lock day, time, and timezone', 'Choose entry limits, rules, and autopick behavior'],
   },
   {
@@ -47,7 +47,7 @@ const howSteps = [
     eyebrow: 'KICKOFF TO FINAL',
     title: 'FOLLOW THE RESULTS',
     copy: 'Run My Pool records winners, updates entry status and standings, and keeps the conversation together.',
-    details: ['Survivor winners advance; losing entries are eliminated', "Pick 'Em awards one point for each correct winner"],
+    details: ['Survivor winners advance; losing entries are eliminated', "Pick 'Em awards one point for each correct winner", 'Squares records quarter, halftime, and final winners'],
   },
 ];
 
@@ -140,7 +140,7 @@ export default function Home() {
               <p className="rmp-eyebrow"><span /> BUILT FOR FOOTBALL PEOPLE</p>
               <h1><span className="rmp-sr-only">Run My Pool: </span>RUN THE POOL.<br /><em>OWN THE SEASON.</em></h1>
               <h2>Highly Configurable, Affordable, Scalable Pool Management System</h2>
-              <p className="rmp-hero-intro">Run a Survivor or Pick &apos;Em pool your crew talks about all week. Set it up in minutes, automate the busywork, and follow every pick from kickoff to the final whistle.</p>
+              <p className="rmp-hero-intro">Run a Survivor, Pick &apos;Em, or Squares pool your crew talks about all week. Set it up in minutes, automate the busywork, and follow the action from kickoff to the final whistle.</p>
               <div className="rmp-hero-actions">
                 <Link href={createPoolHref} className="rmp-button rmp-primary">Get Started Free <span>→</span></Link>
                 <a href="#how" className="rmp-button rmp-secondary"><i>▶</i> See how it works</a>

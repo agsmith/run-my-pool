@@ -21,9 +21,11 @@ export function WorkspaceHeader({ eyebrow, title, description, meta, actions }) 
 export function PoolWorkspaceNav({ poolId, poolName, poolType = 'survivor', active, showAdmin = false }) {
   if (!poolId) return null;
 
+  const entryHref = poolType === 'pickem' ? `/pool/${poolId}/pickem` : poolType === 'squares' ? `/pool/${poolId}/squares` : `/pool/${poolId}/entries`;
+  const entryLabel = poolType === 'pickem' ? 'Pick ’Em Board' : poolType === 'squares' ? 'Squares Board' : 'My Entries';
   const items = [
     { id: 'overview', label: 'Pool Home', href: `/pool/${poolId}` },
-    { id: 'entries', label: poolType === 'pickem' ? 'Pick ’Em Board' : 'My Entries', href: poolType === 'pickem' ? `/pool/${poolId}/pickem` : `/pool/${poolId}/entries` },
+    { id: 'entries', label: entryLabel, href: entryHref },
     { id: 'matchups', label: 'Weekly Matchups', href: `/pool/${poolId}/matchups` },
     { id: 'messages', label: 'Forum', href: `/pool/${poolId}/messages` },
   ];

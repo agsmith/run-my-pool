@@ -20,12 +20,14 @@ export default function CreatePool() {
   const [form, setForm] = useState({
     name: '', description: '', pool_type: 'survivor',
     pickem_games_per_week: 'all',
+    squares_game_id: '',
     lock_day_of_week: 6, lock_time_of_day: '13:00', lock_timezone: 'America/New_York',
     is_private: false, join_password: '',
   });
   const [error, setError] = useState('');
   const [nameSuggestions, setNameSuggestions] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [upcomingGames, setUpcomingGames] = useState([]);
 
   const update = (field, value) => {
     setForm((current) => ({ ...current, [field]: value }));
@@ -35,6 +37,12 @@ export default function CreatePool() {
   const selectType = (poolType) => {
     setForm((current) => ({ ...current, pool_type: poolType }));
     setError('');
+    if (poolType === 'squares' && upcomingGames.length === 0) {
+      fetch(`${process.env.NEXT_PUBLIC_API_URL}/schedule/`)
+        .then((response) => response.ok ? response.json() : [])
+        .then((games) => setUpcomingGames(games.filter((game) => new Date(game.start_time) > new Date()).slice(0, 80)))
+        .catch(() => setError('Unable to load upcoming NFL games.'));
+    }
   };
 
   const handleSubmit = async (event) => {
@@ -56,6 +64,7 @@ export default function CreatePool() {
           pickem_games_per_week: form.pool_type === 'pickem' && form.pickem_games_per_week !== 'all'
             ? Number(form.pickem_games_per_week)
             : null,
+          squares_game_id: form.pool_type === 'squares' ? Number(form.squares_game_id) : null,
           lock_day_of_week: Number(form.lock_day_of_week),
           lock_time_of_day: `${form.lock_time_of_day}:00`,
           lock_timezone: form.lock_timezone,
@@ -72,7 +81,7 @@ export default function CreatePool() {
         }
         throw new Error(typeof data.detail === 'string' ? data.detail : 'Failed to create pool');
       }
-      router.push(`/pool/${data.id}?launched=1`);
+      router.push(form.pool_type === 'squares' ? `/pool/${data.id}/squares` : `/pool/${data.id}?launched=1`);
     } catch (requestError) {
       setError(requestError.message || 'Failed to create pool');
     } finally {
@@ -81,6 +90,7 @@ export default function CreatePool() {
   };
 
   const isPickEm = form.pool_type === 'pickem';
+  const isSquares = form.pool_type === 'squares';
 
   return <ProtectedRoute><main className="create-pool-page">
     <header className="create-pool-header">
@@ -99,10 +109,16 @@ export default function CreatePool() {
         <legend>1. Choose a format</legend>
         <div className="create-pool-format-grid">
           <label className={form.pool_type === 'survivor' ? 'is-selected' : ''}>
-            <input type="radio" name="pool_type" value="survivor" checked={!isPickEm} onChange={() => selectType('survivor')} />
+            <input type="radio" name="pool_type" value="survivor" checked={form.pool_type === 'survivor'} onChange={() => selectType('survivor')} />
             <span className="create-pool-format-title">Survivor <b>Classic</b></span>
             <strong>One team per week</strong>
             <small>A correct pick survives. A losing pick eliminates the entry. Teams cannot be reused.</small>
+          </label>
+          <label className={isSquares ? 'is-selected' : ''}>
+            <input type="radio" name="pool_type" value="squares" checked={isSquares} onChange={() => selectType('squares')} />
+            <span className="create-pool-format-title">Squares <b>Game day</b></span>
+            <strong>Claim a spot on the 10×10 grid</strong>
+            <small>Score digits are securely randomized when the board locks. Winners are recorded after each quarter.</small>
           </label>
           <label className={isPickEm ? 'is-selected' : ''}>
             <input type="radio" name="pool_type" value="pickem" checked={isPickEm} onChange={() => selectType('pickem')} />
@@ -126,8 +142,20 @@ export default function CreatePool() {
         </label>
       </section>}
 
+      {isSquares && <section className="create-pool-section">
+        <h2>2. Choose the game</h2>
+        <p className="create-pool-help">The board locks no later than kickoff. Home and away score digits are hidden until then.</p>
+        <label className="create-pool-field">
+          <span>NFL matchup <b>*</b></span>
+          <select aria-label="Squares game" value={form.squares_game_id} onChange={(event) => update('squares_game_id', event.target.value)} required>
+            <option value="">Select an upcoming game</option>
+            {upcomingGames.map((game) => <option key={game.game_id} value={game.game_id}>{game.away_team.abbrv} at {game.home_team.abbrv} — {new Date(game.start_time).toLocaleString()}</option>)}
+          </select>
+        </label>
+      </section>}
+
       <section className="create-pool-section">
-        <h2>{isPickEm ? '3' : '2'}. Pool details</h2>
+        <h2>{isPickEm || isSquares ? '3' : '2'}. Pool details</h2>
         <label className="create-pool-field">
           <span>Pool name <b>*</b></span>
           <input type="text" value={form.name} onChange={(event) => update('name', event.target.value)} required maxLength={255} placeholder="Enter pool name" autoFocus />
@@ -138,7 +166,7 @@ export default function CreatePool() {
         </label>
       </section>
 
-      <section className="create-pool-section">
+      {!isSquares && <section className="create-pool-section">
         <h2>{isPickEm ? '4' : '3'}. Weekly pick deadline</h2>
         <p className="create-pool-help">All selections lock at this time each week. Games that start earlier lock individually at kickoff.</p>
         <div className="create-pool-deadline-grid">
@@ -147,10 +175,10 @@ export default function CreatePool() {
           <label className="create-pool-field"><span>Time zone</span><select aria-label="Lock time zone" value={form.lock_timezone} onChange={(event) => update('lock_timezone', event.target.value)}>{TIMEZONES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
         </div>
         <div className="create-pool-note"><strong>{isPickEm ? 'Pick ’Em lock behavior' : 'Survivor lock behavior'}</strong><span>{isPickEm ? 'Submitted game picks become final. Missing games receive no selection and no point.' : 'Submitted picks become final. Entries without a selection receive the best available automatic pick.'}</span></div>
-      </section>
+      </section>}
 
       <section className="create-pool-section">
-        <h2>{isPickEm ? '5' : '4'}. Player access</h2>
+        <h2>{isPickEm ? '5' : isSquares ? '4' : '4'}. Player access</h2>
         <div className="create-pool-access-grid">
           <label className={!form.is_private ? 'is-selected' : ''}><input type="radio" name="visibility" checked={!form.is_private} onChange={() => update('is_private', false)} /><strong>Public</strong><small>Anyone can find and join this pool.</small></label>
           <label className={form.is_private ? 'is-selected' : ''}><input type="radio" name="visibility" checked={form.is_private} onChange={() => update('is_private', true)} /><strong>Private</strong><small>Visible in the directory, but a join code is required.</small></label>
@@ -162,7 +190,7 @@ export default function CreatePool() {
 
       <footer className="create-pool-actions">
         <button type="button" onClick={() => router.push('/dashboard')}>Cancel</button>
-        <button type="submit" disabled={loading || !form.name.trim()}>{loading ? 'Creating pool…' : `Create ${isPickEm ? 'Pick ’Em' : 'Survivor'} Pool`}</button>
+        <button type="submit" disabled={loading || !form.name.trim() || (isSquares && !form.squares_game_id)}>{loading ? 'Creating pool…' : `Create ${isPickEm ? 'Pick ’Em' : isSquares ? 'Squares' : 'Survivor'} Pool`}</button>
       </footer>
     </form>
   </main></ProtectedRoute>;

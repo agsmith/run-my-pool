@@ -258,6 +258,10 @@ export default function LeagueEntries() {
           router.replace(`/pool/${id}/pickem`);
           return;
         }
+        if (leagueData.pool_type === 'squares') {
+          router.replace(`/pool/${id}/squares`);
+          return;
+        }
       } else {
         setError('Failed to load league details');
         return;

@@ -21,7 +21,11 @@ export default function CreateEntry() {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         if (cancelled) return;
-        if (res.ok) setLeague(await res.json());
+        if (res.ok) {
+          const pool = await res.json();
+          if (pool.pool_type === 'squares') return router.replace(`/pool/${id}/squares`);
+          setLeague(pool);
+        }
         else setError('Failed to load pool details');
       } catch (_error) {
         if (!cancelled) setError('Failed to load pool details');

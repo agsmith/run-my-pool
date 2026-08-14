@@ -16,7 +16,7 @@ import models
 from database import SessionLocal, engine
 from services.job_lock import advisory_job_lock
 from services.nfl_results import fetch_scoreboard
-from services.scoring import ScoringSummary, apply_final_results
+from services.scoring import ScoringSummary, apply_game_results
 
 LOGGER = logging.getLogger("runmypool.result_updater")
 JOB_NAME = "nfl-results"
@@ -138,7 +138,7 @@ def run_update(
     for context_season, context_week in contexts:
         all_results.extend(fetch_scoreboard(context_season, context_week))
 
-    summary = apply_final_results(db, all_results)
+    summary = apply_game_results(db, all_results)
     if dry_run:
         db.rollback()
         status = "dry_run"
