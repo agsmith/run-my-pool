@@ -206,10 +206,10 @@ export default function PricingPage() {
           <div className="pricing-faq__grid">
             <article><h3>Do players pay?</h3><p>No. Participants join, make picks, and follow standings at no software charge.</p></article>
             <article><h3>Do you hold prize money?</h3><p>No. Run My Pool provides management software and does not collect stakes or distribute winnings.</p></article>
-            <article><h3>Can I upgrade later?</h3><p>Yes. Upgrade through Free, Commish, Pro, and Club without rebuilding your pool. Club Unlimited is a separate seasonal choice and is not available as an upgrade from Club.</p></article>
+            <article><h3>Can I upgrade later?</h3><p>Yes. Upgrade through Free, Commish, Pro, Club, and Club Unlimited without rebuilding your pool. You pay only the difference for the current season.</p></article>
             <article><h3>What counts as an entry?</h3><p>Each Survivor or Pick &apos;Em entry counts toward the plan limit. One person may own multiple entries if the commissioner allows it.</p></article>
-            <article><h3>What happens after 500 Club entries?</h3><p>Club expands in 100-entry blocks for $25 each with no maximum. Purchasing Club does not provide a later path to Club Unlimited.</p></article>
-            <article><h3>When should I choose Unlimited?</h3><p>Choose Club Unlimited at the start of the season when you need unlimited entries or pools. It is a separate plan, not an upgrade from Club.</p></article>
+            <article><h3>What happens after 500 Club entries?</h3><p>Club expands in 100-entry blocks for $25 each, or you can upgrade to Club Unlimited for the $120 difference.</p></article>
+            <article><h3>When should I choose Unlimited?</h3><p>Choose Club Unlimited when you need unlimited entries or pools. You can select it initially or upgrade from Club later.</p></article>
           </div>
         </section>
 

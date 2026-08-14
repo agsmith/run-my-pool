@@ -108,6 +108,7 @@ describe('profile billing overview', () => {
     const user = userEvent.setup();
     render(<Profile />);
 
+    expect(await screen.findByRole('button', { name: 'Upgrade to Club Unlimited — $120' })).toBeInTheDocument();
     await user.selectOptions(await screen.findByLabelText('Additional 100-entry blocks'), '3');
     await user.click(screen.getByRole('button', { name: 'Add 300 entries — $75' }));
 

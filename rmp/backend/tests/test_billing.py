@@ -78,7 +78,7 @@ class TestCommissionerBilling:
         )
         assert response.status_code == 400
 
-    def test_club_cannot_upgrade_to_club_unlimited(
+    def test_club_can_upgrade_to_club_unlimited_for_difference(
         self, client, db_session, monkeypatch
     ):
         token = _register_and_login(client, "club-owner@example.com")
@@ -113,6 +113,49 @@ class TestCommissionerBilling:
             )
         )
         db_session.commit()
+        response, captured = _checkout(
+            client, monkeypatch, token, plan="club-unlimited"
+        )
+
+        assert response.status_code == 200
+        assert captured["line_items"][0]["price_data"]["unit_amount"] == 12000
+        assert db_session.query(models.BillingOrder).count() == 2
+
+    def test_lower_paid_tier_cannot_skip_directly_to_club_unlimited(
+        self, client, db_session, monkeypatch
+    ):
+        token = _register_and_login(client, "pro-owner@example.com")
+        user = (
+            db_session.query(models.User).filter_by(email="pro-owner@example.com").one()
+        )
+        order = models.BillingOrder(
+            id="pro-order",
+            user_id=user.id,
+            season=2026,
+            plan="pro",
+            status="paid",
+            created_at=datetime(2026, 8, 1),
+            updated_at=datetime(2026, 8, 1),
+        )
+        db_session.add_all(
+            [
+                order,
+                models.CommissionerEntitlement(
+                    id="pro-entitlement",
+                    user_id=user.id,
+                    season=2026,
+                    plan="pro",
+                    status="active",
+                    included_entries=150,
+                    max_pools=1,
+                    unlimited_entries=False,
+                    source_order_id=order.id,
+                    activated_at=datetime(2026, 8, 1),
+                    updated_at=datetime(2026, 8, 1),
+                ),
+            ]
+        )
+        db_session.commit()
         _configure_stripe(monkeypatch)
 
         response = client.post(
@@ -122,8 +165,7 @@ class TestCommissionerBilling:
         )
 
         assert response.status_code == 409
-        assert "not available as an upgrade" in response.json()["detail"]
-        assert db_session.query(models.BillingOrder).count() == 1
+        assert "upgrade from Club" in response.json()["detail"]
 
     def test_paid_webhook_activates_entitlement_once(
         self, client, db_session, monkeypatch

@@ -51,11 +51,11 @@ CLUB_ENTRY_BLOCK_SIZE = 100
 
 
 def _upgrade_allowed(current_plan: Optional[str], target_plan: str) -> bool:
-    """Club Unlimited is an initial purchase, not an upgrade destination."""
+    """Allow upward upgrades, with Unlimited available only from Club."""
     if not current_plan:
         return True
     if target_plan == "club-unlimited":
-        return False
+        return current_plan == "club"
     return PLAN_DETAILS.get(target_plan, {}).get("rank", 0) > PLAN_DETAILS.get(
         current_plan, {}
     ).get("rank", 0)
@@ -247,7 +247,7 @@ def create_checkout_session(
         if plan == "club-unlimited" and existing.plan != "club-unlimited":
             raise HTTPException(
                 status_code=409,
-                detail="Club Unlimited must be selected before purchasing another seasonal plan and is not available as an upgrade.",
+                detail="Club Unlimited can be purchased initially or as an upgrade from Club.",
             )
         raise HTTPException(
             status_code=409,

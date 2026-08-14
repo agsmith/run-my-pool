@@ -138,8 +138,8 @@ describe('PricingPage', () => {
     expect(unlimitedCard).toHaveTextContent('Unlimited entries');
     expect(unlimitedCard).toHaveTextContent('Unlimited active pools');
     expect(unlimitedCard).toHaveTextContent('No usage charges');
-    expect(screen.getByText(/separate plan, not an upgrade from Club/i)).toBeInTheDocument();
-    expect(screen.getByText(/purchasing Club does not provide a later path to Club Unlimited/i)).toBeInTheDocument();
+    expect(screen.getByText(/upgrade to Club Unlimited for the \$120 difference/i)).toBeInTheDocument();
+    expect(screen.getByText(/select it initially or upgrade from Club later/i)).toBeInTheDocument();
   });
 
   test('links to billing and account support', () => {

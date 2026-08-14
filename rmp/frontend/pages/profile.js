@@ -12,8 +12,8 @@ const PLAN_LABELS = {
   'club-entry-block': 'Club +100 entries',
 };
 
-const PLAN_PRICES = { commissioner: 39, pro: 79, club: 129 };
-const PLAN_RANKS = { commissioner: 1, pro: 2, club: 3 };
+const PLAN_PRICES = { commissioner: 39, pro: 79, club: 129, 'club-unlimited': 249 };
+const PLAN_RANKS = { commissioner: 1, pro: 2, club: 3, 'club-unlimited': 4 };
 
 function formatMoney(amount, currency = 'usd') {
   if (amount == null) return 'Amount pending';
@@ -68,7 +68,8 @@ export default function Profile() {
   const entitlement = billing?.entitlement;
   const currentPlanPrice = PLAN_PRICES[entitlement?.plan] || 0;
   const upgradePlans = Object.keys(PLAN_RANKS).filter(
-    (plan) => PLAN_RANKS[plan] > (PLAN_RANKS[entitlement?.plan] || 0),
+    (plan) => PLAN_RANKS[plan] > (PLAN_RANKS[entitlement?.plan] || 0)
+      && (plan !== 'club-unlimited' || entitlement?.plan === 'club'),
   );
 
   const beginCheckout = async ({ plan, orderType = 'plan', quantity = 1 }) => {
