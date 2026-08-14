@@ -1,6 +1,7 @@
 """
 Audit logging utility functions
 """
+
 import uuid
 from datetime import datetime, timezone
 from sqlalchemy.orm import Session
@@ -16,11 +17,11 @@ def create_audit_log(
     user_id: Optional[str] = None,
     entity_type: Optional[str] = None,
     entity_id: Optional[str] = None,
-    additional_data: Optional[Dict[str, Any]] = None
+    additional_data: Optional[Dict[str, Any]] = None,
 ):
     """
     Create an audit log entry for database operations
-    
+
     Args:
         db: Database session
         action: The action performed (e.g., "CREATE_USER", "UPDATE_PICK", "DELETE_ENTRY")
@@ -36,28 +37,28 @@ def create_audit_log(
             "description": details,
             "timestamp": datetime.now(timezone.utc).isoformat(),
         }
-        
+
         if entity_type:
             audit_details["entity_type"] = entity_type
         if entity_id:
             audit_details["entity_id"] = entity_id
         if additional_data:
             audit_details["additional_data"] = additional_data
-            
+
         # Convert to JSON string
         details_json = json.dumps(audit_details, default=str, indent=2)
-        
+
         audit_entry = models.AuditLog(
             id=str(uuid.uuid4()),
             user_id=user_id,
             action=action,
             details=details_json,
-            created_at=datetime.now(timezone.utc)
+            created_at=datetime.now(timezone.utc),
         )
-        
+
         db.add(audit_entry)
         db.commit()
-        
+
     except Exception as e:
         # Don't let audit logging failures break the main operation
         print(f"Failed to create audit log: {e}")
@@ -69,7 +70,7 @@ def log_create_operation(
     entity_type: str,
     entity_id: str,
     user_id: Optional[str] = None,
-    entity_data: Optional[Dict[str, Any]] = None
+    entity_data: Optional[Dict[str, Any]] = None,
 ):
     """Log creation of a new entity"""
     create_audit_log(
@@ -79,7 +80,7 @@ def log_create_operation(
         user_id=user_id,
         entity_type=entity_type,
         entity_id=entity_id,
-        additional_data=entity_data
+        additional_data=entity_data,
     )
 
 
@@ -88,7 +89,7 @@ def log_update_operation(
     entity_type: str,
     entity_id: str,
     user_id: Optional[str] = None,
-    changes: Optional[Dict[str, Any]] = None
+    changes: Optional[Dict[str, Any]] = None,
 ):
     """Log update of an existing entity"""
     create_audit_log(
@@ -98,7 +99,7 @@ def log_update_operation(
         user_id=user_id,
         entity_type=entity_type,
         entity_id=entity_id,
-        additional_data={"changes": changes} if changes else None
+        additional_data={"changes": changes} if changes else None,
     )
 
 
@@ -107,7 +108,7 @@ def log_delete_operation(
     entity_type: str,
     entity_id: str,
     user_id: Optional[str] = None,
-    entity_data: Optional[Dict[str, Any]] = None
+    entity_data: Optional[Dict[str, Any]] = None,
 ):
     """Log deletion of an entity"""
     create_audit_log(
@@ -117,7 +118,7 @@ def log_delete_operation(
         user_id=user_id,
         entity_type=entity_type,
         entity_id=entity_id,
-        additional_data=entity_data
+        additional_data=entity_data,
     )
 
 
@@ -126,7 +127,7 @@ def log_authentication_event(
     action: str,
     user_email: str,
     user_id: Optional[str] = None,
-    additional_info: Optional[Dict[str, Any]] = None
+    additional_info: Optional[Dict[str, Any]] = None,
 ):
     """Log authentication-related events"""
     create_audit_log(
@@ -135,7 +136,9 @@ def log_authentication_event(
         details=f"Authentication event for user {user_email}",
         user_id=user_id,
         entity_type="authentication",
-        additional_data={"email": user_email, **additional_info} if additional_info else {"email": user_email}
+        additional_data={"email": user_email, **additional_info}
+        if additional_info
+        else {"email": user_email},
     )
 
 
@@ -146,7 +149,7 @@ def log_admin_action(
     details: str,
     target_entity_type: Optional[str] = None,
     target_entity_id: Optional[str] = None,
-    additional_data: Optional[Dict[str, Any]] = None
+    additional_data: Optional[Dict[str, Any]] = None,
 ):
     """Log administrative actions"""
     create_audit_log(
@@ -156,5 +159,5 @@ def log_admin_action(
         user_id=admin_user_id,
         entity_type=target_entity_type,
         entity_id=target_entity_id,
-        additional_data=additional_data
+        additional_data=additional_data,
     )

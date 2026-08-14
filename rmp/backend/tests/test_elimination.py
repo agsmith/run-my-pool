@@ -261,9 +261,9 @@ def test_dead_entry_cannot_pick(client, db_session):
         json={"entry_id": entry_id, "week": 1, "team": "NE"},
         headers=_h(token),
     )
-    assert (
-        resp.status_code == 403
-    ), f"Expected 403 for dead entry pick, got {resp.status_code}: {resp.text}"
+    assert resp.status_code == 403, (
+        f"Expected 403 for dead entry pick, got {resp.status_code}: {resp.text}"
+    )
     assert "eliminated" in resp.json().get("detail", "").lower()
 
 
@@ -365,9 +365,9 @@ class TestAutoPick:
             .first()
         )
         assert pick is not None, "Auto-pick was not created"
-        assert (
-            pick.team not in used_teams
-        ), f"Auto-pick reused a previously chosen team: {pick.team}"
+        assert pick.team not in used_teams, (
+            f"Auto-pick reused a previously chosen team: {pick.team}"
+        )
 
     def test_autopick_skipped_no_eligible_teams(self, client, db_session):
         """
@@ -456,9 +456,9 @@ class TestAdminOps:
             .filter(models.User.email == "xfr_b@example.com")
             .first()
         )
-        assert (
-            entry.user_id == user_b.id
-        ), "Entry user_id was not updated after transfer"
+        assert entry.user_id == user_b.id, (
+            "Entry user_id was not updated after transfer"
+        )
 
         # Pick is preserved
         surviving_pick = (
@@ -501,9 +501,9 @@ class TestAdminOps:
             f"/admin/pools/{pool_id}/lock-week/1",
             headers=_h(token_plain),
         )
-        assert (
-            lock_resp.status_code == 403
-        ), f"Expected 403 from lock-week for non-admin, got {lock_resp.status_code}"
+        assert lock_resp.status_code == 403, (
+            f"Expected 403 from lock-week for non-admin, got {lock_resp.status_code}"
+        )
 
         # admin pick edit — non-admin must get 403
         patch_resp = client.patch(
@@ -511,6 +511,164 @@ class TestAdminOps:
             json={"team": "SEA"},
             headers=_h(token_plain),
         )
-        assert (
-            patch_resp.status_code == 403
-        ), f"Expected 403 from admin pick edit for non-admin, got {patch_resp.status_code}"
+        assert patch_resp.status_code == 403, (
+            f"Expected 403 from admin pick edit for non-admin, got {patch_resp.status_code}"
+        )
+
+
+# ---------------------------------------------------------------------------
+# TestTieGameElimination
+# ---------------------------------------------------------------------------
+
+
+class TestTieGameElimination:
+    """Tests for scoring.apply_final_results when the game ends in a tie."""
+
+    # Team and game IDs scoped to this test class to avoid collisions
+    HOME_ID = 41
+    AWAY_ID = 42
+    GAME_ID = 9999
+    WEEK = 3
+
+    def _seed(self, db):
+        """Seed two teams and one scheduled game."""
+        db.merge(models.Team(id=self.HOME_ID, name="Home Team", abbrv="HOM", logo=None))
+        db.merge(models.Team(id=self.AWAY_ID, name="Away Team", abbrv="AWY", logo=None))
+        game = models.Schedule(
+            game_id=self.GAME_ID,
+            week_num=self.WEEK,
+            home_team_id=self.HOME_ID,
+            away_team_id=self.AWAY_ID,
+            start_time=datetime(2025, 10, 12, 17, 0, 0),
+            winning_team_id=None,
+        )
+        db.merge(game)
+        db.commit()
+
+    def test_tie_game_survivor_pick_marked_loss(self, client, db_session):
+        """
+        A final tie game sets winning_team_id=None.
+        Survivor picks for either team in that week are marked 'loss'.
+        """
+        from services.scoring import apply_final_results
+        from services.nfl_results import NflGameResult
+
+        self._seed(db_session)
+
+        token = _reg(client, "tie_home@example.com")
+        pool_id = _create_pool(client, _h(token))
+        entry_id = _create_entry(client, _h(token), pool_id, name="Tie Picker")
+
+        # Pick the home team
+        pick = _create_pick_direct(
+            db_session, entry_id, self.WEEK, "HOM", team_id=self.HOME_ID
+        )
+
+        # Build a tied NflGameResult (home_score == away_score)
+        result = NflGameResult(
+            game_id=self.GAME_ID,
+            season=db_session.query(models.Schedule)
+            .filter(models.Schedule.game_id == self.GAME_ID)
+            .first()
+            .season,
+            week=self.WEEK,
+            status="final",
+            home_abbreviation="HOM",
+            away_abbreviation="AWY",
+            home_score=17,
+            away_score=17,
+        )
+
+        apply_final_results(db_session, [result])
+        db_session.commit()
+        db_session.expire_all()
+
+        refreshed_pick = (
+            db_session.query(models.Pick).filter(models.Pick.id == pick.id).first()
+        )
+        assert refreshed_pick.result == "loss", (
+            f"Expected pick result 'loss' on tie game, got '{refreshed_pick.result}'"
+        )
+
+    def test_tie_game_survivor_entry_eliminated(self, client, db_session):
+        """
+        After a tie game, any survivor entry whose pick was in that game
+        should have alive=False.
+        """
+        from services.scoring import apply_final_results
+        from services.nfl_results import NflGameResult
+
+        self._seed(db_session)
+
+        token = _reg(client, "tie_elim@example.com")
+        pool_id = _create_pool(client, _h(token))
+        entry_id = _create_entry(client, _h(token), pool_id, name="Tie Elim Entry")
+
+        _create_pick_direct(
+            db_session, entry_id, self.WEEK, "AWY", team_id=self.AWAY_ID
+        )
+
+        game = (
+            db_session.query(models.Schedule)
+            .filter(models.Schedule.game_id == self.GAME_ID)
+            .first()
+        )
+        result = NflGameResult(
+            game_id=self.GAME_ID,
+            season=game.season,
+            week=self.WEEK,
+            status="final",
+            home_abbreviation="HOM",
+            away_abbreviation="AWY",
+            home_score=10,
+            away_score=10,
+        )
+
+        apply_final_results(db_session, [result])
+        db_session.commit()
+        db_session.expire_all()
+
+        entry = (
+            db_session.query(models.Entry).filter(models.Entry.id == entry_id).first()
+        )
+        assert entry.alive is False, (
+            "Entry should be eliminated after picking in a tie game"
+        )
+
+    def test_tie_game_winning_team_id_set_to_none(self, client, db_session):
+        """
+        apply_final_results sets the game's winning_team_id to None for a tie.
+        """
+        from services.scoring import apply_final_results
+        from services.nfl_results import NflGameResult
+
+        self._seed(db_session)
+
+        game = (
+            db_session.query(models.Schedule)
+            .filter(models.Schedule.game_id == self.GAME_ID)
+            .first()
+        )
+        result = NflGameResult(
+            game_id=self.GAME_ID,
+            season=game.season,
+            week=self.WEEK,
+            status="final",
+            home_abbreviation="HOM",
+            away_abbreviation="AWY",
+            home_score=3,
+            away_score=3,
+        )
+
+        apply_final_results(db_session, [result])
+        db_session.commit()
+        db_session.expire_all()
+
+        game = (
+            db_session.query(models.Schedule)
+            .filter(models.Schedule.game_id == self.GAME_ID)
+            .first()
+        )
+        assert game.winning_team_id is None, (
+            "winning_team_id must be None for a tied game"
+        )

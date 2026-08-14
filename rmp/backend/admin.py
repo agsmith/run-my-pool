@@ -38,7 +38,10 @@ def _csv_safe(value: str) -> str:
 def verify_admin_access(pool_id: str, current_user: models.User, db: Session) -> bool:
     """Verify if user has admin access to the pool"""
     if is_platform_super_admin(current_user):
-        return db.query(models.Pool.id).filter(models.Pool.id == pool_id).first() is not None
+        return (
+            db.query(models.Pool.id).filter(models.Pool.id == pool_id).first()
+            is not None
+        )
     pool = db.query(models.Pool).filter(models.Pool.id == pool_id).first()
     if pool and pool.owner_id == current_user.id:
         return True
@@ -53,13 +56,17 @@ def verify_admin_access(pool_id: str, current_user: models.User, db: Session) ->
     return pool_admin is not None
 
 
-def require_pool_owner(pool_id: str, current_user: models.User, db: Session) -> models.Pool:
+def require_pool_owner(
+    pool_id: str, current_user: models.User, db: Session
+) -> models.Pool:
     """Return the pool when the caller owns it; delegated admins cannot grant access."""
     pool = db.query(models.Pool).filter(models.Pool.id == pool_id).first()
     if not pool:
         raise HTTPException(status_code=404, detail="Pool not found")
     if pool.owner_id != current_user.id and not is_platform_super_admin(current_user):
-        raise HTTPException(status_code=403, detail="Only the pool owner can manage administrators")
+        raise HTTPException(
+            status_code=403, detail="Only the pool owner can manage administrators"
+        )
     return pool
 
 
@@ -77,22 +84,30 @@ def find_user_by_email(email: str, db: Session) -> models.User:
 def is_pool_participant(db: Session, pool_id: str, user_id: str) -> bool:
     """Include owners, delegated admins, members, and users with entries."""
     return bool(
-        db.query(models.Pool).filter(
+        db.query(models.Pool)
+        .filter(
             models.Pool.id == pool_id,
             models.Pool.owner_id == user_id,
-        ).first()
-        or db.query(models.PoolAdmin).filter(
+        )
+        .first()
+        or db.query(models.PoolAdmin)
+        .filter(
             models.PoolAdmin.pool_id == pool_id,
             models.PoolAdmin.user_id == user_id,
-        ).first()
-        or db.query(models.PoolMember).filter(
+        )
+        .first()
+        or db.query(models.PoolMember)
+        .filter(
             models.PoolMember.pool_id == pool_id,
             models.PoolMember.user_id == user_id,
-        ).first()
-        or db.query(models.Entry).filter(
+        )
+        .first()
+        or db.query(models.Entry)
+        .filter(
             models.Entry.pool_id == pool_id,
             models.Entry.user_id == user_id,
-        ).first()
+        )
+        .first()
     )
 
 
@@ -128,14 +143,26 @@ def grant_pool_admin(
     pool = require_pool_owner(pool_id, current_user, db)
     user = require_pool_participant_by_email(db, pool_id, assignment.email)
     if user.id == pool.owner_id:
-        raise HTTPException(status_code=400, detail="The pool owner already has administrator access")
+        raise HTTPException(
+            status_code=400, detail="The pool owner already has administrator access"
+        )
 
-    existing = db.query(models.PoolAdmin).filter(
-        models.PoolAdmin.pool_id == pool_id,
-        models.PoolAdmin.user_id == user.id,
-    ).first()
+    existing = (
+        db.query(models.PoolAdmin)
+        .filter(
+            models.PoolAdmin.pool_id == pool_id,
+            models.PoolAdmin.user_id == user.id,
+        )
+        .first()
+    )
     if existing:
-        return {"pool_id": pool_id, "user_id": user.id, "email": user.email, "is_admin": True, "changed": False}
+        return {
+            "pool_id": pool_id,
+            "user_id": user.id,
+            "email": user.email,
+            "is_admin": True,
+            "changed": False,
+        }
 
     db.add(models.PoolAdmin(pool_id=pool_id, user_id=user.id))
     db.commit()
@@ -146,9 +173,19 @@ def grant_pool_admin(
         details=f"Granted pool administrator access to {user.email}",
         target_entity_type="user",
         target_entity_id=user.id,
-        additional_data={"pool_id": pool_id, "username": user.email, "admin_email": current_user.email},
+        additional_data={
+            "pool_id": pool_id,
+            "username": user.email,
+            "admin_email": current_user.email,
+        },
     )
-    return {"pool_id": pool_id, "user_id": user.id, "email": user.email, "is_admin": True, "changed": True}
+    return {
+        "pool_id": pool_id,
+        "user_id": user.id,
+        "email": user.email,
+        "is_admin": True,
+        "changed": True,
+    }
 
 
 @router.delete(
@@ -165,14 +202,26 @@ def revoke_pool_admin(
     pool = require_pool_owner(pool_id, current_user, db)
     user = require_pool_participant_by_email(db, pool_id, email)
     if user.id == pool.owner_id:
-        raise HTTPException(status_code=400, detail="Pool owner access cannot be revoked")
+        raise HTTPException(
+            status_code=400, detail="Pool owner access cannot be revoked"
+        )
 
-    existing = db.query(models.PoolAdmin).filter(
-        models.PoolAdmin.pool_id == pool_id,
-        models.PoolAdmin.user_id == user.id,
-    ).first()
+    existing = (
+        db.query(models.PoolAdmin)
+        .filter(
+            models.PoolAdmin.pool_id == pool_id,
+            models.PoolAdmin.user_id == user.id,
+        )
+        .first()
+    )
     if not existing:
-        return {"pool_id": pool_id, "user_id": user.id, "email": user.email, "is_admin": False, "changed": False}
+        return {
+            "pool_id": pool_id,
+            "user_id": user.id,
+            "email": user.email,
+            "is_admin": False,
+            "changed": False,
+        }
 
     db.delete(existing)
     db.commit()
@@ -183,9 +232,19 @@ def revoke_pool_admin(
         details=f"Revoked pool administrator access from {user.email}",
         target_entity_type="user",
         target_entity_id=user.id,
-        additional_data={"pool_id": pool_id, "username": user.email, "admin_email": current_user.email},
+        additional_data={
+            "pool_id": pool_id,
+            "username": user.email,
+            "admin_email": current_user.email,
+        },
     )
-    return {"pool_id": pool_id, "user_id": user.id, "email": user.email, "is_admin": False, "changed": True}
+    return {
+        "pool_id": pool_id,
+        "user_id": user.id,
+        "email": user.email,
+        "is_admin": False,
+        "changed": True,
+    }
 
 
 @router.put(
@@ -207,10 +266,14 @@ def transfer_pool_ownership(
     previous_owner_id = pool.owner_id
     previous_owner_email = current_user.email
     for user_id in (previous_owner_id, new_owner.id):
-        existing_admin = db.query(models.PoolAdmin).filter(
-            models.PoolAdmin.pool_id == pool_id,
-            models.PoolAdmin.user_id == user_id,
-        ).first()
+        existing_admin = (
+            db.query(models.PoolAdmin)
+            .filter(
+                models.PoolAdmin.pool_id == pool_id,
+                models.PoolAdmin.user_id == user_id,
+            )
+            .first()
+        )
         if not existing_admin:
             db.add(models.PoolAdmin(pool_id=pool_id, user_id=user_id))
 
@@ -263,15 +326,17 @@ def pool_users_overview(
         raise HTTPException(status_code=400, detail="Week must be between 1 and 18")
 
     entries = db.query(models.Entry).filter(models.Entry.pool_id == pool_id).all()
-    memberships = db.query(models.PoolMember).filter(
-        models.PoolMember.pool_id == pool_id
-    ).all()
+    memberships = (
+        db.query(models.PoolMember).filter(models.PoolMember.pool_id == pool_id).all()
+    )
     membership_by_user = {membership.user_id: membership for membership in memberships}
     member_ids = set(membership_by_user)
     member_ids.update(entry.user_id for entry in entries)
     admin_ids = {
-        user_id for (user_id,) in db.query(models.PoolAdmin.user_id)
-        .filter(models.PoolAdmin.pool_id == pool_id).all()
+        user_id
+        for (user_id,) in db.query(models.PoolAdmin.user_id)
+        .filter(models.PoolAdmin.pool_id == pool_id)
+        .all()
     }
     member_ids.update(admin_ids)
     if pool.owner_id:
@@ -290,7 +355,8 @@ def pool_users_overview(
         if entry.alive:
             alive_entry_ids.add(entry.id)
     picked_entry_ids = {
-        entry_id for (entry_id,) in db.query(models.Pick.entry_id)
+        entry_id
+        for (entry_id,) in db.query(models.Pick.entry_id)
         .filter(
             models.Pick.entry_id.in_(alive_entry_ids or [""]),
             models.Pick.week == selected_week,
@@ -310,21 +376,24 @@ def pool_users_overview(
             admin_role = "Pool admin"
         else:
             admin_role = "Member"
-        result.append({
-            "id": user.id,
-            "email": user.email,
-            "total_entries": len(user_entries),
-            "surviving_entries": len(surviving),
-            "picked_entries": picked_count,
-            "has_current_week_pick": picked_count > 0,
-            "all_surviving_entries_picked": bool(surviving) and picked_count == len(surviving),
-            "is_admin": admin_role != "Member",
-            "admin_role": admin_role,
-            "dues_paid": bool(
-                membership_by_user.get(user.id)
-                and membership_by_user[user.id].dues_paid
-            ),
-        })
+        result.append(
+            {
+                "id": user.id,
+                "email": user.email,
+                "total_entries": len(user_entries),
+                "surviving_entries": len(surviving),
+                "picked_entries": picked_count,
+                "has_current_week_pick": picked_count > 0,
+                "all_surviving_entries_picked": bool(surviving)
+                and picked_count == len(surviving),
+                "is_admin": admin_role != "Member",
+                "admin_role": admin_role,
+                "dues_paid": bool(
+                    membership_by_user.get(user.id)
+                    and membership_by_user[user.id].dues_paid
+                ),
+            }
+        )
     return {
         "pool_id": pool_id,
         "current_week": selected_week,
@@ -348,10 +417,14 @@ def update_pool_user_dues(
     if not verify_admin_access(pool_id, current_user, db):
         raise HTTPException(status_code=403, detail="Admin access required")
     user = require_pool_participant_by_id(db, pool_id, user_id)
-    membership = db.query(models.PoolMember).filter(
-        models.PoolMember.pool_id == pool_id,
-        models.PoolMember.user_id == user_id,
-    ).first()
+    membership = (
+        db.query(models.PoolMember)
+        .filter(
+            models.PoolMember.pool_id == pool_id,
+            models.PoolMember.user_id == user_id,
+        )
+        .first()
+    )
     now = datetime.now(timezone.utc).replace(tzinfo=None)
     if not membership:
         membership = models.PoolMember(
@@ -410,14 +483,22 @@ def update_pool_user_email(
         raise HTTPException(status_code=403, detail="Admin access required")
     user = require_pool_participant_by_id(db, pool_id, user_id)
     if is_bootstrap_super_admin(user):
-        raise HTTPException(status_code=400, detail="The initial super admin email cannot be changed")
+        raise HTTPException(
+            status_code=400, detail="The initial super admin email cannot be changed"
+        )
     normalized_email = str(email).strip().lower()
-    duplicate = db.query(models.User).filter(
-        func.lower(models.User.email) == normalized_email,
-        models.User.id != user.id,
-    ).first()
+    duplicate = (
+        db.query(models.User)
+        .filter(
+            func.lower(models.User.email) == normalized_email,
+            models.User.id != user.id,
+        )
+        .first()
+    )
     if duplicate:
-        raise HTTPException(status_code=409, detail="An account with that email address already exists")
+        raise HTTPException(
+            status_code=409, detail="An account with that email address already exists"
+        )
 
     old_email = user.email
     user.email = normalized_email
@@ -460,12 +541,18 @@ def pool_auto_picks(
     entries_by_id = {entry.id: entry for entry in entries}
     user_ids = {entry.user_id for entry in entries if entry.user_id}
     users_by_id = {
-        user.id: user for user in db.query(models.User).filter(models.User.id.in_(user_ids or [""])).all()
+        user.id: user
+        for user in db.query(models.User)
+        .filter(models.User.id.in_(user_ids or [""]))
+        .all()
     }
     result = []
-    logs = db.query(models.AuditLog).filter(
-        models.AuditLog.action == "ADMIN_AUTO_PICK"
-    ).order_by(models.AuditLog.created_at.desc()).all()
+    logs = (
+        db.query(models.AuditLog)
+        .filter(models.AuditLog.action == "ADMIN_AUTO_PICK")
+        .order_by(models.AuditLog.created_at.desc())
+        .all()
+    )
     for log in logs:
         try:
             payload = json.loads(log.details or "{}")
@@ -481,16 +568,20 @@ def pool_auto_picks(
         entry = entries_by_id.get(entry_id)
         user_id = data.get("user_id") or (entry.user_id if entry else None)
         user = users_by_id.get(user_id)
-        result.append({
-            "audit_id": log.id,
-            "week": log_week,
-            "user_id": user_id,
-            "user_email": data.get("user_email") or (user.email if user else "Unknown user"),
-            "entry_id": entry_id,
-            "entry_name": data.get("entry_name") or (entry.name if entry else "Unknown entry"),
-            "team": data.get("team") or "Unknown",
-            "created_at": log.created_at,
-        })
+        result.append(
+            {
+                "audit_id": log.id,
+                "week": log_week,
+                "user_id": user_id,
+                "user_email": data.get("user_email")
+                or (user.email if user else "Unknown user"),
+                "entry_id": entry_id,
+                "entry_name": data.get("entry_name")
+                or (entry.name if entry else "Unknown entry"),
+                "team": data.get("team") or "Unknown",
+                "created_at": log.created_at,
+            }
+        )
     return result
 
 
@@ -530,9 +621,7 @@ def transfer_entry(
             detail="Current entry owner not found",
         )
 
-    new_owner = require_pool_participant_by_email(
-        db, pool_id, transfer_data.to_email
-    )
+    new_owner = require_pool_participant_by_email(db, pool_id, transfer_data.to_email)
 
     existing_entry = (
         db.query(models.Entry)
@@ -553,16 +642,22 @@ def transfer_entry(
     old_email = current_owner.email
 
     entry.user_id = new_owner.id
-    membership = db.query(models.PoolMember).filter(
-        models.PoolMember.pool_id == pool_id,
-        models.PoolMember.user_id == new_owner.id,
-    ).first()
+    membership = (
+        db.query(models.PoolMember)
+        .filter(
+            models.PoolMember.pool_id == pool_id,
+            models.PoolMember.user_id == new_owner.id,
+        )
+        .first()
+    )
     if not membership:
-        db.add(models.PoolMember(
-            pool_id=pool_id,
-            user_id=new_owner.id,
-            joined_at=datetime.now(timezone.utc).replace(tzinfo=None),
-        ))
+        db.add(
+            models.PoolMember(
+                pool_id=pool_id,
+                user_id=new_owner.id,
+                joined_at=datetime.now(timezone.utc).replace(tzinfo=None),
+            )
+        )
     db.commit()
     db.refresh(entry)
 
@@ -617,7 +712,9 @@ def search_entries_admin(
     rows = query.order_by(models.User.email, models.Entry.name).limit(200).all()
     locked_users = {
         item.user_id
-        for item in db.query(models.PoolUserLock).filter(models.PoolUserLock.pool_id == pool_id).all()
+        for item in db.query(models.PoolUserLock)
+        .filter(models.PoolUserLock.pool_id == pool_id)
+        .all()
     }
     return [
         {
@@ -719,7 +816,11 @@ def lock_week(
     if pool.lock_time is None or pool.lock_time > now:
         pool.lock_time = now
     auto_picks_created = lock_pool_week(
-        db, pool, week, current_user.id, now,
+        db,
+        pool,
+        week,
+        current_user.id,
+        now,
         games_provider=current_season_games,
         line_freezer=freeze_week_lines,
     )
@@ -729,6 +830,7 @@ def lock_week(
         "pool_id": pool_id,
         "auto_picks_created": auto_picks_created,
     }
+
 
 @router.patch("/pools/{pool_id}/picks/{pick_id}", response_model=schemas.PickOut)
 def admin_update_pick(
@@ -780,7 +882,7 @@ def admin_update_pick(
 
     log_admin_action(
         db=db,
-        action="ADMIN_PICK_EDIT",
+        action="PICK_EDIT",
         admin_user_id=current_user.id,
         details=f"Changed pick from {old_team} to {pick_update.team} for entry {pick.entry_id} week {pick.week}",
         target_entity_type="pick",
@@ -798,7 +900,10 @@ def admin_update_pick(
     return pick
 
 
-@router.patch("/pools/{pool_id}/entries/{entry_id}/weeks/{week}/pick", response_model=schemas.PickOut)
+@router.patch(
+    "/pools/{pool_id}/entries/{entry_id}/weeks/{week}/pick",
+    response_model=schemas.PickOut,
+)
 def correct_entry_pick(
     pool_id: str,
     entry_id: str,
@@ -813,26 +918,43 @@ def correct_entry_pick(
     if week not in range(1, 19):
         raise HTTPException(status_code=400, detail="Week must be between 1 and 18")
 
-    entry = db.query(models.Entry).filter(
-        models.Entry.id == entry_id,
-        models.Entry.pool_id == pool_id,
-    ).first()
+    entry = (
+        db.query(models.Entry)
+        .filter(
+            models.Entry.id == entry_id,
+            models.Entry.pool_id == pool_id,
+        )
+        .first()
+    )
     if not entry:
         raise HTTPException(status_code=404, detail="Entry not found in this pool")
-    pick = db.query(models.Pick).filter(
-        models.Pick.entry_id == entry_id,
-        models.Pick.week == week,
-    ).first()
+    pick = (
+        db.query(models.Pick)
+        .filter(
+            models.Pick.entry_id == entry_id,
+            models.Pick.week == week,
+        )
+        .first()
+    )
     if not pick:
-        raise HTTPException(status_code=404, detail="No pick exists for this entry and week")
+        raise HTTPException(
+            status_code=404, detail="No pick exists for this entry and week"
+        )
 
-    conflict = db.query(models.Pick).filter(
-        models.Pick.entry_id == entry_id,
-        models.Pick.team == correction.team.upper(),
-        models.Pick.id != pick.id,
-    ).first()
+    conflict = (
+        db.query(models.Pick)
+        .filter(
+            models.Pick.entry_id == entry_id,
+            models.Pick.team == correction.team.upper(),
+            models.Pick.id != pick.id,
+        )
+        .first()
+    )
     if conflict:
-        raise HTTPException(status_code=400, detail=f"Team {correction.team.upper()} already used in week {conflict.week}")
+        raise HTTPException(
+            status_code=400,
+            detail=f"Team {correction.team.upper()} already used in week {conflict.week}",
+        )
 
     old_team = pick.team
     pick.team = correction.team.upper()
@@ -842,7 +964,7 @@ def correct_entry_pick(
     db.refresh(pick)
     log_admin_action(
         db=db,
-        action="ADMIN_PICK_EDIT",
+        action="PICK_EDIT",
         admin_user_id=current_user.id,
         details=f"Changed pick from {old_team} to {pick.team} for entry {entry.name} week {week}",
         target_entity_type="pick",
@@ -888,10 +1010,14 @@ def get_user_lock_by_email(
     if not verify_admin_access(pool_id, current_user, db):
         raise HTTPException(status_code=403, detail="Admin access required")
     user = require_pool_participant_by_email(db, pool_id, email)
-    lock = db.query(models.PoolUserLock).filter(
-        models.PoolUserLock.pool_id == pool_id,
-        models.PoolUserLock.user_id == user.id,
-    ).first()
+    lock = (
+        db.query(models.PoolUserLock)
+        .filter(
+            models.PoolUserLock.pool_id == pool_id,
+            models.PoolUserLock.user_id == user.id,
+        )
+        .first()
+    )
     return {
         "user_id": user.id,
         "email": user.email,
@@ -924,10 +1050,14 @@ def set_user_lock_by_email(
     if not verify_admin_access(pool_id, current_user, db):
         raise HTTPException(status_code=403, detail="Admin access required")
     user = require_pool_participant_by_email(db, pool_id, request.email)
-    lock = db.query(models.PoolUserLock).filter(
-        models.PoolUserLock.pool_id == pool_id,
-        models.PoolUserLock.user_id == user.id,
-    ).first()
+    lock = (
+        db.query(models.PoolUserLock)
+        .filter(
+            models.PoolUserLock.pool_id == pool_id,
+            models.PoolUserLock.user_id == user.id,
+        )
+        .first()
+    )
     if request.locked and not lock:
         lock = models.PoolUserLock(
             pool_id=pool_id,
@@ -948,9 +1078,18 @@ def set_user_lock_by_email(
         details=f"{'Locked' if request.locked else 'Unlocked'} user {user.email} in pool {pool_id}",
         target_entity_type="user",
         target_entity_id=user.id,
-        additional_data={"pool_id": pool_id, "reason": request.reason, "admin_email": current_user.email},
+        additional_data={
+            "pool_id": pool_id,
+            "reason": request.reason,
+            "admin_email": current_user.email,
+        },
     )
-    return {"user_id": user.id, "email": user.email, "locked": request.locked, "reason": request.reason if request.locked else None}
+    return {
+        "user_id": user.id,
+        "email": user.email,
+        "locked": request.locked,
+        "reason": request.reason if request.locked else None,
+    }
 
 
 @router.post(

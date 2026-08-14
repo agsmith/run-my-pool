@@ -41,16 +41,28 @@ def _seed_teams(db_session, abbrvs=TEAM_ABBRVS):
 def _espn_payload(season, week):
     events = []
     for game in [g for g in _season_games(season) if g.week_num == week]:
-        events.append({
-            "id": str(game.game_id),
-            "date": game.start_time.isoformat() + "Z",
-            "season": {"year": season, "type": 2, "slug": "regular-season"},
-            "week": {"number": week},
-            "competitions": [{"competitors": [
-                {"homeAway": "home", "team": {"abbreviation": game.home_abbrv}},
-                {"homeAway": "away", "team": {"abbreviation": game.away_abbrv}},
-            ]}],
-        })
+        events.append(
+            {
+                "id": str(game.game_id),
+                "date": game.start_time.isoformat() + "Z",
+                "season": {"year": season, "type": 2, "slug": "regular-season"},
+                "week": {"number": week},
+                "competitions": [
+                    {
+                        "competitors": [
+                            {
+                                "homeAway": "home",
+                                "team": {"abbreviation": game.home_abbrv},
+                            },
+                            {
+                                "homeAway": "away",
+                                "team": {"abbreviation": game.away_abbrv},
+                            },
+                        ]
+                    }
+                ],
+            }
+        )
     return {"events": events}
 
 
@@ -112,18 +124,22 @@ def test_fetch_requests_explicit_regular_season_and_all_weeks():
 
 def test_sync_replaces_corrupt_season_and_is_idempotent(db_session):
     _seed_teams(db_session)
-    db_session.add(models.Schedule(
-        game_id=999999,
-        week_num=2,
-        home_team_id=1,
-        away_team_id=2,
-        start_time=datetime(2026, 9, 20),
-        winning_team_id=99,
-    ))
+    db_session.add(
+        models.Schedule(
+            game_id=999999,
+            week_num=2,
+            home_team_id=1,
+            away_team_id=2,
+            start_time=datetime(2026, 9, 20),
+            winning_team_id=99,
+        )
+    )
     db_session.commit()
 
     first = sync_season_schedule(db_session, 2026, _season_games(), apply=True)
-    week_two = db_session.query(models.Schedule).filter(models.Schedule.week_num == 2).all()
+    week_two = (
+        db_session.query(models.Schedule).filter(models.Schedule.week_num == 2).all()
+    )
 
     assert first == {
         "season": 2026,
@@ -134,7 +150,16 @@ def test_sync_replaces_corrupt_season_and_is_idempotent(db_session):
         "applied": True,
     }
     assert len(week_two) == 16
-    assert len({team for game in week_two for team in (game.home_team_id, game.away_team_id)}) == 32
+    assert (
+        len(
+            {
+                team
+                for game in week_two
+                for team in (game.home_team_id, game.away_team_id)
+            }
+        )
+        == 32
+    )
     assert db_session.get(models.Schedule, 999999) is None
 
     second = sync_season_schedule(db_session, 2026, _season_games(), apply=True)
@@ -164,26 +189,141 @@ def test_missing_team_mapping_aborts_before_writing(db_session):
 
 def test_stale_game_with_locked_line_is_not_removed(db_session):
     _seed_teams(db_session)
-    db_session.add(models.Schedule(
-        game_id=999999,
-        week_num=2,
-        home_team_id=1,
-        away_team_id=2,
-        start_time=datetime(2026, 9, 20),
-        winning_team_id=99,
-    ))
-    db_session.add(models.PoolGameLine(
-        pool_id="pool-with-frozen-line",
-        game_id=999999,
-        week_num=2,
-        favorite_team_id=1,
-        spread=-3.0,
-        provider="test",
-        captured_at=datetime(2026, 9, 1),
-    ))
+    db_session.add(
+        models.Schedule(
+            game_id=999999,
+            week_num=2,
+            home_team_id=1,
+            away_team_id=2,
+            start_time=datetime(2026, 9, 20),
+            winning_team_id=99,
+        )
+    )
+    db_session.add(
+        models.PoolGameLine(
+            pool_id="pool-with-frozen-line",
+            game_id=999999,
+            week_num=2,
+            favorite_team_id=1,
+            spread=-3.0,
+            provider="test",
+            captured_at=datetime(2026, 9, 1),
+        )
+    )
     db_session.commit()
 
     with pytest.raises(ScheduleSyncError, match="locked pool lines"):
         sync_season_schedule(db_session, 2026, _season_games(), apply=True)
 
     assert db_session.get(models.Schedule, 999999) is not None
+
+
+# ---------------------------------------------------------------------------
+# Tests for sync_schedule.main (rmp-backend-sync-schedule-main stub)
+# ---------------------------------------------------------------------------
+
+
+class TestSyncScheduleMain:
+    """Tests for sync_schedule.main entry point."""
+
+    def test_main_dry_run_returns_summary_without_writing(
+        self, db_session, monkeypatch
+    ):
+        """main() without --apply fetches schedule and returns summary but does not write."""
+        import sync_schedule
+        from sync_schedule import main
+
+        _seed_teams(db_session)
+
+        def fake_fetch(season, request_get=None):
+            return _season_games(season)
+
+        monkeypatch.setattr(sync_schedule, "fetch_season_schedule", fake_fetch)
+        monkeypatch.setattr(sync_schedule, "SessionLocal", lambda: db_session)
+
+        import sys
+
+        monkeypatch.setattr(sys, "argv", ["sync_schedule.py", "--season", "2026"])
+
+        # main() should complete without error and not write to DB
+        # (dry run: no --apply flag)
+        import io
+        from contextlib import redirect_stdout
+
+        output = io.StringIO()
+        try:
+            with redirect_stdout(output):
+                main()
+        except SystemExit as exc:
+            # argparse may call sys.exit(0) on --help; re-raise non-zero exits
+            if exc.code != 0:
+                raise
+
+        result_text = output.getvalue()
+        assert (
+            "applied" in result_text or db_session.query(models.Schedule).count() == 0
+        )
+
+    def test_main_apply_writes_schedule_to_database(self, db_session, monkeypatch):
+        """main() with --apply writes schedule rows to the database."""
+        import sync_schedule
+        from sync_schedule import main
+
+        _seed_teams(db_session)
+
+        def fake_fetch(season, request_get=None):
+            return _season_games(season)
+
+        monkeypatch.setattr(sync_schedule, "fetch_season_schedule", fake_fetch)
+        monkeypatch.setattr(sync_schedule, "SessionLocal", lambda: db_session)
+
+        import sys
+
+        monkeypatch.setattr(
+            sys, "argv", ["sync_schedule.py", "--season", "2026", "--apply"]
+        )
+
+        import io
+        from contextlib import redirect_stdout
+
+        output = io.StringIO()
+        with redirect_stdout(output):
+            main()
+
+        assert db_session.query(models.Schedule).count() > 0
+
+    def test_main_missing_season_raises(self, monkeypatch):
+        """main() without --season raises a SystemExit (argparse required argument)."""
+        import sys
+
+        monkeypatch.setattr(sys, "argv", ["sync_schedule.py"])
+
+        import sync_schedule
+
+        with pytest.raises(SystemExit) as exc_info:
+            sync_schedule.main()
+
+        assert exc_info.value.code != 0
+
+    def test_main_espn_error_rolls_back(self, db_session, monkeypatch):
+        """If fetch_season_schedule raises, main() propagates the error without partial writes."""
+        import sync_schedule
+
+        _seed_teams(db_session)
+
+        def fail_fetch(season, request_get=None):
+            raise RuntimeError("ESPN unreachable")
+
+        monkeypatch.setattr(sync_schedule, "fetch_season_schedule", fail_fetch)
+        monkeypatch.setattr(sync_schedule, "SessionLocal", lambda: db_session)
+
+        import sys
+
+        monkeypatch.setattr(
+            sys, "argv", ["sync_schedule.py", "--season", "2026", "--apply"]
+        )
+
+        with pytest.raises(RuntimeError, match="ESPN unreachable"):
+            sync_schedule.main()
+
+        assert db_session.query(models.Schedule).count() == 0

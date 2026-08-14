@@ -427,6 +427,22 @@ class CommissionerEntitlement(Base):
     pools = relationship("Pool", back_populates="billing_entitlement")
 
 
+class League(Base):
+    """A named group of survivor pools managed together (optional feature)."""
+
+    __tablename__ = "leagues"
+    id = Column(String(36), primary_key=True)
+    name = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    lock_time = Column(DateTime, nullable=True)
+    is_private = Column(Boolean, nullable=False, default=False)
+    owner_id = Column(String(36), ForeignKey(USERS_ID_FK), nullable=False, index=True)
+    created_at = Column(DateTime, nullable=False)
+    updated_at = Column(DateTime, nullable=False)
+
+    owner = relationship("User")
+
+
 class StripeWebhookEvent(Base):
     """Stripe event IDs already processed by the webhook."""
 

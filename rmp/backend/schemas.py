@@ -522,3 +522,41 @@ class PoolUserLockOut(BaseModel):
 
     class Config:
         orm_mode = True
+
+
+# ---------------------------------------------------------------------------
+# League schemas
+# ---------------------------------------------------------------------------
+
+
+class LeagueBase(BaseModel):
+    name: str
+    description: Optional[str] = None
+    lock_time: Optional[str] = None
+    is_private: bool = False
+
+
+class LeagueCreate(LeagueBase):
+    rule_values: Optional[List["PoolRuleValueCreate"]] = None
+
+
+class LeagueUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    lock_time: Optional[datetime] = None
+    is_private: Optional[bool] = None
+    rule_values: Optional[List["PoolRuleValueCreate"]] = None
+
+
+class LeagueOut(BaseModel):
+    id: str
+    name: str
+    description: Optional[str] = None
+    lock_time: Optional[datetime] = None
+    is_private: bool = False
+    owner_id: str
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        orm_mode = True

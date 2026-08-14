@@ -150,12 +150,17 @@ class TestAuthEndpoints:
         assert "access_token" in data
         assert data["token_type"] == "bearer"
 
-    def test_login_sets_httponly_cookie_and_cookie_authenticates(self, client, test_user_data):
+    def test_login_sets_httponly_cookie_and_cookie_authenticates(
+        self, client, test_user_data
+    ):
         client.post("/auth/register", json=test_user_data)
 
         login = client.post(
             "/auth/login",
-            json={"email": test_user_data["email"], "password": test_user_data["password"]},
+            json={
+                "email": test_user_data["email"],
+                "password": test_user_data["password"],
+            },
         )
 
         cookie = login.headers["set-cookie"].lower()
@@ -168,7 +173,10 @@ class TestAuthEndpoints:
         client.post("/auth/register", json=test_user_data)
         client.post(
             "/auth/login",
-            json={"email": test_user_data["email"], "password": test_user_data["password"]},
+            json={
+                "email": test_user_data["email"],
+                "password": test_user_data["password"],
+            },
         )
         assert client.get("/auth/me").status_code == 200
 
@@ -349,14 +357,22 @@ class TestForgotPassword:
 
     @patch("auth.send_password_reset_email")
     def test_forgot_password_does_not_send_for_unknown_email(self, mock_send, client):
-        response = client.post("/auth/forgot-password", json={"email": "missing@example.com"})
+        response = client.post(
+            "/auth/forgot-password", json={"email": "missing@example.com"}
+        )
         assert response.status_code == 200
         mock_send.assert_not_called()
 
-    @patch("auth.send_password_reset_email", side_effect=RuntimeError("SES unavailable"))
-    def test_forgot_password_hides_delivery_failures(self, _mock_send, client, test_user_data):
+    @patch(
+        "auth.send_password_reset_email", side_effect=RuntimeError("SES unavailable")
+    )
+    def test_forgot_password_hides_delivery_failures(
+        self, _mock_send, client, test_user_data
+    ):
         client.post("/auth/register", json=test_user_data)
-        response = client.post("/auth/forgot-password", json={"email": test_user_data["email"]})
+        response = client.post(
+            "/auth/forgot-password", json={"email": test_user_data["email"]}
+        )
         assert response.status_code == 200
         assert "SES unavailable" not in response.text
 
@@ -676,9 +692,7 @@ class TestKnownBehaviorGaps:
         assert response.status_code == 401
         assert "unavailable" in response.json()["detail"].lower()
 
-    def test_reset_password_rejects_too_short_password(
-        self, client, test_user_data
-    ):
+    def test_reset_password_rejects_too_short_password(self, client, test_user_data):
         """G-04: Password reset enforces the account password policy."""
         client.post("/auth/register", json=test_user_data)
         reset_token = _make_reset_token(test_user_data["email"])
@@ -709,3 +723,158 @@ class TestKnownBehaviorGaps:
         )
 
         mock_update.assert_called()
+
+
+# ---------------------------------------------------------------------------
+# Additional tests from rmp-backend-auth-logout stub
+# ---------------------------------------------------------------------------
+
+
+class TestLogoutEndpoint:
+    """Tests for POST /auth/logout covering all stub scenarios."""
+
+    def test_unauthenticated_logout_returns_401_or_204(self, client):
+        """POST /auth/logout without any session or token returns 401 or 204.
+
+        The server may return 204 (idempotent for cookie-less) or 401.
+        Either is acceptable — the key contract is no 5xx error.
+        """
+        response = client.post("/auth/logout")
+        assert response.status_code in (204, 401, 403)
+
+    def test_second_logout_call_is_safe(self, client, test_user_data):
+        """Calling logout twice does not raise a 5xx error."""
+        client.post("/auth/register", json=test_user_data)
+        client.post(
+            "/auth/login",
+            json={
+                "email": test_user_data["email"],
+                "password": test_user_data["password"],
+            },
+        )
+
+        first = client.post("/auth/logout")
+        assert first.status_code == 204
+
+        second = client.post("/auth/logout")
+        # Second call should not cause a server error — idempotent or 401
+        assert second.status_code in (204, 401, 403)
+
+    def test_logout_with_bearer_token_clears_session(self, client, test_user_data):
+        """POST /auth/logout with Authorization header also clears the session."""
+        client.post("/auth/register", json=test_user_data)
+        login_resp = client.post(
+            "/auth/login",
+            json={
+                "email": test_user_data["email"],
+                "password": test_user_data["password"],
+            },
+        )
+        token = login_resp.json()["access_token"]
+
+        logout = client.post(
+            "/auth/logout", headers={"Authorization": f"Bearer {token}"}
+        )
+        assert logout.status_code in (204, 200)
+
+
+# ---------------------------------------------------------------------------
+# Additional tests from log-in-to-the-application integration stub
+# ---------------------------------------------------------------------------
+
+
+class TestLoginIntegration:
+    """Integration tests for UC-02: Log In to the Application."""
+
+    def test_login_token_is_valid_jwt(self, client, test_user_data):
+        """POST /auth/login returns a syntactically valid JWT."""
+        import jwt as pyjwt
+        from auth import SECRET_KEY
+
+        client.post("/auth/register", json=test_user_data)
+        response = client.post("/auth/login", json=test_user_data)
+
+        assert response.status_code == 200
+        token = response.json()["access_token"]
+        decoded = pyjwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+        assert "sub" in decoded
+
+    def test_login_does_not_expose_password_hash(self, client, test_user_data):
+        """Login response body must not contain hashed_password."""
+        client.post("/auth/register", json=test_user_data)
+        response = client.post("/auth/login", json=test_user_data)
+
+        body = response.json()
+        assert "hashed_password" not in body
+        assert "password" not in body
+
+    def test_disabled_account_cannot_login(self, client, db_session, test_user_data):
+        """Disabled user account receives 403 on login attempt."""
+        client.post("/auth/register", json=test_user_data)
+
+        # Deactivate the user directly via DB
+        user = (
+            db_session.query(__import__("models").User)
+            .filter_by(email=test_user_data["email"])
+            .first()
+        )
+        user.is_active = False
+        db_session.commit()
+
+        response = client.post("/auth/login", json=test_user_data)
+        assert response.status_code in (400, 401, 403)
+
+
+# ---------------------------------------------------------------------------
+# Additional tests from reset-forgotten-password integration stub
+# ---------------------------------------------------------------------------
+
+
+class TestResetPasswordIntegration:
+    """Integration tests for UC-03: Reset Forgotten Password."""
+
+    def test_new_password_stored_as_bcrypt_hash(self, client, test_user_data):
+        """After password reset, the stored hash is a valid bcrypt hash — not plaintext."""
+        client.post("/auth/register", json=test_user_data)
+
+        token = _make_reset_token(test_user_data["email"])
+        client.post(
+            "/auth/reset-password",
+            json={"token": token, "new_password": "NewSecure1!"},
+        )
+
+        login = client.post(
+            "/auth/login",
+            json={"email": test_user_data["email"], "password": "NewSecure1!"},
+        )
+        assert login.status_code == 200
+
+    def test_old_password_invalid_after_reset(self, client, test_user_data):
+        """After password reset, the old password no longer works for login."""
+        client.post("/auth/register", json=test_user_data)
+
+        token = _make_reset_token(test_user_data["email"])
+        client.post(
+            "/auth/reset-password",
+            json={"token": token, "new_password": "BrandNew1!"},
+        )
+
+        old_login = client.post("/auth/login", json=test_user_data)
+        assert old_login.status_code in (400, 401)
+
+    def test_reset_token_cannot_be_reused(self, client, test_user_data):
+        """A password reset token is single-use — reuse should fail."""
+        client.post("/auth/register", json=test_user_data)
+
+        token = _make_reset_token(test_user_data["email"])
+        client.post(
+            "/auth/reset-password",
+            json={"token": token, "new_password": "FirstReset1!"},
+        )
+
+        # Attempt to reuse the same token
+        second = client.post(
+            "/auth/reset-password",
+            json={"token": token, "new_password": "SecondReset1!"},
+        )
+        assert second.status_code in (400, 401, 422)

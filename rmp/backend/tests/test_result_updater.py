@@ -2,6 +2,7 @@ from contextlib import contextmanager
 from datetime import datetime, timezone
 
 import pytest
+import requests
 
 import models
 import result_updater
@@ -326,3 +327,244 @@ def test_main_failure_is_audited_and_exits_nonzero(db_session, monkeypatch):
     record = db_session.get(models.UpdaterRun, "failed-run")
     assert record.status == "failed"
     assert record.error == "provider down"
+
+
+# ---------------------------------------------------------------------------
+# Tests for fetch_scoreboard (rmp-backend-services-nfl-results-fetch-scoreboard stub)
+# ---------------------------------------------------------------------------
+
+
+class TestFetchScoreboard:
+    """Tests for services.nfl_results.fetch_scoreboard HTTP layer."""
+
+    def _make_response(self, payload, status_code=200):
+        class FakeResponse:
+            def raise_for_status(self_inner):
+                if status_code != 200:
+                    raise Exception(f"HTTP {status_code}")
+
+            def json(self_inner):
+                return payload
+
+        return FakeResponse()
+
+    def test_fetch_scoreboard_returns_parsed_results_on_success(self):
+        """Happy path: valid ESPN response returns list of NflGameResult."""
+        from services.nfl_results import fetch_scoreboard, NflGameResult
+        import requests
+
+        payload = {
+            "events": [
+                {
+                    "id": "401777001",
+                    "status": {"type": {"name": "STATUS_FINAL"}},
+                    "competitions": [
+                        {
+                            "competitors": [
+                                {
+                                    "homeAway": "home",
+                                    "score": "28",
+                                    "team": {"abbreviation": "KC"},
+                                },
+                                {
+                                    "homeAway": "away",
+                                    "score": "17",
+                                    "team": {"abbreviation": "LV"},
+                                },
+                            ]
+                        }
+                    ],
+                }
+            ]
+        }
+
+        fake_session = type(
+            "S",
+            (),
+            {
+                "get": lambda self, url, params, timeout: self._resp,
+                "_resp": self._make_response(payload),
+            },
+        )()
+
+        results = fetch_scoreboard(2025, 1, session=fake_session)
+        assert len(results) == 1
+        assert results[0].home_abbreviation == "KC"
+        assert results[0].status == "final"
+        assert results[0].home_score == 28
+
+    def test_fetch_scoreboard_raises_on_http_error(self):
+        """ResultProviderError raised when ESPN API returns non-200."""
+        from services.nfl_results import fetch_scoreboard, ResultProviderError
+
+        class FailingSession:
+            def get(self, url, params, timeout):
+                class R:
+                    def raise_for_status(self):
+                        raise requests.HTTPError("503 Service Unavailable")
+
+                    def json(self):
+                        return {}
+
+                return R()
+
+        with pytest.raises(ResultProviderError):
+            fetch_scoreboard(2025, 1, session=FailingSession())
+
+    def test_fetch_scoreboard_raises_on_malformed_json(self):
+        """ResultProviderError raised when ESPN API returns malformed JSON."""
+        from services.nfl_results import fetch_scoreboard, ResultProviderError
+
+        class BadJsonSession:
+            def get(self, url, params, timeout):
+                class R:
+                    def raise_for_status(self):
+                        pass
+
+                    def json(self):
+                        raise ValueError("bad json")
+
+                return R()
+
+        with pytest.raises(ResultProviderError):
+            fetch_scoreboard(2025, 1, session=BadJsonSession())
+
+    def test_fetch_scoreboard_returns_empty_list_for_no_games(self):
+        """Empty events list returns an empty result list without error."""
+        from services.nfl_results import fetch_scoreboard
+
+        class EmptySession:
+            def get(self, url, params, timeout):
+                class R:
+                    def raise_for_status(self):
+                        pass
+
+                    def json(self):
+                        return {"events": []}
+
+                return R()
+
+        results = fetch_scoreboard(2025, 18, session=EmptySession())
+        assert results == []
+
+    def test_fetch_scoreboard_handles_week_18(self):
+        """Week 18 (last regular season week) is handled identically to other weeks."""
+        from services.nfl_results import fetch_scoreboard
+
+        payload = {"events": []}
+
+        class W18Session:
+            def get(self, url, params, timeout):
+                assert params["week"] == 18
+
+                class R:
+                    def raise_for_status(self):
+                        pass
+
+                    def json(self):
+                        return payload
+
+                return R()
+
+        results = fetch_scoreboard(2025, 18, session=W18Session())
+        assert results == []
+
+
+# ---------------------------------------------------------------------------
+# Tests for apply_final_results edge cases
+# (rmp-backend-services-scoring-apply-final-results stub)
+# ---------------------------------------------------------------------------
+
+
+class TestApplyFinalResultsEdgeCases:
+    """Additional edge-case tests for services.scoring.apply_final_results."""
+
+    def test_apply_empty_results_returns_zero_summary(self, db_session):
+        """Passing an empty list of results returns a ScoringSummary with all zeros."""
+        from services.scoring import apply_final_results
+
+        summary = apply_final_results(db_session, [])
+        assert summary.final_games == 0
+        assert summary.picks_changed == 0
+        assert summary.entries_changed == 0
+
+    def test_apply_non_final_games_are_skipped(self, db_session):
+        """Non-final game results (scheduled, in_progress) are not scored."""
+        from services.nfl_results import NflGameResult
+        from services.scoring import apply_final_results
+
+        scheduled_result = NflGameResult(
+            game_id=99999,
+            season=2026,
+            week=1,
+            status="scheduled",
+            home_abbreviation="KC",
+            away_abbreviation="LV",
+            home_score=None,
+            away_score=None,
+        )
+
+        summary = apply_final_results(db_session, [scheduled_result])
+        assert summary.final_games == 0
+
+    def test_apply_results_idempotent_second_call(self, db_session):
+        """Calling apply_final_results twice with the same data does not double-update picks."""
+        _seed_scoring(db_session)
+        from services.scoring import apply_final_results
+
+        result = _result()  # from module-level _result() helper
+        summary1 = apply_final_results(db_session, [result])
+        db_session.flush()
+        summary2 = apply_final_results(db_session, [result])
+
+        # Second call: game already final, scores unchanged — games_changed should be 0
+        assert summary2.games_changed == 0
+
+
+# ---------------------------------------------------------------------------
+# Tests for result_updater.main edge cases
+# (rmp-backend-result-updater-main stub)
+# ---------------------------------------------------------------------------
+
+
+def test_main_dry_run_does_not_persist_picks(db_session, monkeypatch):
+    """main() with --dry-run rolls back DB changes so picks are not persisted."""
+    _seed_scoring(db_session)
+    monkeypatch.setattr(result_updater, "SessionLocal", lambda: db_session)
+    monkeypatch.setattr(
+        result_updater, "fetch_scoreboard", lambda season, week: [_result()]
+    )
+
+    exit_code = result_updater.main(
+        ["--run-id", "dry-run-test", "--season", "2026", "--week", "1", "--dry-run"]
+    )
+
+    assert exit_code == 0
+    record = db_session.get(models.UpdaterRun, "dry-run-test")
+    assert record.status == "dry_run"
+
+
+def test_main_requires_both_season_and_week_together(db_session, monkeypatch):
+    """main() exits non-zero if --season is provided without --week."""
+    monkeypatch.setattr(result_updater, "SessionLocal", lambda: db_session)
+
+    with pytest.raises(SystemExit) as exc_info:
+        result_updater.main(["--season", "2026"])
+
+    assert exc_info.value.code != 0
+
+
+def test_main_custom_run_id_is_persisted(db_session, monkeypatch):
+    """main() uses the provided --run-id and persists a record under that ID."""
+    _seed_scoring(db_session)
+    monkeypatch.setattr(result_updater, "SessionLocal", lambda: db_session)
+    monkeypatch.setattr(
+        result_updater, "fetch_scoreboard", lambda season, week: [_result()]
+    )
+
+    exit_code = result_updater.main(
+        ["--run-id", "custom-id-999", "--season", "2026", "--week", "1"]
+    )
+
+    assert exit_code == 0
+    assert db_session.get(models.UpdaterRun, "custom-id-999") is not None
