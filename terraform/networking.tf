@@ -199,11 +199,11 @@ resource "aws_security_group" "rds" {
   vpc_id      = aws_vpc.main.id
 
   ingress {
-    description     = "MySQL from application and result updater ECS tasks"
+    description     = "MySQL from approved ECS tasks"
     from_port       = 3306
     to_port         = 3306
     protocol        = "tcp"
-    security_groups = [aws_security_group.ecs.id, aws_security_group.result_updater.id]
+    security_groups = [aws_security_group.ecs.id, aws_security_group.result_updater.id, aws_security_group.db_access.id]
   }
 
   egress {

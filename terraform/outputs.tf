@@ -63,6 +63,21 @@ output "result_updater_task_definition" {
   value       = aws_ecs_task_definition.result_updater.family
 }
 
+output "db_access_task_definition" {
+  description = "Task definition family used for on-demand SSM database tunnels"
+  value       = aws_ecs_task_definition.db_access.family
+}
+
+output "db_access_security_group_id" {
+  description = "Outbound-only security group for the database access task"
+  value       = aws_security_group.db_access.id
+}
+
+output "db_access_operator_role_arn" {
+  description = "Least-privilege role for starting and using the production database tunnel"
+  value       = aws_iam_role.db_access_operator.arn
+}
+
 output "result_updater_state_machine_arn" {
   description = "Step Functions workflow that runs and monitors the updater task"
   value       = aws_sfn_state_machine.result_updater.arn
