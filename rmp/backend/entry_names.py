@@ -9,7 +9,7 @@ MAX_RANDOM_ATTEMPTS = 20
 
 
 def _candidate() -> str:
-    return generate_slug(2)
+    return generate_slug(2).replace("-", " ").title()
 
 
 def generate_unique_entry_name(db: Session, user_id: str, pool_id: str) -> str:

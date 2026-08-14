@@ -106,7 +106,7 @@ class TestEntryLockEnforcement:
         assert picks.status_code == 200
         assert [(item["week"], item["team"]) for item in picks.json()] == [(1, "DET")]
 
-    def test_automatic_entry_names_use_two_word_slugs_and_are_unique(
+    def test_automatic_entry_names_use_two_word_display_names_and_are_unique(
         self, client, mocker
     ):
         token = _register_and_login(client, email="entry-names@example.com")
@@ -128,8 +128,8 @@ class TestEntryLockEnforcement:
 
         assert first.status_code == 200
         assert second.status_code == 200
-        assert first.json()["name"] == "adaptable-lion"
-        assert second.json()["name"] == "capable-heron"
+        assert first.json()["name"] == "Adaptable Lion"
+        assert second.json()["name"] == "Capable Heron"
 
     def test_manual_entry_name_is_preserved(self, client):
         token = _register_and_login(client, email="manual-entry-name@example.com")
