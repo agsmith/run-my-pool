@@ -33,6 +33,7 @@ describe('SquaresPage', () => {
     const user = userEvent.setup();
     render(<SquaresPage />);
     expect(await screen.findByRole('heading', { name: 'BUF at MIA' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'BUF at MIA results' })).toBeInTheDocument();
     expect(screen.getAllByRole('gridcell')).toHaveLength(100);
     expect(screen.getByRole('gridcell', { name: 'Block 1, available' })).toBeInTheDocument();
     expect(screen.getByRole('gridcell', { name: 'Block 100, available' })).toBeInTheDocument();
