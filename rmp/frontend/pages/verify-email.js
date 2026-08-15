@@ -4,6 +4,8 @@ import { useRouter } from 'next/router';
 import BrandLogo from '../components/BrandLogo';
 import { baseStyles } from '../styles/globalStyles';
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '';
+
 function safeInternalNext(value) {
   return typeof value === 'string' && value.startsWith('/') && !value.startsWith('//') ? value : '/dashboard';
 }
@@ -26,7 +28,7 @@ export default function VerifyEmailPage() {
     verificationStarted.current = true;
     setStatus('verifying');
     setMessage('Verifying your email…');
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/verify-email`, {
+    fetch(`${API_BASE_URL}/auth/verify-email`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ token }),
@@ -46,7 +48,7 @@ export default function VerifyEmailPage() {
     setStatus('sending');
     setMessage('Requesting a new verification email…');
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/resend-verification`, {
+      const response = await fetch(`${API_BASE_URL}/auth/resend-verification`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: email.trim().toLowerCase() }),

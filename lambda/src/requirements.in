@@ -1,6 +1,0 @@
-boto3==1.43.68
-botocore==1.43.68
-requests==2.34.2
-SQLAlchemy==2.0.51
-mysql-connector-python==9.7.0
-PyMySQL==1.2.0

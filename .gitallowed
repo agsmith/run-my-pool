@@ -1,5 +1,0 @@
-# False-positive allowances for git-secrets
-# These patterns allow "password" in test file contexts — plaintext test
-# credentials in function signatures and local variables, not real secrets.
-rmp/backend/tests/.*password
-lambda/tests/.*password
