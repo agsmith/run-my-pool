@@ -238,6 +238,22 @@ describe('LoginPage', () => {
     })
   })
 
+  test('offers verification help when the API blocks an unverified account', async () => {
+    const verificationError = Object.assign(new Error('Verify your email before signing in.'), { code: 'email_not_verified' })
+    const mockLogin = jest.fn().mockRejectedValue(verificationError)
+    useAuth.mockReturnValue({ login: mockLogin, user: null, loading: false })
+    const user = userEvent.setup()
+    renderLogin()
+
+    await user.type(screen.getByPlaceholderText(/enter your email/i), 'New@Example.com')
+    await user.type(screen.getByPlaceholderText(/enter your password/i), VALID_PASSWORD)
+    await user.click(screen.getByRole('button', { name: /sign in/i }))
+
+    expect(await screen.findByRole('link', { name: /resend verification email/i })).toHaveAttribute(
+      'href', '/verify-email?email=new%40example.com',
+    )
+  })
+
   test('shows "Signing in..." text on the button while loading is true', () => {
     useAuth.mockReturnValue({ login: jest.fn(), user: null, loading: true })
 

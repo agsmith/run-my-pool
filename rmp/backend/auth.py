@@ -11,11 +11,12 @@ import models
 import schemas
 import deps
 import os
+import secrets
 import uuid
 import logging
 from audit_utils import log_create_operation, log_authentication_event, log_update_operation
 from app_logging import log_event
-from email_service import send_password_reset_email
+from email_service import send_email_verification_email, send_password_reset_email
 
 logger = logging.getLogger("runmypool.auth")
 
@@ -25,10 +26,34 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24
 ACCESS_TOKEN_COOKIE = "rmp_access_token"
 LOGIN_ATTEMPT_LIMIT = 5
 LOGIN_ATTEMPT_WINDOW = timedelta(minutes=15)
+EMAIL_VERIFICATION_TTL = timedelta(hours=24)
+EMAIL_VERIFICATION_RESEND_INTERVAL = timedelta(seconds=60)
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+
+
+def _email_verification_required() -> bool:
+    return os.getenv("REQUIRE_EMAIL_VERIFICATION", "1").strip().lower() not in {"0", "false", "no"}
+
+
+def _issue_email_verification(db: Session, user: models.User) -> None:
+    raw_token = secrets.token_urlsafe(32)
+    token_digest = hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    db.query(models.EmailVerificationToken).filter(
+        models.EmailVerificationToken.user_id == user.id,
+        models.EmailVerificationToken.used_at.is_(None),
+    ).delete(synchronize_session=False)
+    db.add(models.EmailVerificationToken(
+        token_digest=token_digest,
+        user_id=user.id,
+        created_at=now,
+        expires_at=now + EMAIL_VERIFICATION_TTL,
+    ))
+    db.commit()
+    send_email_verification_email(user.email, raw_token)
 
 def verify_password(plain_password, hashed_password):
     return pwd_context.verify(plain_password, hashed_password)
@@ -60,6 +85,7 @@ def register(user: schemas.UserCreate, db: Session = Depends(deps.get_db)):
             email=normalized_email,
             hashed_password=hashed_password,
             role=models.UserRole.USER,
+            email_verified=not _email_verification_required(),
             created_at=datetime.now(timezone.utc).replace(tzinfo=None),
             updated_at=datetime.now(timezone.utc).replace(tzinfo=None)
         )
@@ -84,6 +110,17 @@ def register(user: schemas.UserCreate, db: Session = Depends(deps.get_db)):
                 "registration_observability_failed",
                 extra={"event": "registration_observability_failed", "user_id": db_user.id},
             )
+
+        if _email_verification_required():
+            try:
+                _issue_email_verification(db, db_user)
+            except Exception:
+                # The account and token are already durable. Keep registration
+                # successful and let the user use the generic resend flow.
+                logger.exception(
+                    "email_verification_delivery_failed",
+                    extra={"event": "email_verification_delivery_failed", "user_id": db_user.id},
+                )
         
         return db_user
     except HTTPException:
@@ -130,6 +167,16 @@ def login(
         )
         log_event(logger, logging.WARNING, "login_rejected", reason="invalid_credentials")
         raise HTTPException(status_code=401, detail="Invalid credentials")
+
+    if _email_verification_required() and not db_user.email_verified:
+        log_event(logger, logging.WARNING, "login_rejected", reason="email_not_verified", user_id=db_user.id)
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "code": "email_not_verified",
+                "message": "Verify your email before signing in.",
+            },
+        )
 
     db.query(models.LoginAttempt).filter(models.LoginAttempt.email == normalized_email).delete()
     db.commit()
@@ -204,6 +251,55 @@ def forgot_password(request: schemas.ForgotPasswordRequest, db: Session = Depend
     except Exception:
         logger.exception("forgot_password_failed", extra={"event": "forgot_password_failed"})
         raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.post("/verify-email")
+def verify_email(request: schemas.EmailVerificationRequest, db: Session = Depends(deps.get_db)):
+    token_digest = hashlib.sha256(request.token.encode("utf-8")).hexdigest()
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    verification = (
+        db.query(models.EmailVerificationToken)
+        .filter(models.EmailVerificationToken.token_digest == token_digest)
+        .with_for_update()
+        .first()
+    )
+    if not verification or verification.used_at is not None or verification.expires_at <= now:
+        raise HTTPException(status_code=400, detail="Invalid or expired verification link")
+    db_user = db.query(models.User).filter(models.User.id == verification.user_id).with_for_update().first()
+    if not db_user:
+        raise HTTPException(status_code=400, detail="Invalid or expired verification link")
+    verification.used_at = now
+    db_user.email_verified = True
+    db_user.updated_at = now
+    db.commit()
+    log_event(logger, logging.INFO, "email_verified", user_id=db_user.id)
+    return {"message": "Email verified successfully. You can now sign in."}
+
+
+@router.post("/resend-verification")
+def resend_email_verification(
+    request: schemas.EmailVerificationResendRequest,
+    db: Session = Depends(deps.get_db),
+):
+    generic_message = "If that account still needs verification, a new email will arrive shortly."
+    normalized_email = str(request.email).strip().lower()
+    db_user = db.query(models.User).filter(func.lower(models.User.email) == normalized_email).first()
+    if not db_user or db_user.email_verified or not db_user.is_active:
+        return {"message": generic_message}
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    latest = db.query(models.EmailVerificationToken).filter(
+        models.EmailVerificationToken.user_id == db_user.id,
+    ).order_by(models.EmailVerificationToken.created_at.desc()).first()
+    if latest and now - latest.created_at < EMAIL_VERIFICATION_RESEND_INTERVAL:
+        return {"message": generic_message}
+    try:
+        _issue_email_verification(db, db_user)
+    except Exception:
+        logger.exception(
+            "email_verification_resend_failed",
+            extra={"event": "email_verification_resend_failed", "user_id": db_user.id},
+        )
+    return {"message": generic_message}
 
 @router.post("/reset-password")
 def reset_password(request: schemas.ResetPasswordRequest, db: Session = Depends(deps.get_db)):

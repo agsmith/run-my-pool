@@ -17,6 +17,7 @@ function validatePassword(password) {
 
 const PLAN_LABELS = {
   free: 'Free',
+  'squares-plus': 'Squares Plus',
   commissioner: 'Commish',
   pro: 'Pro',
   club: 'Club',
@@ -103,7 +104,7 @@ export default function CreateAccount() {
     // failure must never turn a successful registration into an error that
     // encourages the user to submit the form again.
     setAccountCreated(true);
-    setSuccess('Account created successfully! Taking you to sign in…');
+    setSuccess('Account created successfully! Check your email to verify your account.');
     const checkoutNext = createPoolIntent
       ? '/create-pool?source=splash'
       : requestedNext
@@ -113,9 +114,9 @@ export default function CreateAccount() {
           : selectedPlan === 'free'
             ? '/create-pool?source=splash'
             : '/dashboard';
-    const loginUrl = `/login?message=${encodeURIComponent('Account created successfully! Please sign in with your new credentials.')}&next=${encodeURIComponent(checkoutNext)}`;
+    const verificationUrl = `/verify-email?email=${encodeURIComponent(email.trim().toLowerCase())}&next=${encodeURIComponent(checkoutNext)}`;
     try {
-      await router.push(loginUrl);
+      await router.push(verificationUrl);
     } catch (_navigationError) {
       // Keep the confirmed success state visible. The sign-in link below is a
       // reliable fallback on Safari and other browsers if navigation fails.
@@ -171,7 +172,7 @@ export default function CreateAccount() {
             fontSize: '0.875rem'
           }}>
             {success}
-            {accountCreated && <div><Link href="/login">Continue to sign in</Link></div>}
+            {accountCreated && <div><Link href={`/verify-email?email=${encodeURIComponent(email.trim().toLowerCase())}`}>Verification help</Link></div>}
           </div>
         )}
 

@@ -57,7 +57,17 @@ export function AuthProvider({ children }) {
         body: JSON.stringify({ email, password }),
         credentials: 'include',
       });
-      if (!res.ok) throw new Error('Invalid credentials');
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        const detail = body.detail;
+        const loginError = new Error(
+          (typeof detail === 'object' && detail?.message)
+            || (typeof detail === 'string' && detail)
+            || 'Invalid credentials',
+        );
+        loginError.code = typeof detail === 'object' ? detail?.code : undefined;
+        throw loginError;
+      }
       
       await res.json();
 

@@ -66,6 +66,50 @@ class TestAuthEndpoints:
         assert "id" in data
         assert "hashed_password" not in data  # Password should not be returned
 
+    def test_registration_requires_single_use_email_verification_before_login(
+        self, client, test_user_data, monkeypatch
+    ):
+        delivered = {}
+        monkeypatch.setenv("REQUIRE_EMAIL_VERIFICATION", "1")
+        monkeypatch.setattr(
+            "auth.send_email_verification_email",
+            lambda recipient, token: delivered.update(recipient=recipient, token=token) or "message-1",
+        )
+
+        registered = client.post("/auth/register", json=test_user_data)
+        assert registered.status_code == 200
+        assert registered.json()["email_verified"] is False
+        assert delivered["recipient"] == test_user_data["email"]
+        assert "token" in delivered
+
+        blocked = client.post("/auth/login", json=test_user_data)
+        assert blocked.status_code == 403
+        assert blocked.json()["detail"]["code"] == "email_not_verified"
+
+        verified = client.post("/auth/verify-email", json={"token": delivered["token"]})
+        assert verified.status_code == 200
+        assert client.post("/auth/login", json=test_user_data).status_code == 200
+
+        reused = client.post("/auth/verify-email", json={"token": delivered["token"]})
+        assert reused.status_code == 400
+
+    def test_verification_resend_is_generic_and_rate_limited(
+        self, client, test_user_data, monkeypatch
+    ):
+        sends = []
+        monkeypatch.setenv("REQUIRE_EMAIL_VERIFICATION", "1")
+        monkeypatch.setattr(
+            "auth.send_email_verification_email",
+            lambda recipient, token: sends.append((recipient, token)) or "message-1",
+        )
+        client.post("/auth/register", json=test_user_data)
+        first = client.post("/auth/resend-verification", json={"email": test_user_data["email"]})
+        unknown = client.post("/auth/resend-verification", json={"email": "unknown@example.com"})
+
+        assert first.status_code == 200 and unknown.status_code == 200
+        assert first.json() == unknown.json()
+        assert len(sends) == 1
+
     @pytest.mark.parametrize(
         "password",
         ["Sh1!", "lowercase1!", "UPPERCASE1!", "NoNumber!", "NoSpecial1"],

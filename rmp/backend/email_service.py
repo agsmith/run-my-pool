@@ -13,6 +13,43 @@ from app_logging import log_event
 logger = logging.getLogger("runmypool.email")
 
 
+def send_email_verification_email(recipient: str, token: str) -> str:
+    """Send a 24-hour verification link without logging the bearer token."""
+    region = os.getenv("AWS_SES_REGION", "us-east-1")
+    frontend_url = os.getenv("FRONTEND_URL", "https://runmypool.net").rstrip("/")
+    sender = os.getenv("EMAIL_FROM", "Run My Pool Accounts <accounts@runmypool.net>")
+    reply_to = os.getenv("EMAIL_REPLY_TO", "support@runmypool.net")
+    verification_url = f"{frontend_url}/verify-email?{urlencode({'token': token})}"
+    safe_url = html.escape(verification_url, quote=True)
+
+    response = boto3.client("sesv2", region_name=region).send_email(
+        FromEmailAddress=sender,
+        Destination={"ToAddresses": [recipient]},
+        ReplyToAddresses=[reply_to],
+        Content={"Simple": {
+            "Subject": {"Data": "Verify your Run My Pool email", "Charset": "UTF-8"},
+            "Body": {
+                "Text": {"Data": (
+                    "Welcome to Run My Pool. Verify your email to activate your account.\n\n"
+                    f"Verify your email: {verification_url}\n\n"
+                    "This link expires in 24 hours and can only be used once. "
+                    "If you did not create this account, you can ignore this email."
+                ), "Charset": "UTF-8"},
+                "Html": {"Data": (
+                    "<h1>Verify your email</h1>"
+                    "<p>Welcome to Run My Pool. Verify your email to activate your account.</p>"
+                    f'<p><a href="{safe_url}">Verify your email</a></p>'
+                    "<p>This link expires in 24 hours and can only be used once.</p>"
+                    "<p>If you did not create this account, you can ignore this email.</p>"
+                ), "Charset": "UTF-8"},
+            },
+        }},
+    )
+    message_id = response["MessageId"]
+    log_event(logger, logging.INFO, "email_verification_queued", message_id=message_id)
+    return message_id
+
+
 def send_password_reset_email(recipient: str, token: str) -> str:
     """Send a one-hour password-reset link without logging the bearer token."""
     region = os.getenv("AWS_SES_REGION", "us-east-1")

@@ -1828,3 +1828,7 @@ table {
   .create-pool-actions { bottom: .5rem; }
   .create-pool-actions button { flex: 1; }
 }
+.verification-resend-form { display: grid; gap: 1rem; margin-top: 1.25rem; }
+.verification-resend-form label { display: grid; gap: .5rem; color: #374151; font-weight: 600; }
+.verification-resend-form input { box-sizing: border-box; width: 100%; padding: .75rem 1rem; border: 2px solid #e5e7eb; border-radius: 8px; background: #fafafa; font: inherit; }
+.auth-link-button { display: block; margin-top: 1.25rem; padding: .875rem 1rem; border-radius: 8px; background: #667eea; color: #fff; text-align: center; text-decoration: none; font-weight: 700; }

@@ -51,6 +51,7 @@ class UserBase(BaseModel):
     email: EmailStr
     role: UserRole = UserRole.USER
     is_active: bool = True
+    email_verified: bool = False
 
 
 def validate_account_password(value: str) -> str:
@@ -80,6 +81,16 @@ class LoginRequest(BaseModel):
 
 
 class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+class EmailVerificationRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    token: str = Field(min_length=32, max_length=256)
+
+
+class EmailVerificationResendRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     email: EmailStr
 
 

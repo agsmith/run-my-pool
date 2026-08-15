@@ -13,6 +13,7 @@ function validateEmail(email) {
 
 const PLAN_LABELS = {
   free: 'Free',
+  'squares-plus': 'Squares Plus',
   commissioner: 'Commish',
   pro: 'Pro',
   club: 'Club',
@@ -39,6 +40,7 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
+  const [verificationRequired, setVerificationRequired] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [isMobile, setIsMobile] = useState(false);
   const { login, loading } = useAuth();
@@ -65,6 +67,7 @@ export default function Login() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setVerificationRequired(false);
     if (!validateEmail(email)) {
       setError('Please enter a valid email address.');
       return;
@@ -80,6 +83,7 @@ export default function Login() {
       // Cookie/session handling is done in backend and AuthContext
     } catch (err) {
       setError(err.message || 'Login failed');
+      setVerificationRequired(err.code === 'email_not_verified');
     }
   };
 
@@ -146,6 +150,7 @@ export default function Login() {
             fontSize: isMobile ? '0.9rem' : '1rem'
           }}>
             {error}
+            {verificationRequired && <div><Link href={`/verify-email?email=${encodeURIComponent(email.trim().toLowerCase())}${requestedNext ? `&next=${encodeURIComponent(requestedNext)}` : ''}`}>Resend verification email</Link></div>}
           </div>
         )}
 

@@ -256,6 +256,23 @@ describe('login function', () => {
       )
     })
   })
+
+  test('preserves the email verification error code from the API', async () => {
+    fetch.mockResolvedValueOnce({
+      ok: false,
+      json: async () => ({ detail: { code: 'email_not_verified', message: 'Verify your email before signing in.' } }),
+    })
+    const onError = jest.fn()
+    function VerificationConsumer() {
+      const { login } = useAuth()
+      return <button data-testid="verify-login" onClick={() => login('new@example.com', 'ValidPass1!').catch(onError)}>Login</button>
+    }
+    renderWithAuth(<VerificationConsumer />)
+    await act(async () => { screen.getByTestId('verify-login').click() })
+    await waitFor(() => expect(onError).toHaveBeenCalledWith(expect.objectContaining({
+      message: 'Verify your email before signing in.', code: 'email_not_verified',
+    })))
+  })
 })
 
 // ---------------------------------------------------------------------------
