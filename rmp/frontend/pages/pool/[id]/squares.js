@@ -76,7 +76,12 @@ export default function SquaresPage() {
   const game = board.game;
   return <ProtectedRoute><main className="product-page-shell squares-page">
     <PoolWorkspaceNav poolId={query.id} poolName={board.pool_name} poolType="squares" active="entries" showAdmin={board.permissions.is_admin} />
-    <WorkspaceHeader eyebrow={board.locked ? 'Board locked' : 'Choose your squares'} title={`${game.away_team.abbrv} at ${game.home_team.abbrv}`} description={`${new Date(game.start_time).toLocaleString()} · ${board.claims.length}/100 claimed`} actions={board.permissions.is_admin && !board.locked ? <button onClick={lock} disabled={busy}>Lock & randomize digits</button> : null} />
+    <WorkspaceHeader eyebrow={board.locked ? 'Board locked' : 'Choose your squares'} title={`${game.away_team.abbrv} at ${game.home_team.abbrv}`} description={`${new Date(game.start_time).toLocaleString()} · ${board.claims.length}/100 claimed`} actions={<div className="squares-screen-actions"><button type="button" onClick={() => window.print()}>Print / Save PDF</button>{board.permissions.is_admin && !board.locked && <button type="button" onClick={lock} disabled={busy}>Lock & randomize digits</button>}</div>} />
+    <header className="squares-print-header">
+      <span>Run My Pool · Squares</span>
+      <h1>{board.pool_name}</h1>
+      <p>{game.away_team.abbrv} at {game.home_team.abbrv} · {new Date(game.start_time).toLocaleString()}</p>
+    </header>
     {error && <div className="workspace-alert workspace-alert--error">{error}</div>}
     {board.permissions.is_admin && !board.locked && <label className="squares-claim-for">Claim available squares for <select value={claimFor} onChange={(event) => setClaimFor(event.target.value)}><option value="">Myself</option>{(board.members || []).filter((member) => member.id !== user?.id).map((member) => <option key={member.id} value={member.id}>{member.email}</option>)}</select></label>}
     <section className="squares-summary" aria-label="Squares pool summary">

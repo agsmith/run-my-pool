@@ -17,7 +17,11 @@ const board = {
 const response = (data, ok = true) => Promise.resolve({ ok, status: 200, json: () => Promise.resolve(data) });
 
 describe('SquaresPage', () => {
-  beforeEach(() => { localStorage.setItem('access_token', 'token'); jest.spyOn(window, 'confirm').mockReturnValue(true); });
+  beforeEach(() => {
+    localStorage.setItem('access_token', 'token');
+    jest.spyOn(window, 'confirm').mockReturnValue(true);
+    jest.spyOn(window, 'print').mockImplementation(() => {});
+  });
   afterEach(() => { jest.restoreAllMocks(); localStorage.clear(); });
 
   test('renders 100 hidden cells and claims an available square', async () => {
@@ -78,5 +82,14 @@ describe('SquaresPage', () => {
     expect(screen.getByRole('gridcell', { name: 'Reserved by owner@example.com' })).toBeDisabled();
     expect(screen.queryByRole('heading', { name: 'Admin payout setup' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /lock & randomize/i })).not.toBeInTheDocument();
+  });
+
+  test('opens the browser print dialog for printing or PDF export', async () => {
+    global.fetch = jest.fn(() => response(board));
+    const user = userEvent.setup();
+    render(<SquaresPage />);
+
+    await user.click(await screen.findByRole('button', { name: 'Print / Save PDF' }));
+    expect(window.print).toHaveBeenCalledTimes(1);
   });
 });
