@@ -12,7 +12,7 @@ const plans = [
     price: '$0',
     cadence: 'forever',
     description: 'Run a small pool and experience the full weekly rhythm.',
-    features: ['1 active pool', 'Up to 10 entries', 'Weekly picks and standings', 'Private or public access', 'Message board'],
+    features: ['1 active pool', 'Up to 10 Survivor/Pick ’Em entries', '1 Squares board with 25 reserved blocks', 'Fixed-pot Squares and branded PDF', 'Weekly picks and standings', 'Private or public access'],
     cta: 'Start free',
   },
   {
@@ -21,7 +21,7 @@ const plans = [
     price: '$39',
     cadence: 'per pool / season',
     description: 'The complete toolkit for a serious friends, family, or office pool.',
-    features: ['Up to 50 entries', 'Everything in Free', 'Automated default picks', 'Audit log and CSV exports', 'Entry transfers and corrections', 'Priority commissioner support'],
+    features: ['Up to 50 Survivor/Pick ’Em entries', 'Full 100-block Squares board', 'Admin block assignment and per-block pots', 'Everything in Free', 'Automated default picks', 'Audit log and CSV exports', 'Entry transfers and corrections'],
     cta: 'Choose Commissioner',
     featured: true,
   },
@@ -207,7 +207,7 @@ export default function PricingPage() {
             <article><h3>Do players pay?</h3><p>No. Participants join, make picks, and follow standings at no software charge.</p></article>
             <article><h3>Do you hold prize money?</h3><p>No. Run My Pool provides management software and does not collect stakes or distribute winnings.</p></article>
             <article><h3>Can I upgrade later?</h3><p>Yes. Upgrade through Free, Commish, Pro, Club, and Club Unlimited without rebuilding your pool. You pay only the difference for the current season.</p></article>
-            <article><h3>What counts as an entry?</h3><p>Each Survivor or Pick &apos;Em entry, or each claimed Squares cell, counts toward the plan limit. One person may own multiple entries or squares if the commissioner allows it.</p></article>
+            <article><h3>How does Free Squares work?</h3><p>Free includes one board per season with 25 self-service reservations, fixed-dollar pots, automatic score digits and winners, and a branded printable board. Commish opens all 100 blocks plus admin assignment and per-block pot calculations.</p></article>
             <article><h3>What happens after 500 Club entries?</h3><p>Club expands in 100-entry blocks for $25 each, or you can upgrade to Club Unlimited for the $120 difference.</p></article>
             <article><h3>When should I choose Unlimited?</h3><p>Choose Club Unlimited when you need unlimited entries or pools. You can select it initially or upgrade from Club later.</p></article>
           </div>

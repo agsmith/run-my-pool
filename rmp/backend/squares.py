@@ -109,6 +109,8 @@ def board_payload(db: Session, pool: models.Pool, user: models.User) -> dict:
     ).all()
     game = pool.squares_game
     admin = _is_admin(db, pool, user)
+    used_capacity, capacity_limit, plan = entitlements.capacity_usage(db, pool)
+    paid_squares = plan != "free"
     members = []
     if admin:
         members = [{"id": member.id, "email": member.email} for member in (
@@ -148,7 +150,14 @@ def board_payload(db: Session, pool: models.Pool, user: models.User) -> dict:
             "determined_at": payout.determined_at,
         } for payout in payouts],
         "members": members,
-        "permissions": {"is_admin": admin, "can_claim": board.locked_at is None and _now() < game.start_time},
+        "plan": plan,
+        "block_limit": min(capacity_limit, 100) if capacity_limit is not None else 100,
+        "permissions": {
+            "is_admin": admin,
+            "can_claim": board.locked_at is None and _now() < game.start_time and (capacity_limit is None or used_capacity < capacity_limit),
+            "can_admin_assign": admin and paid_squares,
+            "can_use_variable_pot": admin and paid_squares,
+        },
     }
 
 
@@ -167,6 +176,8 @@ def claim_square(pool_id: str, request: schemas.SquareClaimCreate, db: Session =
     target_id = request.user_id or current_user.id
     if target_id != current_user.id and not admin:
         raise HTTPException(status_code=403, detail="Only a pool admin may assign a square to another member")
+    if target_id != current_user.id and entitlements.pool_plan(db, pool) == "free":
+        raise HTTPException(status_code=403, detail="Upgrade to Commish to assign blocks for other members")
     if not is_pool_participant(db, pool.id, target_id):
         raise HTTPException(status_code=400, detail="Squares may only be assigned to pool members")
     db.query(models.SquareBoard).filter(models.SquareBoard.pool_id == pool.id).with_for_update().one()
@@ -235,6 +246,8 @@ def update_payouts(pool_id: str, request: schemas.SquarePayoutConfig, db: Sessio
         raise HTTPException(status_code=400, detail="Payout percentages must total 100")
     if request.pot_mode == "per_square" and request.per_square_cents is None:
         raise HTTPException(status_code=400, detail="An amount per reserved block is required")
+    if request.pot_mode == "per_square" and entitlements.pool_plan(db, pool) == "free":
+        raise HTTPException(status_code=403, detail="Upgrade to Commish to calculate the pot per reserved block")
     board = pool.square_board
     board.pot_mode = request.pot_mode
     board.total_pot_cents = request.total_pot_cents if request.pot_mode == "fixed" else None

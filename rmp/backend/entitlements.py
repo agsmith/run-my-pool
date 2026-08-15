@@ -10,6 +10,8 @@ import models
 
 
 FREE_INCLUDED_ENTRIES = 10
+FREE_SQUARE_BLOCKS = 25
+COMMISSIONER_SQUARE_BLOCKS = 100
 
 
 def current_season(now: datetime | None = None) -> int:
@@ -54,7 +56,55 @@ def assign_owner_pools(db: Session, entitlement) -> list[models.Pool]:
     return pools
 
 
-def entitlement_for_new_pool(db: Session, owner_id: str, season: int):
+def entitlement_for_pool(db: Session, pool: models.Pool):
+    """Resolve and attach a current paid entitlement for a legacy or new pool."""
+    if pool.billing_entitlement_id is None:
+        entitlement = active_entitlement(db, pool.owner_id, current_season())
+        if entitlement:
+            assign_owner_pools(db, entitlement)
+            db.flush()
+            if pool.billing_entitlement_id == entitlement.id:
+                pool.billing_entitlement = entitlement
+    entitlement = pool.billing_entitlement
+    if entitlement and entitlement.status == "active" and entitlement.season == pool.billing_season:
+        return entitlement
+    return None
+
+
+def pool_plan(db: Session, pool: models.Pool) -> str:
+    entitlement = entitlement_for_pool(db, pool)
+    return entitlement.plan if entitlement else "free"
+
+
+def capacity_usage(db: Session, pool: models.Pool) -> tuple[int, int | None, str]:
+    """Return authoritative used capacity, limit, and plan for a pool."""
+    entitlement = entitlement_for_pool(db, pool)
+    if entitlement:
+        pool_ids = db.query(models.Pool.id).filter(
+            models.Pool.billing_entitlement_id == entitlement.id
+        )
+        entry_count = db.query(func.count(models.Entry.id)).filter(
+            models.Entry.pool_id.in_(pool_ids)
+        ).scalar() or 0
+        square_count = db.query(func.count(models.SquareClaim.id)).filter(
+            models.SquareClaim.pool_id.in_(pool_ids)
+        ).scalar() or 0
+        limit = entitlement.included_entries
+        if pool.pool_type == "squares" and entitlement.plan == "commissioner":
+            limit = COMMISSIONER_SQUARE_BLOCKS
+        return entry_count + square_count, limit, entitlement.plan
+
+    entry_count = db.query(func.count(models.Entry.id)).filter(
+        models.Entry.pool_id == pool.id
+    ).scalar() or 0
+    square_count = db.query(func.count(models.SquareClaim.id)).filter(
+        models.SquareClaim.pool_id == pool.id
+    ).scalar() or 0
+    limit = FREE_SQUARE_BLOCKS if pool.pool_type == "squares" else FREE_INCLUDED_ENTRIES
+    return entry_count + square_count, limit, "free"
+
+
+def entitlement_for_new_pool(db: Session, owner_id: str, season: int, pool_type: str = "survivor"):
     # Serialize capacity decisions for concurrent pool-creation requests.
     db.query(models.User.id).filter(models.User.id == owner_id).with_for_update().one()
     entitlement = active_entitlement(db, owner_id, season)
@@ -69,6 +119,19 @@ def entitlement_for_new_pool(db: Session, owner_id: str, season: int):
             )
         return entitlement
 
+    if pool_type == "squares":
+        free_boards = db.query(models.Pool.id).filter(
+            models.Pool.owner_id == owner_id,
+            models.Pool.pool_type == "squares",
+            models.Pool.billing_entitlement_id.is_(None),
+            models.Pool.billing_season == season,
+        ).count()
+        if free_boards >= 1:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="The Free plan includes one Squares board per season. Upgrade to Commish to run another board.",
+            )
+
     return None
 
 
@@ -76,48 +139,19 @@ def enforce_entry_capacity(db: Session, pool: models.Pool) -> None:
     # Serialize count-and-create operations for this pool. Paid Club limits are
     # shared across pools, so lock the entitlement row below as well.
     db.query(models.Pool.id).filter(models.Pool.id == pool.id).with_for_update().one()
-    # Reconcile purchases fulfilled before pools stored entitlement IDs. This
-    # is intentionally server-side and bounded by the purchased pool count.
-    if pool.billing_entitlement_id is None:
-        entitlement = active_entitlement(db, pool.owner_id, current_season())
-        if entitlement:
-            assign_owner_pools(db, entitlement)
-            db.flush()
-            if pool.billing_entitlement_id == entitlement.id:
-                pool.billing_entitlement = entitlement
-
-    entitlement = pool.billing_entitlement
-    if entitlement and entitlement.status == "active" and entitlement.season == pool.billing_season:
+    entitlement = entitlement_for_pool(db, pool)
+    if entitlement:
         db.query(models.CommissionerEntitlement.id).filter(
             models.CommissionerEntitlement.id == entitlement.id
         ).with_for_update().one()
         if entitlement.unlimited_entries or entitlement.included_entries is None:
             return
-        pool_ids = db.query(models.Pool.id).filter(
-            models.Pool.billing_entitlement_id == entitlement.id
-        )
-        entry_count = db.query(func.count(models.Entry.id)).filter(
-            models.Entry.pool_id.in_(pool_ids)
-        ).scalar() or 0
-        square_count = db.query(func.count(models.SquareClaim.id)).filter(
-            models.SquareClaim.pool_id.in_(pool_ids)
-        ).scalar() or 0
-        used = entry_count + square_count
-        limit = entitlement.included_entries
-        plan = entitlement.plan
-    else:
-        entry_count = db.query(func.count(models.Entry.id)).filter(
-            models.Entry.pool_id == pool.id
-        ).scalar() or 0
-        square_count = db.query(func.count(models.SquareClaim.id)).filter(
-            models.SquareClaim.pool_id == pool.id
-        ).scalar() or 0
-        used = entry_count + square_count
-        limit = FREE_INCLUDED_ENTRIES
-        plan = "free"
+    used, limit, plan = capacity_usage(db, pool)
 
-    if used >= limit:
+    if limit is not None and used >= limit:
+        unit = "blocks" if pool.pool_type == "squares" else "entries"
+        upgrade = " Upgrade to Commish to open all 100 blocks." if pool.pool_type == "squares" and plan == "free" else ""
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail=f"This pool has reached the {plan} plan limit of {limit} entries or squares. The pool owner must upgrade before another can be created.",
+            detail=f"This pool has reached the {plan} plan limit of {limit} {unit}.{upgrade}",
         )

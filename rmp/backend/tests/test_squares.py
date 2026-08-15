@@ -35,6 +35,21 @@ def _create(client, headers, game_id=9001, name="Sunday Squares"):
     return response.json()
 
 
+def _grant_commish(db, user_id):
+    now = datetime(2026, 8, 1)
+    order = models.BillingOrder(
+        id=f"squares-order-{user_id}", user_id=user_id, season=2026,
+        plan="commissioner", status="paid", created_at=now, updated_at=now,
+    )
+    entitlement = models.CommissionerEntitlement(
+        id=f"squares-entitlement-{user_id}", user_id=user_id, season=2026,
+        plan="commissioner", status="active", included_entries=50, max_pools=1,
+        unlimited_entries=False, source_order_id=order.id, activated_at=now, updated_at=now,
+    )
+    db.add_all([order, entitlement]); db.commit()
+    return entitlement
+
+
 def test_squares_creation_requires_future_known_game(client, db_session):
     _, headers = _register(client, "squares-owner@example.com")
     missing = client.post("/pools/create", json={"name": "Missing Game", "pool_type": "squares"}, headers=headers)
@@ -42,6 +57,44 @@ def test_squares_creation_requires_future_known_game(client, db_session):
     _game(db_session, start=datetime.utcnow() - timedelta(minutes=1))
     started = client.post("/pools/create", json={"name": "Started Game", "pool_type": "squares", "squares_game_id": 9001}, headers=headers)
     assert started.status_code == 409
+
+
+def test_free_plan_includes_one_board_and_25_self_service_blocks(client, db_session):
+    owner, headers = _register(client, "free-squares-owner@example.com")
+    _, member_headers = _register(client, "free-squares-member@example.com")
+    _game(db_session)
+    pool = _create(client, headers, name="Free Squares Board")
+    assert client.post(f"/pools/{pool['id']}/join", json={}, headers=member_headers).status_code == 200
+    board = client.get(f"/squares/{pool['id']}", headers=headers).json()
+    assert board["plan"] == "free" and board["block_limit"] == 25
+    assert board["permissions"]["can_admin_assign"] is False
+    assert board["permissions"]["can_use_variable_pot"] is False
+
+    db_session.add_all([
+        models.SquareClaim(
+            id=f"free-claim-{index}", pool_id=pool["id"], row_index=index // 10,
+            column_index=index % 10, user_id=owner["id"], assigned_by=owner["id"],
+            claimed_at=datetime.utcnow(),
+        ) for index in range(25)
+    ])
+    db_session.commit()
+    blocked = client.post(f"/squares/{pool['id']}/claims", json={"row_index": 2, "column_index": 5}, headers=member_headers)
+    assert blocked.status_code == 409
+    assert "Upgrade to Commish" in blocked.json()["detail"]
+
+    admin_assignment = client.post(f"/squares/{pool['id']}/claims", json={
+        "row_index": 2, "column_index": 6,
+        "user_id": db_session.query(models.User).filter_by(email="free-squares-member@example.com").one().id,
+    }, headers=headers)
+    assert admin_assignment.status_code == 403
+    variable_pot = client.patch(f"/squares/{pool['id']}/payouts", json={
+        "pot_mode": "per_square", "per_square_cents": 500, "total_pot_cents": None,
+        "q1_percent": 25, "halftime_percent": 25, "q3_percent": 25, "final_percent": 25,
+    }, headers=headers)
+    assert variable_pot.status_code == 403
+    assert client.post("/pools/create", json={
+        "name": "Second Free Squares Board", "pool_type": "squares", "squares_game_id": 9001,
+    }, headers=headers).status_code == 409
 
 
 def test_claim_collision_release_and_admin_lock(client, db_session):
@@ -110,7 +163,8 @@ def test_member_sees_reservations_and_pot_but_cannot_administer_board(client, db
 
 
 def test_per_square_pot_tracks_authoritative_reservation_count(client, db_session):
-    _, headers = _register(client, "variable-pot-owner@example.com")
+    owner, headers = _register(client, "variable-pot-owner@example.com")
+    _grant_commish(db_session, owner["id"])
     _game(db_session)
     pool = _create(client, headers)
     missing_rate = client.patch(f"/squares/{pool['id']}/payouts", json={
@@ -125,6 +179,8 @@ def test_per_square_pot_tracks_authoritative_reservation_count(client, db_sessio
     }, headers=headers)
     assert configured.status_code == 200
     assert configured.json()["pot_mode"] == "per_square"
+    assert configured.json()["plan"] == "commissioner"
+    assert configured.json()["block_limit"] == 100
     assert configured.json()["per_square_cents"] == 500
     assert configured.json()["total_pot_cents"] == 0
 

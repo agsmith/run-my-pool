@@ -46,6 +46,8 @@ describe('PricingPage', () => {
     expect(screen.getByText('$79')).toBeInTheDocument();
     expect(screen.getByText('$129')).toBeInTheDocument();
     expect(screen.getByText('$249')).toBeInTheDocument();
+    expect(screen.getByText('1 Squares board with 25 reserved blocks')).toBeInTheDocument();
+    expect(screen.getByText('Full 100-block Squares board')).toBeInTheDocument();
   });
 
   test('makes the software-only payment model explicit', () => {

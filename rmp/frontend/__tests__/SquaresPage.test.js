@@ -11,7 +11,8 @@ jest.mock('../context/AuthContext', () => ({ useAuth: () => ({ user: { id: 'user
 const board = {
   pool_id: 'pool-1', pool_name: 'Sunday Squares', locked: false, locked_at: null,
   home_digits: null, away_digits: null, pot_mode: 'fixed', total_pot_cents: null, per_square_cents: null, claims: [], payouts: [],
-  permissions: { is_admin: true, can_claim: true },
+  plan: 'commissioner', block_limit: 100,
+  permissions: { is_admin: true, can_claim: true, can_admin_assign: true, can_use_variable_pot: true },
   game: { game_id: 1, start_time: '2026-09-13T17:00:00Z', status: 'scheduled', home_team: { abbrv: 'MIA' }, away_team: { abbrv: 'BUF' } },
 };
 const response = (data, ok = true) => Promise.resolve({ ok, status: 200, json: () => Promise.resolve(data) });
@@ -105,6 +106,35 @@ describe('SquaresPage', () => {
     expect(screen.getByRole('gridcell', { name: 'Block 1, reserved by owner@example.com' })).toBeDisabled();
     expect(screen.queryByRole('heading', { name: 'Admin payout setup' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /lock & randomize/i })).not.toBeInTheDocument();
+  });
+
+  test('shows the free loss-leader limit and paid feature upgrade path', async () => {
+    global.fetch = jest.fn(() => response({
+      ...board,
+      plan: 'free', block_limit: 25,
+      permissions: { is_admin: true, can_claim: false, can_admin_assign: false, can_use_variable_pot: false },
+    }));
+    render(<SquaresPage />);
+
+    expect(await screen.findByText('Free Squares board')).toBeInTheDocument();
+    expect(screen.getByText(/0 of 25 included blocks/i)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Upgrade to Commish' })).toHaveAttribute('href', '/pricing?checkout=commissioner');
+    expect(screen.queryByRole('button', { name: 'Assign block' })).not.toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: /Per reserved block/i })).toBeDisabled();
+    expect(screen.getByRole('gridcell', { name: 'Block 1, available' })).toBeDisabled();
+  });
+
+  test('explains a full free board to members without showing them billing actions', async () => {
+    global.fetch = jest.fn(() => response({
+      ...board,
+      plan: 'free', block_limit: 25,
+      permissions: { is_admin: false, can_claim: false, can_admin_assign: false, can_use_variable_pot: false },
+    }));
+    render(<SquaresPage />);
+
+    expect(await screen.findByText('Reservation limit reached')).toBeInTheDocument();
+    expect(screen.getByText(/ask the pool commissioner to upgrade/i)).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Upgrade to Commish' })).not.toBeInTheDocument();
   });
 
   test('opens the browser print dialog for printing or PDF export', async () => {

@@ -215,7 +215,7 @@ def create_pool(
 
         billing_season = entitlements.current_season()
         entitlement = entitlements.entitlement_for_new_pool(
-            db, current_user.id, billing_season
+            db, current_user.id, billing_season, pool.pool_type
         )
         db_pool = models.Pool(
             id=str(uuid.uuid4()),
