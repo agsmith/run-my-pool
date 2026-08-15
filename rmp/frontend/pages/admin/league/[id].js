@@ -35,6 +35,7 @@ export default function AdminPortal() {
   const [userLockData, setUserLockData] = useState({ email: '', reason: '' });
   const [userLockStatus, setUserLockStatus] = useState(null);
   const [userLockMessage, setUserLockMessage] = useState('');
+  const [userLockBusy, setUserLockBusy] = useState(false);
   const [userOverview, setUserOverview] = useState(null);
   const [userOverviewLoading, setUserOverviewLoading] = useState(false);
   const [userOverviewError, setUserOverviewError] = useState('');
@@ -671,7 +672,11 @@ export default function AdminPortal() {
   };
 
   const handleUserLockLookup = async () => {
-    if (!userLockData.email.trim()) return;
+    if (!userLockData.email.trim()) {
+      setUserLockMessage('Enter a member email address.');
+      return;
+    }
+    setUserLockBusy(true);
     setUserLockMessage('');
     try {
       const token = localStorage.getItem('access_token');
@@ -684,9 +689,12 @@ export default function AdminPortal() {
       setUserLockData((current) => ({ ...current, email: data.email, reason: data.reason || '' }));
       setUserLockMessage(data.locked ? 'This user is locked in this pool.' : 'This user is active in this pool.');
     } catch (err) { setUserLockStatus(null); setUserLockMessage(err.message || 'Unable to find user'); }
+    finally { setUserLockBusy(false); }
   };
 
   const handleSetUserLock = async (locked) => {
+    setUserLockBusy(true);
+    setUserLockMessage('');
     try {
       const token = localStorage.getItem('access_token');
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/pools/${leagueId}/user-lock`, {
@@ -699,6 +707,7 @@ export default function AdminPortal() {
       setUserLockStatus(data);
       setUserLockMessage(locked ? 'User locked in this pool.' : 'User unlocked in this pool.');
     } catch (err) { setUserLockMessage(err.message || 'Unable to update user lock'); }
+    finally { setUserLockBusy(false); }
   };
 
   const renderUserManagement = () => (
@@ -711,28 +720,24 @@ export default function AdminPortal() {
 
       <AdminAutoPickReport week={autoPickWeek} onWeekChange={setAutoPickWeek} records={autoPicks} loading={autoPicksLoading} error={autoPicksError} />
 
-      <div style={{ marginBottom: '3rem' }}>
-        <h4>Lock User Account</h4>
-        <div>
-          <p>Prevent a user from creating, deleting, or changing entries and picks in this pool. Their login and other pools remain available.</p>
-          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
-            <div>
-              <label>Email Address</label>
-              <input type="email" value={userLockData.email} onChange={(e) => { setUserLockData({ ...userLockData, email: e.target.value }); setUserLockStatus(null); }} placeholder="player@example.com" />
-            </div>
-            <div>
-              <label>Reason</label>
-              <input type="text" value={userLockData.reason} onChange={(e) => setUserLockData({ ...userLockData, reason: e.target.value })} placeholder="Optional reason" />
-            </div>
-          </div>
-          <div style={{ display: 'flex', gap: '.6rem', flexWrap: 'wrap' }}>
-            <button type="button" onClick={handleUserLockLookup}>Find User</button>
-            <button type="button" disabled={!userLockStatus || userLockStatus.locked} onClick={() => handleSetUserLock(true)}>Lock User</button>
-            <button type="button" disabled={!userLockStatus || !userLockStatus.locked} onClick={() => handleSetUserLock(false)}>Unlock User</button>
-          </div>
-          {userLockMessage && <p role="status" style={{ marginTop: '.8rem' }}>{userLockMessage}</p>}
+      <section className="admin-user-lock" aria-labelledby="admin-user-lock-title">
+        <div className="admin-user-lock__heading">
+          <span>Pool access</span>
+          <h4 id="admin-user-lock-title">Member Access Lock</h4>
+          <p>Stop a member from changing entries or picks in this pool. Their login and access to other pools will continue to work.</p>
         </div>
-      </div>
+        <form className="admin-user-lock__search" onSubmit={(event) => { event.preventDefault(); handleUserLockLookup(); }}>
+          <label htmlFor="user-lock-email">Member email</label>
+          <div><input id="user-lock-email" type="email" value={userLockData.email} onChange={(e) => { setUserLockData({ email: e.target.value, reason: '' }); setUserLockStatus(null); setUserLockMessage(''); }} placeholder="player@example.com" autoComplete="off" /><button type="submit" disabled={userLockBusy || !userLockData.email.trim()}>{userLockBusy && !userLockStatus ? 'Finding…' : 'Find member'}</button></div>
+        </form>
+        {userLockStatus && <div className="admin-user-lock__result">
+          <div className="admin-user-lock__identity"><div><small>Member</small><strong>{userLockStatus.email}</strong></div><span className={userLockStatus.locked ? 'is-locked' : 'is-active'}>{userLockStatus.locked ? 'Locked' : 'Active'}</span></div>
+          <label htmlFor="user-lock-reason">Reason <small>Optional, but useful for the audit trail</small></label>
+          <input id="user-lock-reason" type="text" value={userLockData.reason} onChange={(e) => setUserLockData({ ...userLockData, reason: e.target.value })} placeholder="Example: payment pending" />
+          <button type="button" className={userLockStatus.locked ? 'is-restore' : 'is-danger'} disabled={userLockBusy} onClick={() => handleSetUserLock(!userLockStatus.locked)}>{userLockBusy ? 'Updating…' : userLockStatus.locked ? 'Restore pool access' : 'Lock pool access'}</button>
+        </div>}
+        {userLockMessage && <p role="status" className="admin-user-lock__message">{userLockMessage}</p>}
+      </section>
       
       {/* Reset User Password */}
       <div style={{ marginBottom: '3rem' }}>

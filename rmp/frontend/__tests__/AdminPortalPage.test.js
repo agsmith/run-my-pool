@@ -97,6 +97,37 @@ describe('commissioner portal', () => {
     expect(await screen.findByText('No audit logs found')).toBeInTheDocument();
   });
 
+  test('uses a focused member lookup and one contextual pool-lock action', async () => {
+    installApi({
+      'GET /admin/pools/pool-1/user-lock?email=player%40example.com': () => response({
+        email: 'player@example.com', locked: false, reason: null,
+      }),
+      'PUT /admin/pools/pool-1/user-lock': (url, options) => {
+        expect(JSON.parse(options.body)).toEqual({
+          email: 'player@example.com', locked: true, reason: 'Payment pending',
+        });
+        return response({ email: 'player@example.com', locked: true, reason: 'Payment pending' });
+      },
+    });
+    const user = userEvent.setup();
+    render(<AdminPortal />);
+    await screen.findByRole('heading', { name: 'Office Survivor' });
+    await user.click(screen.getByRole('button', { name: /user management/i }));
+
+    expect(screen.queryByRole('button', { name: 'Lock pool access' })).not.toBeInTheDocument();
+    await user.type(screen.getByLabelText('Member email'), 'player@example.com');
+    await user.click(screen.getByRole('button', { name: 'Find member' }));
+
+    expect(await screen.findByText('Active')).toBeInTheDocument();
+    expect(screen.getByText('player@example.com')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Restore pool access' })).not.toBeInTheDocument();
+    await user.type(screen.getByLabelText(/Reason/), 'Payment pending');
+    await user.click(screen.getByRole('button', { name: 'Lock pool access' }));
+
+    expect(await screen.findByText('Locked')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Restore pool access' })).toBeInTheDocument();
+  });
+
   test('saves private access settings and clears the submitted password', async () => {
     installApi({
       'PATCH /pools/pool-1': (url, options) => {
