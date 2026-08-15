@@ -10,7 +10,7 @@ jest.mock('../context/AuthContext', () => ({ useAuth: () => ({ user: { id: 'user
 
 const board = {
   pool_id: 'pool-1', pool_name: 'Sunday Squares', locked: false, locked_at: null,
-  home_digits: null, away_digits: null, claims: [], payouts: [],
+  home_digits: null, away_digits: null, total_pot_cents: null, claims: [], payouts: [],
   permissions: { is_admin: true, can_claim: true },
   game: { game_id: 1, start_time: '2026-09-13T17:00:00Z', status: 'scheduled', home_team: { abbrv: 'MIA' }, away_team: { abbrv: 'BUF' } },
 };
@@ -42,5 +42,41 @@ describe('SquaresPage', () => {
     expect(screen.getByText('$25.00 recorded')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /lock & randomize/i })).not.toBeInTheDocument();
     expect(screen.getAllByRole('gridcell')[0]).toBeDisabled();
+  });
+
+  test('lets an admin configure the pot in dollars and sends integer cents', async () => {
+    global.fetch = jest.fn((url, options = {}) => {
+      if (options.method === 'PATCH') return response({ ...board, total_pot_cents: 12345 });
+      return response({ ...board, total_pot_cents: 10000 });
+    });
+    const user = userEvent.setup();
+    render(<SquaresPage />);
+
+    const potInput = await screen.findByRole('spinbutton', { name: 'Total pot ($)' });
+    expect(potInput).toHaveValue(100);
+    await user.clear(potInput);
+    await user.type(potInput, '123.45');
+    await user.click(screen.getByRole('button', { name: 'Save payouts' }));
+
+    await waitFor(() => expect(fetch).toHaveBeenCalledWith('/squares/pool-1/payouts', expect.objectContaining({ method: 'PATCH' })));
+    const request = fetch.mock.calls.find(([, options]) => options?.method === 'PATCH')[1];
+    expect(JSON.parse(request.body).total_pot_cents).toBe(12345);
+    expect(await screen.findByText('$123.45')).toBeInTheDocument();
+  });
+
+  test('shows members the pot and reservation owners without admin controls', async () => {
+    global.fetch = jest.fn(() => response({
+      ...board,
+      total_pot_cents: 50000,
+      permissions: { is_admin: false, can_claim: true },
+      claims: [{ id: 'claim-1', row_index: 0, column_index: 0, user_id: 'user-2', user_email: 'owner@example.com', display_name: null }],
+    }));
+    render(<SquaresPage />);
+
+    expect(await screen.findByText('$500.00')).toBeInTheDocument();
+    expect(screen.getByText('owner@example.com')).toBeInTheDocument();
+    expect(screen.getByRole('gridcell', { name: 'Reserved by owner@example.com' })).toBeDisabled();
+    expect(screen.queryByRole('heading', { name: 'Admin payout setup' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /lock & randomize/i })).not.toBeInTheDocument();
   });
 });

@@ -1666,6 +1666,10 @@ table {
 .create-pool-format-grid, .create-pool-access-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
 .create-pool-format-grid { grid-template-columns: repeat(3, 1fr); }
 .squares-instructions { color: #a9bcb7; margin: 1rem 0; }
+.squares-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .75rem; margin: 1rem 0; }
+.squares-summary > div { display: grid; gap: .25rem; padding: .85rem 1rem; border: 1px solid #35534c; border-radius: 10px; background: #0c1b18; }
+.squares-summary span { color: #9eb2ad; font-size: .74rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.squares-summary strong { color: #f3f8f6; font-size: 1rem; }
 .squares-scroll { overflow-x: auto; padding-bottom: 1rem; }
 .squares-grid { display: grid; grid-template-columns: 92px repeat(10, minmax(64px, 1fr)); min-width: 820px; gap: 3px; background: #17312b; padding: 3px; border-radius: 12px; }
 .squares-row { display: contents; }
@@ -1677,10 +1681,20 @@ table {
 .squares-results { margin-top: 2rem; }
 .squares-results > div { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
 .squares-results article { display: grid; gap: .35rem; padding: 1rem; border: 1px solid #35534c; border-radius: 10px; background: #0c1b18; }
+.squares-reservations { margin-top: 1.5rem; padding: 1.25rem; border: 1px solid #35534c; border-radius: 12px; background: #0c1b18; }
+.squares-reservations h2, .squares-reservations p { margin: 0 0 .35rem; }
+.squares-reservations ul { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: .6rem; margin: 1rem 0 0; padding: 0; list-style: none; }
+.squares-reservations li { display: flex; justify-content: space-between; gap: .75rem; padding: .65rem .75rem; background: #142923; border-radius: 8px; }
+.squares-reservations li strong { overflow-wrap: anywhere; }
+.squares-reservations li span { flex: 0 0 auto; color: #d7ff3f; }
 .squares-pot { margin-top: 2rem; display: flex; align-items: end; gap: 1rem; padding: 1.25rem; border: 1px solid #35534c; border-radius: 12px; }
 .squares-pot > div { flex: 1; }
 .squares-pot h2, .squares-pot p { margin: 0 0 .35rem; }
 .squares-pot label { display: grid; gap: .35rem; }
+@media (max-width: 700px) {
+  .squares-summary { grid-template-columns: 1fr; }
+  .squares-pot { align-items: stretch; flex-direction: column; }
+}
 .create-pool-format-grid label, .create-pool-access-grid label { display: grid; gap: .4rem; padding: 1.2rem; border: 1px solid #3a5751; border-radius: 12px; cursor: pointer; background: #0b1a17; }
 .create-pool-format-grid label.is-selected, .create-pool-access-grid label.is-selected { border-color: #d7ff3f; box-shadow: 0 0 0 1px #d7ff3f; }
 .create-pool-format-grid input, .create-pool-access-grid input { accent-color: #d7ff3f; justify-self: start; }

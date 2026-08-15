@@ -72,6 +72,59 @@ def test_nonmember_cannot_read_board(client, db_session):
     assert client.get(f"/squares/{pool['id']}", headers=outsider_headers).status_code == 403
 
 
+def test_member_sees_reservations_and_pot_but_cannot_administer_board(client, db_session):
+    owner, owner_headers = _register(client, "visible-board-owner@example.com")
+    _, member_headers = _register(client, "visible-board-member@example.com")
+    _game(db_session)
+    pool = _create(client, owner_headers)
+    assert client.post(f"/pools/{pool['id']}/join", json={}, headers=member_headers).status_code == 200
+    configured = client.patch(f"/squares/{pool['id']}/payouts", json={
+        "total_pot_cents": 12345, "q1_percent": 25, "halftime_percent": 25,
+        "q3_percent": 25, "final_percent": 25,
+    }, headers=owner_headers)
+    assert configured.status_code == 200
+    claimed = client.post(f"/squares/{pool['id']}/claims", json={"row_index": 4, "column_index": 6}, headers=owner_headers)
+    assert claimed.status_code == 201
+
+    visible = client.get(f"/squares/{pool['id']}", headers=member_headers)
+    assert visible.status_code == 200
+    body = visible.json()
+    assert body["total_pot_cents"] == 12345
+    assert body["permissions"]["is_admin"] is False
+    assert body["members"] == []
+    assert body["claims"][0]["user_email"] == owner["email"]
+    assert body["home_digits"] is None and body["away_digits"] is None
+
+    denied_payout = client.patch(f"/squares/{pool['id']}/payouts", json={
+        "total_pot_cents": 99999, "q1_percent": 25, "halftime_percent": 25,
+        "q3_percent": 25, "final_percent": 25,
+    }, headers=member_headers)
+    assert denied_payout.status_code == 403
+    assert client.post(f"/squares/{pool['id']}/lock", headers=member_headers).status_code == 403
+    assigned_to_owner = client.post(f"/squares/{pool['id']}/claims", json={
+        "row_index": 0, "column_index": 0, "user_id": owner["id"],
+    }, headers=member_headers)
+    assert assigned_to_owner.status_code == 403
+
+
+def test_board_randomizes_score_digits_automatically_at_kickoff(client, db_session):
+    _, headers = _register(client, "automatic-lock-owner@example.com")
+    game = _game(db_session)
+    pool = _create(client, headers)
+    before = client.get(f"/squares/{pool['id']}", headers=headers).json()
+    assert before["locked"] is False
+    assert before["home_digits"] is None and before["away_digits"] is None
+
+    game.start_time = datetime.utcnow() - timedelta(seconds=1)
+    db_session.commit()
+    after = client.get(f"/squares/{pool['id']}", headers=headers)
+    assert after.status_code == 200
+    body = after.json()
+    assert body["locked"] is True
+    assert sorted(body["home_digits"]) == list(range(10))
+    assert sorted(body["away_digits"]) == list(range(10))
+
+
 def test_quarter_payouts_are_idempotent_and_correctable(db_session):
     owner = models.User(id="owner", email="owner@squares.test", hashed_password="x", is_active=True)
     _game(db_session)
