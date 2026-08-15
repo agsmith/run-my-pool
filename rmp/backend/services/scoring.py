@@ -182,6 +182,12 @@ def _reconcile_square_payouts(db: Session, game: models.Schedule, result: NflGam
     ]
     for pool in pools:
         board = pool.square_board
+        total_pot_cents = board.total_pot_cents
+        if board.pot_mode == "per_square" and board.per_square_cents is not None:
+            claim_count = db.query(func.count(models.SquareClaim.id)).filter(
+                models.SquareClaim.pool_id == pool.id,
+            ).scalar() or 0
+            total_pot_cents = board.per_square_cents * claim_count
         if not board.locked_at:
             generator = secrets.SystemRandom()
             board.home_digits = json.dumps(generator.sample(range(10), 10), separators=(",", ":"))
@@ -212,8 +218,8 @@ def _reconcile_square_payouts(db: Session, game: models.Schedule, result: NflGam
             payout.winning_column = column
             payout.winner_user_id = claim.user_id if claim else None
             payout.amount_cents = (
-                round(board.total_pot_cents * getattr(board, percent_field) / 100)
-                if board.total_pot_cents is not None else None
+                round(total_pot_cents * getattr(board, percent_field) / 100)
+                if total_pot_cents is not None else None
             )
             payout.determined_at = changed_at
 

@@ -109,6 +109,34 @@ def test_member_sees_reservations_and_pot_but_cannot_administer_board(client, db
     assert assigned_to_owner.status_code == 403
 
 
+def test_per_square_pot_tracks_authoritative_reservation_count(client, db_session):
+    _, headers = _register(client, "variable-pot-owner@example.com")
+    _game(db_session)
+    pool = _create(client, headers)
+    missing_rate = client.patch(f"/squares/{pool['id']}/payouts", json={
+        "pot_mode": "per_square", "total_pot_cents": None, "per_square_cents": None,
+        "q1_percent": 25, "halftime_percent": 25, "q3_percent": 25, "final_percent": 25,
+    }, headers=headers)
+    assert missing_rate.status_code == 400
+
+    configured = client.patch(f"/squares/{pool['id']}/payouts", json={
+        "pot_mode": "per_square", "total_pot_cents": None, "per_square_cents": 500,
+        "q1_percent": 25, "halftime_percent": 25, "q3_percent": 25, "final_percent": 25,
+    }, headers=headers)
+    assert configured.status_code == 200
+    assert configured.json()["pot_mode"] == "per_square"
+    assert configured.json()["per_square_cents"] == 500
+    assert configured.json()["total_pot_cents"] == 0
+
+    first = client.post(f"/squares/{pool['id']}/claims", json={"row_index": 0, "column_index": 0}, headers=headers)
+    second = client.post(f"/squares/{pool['id']}/claims", json={"row_index": 0, "column_index": 1}, headers=headers)
+    assert first.status_code == 201 and second.status_code == 201
+    assert client.get(f"/squares/{pool['id']}", headers=headers).json()["total_pot_cents"] == 1000
+
+    assert client.delete(f"/squares/{pool['id']}/claims/{second.json()['id']}", headers=headers).status_code == 204
+    assert client.get(f"/squares/{pool['id']}", headers=headers).json()["total_pot_cents"] == 500
+
+
 def test_board_randomizes_score_digits_automatically_at_kickoff(client, db_session):
     _, headers = _register(client, "automatic-lock-owner@example.com")
     game = _game(db_session)
@@ -145,6 +173,12 @@ def test_quarter_payouts_are_idempotent_and_correctable(db_session):
     apply_game_results(db_session, [corrected]); db_session.commit()
     payouts = db_session.query(models.SquarePayout).all()
     assert len(payouts) == 1 and payouts[0].winning_row == 6 and payouts[0].winner_user_id is None
+    board.pot_mode = "per_square"
+    board.total_pot_cents = None
+    board.per_square_cents = 20000
+    apply_game_results(db_session, [result]); db_session.commit()
+    payout = db_session.query(models.SquarePayout).one()
+    assert payout.winner_user_id == owner.id and payout.amount_cents == 5000
 
 
 def test_espn_linescores_are_converted_to_cumulative_checkpoint_scores():

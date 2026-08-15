@@ -14,6 +14,7 @@ export default function SquaresPage() {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [pot, setPot] = useState('');
+  const [potMode, setPotMode] = useState('fixed');
   const [claimFor, setClaimFor] = useState('');
   const [manualBlock, setManualBlock] = useState('');
   const claims = useMemo(() => Object.fromEntries((board?.claims || []).map((c) => [`${c.row_index}-${c.column_index}`, c])), [board]);
@@ -32,7 +33,8 @@ export default function SquaresPage() {
     const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/squares/${query.id}`, { headers: authHeaders() });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(data.detail || 'Unable to load the Squares board.');
-    setBoard(data); setPot(dollarsFromCents(data.total_pot_cents));
+    const mode = data.pot_mode || 'fixed';
+    setBoard(data); setPotMode(mode); setPot(dollarsFromCents(mode === 'per_square' ? data.per_square_cents : data.total_pot_cents));
   };
   useEffect(() => { if (query.id) load().catch((err) => setError(err.message)); }, [query.id]);
 
@@ -84,7 +86,12 @@ export default function SquaresPage() {
     try {
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/squares/${query.id}/payouts`, {
         method: 'PATCH', headers: { ...authHeaders(), 'Content-Type': 'application/json' },
-        body: JSON.stringify({ total_pot_cents: pot === '' ? null : Math.round(Number(pot) * 100), q1_percent: 25, halftime_percent: 25, q3_percent: 25, final_percent: 25 }),
+        body: JSON.stringify({
+          pot_mode: potMode,
+          total_pot_cents: potMode === 'fixed' && pot !== '' ? Math.round(Number(pot) * 100) : null,
+          per_square_cents: potMode === 'per_square' && pot !== '' ? Math.round(Number(pot) * 100) : null,
+          q1_percent: 25, halftime_percent: 25, q3_percent: 25, final_percent: 25,
+        }),
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.detail || 'Unable to save payout settings.');
@@ -105,7 +112,7 @@ export default function SquaresPage() {
     {error && <div className="workspace-alert workspace-alert--error">{error}</div>}
     {board.permissions.is_admin && !board.locked && <form className="squares-manual-assignment" onSubmit={assignBlock}><div><strong>Assign a block</strong><span>Choose a member, then enter any available number from 1–100. Grid clicks also assign to this member.</span></div><label>Member<select value={claimFor} onChange={(event) => setClaimFor(event.target.value)}><option value="">Myself</option>{(board.members || []).filter((member) => member.id !== user?.id).map((member) => <option key={member.id} value={member.id}>{member.email}</option>)}</select></label><label>Block number<input type="number" min="1" max="100" step="1" inputMode="numeric" value={manualBlock} onChange={(event) => setManualBlock(event.target.value)} placeholder="1–100" /></label><button type="submit" disabled={busy || !manualBlock}>Assign block</button></form>}
     <section className="squares-summary" aria-label="Squares pool summary">
-      <div><span>Total pot</span><strong>{board.total_pot_cents == null ? 'Not set' : `$${(board.total_pot_cents / 100).toFixed(2)}`}</strong></div>
+      <div><span>Total pot</span><strong>{board.total_pot_cents == null ? 'Not set' : `$${(board.total_pot_cents / 100).toFixed(2)}`}</strong>{board.pot_mode === 'per_square' && board.per_square_cents != null && <small>${(board.per_square_cents / 100).toFixed(2)} per reserved block</small>}</div>
       <div><span>Reserved</span><strong>{board.claims.length}/100 squares</strong></div>
       <div><span>Score digits</span><strong>{board.locked ? 'Randomized' : 'Hidden until lock'}</strong></div>
     </section>
@@ -123,6 +130,6 @@ export default function SquaresPage() {
       {reservations.length ? <ul>{reservations.map((reservation) => <li key={reservation.user_id}><strong>{reservation.user_email}</strong><span>{reservation.count} {reservation.count === 1 ? 'square' : 'squares'} · Blocks {reservation.blocks.join(', ')}</span></li>)}</ul> : <p>No squares have been reserved yet.</p>}
     </section>
     <section className="squares-results"><h2>Quarter winners</h2><div>{['q1', 'halftime', 'q3', 'final'].map((name) => { const result = board.payouts.find((item) => item.checkpoint === name); return <article key={name}><strong>{name === 'q1' ? '1st Quarter' : name === 'q3' ? '3rd Quarter' : name[0].toUpperCase() + name.slice(1)}</strong>{result ? <><span>{result.away_score}–{result.home_score}</span><b>{result.winner_email || 'Unclaimed square'}</b>{result.amount_cents != null && <small>${(result.amount_cents / 100).toFixed(2)} recorded</small>}</> : <span>Pending</span>}</article>; })}</div></section>
-    {board.permissions.is_admin && !board.locked && <form className="squares-pot" onSubmit={savePot}><div><h2>Admin payout setup</h2><p>Default: 25% after Q1, halftime, Q3, and final. Run My Pool records winners and amounts but does not move money.</p></div><label>Total pot ($) <input type="number" min="0" step="0.01" inputMode="decimal" value={pot} onChange={(event) => setPot(event.target.value)} placeholder="Optional" /></label><button disabled={busy}>Save payouts</button></form>}
+    {board.permissions.is_admin && !board.locked && <form className="squares-pot" onSubmit={savePot}><div><h2>Admin payout setup</h2><p>Choose one fixed pot or let the total grow with every reserved block. Quarter payouts remain 25% each. Run My Pool records winners and amounts but does not move money.</p><fieldset><legend>Pot calculation</legend><label className={potMode === 'fixed' ? 'is-selected' : ''}><input type="radio" name="pot-mode" value="fixed" checked={potMode === 'fixed'} onChange={() => { setPotMode('fixed'); setPot(dollarsFromCents(board.pot_mode === 'fixed' ? board.total_pot_cents : null)); }} /> Fixed total</label><label className={potMode === 'per_square' ? 'is-selected' : ''}><input type="radio" name="pot-mode" value="per_square" checked={potMode === 'per_square'} onChange={() => { setPotMode('per_square'); setPot(dollarsFromCents(board.per_square_cents)); }} /> Per reserved block</label></fieldset></div><label>{potMode === 'fixed' ? 'Total pot ($)' : 'Amount per reserved block ($)'}<input type="number" min="0" step="0.01" inputMode="decimal" value={pot} onChange={(event) => setPot(event.target.value)} placeholder={potMode === 'fixed' ? 'Optional' : 'Required'} required={potMode === 'per_square'} /></label><button disabled={busy}>Save payouts</button></form>}
   </main></ProtectedRoute>;
 }

@@ -10,7 +10,7 @@ jest.mock('../context/AuthContext', () => ({ useAuth: () => ({ user: { id: 'user
 
 const board = {
   pool_id: 'pool-1', pool_name: 'Sunday Squares', locked: false, locked_at: null,
-  home_digits: null, away_digits: null, total_pot_cents: null, claims: [], payouts: [],
+  home_digits: null, away_digits: null, pot_mode: 'fixed', total_pot_cents: null, per_square_cents: null, claims: [], payouts: [],
   permissions: { is_admin: true, can_claim: true },
   game: { game_id: 1, start_time: '2026-09-13T17:00:00Z', status: 'scheduled', home_team: { abbrv: 'MIA' }, away_team: { abbrv: 'BUF' } },
 };
@@ -66,8 +66,29 @@ describe('SquaresPage', () => {
 
     await waitFor(() => expect(fetch).toHaveBeenCalledWith('/squares/pool-1/payouts', expect.objectContaining({ method: 'PATCH' })));
     const request = fetch.mock.calls.find(([, options]) => options?.method === 'PATCH')[1];
-    expect(JSON.parse(request.body).total_pot_cents).toBe(12345);
+    expect(JSON.parse(request.body)).toEqual({ pot_mode: 'fixed', total_pot_cents: 12345, per_square_cents: null, q1_percent: 25, halftime_percent: 25, q3_percent: 25, final_percent: 25 });
     expect(await screen.findByText('$123.45')).toBeInTheDocument();
+  });
+
+  test('lets an admin calculate the pot from a dollar amount per reserved block', async () => {
+    global.fetch = jest.fn((url, options = {}) => {
+      if (options.method === 'PATCH') return response({ ...board, pot_mode: 'per_square', total_pot_cents: 750, per_square_cents: 250 });
+      return response({ ...board, pot_mode: 'per_square', total_pot_cents: 500, per_square_cents: 250 });
+    });
+    const user = userEvent.setup();
+    render(<SquaresPage />);
+
+    expect(await screen.findByText('$5.00')).toBeInTheDocument();
+    expect(screen.getByText('$2.50 per reserved block')).toBeInTheDocument();
+    const rateInput = screen.getByRole('spinbutton', { name: 'Amount per reserved block ($)' });
+    expect(rateInput).toHaveValue(2.5);
+    await user.clear(rateInput);
+    await user.type(rateInput, '3.75');
+    await user.click(screen.getByRole('button', { name: 'Save payouts' }));
+
+    await waitFor(() => expect(fetch).toHaveBeenCalledWith('/squares/pool-1/payouts', expect.objectContaining({ method: 'PATCH' })));
+    const request = fetch.mock.calls.find(([, options]) => options?.method === 'PATCH')[1];
+    expect(JSON.parse(request.body)).toEqual({ pot_mode: 'per_square', total_pot_cents: null, per_square_cents: 375, q1_percent: 25, halftime_percent: 25, q3_percent: 25, final_percent: 25 });
   });
 
   test('shows members the pot and reservation owners without admin controls', async () => {

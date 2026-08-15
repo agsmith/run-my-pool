@@ -359,7 +359,9 @@ class SquareClaimCreate(BaseModel):
 
 class SquarePayoutConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
+    pot_mode: Literal["fixed", "per_square"] = "fixed"
     total_pot_cents: Optional[int] = Field(default=None, ge=0)
+    per_square_cents: Optional[int] = Field(default=None, ge=0)
     q1_percent: int = Field(ge=0, le=100)
     halftime_percent: int = Field(ge=0, le=100)
     q3_percent: int = Field(ge=0, le=100)

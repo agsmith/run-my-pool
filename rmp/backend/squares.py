@@ -91,6 +91,12 @@ def _claim_payload(claim: models.SquareClaim) -> dict:
     }
 
 
+def _effective_total_pot(board: models.SquareBoard, claim_count: int) -> int | None:
+    if board.pot_mode == "per_square":
+        return board.per_square_cents * claim_count if board.per_square_cents is not None else None
+    return board.total_pot_cents
+
+
 def board_payload(db: Session, pool: models.Pool, user: models.User) -> dict:
     ensure_board_locked_for_kickoff(db, pool)
     db.refresh(pool.square_board)
@@ -125,7 +131,9 @@ def board_payload(db: Session, pool: models.Pool, user: models.User) -> dict:
         "locked_at": board.locked_at,
         "home_digits": json.loads(board.home_digits) if board.home_digits else None,
         "away_digits": json.loads(board.away_digits) if board.away_digits else None,
-        "total_pot_cents": board.total_pot_cents,
+        "pot_mode": board.pot_mode or "fixed",
+        "total_pot_cents": _effective_total_pot(board, len(claims)),
+        "per_square_cents": board.per_square_cents,
         "payout_percentages": {"q1": board.q1_percent, "halftime": board.halftime_percent, "q3": board.q3_percent, "final": board.final_percent},
         "claims": [_claim_payload(claim) for claim in claims],
         "payouts": [{
@@ -225,8 +233,12 @@ def update_payouts(pool_id: str, request: schemas.SquarePayoutConfig, db: Sessio
     percentages = [request.q1_percent, request.halftime_percent, request.q3_percent, request.final_percent]
     if sum(percentages) != 100:
         raise HTTPException(status_code=400, detail="Payout percentages must total 100")
+    if request.pot_mode == "per_square" and request.per_square_cents is None:
+        raise HTTPException(status_code=400, detail="An amount per reserved block is required")
     board = pool.square_board
-    board.total_pot_cents = request.total_pot_cents
+    board.pot_mode = request.pot_mode
+    board.total_pot_cents = request.total_pot_cents if request.pot_mode == "fixed" else None
+    board.per_square_cents = request.per_square_cents if request.pot_mode == "per_square" else None
     board.q1_percent, board.halftime_percent, board.q3_percent, board.final_percent = percentages
     board.updated_at = _now()
     db.commit()
