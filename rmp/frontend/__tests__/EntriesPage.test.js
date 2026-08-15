@@ -214,6 +214,7 @@ describe('player entries page', () => {
     render(<LeagueEntries />);
 
     expect(await screen.findByAltText('WSH logo')).toHaveAttribute('src', '/nfl/wsh.svg');
+    expect(screen.getByAltText('WSH logo')).toHaveAttribute('title', 'WSH');
   });
 
   test('canceling a rename does not save the edited name', async () => {

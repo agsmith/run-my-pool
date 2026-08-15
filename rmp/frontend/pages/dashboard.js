@@ -696,6 +696,7 @@ export default function Dashboard() {
                   <img 
                     src={`/nfl/${NFL_TEAMS[team].logo}`}
                     alt={`${team} logo`}
+                    title={team}
                     style={{
                       width: '24px',
                       height: '24px',

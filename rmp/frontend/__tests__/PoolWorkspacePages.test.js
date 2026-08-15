@@ -157,6 +157,7 @@ describe('pool workspace pages', () => {
     render(<MatchupsPage />);
 
     expect(await screen.findByText('BUF -3')).toBeInTheDocument();
+    expect(screen.getByTitle('BUF')).toHaveAttribute('src', '/nfl/buf.svg');
     expect(screen.getByText('Official line at lock')).toBeInTheDocument();
     expect(screen.getByText('Live · ESPN')).toBeInTheDocument();
     expect(screen.getByText('Line pending')).toBeInTheDocument();

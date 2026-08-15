@@ -5,7 +5,7 @@ import { PoolWorkspaceNav, WorkspaceHeader } from '../../../components/ProductWo
 
 function Team({ team }) {
   return <div className="matchup-team">
-    <img src={`/nfl/${team.abbrv.toLowerCase()}.svg`} alt="" />
+    <img src={`/nfl/${team.abbrv.toLowerCase()}.svg`} alt="" title={team.abbrv} />
     <span><strong>{team.abbrv}</strong><small>{team.name}</small></span>
   </div>;
 }

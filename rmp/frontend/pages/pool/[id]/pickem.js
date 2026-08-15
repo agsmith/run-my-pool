@@ -84,7 +84,7 @@ export default function PickEmPage() {
       <section className="pickem-board">{games.map((game) => <article key={game.game_id} className="pickem-game">
         <time>{new Date(game.start_time).toLocaleString()}</time>
         {[game.away_team, game.home_team].map((team) => <button key={team.id} disabled={savingGame === game.game_id || (targetReached && !picksByGame[game.game_id])} className={picksByGame[game.game_id]?.team === team.abbrv ? 'is-selected' : ''} onClick={() => selectWinner(game, team)}>
-          <img src={`/nfl/${team.abbrv.toLowerCase()}.svg`} alt="" /><span><strong>{team.abbrv}</strong><small>{team.name}</small></span>{picksByGame[game.game_id]?.team === team.abbrv && <b>✓</b>}
+          <img src={`/nfl/${team.abbrv.toLowerCase()}.svg`} alt="" title={team.abbrv} /><span><strong>{team.abbrv}</strong><small>{team.name}</small></span>{picksByGame[game.game_id]?.team === team.abbrv && <b>✓</b>}
         </button>)}
       </article>)}</section>}
     <section className="pickem-standings"><h2>Season standings</h2><table><thead><tr><th>Rank</th><th>Entry</th><th>Points</th><th>Completed picks</th></tr></thead><tbody>{standings.map((row) => <tr key={row.entry_id}><td>{row.rank}</td><td><strong>{row.entry_name}</strong><small>{row.user_email}</small></td><td>{row.points}</td><td>{row.possible_points}</td></tr>)}</tbody></table></section>

@@ -51,6 +51,7 @@ describe('PickEmPage', () => {
     render(<PickEmPage />);
 
     expect(await screen.findByRole('button', { name: /BUF Buffalo Bills/ })).toBeInTheDocument();
+    expect(screen.getByTitle('BUF')).toHaveAttribute('src', '/nfl/buf.svg');
     expect(screen.getByText('Office Pick Em')).toBeInTheDocument();
     expect(screen.getByRole('cell', { name: '4' })).toBeInTheDocument();
     expect(screen.queryByText(/official line|live line|line pending/i)).not.toBeInTheDocument();

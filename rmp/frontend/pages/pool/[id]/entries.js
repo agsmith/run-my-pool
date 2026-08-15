@@ -114,6 +114,7 @@ function PickBreakdownPanel({ data, week, loading, error, locked }) {
             <img
               src={`/nfl/${item.team_abbrv.toLowerCase()}.svg`}
               alt={item.team_abbrv}
+              title={item.team_abbrv}
               style={{ width: '20px', height: '20px', objectFit: 'contain', flexShrink: 0 }}
               onError={(e) => { e.target.style.display = 'none'; }}
             />
@@ -600,6 +601,7 @@ export default function LeagueEntries() {
           <img
             src={`/nfl/${NFL_TEAMS[pick.team]?.logo}`}
             alt={`${pick.team} logo`}
+            title={pick.team}
             style={{
               width: '20px',
               height: '20px',
