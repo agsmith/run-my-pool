@@ -216,7 +216,7 @@ export default function PoolDetail() {
                   <div><dt>Access</dt><dd>{pool.is_private ? 'Private · Password required' : 'Public · Open joining'}</dd></div>
                   <div><dt>Pick lock</dt><dd>{formatPickLock(pool)}</dd></div>
                   <div><dt>Your role</dt><dd>{userRole}</dd></div>
-                  <div><dt>Season format</dt><dd>{pool.pool_type === 'pickem' ? 'Season-long Pick ’Em · one point per win' : pool.pool_type === 'squares' ? 'Single-game 10×10 Squares' : 'Weekly survivor'}</dd></div>
+                  <div><dt>Season format</dt><dd>{pool.pool_type === 'pickem' ? 'Season-long Pick ’Em · one point per win' : pool.pool_type === 'squares' ? 'Multi-game 10×10 Squares' : 'Weekly survivor'}</dd></div>
                 </dl>
               </section>
 

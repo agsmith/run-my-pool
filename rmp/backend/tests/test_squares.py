@@ -16,8 +16,8 @@ def _register(client, email):
 
 
 def _game(db, game_id=9001, start=None):
-    home = models.Team(id=901, name="Home Team", abbrv="HOM")
-    away = models.Team(id=902, name="Away Team", abbrv="AWY")
+    home = models.Team(id=game_id * 10 + 1, name=f"Home Team {game_id}", abbrv=f"H{game_id % 100}")
+    away = models.Team(id=game_id * 10 + 2, name=f"Away Team {game_id}", abbrv=f"A{game_id % 100}")
     game = models.Schedule(
         game_id=game_id, season=2026, week_num=1,
         home_team_id=home.id, away_team_id=away.id,
@@ -27,9 +27,10 @@ def _game(db, game_id=9001, start=None):
     return game
 
 
-def _create(client, headers, game_id=9001, name="Sunday Squares"):
+def _create(client, headers, game_id=9001, name="Sunday Squares", game_ids=None):
     response = client.post("/pools/create", json={
-        "name": name, "pool_type": "squares", "squares_game_id": game_id,
+        "name": name, "pool_type": "squares",
+        **({"squares_game_ids": game_ids} if game_ids is not None else {"squares_game_id": game_id}),
     }, headers=headers)
     assert response.status_code == 200, response.text
     return response.json()
@@ -61,6 +62,20 @@ def test_squares_creation_requires_future_known_game(client, db_session):
     _game(db_session, start=datetime.utcnow() - timedelta(minutes=1))
     started = client.post("/pools/create", json={"name": "Started Game", "pool_type": "squares", "squares_game_id": 9001}, headers=headers)
     assert started.status_code == 409
+
+
+def test_squares_board_accepts_multiple_games_and_locks_at_earliest_kickoff(client, db_session):
+    _, headers = _register(client, "multi-game-squares@example.com")
+    later = _game(db_session, game_id=9002, start=datetime.utcnow() + timedelta(days=3))
+    earlier = _game(db_session, game_id=9003, start=datetime.utcnow() + timedelta(days=2))
+    pool = _create(client, headers, name="Thanksgiving Squares", game_ids=[later.game_id, earlier.game_id])
+
+    body = client.get(f"/squares/{pool['id']}", headers=headers).json()
+    assert {game["game_id"] for game in body["games"]} == {9002, 9003}
+    assert body["lock_time"] == earlier.start_time.isoformat()
+    assert body["games"][0]["game_id"] == earlier.game_id
+    persisted = db_session.query(models.PoolSquareGame).filter_by(pool_id=pool["id"]).all()
+    assert {selection.game_id for selection in persisted} == {9002, 9003}
 
 
 def test_free_plan_includes_one_board_and_25_self_service_blocks(client, db_session):
@@ -242,7 +257,7 @@ def test_board_randomizes_score_digits_automatically_at_kickoff(client, db_sessi
 
 def test_quarter_payouts_are_idempotent_and_correctable(db_session):
     owner = models.User(id="owner", email="owner@squares.test", hashed_password="x", is_active=True)
-    _game(db_session)
+    game = _game(db_session)
     pool = models.Pool(id="square-pool", name="Scored Squares", pool_type="squares", squares_game_id=9001, owner_id=owner.id, created_at=datetime.utcnow())
     board = models.SquareBoard(
         pool_id=pool.id, home_digits=json.dumps(list(range(10))), away_digits=json.dumps(list(range(10))),
@@ -250,11 +265,11 @@ def test_quarter_payouts_are_idempotent_and_correctable(db_session):
     )
     claim = models.SquareClaim(id="claim", pool_id=pool.id, row_index=7, column_index=3, user_id=owner.id, assigned_by=owner.id, claimed_at=datetime.utcnow())
     db_session.add_all([owner, pool, board, claim]); db_session.commit()
-    result = NflGameResult(9001, 2026, 1, "in_progress", "HOM", "AWY", 7, 3, home_q1_score=7, away_q1_score=3, completed_period=1)
+    result = NflGameResult(9001, 2026, 1, "in_progress", game.home_team.abbrv, game.away_team.abbrv, 7, 3, home_q1_score=7, away_q1_score=3, completed_period=1)
     apply_game_results(db_session, [result]); db_session.commit()
     payout = db_session.query(models.SquarePayout).one()
     assert payout.checkpoint == "q1" and payout.winner_user_id == owner.id and payout.amount_cents == 2500
-    corrected = NflGameResult(9001, 2026, 1, "in_progress", "HOM", "AWY", 6, 3, home_q1_score=6, away_q1_score=3, completed_period=1)
+    corrected = NflGameResult(9001, 2026, 1, "in_progress", game.home_team.abbrv, game.away_team.abbrv, 6, 3, home_q1_score=6, away_q1_score=3, completed_period=1)
     apply_game_results(db_session, [corrected]); db_session.commit()
     payouts = db_session.query(models.SquarePayout).all()
     assert len(payouts) == 1 and payouts[0].winning_row == 6 and payouts[0].winner_user_id is None
@@ -264,6 +279,38 @@ def test_quarter_payouts_are_idempotent_and_correctable(db_session):
     apply_game_results(db_session, [result]); db_session.commit()
     payout = db_session.query(models.SquarePayout).one()
     assert payout.winner_user_id == owner.id and payout.amount_cents == 5000
+
+
+def test_multi_game_board_distributes_one_total_pot_across_selected_games(db_session):
+    owner = models.User(id="multi-owner", email="multi@squares.test", hashed_password="x", is_active=True)
+    first = _game(db_session, game_id=9101)
+    second = _game(db_session, game_id=9102)
+    now = datetime.utcnow()
+    pool = models.Pool(
+        id="multi-square-pool", name="Holiday Squares", pool_type="squares",
+        squares_game_id=first.game_id, owner_id=owner.id, created_at=now,
+    )
+    board = models.SquareBoard(
+        pool_id=pool.id, home_digits=json.dumps(list(range(10))),
+        away_digits=json.dumps(list(range(10))), total_pot_cents=10000,
+        locked_at=now, created_at=now, updated_at=now,
+    )
+    claim = models.SquareClaim(
+        id="multi-claim", pool_id=pool.id, row_index=7, column_index=3,
+        user_id=owner.id, assigned_by=owner.id, claimed_at=now,
+    )
+    selections = [
+        models.PoolSquareGame(pool_id=pool.id, game_id=first.game_id, display_order=0, created_at=now),
+        models.PoolSquareGame(pool_id=pool.id, game_id=second.game_id, display_order=1, created_at=now),
+    ]
+    db_session.add_all([owner, pool, board, claim, *selections]); db_session.commit()
+
+    result = NflGameResult(first.game_id, 2026, 1, "in_progress", first.home_team.abbrv, first.away_team.abbrv, 7, 3, home_q1_score=7, away_q1_score=3, completed_period=1)
+    apply_game_results(db_session, [result]); db_session.commit()
+
+    payout = db_session.query(models.SquarePayout).one()
+    assert payout.game_id == first.game_id
+    assert payout.amount_cents == 1250
 
 
 def test_espn_linescores_are_converted_to_cumulative_checkpoint_scores():

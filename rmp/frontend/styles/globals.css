@@ -1725,8 +1725,15 @@ table {
 .squares-cell.is-claimed { background: #8ccfc2; font-weight: 700; }
 .squares-cell.is-mine { background: #d7ff3f; }
 .squares-results { margin-top: 2rem; }
-.squares-results > div { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
+.squares-results .squares-game-results { margin-top: 1rem; }
+.squares-results .squares-game-results h3 { margin: 0 0 .65rem; color: #d7ff3f; }
+.squares-results .squares-game-results > div { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
 .squares-results article { display: grid; gap: .35rem; padding: 1rem; border: 1px solid #35534c; border-radius: 10px; background: #0c1b18; }
+.squares-games { margin: 1rem 0; padding: 1rem; border: 1px solid #35534c; border-radius: 12px; background: #0c1b18; }
+.squares-games h2, .squares-games p { margin: 0 0 .35rem; }
+.squares-games ul { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: .55rem; margin: .85rem 0 0; padding: 0; list-style: none; }
+.squares-games li { display: grid; gap: .25rem; padding: .65rem .75rem; background: #142923; border-radius: 8px; }
+.squares-games li span { color: #9fb5af; font-size: .85rem; }
 .squares-reservations { margin-top: 1.5rem; padding: 1.25rem; border: 1px solid #35534c; border-radius: 12px; background: #0c1b18; }
 .squares-reservations h2, .squares-reservations p { margin: 0 0 .35rem; }
 .squares-reservations ul { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: .6rem; margin: 1rem 0 0; padding: 0; list-style: none; }
@@ -1777,7 +1784,7 @@ table {
   .squares-cell { min-height: .43in; padding: .02in; border: 1px solid #9aa9a5; background: #fff!important; color: #111!important; font-size: 7pt; line-height: 1.05; }
   .squares-cell.is-claimed { background: #cde8e1!important; }
   .squares-cell.is-mine { background: #eaf7b0!important; }
-  .squares-reservations, .squares-results { color: #111!important; background: #fff!important; border-color: #888; break-inside: avoid; }
+  .squares-games, .squares-reservations, .squares-results { color: #111!important; background: #fff!important; border-color: #888; break-inside: avoid; }
   .squares-reservations li, .squares-results article { color: #111!important; background: #f2f5f4!important; border-color: #aaa; }
   .squares-reservations li span { color: #17312b!important; }
   .squares-results { margin-top: .2in; }
@@ -1795,6 +1802,13 @@ table {
 .create-pool-field span small, .create-pool-field > small { color: #91aaa4; font-weight: 500; }
 .create-pool-field input, .create-pool-field textarea, .create-pool-field select { box-sizing: border-box; width: 100%; padding: .8rem .9rem; border: 1px solid #45615b; border-radius: 8px; background: #071311; color: white; font: inherit; }
 .create-pool-field input:focus, .create-pool-field textarea:focus, .create-pool-field select:focus { outline: 2px solid #d7ff3f; outline-offset: 1px; }
+.create-pool-game-picker { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .65rem; max-height: 24rem; overflow-y: auto; margin-top: 1rem; padding-right: .25rem; }
+.create-pool-game-picker label { display: grid; grid-template-columns: auto 1fr; column-gap: .7rem; row-gap: .2rem; padding: .85rem; border: 1px solid #3a5751; border-radius: 9px; background: #0b1a17; cursor: pointer; }
+.create-pool-game-picker label.is-selected { border-color: #d7ff3f; box-shadow: inset 0 0 0 1px #d7ff3f; }
+.create-pool-game-picker input { grid-row: 1 / 3; align-self: center; accent-color: #d7ff3f; }
+.create-pool-game-picker strong { color: #fff; }
+.create-pool-game-picker small, .create-pool-selection-count { color: #91aaa4; }
+.create-pool-selection-count { display: block; margin-top: .7rem; }
 .create-pool-deadline-grid { display: grid; grid-template-columns: 1fr 1fr 1.4fr; gap: 1rem; }
 .create-pool-note { margin-top: 1.25rem; display: grid; gap: .25rem; padding: 1rem; border-left: 3px solid #d7ff3f; background: #0a1916; color: #b8cbc6; }
 .create-pool-note strong { color: white; }
@@ -1810,7 +1824,7 @@ table {
   .create-pool-header { padding: 0 1rem; }
   .create-pool-form { margin-top: 2rem; }
   .create-pool-section { padding: 1.1rem; }
-  .create-pool-format-grid, .create-pool-access-grid, .create-pool-deadline-grid { grid-template-columns: 1fr; }
+  .create-pool-format-grid, .create-pool-access-grid, .create-pool-deadline-grid, .create-pool-game-picker { grid-template-columns: 1fr; }
   .create-pool-actions { bottom: .5rem; }
   .create-pool-actions button { flex: 1; }
 }

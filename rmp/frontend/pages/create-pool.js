@@ -20,7 +20,7 @@ export default function CreatePool() {
   const [form, setForm] = useState({
     name: '', description: '', pool_type: 'survivor',
     pickem_games_per_week: 'all',
-    squares_game_id: '',
+    squares_game_ids: [],
     lock_day_of_week: 6, lock_time_of_day: '13:00', lock_timezone: 'America/New_York',
     is_private: false, join_password: '',
   });
@@ -64,7 +64,7 @@ export default function CreatePool() {
           pickem_games_per_week: form.pool_type === 'pickem' && form.pickem_games_per_week !== 'all'
             ? Number(form.pickem_games_per_week)
             : null,
-          squares_game_id: form.pool_type === 'squares' ? Number(form.squares_game_id) : null,
+          squares_game_ids: form.pool_type === 'squares' ? form.squares_game_ids.map(Number) : null,
           lock_day_of_week: Number(form.lock_day_of_week),
           lock_time_of_day: `${form.lock_time_of_day}:00`,
           lock_timezone: form.lock_timezone,
@@ -91,6 +91,12 @@ export default function CreatePool() {
 
   const isPickEm = form.pool_type === 'pickem';
   const isSquares = form.pool_type === 'squares';
+  const toggleSquaresGame = (gameId) => setForm((current) => ({
+    ...current,
+    squares_game_ids: current.squares_game_ids.includes(gameId)
+      ? current.squares_game_ids.filter((id) => id !== gameId)
+      : [...current.squares_game_ids, gameId],
+  }));
 
   return <ProtectedRoute><main className="create-pool-page">
     <header className="create-pool-header">
@@ -143,15 +149,20 @@ export default function CreatePool() {
       </section>}
 
       {isSquares && <section className="create-pool-section">
-        <h2>2. Choose the game</h2>
-        <p className="create-pool-help">The board locks no later than kickoff. Home and away score digits are hidden until then.</p>
-        <label className="create-pool-field">
-          <span>NFL matchup <b>*</b></span>
-          <select aria-label="Squares game" value={form.squares_game_id} onChange={(event) => update('squares_game_id', event.target.value)} required>
-            <option value="">Select an upcoming game</option>
-            {upcomingGames.map((game) => <option key={game.game_id} value={game.game_id}>{game.away_team.abbrv} at {game.home_team.abbrv} — {new Date(game.start_time).toLocaleString()}</option>)}
-          </select>
-        </label>
+        <h2>2. Choose the games</h2>
+        <p className="create-pool-help">Select one or many games for this board. The same squares and randomized digits apply to every game, and the entire board locks at the earliest selected kickoff.</p>
+        <div className="create-pool-game-picker" role="group" aria-label="Squares games">
+          {upcomingGames.map((game) => {
+            const gameId = String(game.game_id);
+            const selected = form.squares_game_ids.includes(gameId);
+            return <label key={game.game_id} className={selected ? 'is-selected' : ''}>
+              <input type="checkbox" checked={selected} onChange={() => toggleSquaresGame(gameId)} />
+              <strong>{game.away_team.abbrv} at {game.home_team.abbrv}</strong>
+              <small>{new Date(game.start_time).toLocaleString()}</small>
+            </label>;
+          })}
+        </div>
+        <small className="create-pool-selection-count">{form.squares_game_ids.length} game{form.squares_game_ids.length === 1 ? '' : 's'} selected</small>
       </section>}
 
       <section className="create-pool-section">
@@ -190,7 +201,7 @@ export default function CreatePool() {
 
       <footer className="create-pool-actions">
         <button type="button" onClick={() => router.push('/dashboard')}>Cancel</button>
-        <button type="submit" disabled={loading || !form.name.trim() || (isSquares && !form.squares_game_id)}>{loading ? 'Creating pool…' : `Create ${isPickEm ? 'Pick ’Em' : isSquares ? 'Squares' : 'Survivor'} Pool`}</button>
+        <button type="submit" disabled={loading || !form.name.trim() || (isSquares && form.squares_game_ids.length === 0)}>{loading ? 'Creating pool…' : `Create ${isPickEm ? 'Pick ’Em' : isSquares ? 'Squares' : 'Survivor'} Pool`}</button>
       </footer>
     </form>
   </main></ProtectedRoute>;

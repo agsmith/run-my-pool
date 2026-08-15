@@ -96,6 +96,32 @@ describe('CreatePool', () => {
     }));
   });
 
+  test('lets a Squares owner select one or many games', async () => {
+    const user = userEvent.setup();
+    const games = [
+      { game_id: 101, start_time: '2099-11-27T17:00:00Z', away_team: { abbrv: 'CHI' }, home_team: { abbrv: 'DET' } },
+      { game_id: 102, start_time: '2099-11-27T21:30:00Z', away_team: { abbrv: 'NYG' }, home_team: { abbrv: 'DAL' } },
+    ];
+    fetch
+      .mockResolvedValueOnce({ ok: true, json: async () => games })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ id: 'thanksgiving-board' }) });
+    render(<CreatePool />);
+
+    await user.click(screen.getByRole('radio', { name: /squares/i }));
+    await user.click(await screen.findByRole('checkbox', { name: /CHI at DET/i }));
+    await user.click(screen.getByRole('checkbox', { name: /NYG at DAL/i }));
+    expect(screen.getByText('2 games selected')).toBeInTheDocument();
+    await user.type(screen.getByPlaceholderText(/enter pool name/i), 'Thanksgiving Squares');
+    await user.click(screen.getByRole('button', { name: /create squares pool/i }));
+
+    const createCall = fetch.mock.calls.find(([url, options]) => String(url).endsWith('/pools/create') && options?.method === 'POST');
+    expect(JSON.parse(createCall[1].body)).toEqual(expect.objectContaining({
+      pool_type: 'squares',
+      squares_game_ids: [101, 102],
+    }));
+    expect(mockPush).toHaveBeenCalledWith('/pool/thanksgiving-board/squares');
+  });
+
   test('sends supported Survivor settings and a shareable private join code', async () => {
     const user = userEvent.setup();
     fetch.mockResolvedValue({ ok: true, json: async () => ({ id: 'survivor-pool' }) });

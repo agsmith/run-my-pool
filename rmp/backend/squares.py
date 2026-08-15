@@ -27,15 +27,27 @@ def _now() -> datetime:
 def _pool(db: Session, pool_id: str) -> models.Pool:
     pool = (
         db.query(models.Pool)
-        .options(joinedload(models.Pool.squares_game).joinedload(models.Schedule.home_team),
-                 joinedload(models.Pool.squares_game).joinedload(models.Schedule.away_team),
-                 joinedload(models.Pool.square_board))
+        .options(joinedload(models.Pool.square_board))
         .filter(models.Pool.id == pool_id)
         .first()
     )
     if not pool or pool.pool_type != "squares" or not pool.square_board:
         raise HTTPException(status_code=404, detail="Squares pool not found")
     return pool
+
+
+def _selected_games(pool: models.Pool) -> list[models.Schedule]:
+    games = [selection.game for selection in pool.square_games]
+    if not games and pool.squares_game is not None:
+        games = [pool.squares_game]
+    return sorted(games, key=lambda game: (game.start_time, game.game_id))
+
+
+def _lock_time(pool: models.Pool) -> datetime:
+    games = _selected_games(pool)
+    if not games:
+        raise HTTPException(status_code=409, detail="This Squares board has no selected games")
+    return games[0].start_time
 
 
 def _is_admin(db: Session, pool: models.Pool, user: models.User) -> bool:
@@ -68,7 +80,7 @@ def _lock_board(board: models.SquareBoard, *, actor_id: str | None = None) -> bo
 
 def ensure_board_locked_for_kickoff(db: Session, pool: models.Pool) -> bool:
     """Automatically lock at kickoff so a missing commissioner action cannot expose digits."""
-    if pool.square_board.locked_at or _now() < pool.squares_game.start_time:
+    if pool.square_board.locked_at or _now() < _lock_time(pool):
         return False
     db.query(models.SquareBoard).filter(models.SquareBoard.pool_id == pool.id).with_for_update().one()
     db.refresh(pool.square_board)
@@ -107,7 +119,11 @@ def board_payload(db: Session, pool: models.Pool, user: models.User) -> dict:
     payouts = db.query(models.SquarePayout).options(joinedload(models.SquarePayout.winner)).filter(
         models.SquarePayout.pool_id == pool.id
     ).all()
-    game = pool.squares_game
+    games = _selected_games(pool)
+    if not games:
+        raise HTTPException(status_code=409, detail="This Squares board has no selected games")
+    game_by_id = {game.game_id: game for game in games}
+    primary_game = games[0]
     admin = _is_admin(db, pool, user)
     used_capacity, capacity_limit, plan = entitlements.capacity_usage(db, pool)
     commissioner_controls = plan not in ("free", "squares-plus")
@@ -121,6 +137,15 @@ def board_payload(db: Session, pool: models.Pool, user: models.User) -> dict:
         "pool_id": pool.id,
         "pool_name": pool.name,
         "game": {
+            "game_id": primary_game.game_id,
+            "start_time": primary_game.start_time,
+            "status": primary_game.status,
+            "home_team": {"id": primary_game.home_team_id, "name": primary_game.home_team.name, "abbrv": primary_game.home_team.abbrv},
+            "away_team": {"id": primary_game.away_team_id, "name": primary_game.away_team.name, "abbrv": primary_game.away_team.abbrv},
+            "home_score": primary_game.home_score,
+            "away_score": primary_game.away_score,
+        },
+        "games": [{
             "game_id": game.game_id,
             "start_time": game.start_time,
             "status": game.status,
@@ -128,7 +153,8 @@ def board_payload(db: Session, pool: models.Pool, user: models.User) -> dict:
             "away_team": {"id": game.away_team_id, "name": game.away_team.name, "abbrv": game.away_team.abbrv},
             "home_score": game.home_score,
             "away_score": game.away_score,
-        },
+        } for game in games],
+        "lock_time": games[0].start_time,
         "locked": board.locked_at is not None,
         "locked_at": board.locked_at,
         "home_digits": json.loads(board.home_digits) if board.home_digits else None,
@@ -139,6 +165,11 @@ def board_payload(db: Session, pool: models.Pool, user: models.User) -> dict:
         "payout_percentages": {"q1": board.q1_percent, "halftime": board.halftime_percent, "q3": board.q3_percent, "final": board.final_percent},
         "claims": [_claim_payload(claim) for claim in claims],
         "payouts": [{
+            "game_id": payout.game_id,
+            "game": {
+                "home_team": game_by_id[payout.game_id].home_team.abbrv,
+                "away_team": game_by_id[payout.game_id].away_team.abbrv,
+            } if payout.game_id in game_by_id else None,
             "checkpoint": payout.checkpoint,
             "home_score": payout.home_score,
             "away_score": payout.away_score,
@@ -154,7 +185,7 @@ def board_payload(db: Session, pool: models.Pool, user: models.User) -> dict:
         "block_limit": min(capacity_limit, 100) if capacity_limit is not None else 100,
         "permissions": {
             "is_admin": admin,
-            "can_claim": board.locked_at is None and _now() < game.start_time and (capacity_limit is None or used_capacity < capacity_limit),
+            "can_claim": board.locked_at is None and _now() < games[0].start_time and (capacity_limit is None or used_capacity < capacity_limit),
             "can_admin_assign": admin and commissioner_controls,
             "can_use_variable_pot": admin and commissioner_controls,
         },
@@ -182,7 +213,7 @@ def claim_square(pool_id: str, request: schemas.SquareClaimCreate, db: Session =
         raise HTTPException(status_code=400, detail="Squares may only be assigned to pool members")
     db.query(models.SquareBoard).filter(models.SquareBoard.pool_id == pool.id).with_for_update().one()
     db.refresh(pool.square_board)
-    if pool.square_board.locked_at or _now() >= pool.squares_game.start_time:
+    if pool.square_board.locked_at or _now() >= _lock_time(pool):
         raise HTTPException(status_code=409, detail="This Squares board is locked")
     entitlements.enforce_entry_capacity(db, pool)
     claim = models.SquareClaim(
@@ -210,7 +241,7 @@ def release_square(pool_id: str, claim_id: str, db: Session = Depends(deps.get_d
         raise HTTPException(status_code=404, detail="Square claim not found")
     if claim.user_id != current_user.id and not _is_admin(db, pool, current_user):
         raise HTTPException(status_code=403, detail="You cannot release another member's square")
-    if pool.square_board.locked_at or _now() >= pool.squares_game.start_time:
+    if pool.square_board.locked_at or _now() >= _lock_time(pool):
         raise HTTPException(status_code=409, detail="This Squares board is locked")
     block_number = claim.row_index * 10 + claim.column_index + 1
     db.delete(claim)
@@ -239,7 +270,7 @@ def update_payouts(pool_id: str, request: schemas.SquarePayoutConfig, db: Sessio
     pool = _pool(db, pool_id)
     if not _is_admin(db, pool, current_user):
         raise HTTPException(status_code=403, detail="Pool admin access required")
-    if pool.square_board.locked_at or _now() >= pool.squares_game.start_time:
+    if pool.square_board.locked_at or _now() >= _lock_time(pool):
         raise HTTPException(status_code=409, detail="Payout settings cannot change after the board locks")
     percentages = [request.q1_percent, request.halftime_percent, request.q3_percent, request.final_percent]
     if sum(percentages) != 100:

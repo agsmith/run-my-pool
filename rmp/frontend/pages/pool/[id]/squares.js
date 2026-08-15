@@ -101,14 +101,16 @@ export default function SquaresPage() {
   };
 
   if (!board) return <ProtectedRoute><main className="product-page-shell"><p>{error || 'Loading Squares board…'}</p></main></ProtectedRoute>;
-  const game = board.game;
+  const games = board.games?.length ? board.games : [board.game];
+  const game = games[0];
+  const gameTitle = games.length === 1 ? `${game.away_team.abbrv} at ${game.home_team.abbrv}` : `${games.length} selected games`;
   return <ProtectedRoute><main className="product-page-shell squares-page">
     <PoolWorkspaceNav poolId={query.id} poolName={board.pool_name} poolType="squares" active="entries" showAdmin={board.permissions.is_admin} />
-    <WorkspaceHeader eyebrow={board.locked ? 'Board locked' : 'Choose your squares'} title={`${game.away_team.abbrv} at ${game.home_team.abbrv}`} description={`${new Date(game.start_time).toLocaleString()} · ${board.claims.length}/${board.block_limit ?? 100} plan blocks reserved`} actions={<div className="squares-screen-actions"><button type="button" onClick={() => window.print()}>Print / Save PDF</button>{board.permissions.is_admin && !board.locked && <button type="button" onClick={lock} disabled={busy}>Lock & randomize digits</button>}</div>} />
+    <WorkspaceHeader eyebrow={board.locked ? 'Board locked' : 'Choose your squares'} title={gameTitle} description={`Locks ${new Date(board.lock_time || game.start_time).toLocaleString()} · ${board.claims.length}/${board.block_limit ?? 100} plan blocks reserved`} actions={<div className="squares-screen-actions"><button type="button" onClick={() => window.print()}>Print / Save PDF</button>{board.permissions.is_admin && !board.locked && <button type="button" onClick={lock} disabled={busy}>Lock & randomize digits</button>}</div>} />
     <header className="squares-print-header">
       <span>Run My Pool · Squares</span>
       <h1>{board.pool_name}</h1>
-      <p>{game.away_team.abbrv} at {game.home_team.abbrv} · {new Date(game.start_time).toLocaleString()}</p>
+      <p>{games.map((item) => `${item.away_team.abbrv} at ${item.home_team.abbrv}`).join(' · ')}</p>
     </header>
     {error && <div className="workspace-alert workspace-alert--error">{error}</div>}
     {board.permissions.is_admin && board.plan === 'free' && <aside className="squares-upgrade"><div><span>Free Squares board</span><strong>{board.claims.length} of {board.block_limit ?? 25} included blocks reserved</strong><p>Upgrade to Squares Plus for all 100 self-service blocks. Commish also adds member assignment and per-reservation pots.</p></div><Link href="/pricing?checkout=squares-plus">Unlock 100 blocks for $10</Link></aside>}
@@ -121,6 +123,7 @@ export default function SquaresPage() {
       <div><span>Score digits</span><strong>{board.locked ? 'Randomized' : 'Hidden until lock'}</strong></div>
     </section>
     <p className="squares-instructions">Home score runs down the left. Away score runs across the top. {!board.locked && 'Score digits are generated randomly by the server when the board locks.'}</p>
+    <section className="squares-games" aria-labelledby="squares-games-heading"><div><h2 id="squares-games-heading">Games on this board</h2><p>The same grid and score digits apply to every matchup.</p></div><ul>{games.map((item) => <li key={item.game_id}><strong>{item.away_team.abbrv} at {item.home_team.abbrv}</strong><span>{new Date(item.start_time).toLocaleString()}</span></li>)}</ul></section>
     <div className="squares-scroll"><div className="squares-grid" role="grid" aria-label="10 by 10 Squares board">
       <div className="squares-corner">HOME ↓<br />AWAY →</div>
       {Array.from({ length: 10 }, (_, col) => <div className="squares-axis" key={`a${col}`}>{board.away_digits?.[col] ?? '?'}</div>)}
@@ -133,7 +136,7 @@ export default function SquaresPage() {
       <div><h2 id="squares-reservations-heading">Reservations</h2><p>Everyone in the pool can see who has reserved squares.</p></div>
       {reservations.length ? <ul>{reservations.map((reservation) => <li key={reservation.user_id}><strong>{reservation.user_email}</strong><span>{reservation.count} {reservation.count === 1 ? 'square' : 'squares'} · Blocks {reservation.blocks.join(', ')}</span></li>)}</ul> : <p>No squares have been reserved yet.</p>}
     </section>
-    <section className="squares-results"><h2>Quarter winners</h2><div>{['q1', 'halftime', 'q3', 'final'].map((name) => { const result = board.payouts.find((item) => item.checkpoint === name); return <article key={name}><strong>{name === 'q1' ? '1st Quarter' : name === 'q3' ? '3rd Quarter' : name[0].toUpperCase() + name.slice(1)}</strong>{result ? <><span>{result.away_score}–{result.home_score}</span><b>{result.winner_email || 'Unclaimed square'}</b>{result.amount_cents != null && <small>${(result.amount_cents / 100).toFixed(2)} recorded</small>}</> : <span>Pending</span>}</article>; })}</div></section>
+    <section className="squares-results"><h2>Quarter winners</h2>{games.map((selectedGame) => <div className="squares-game-results" key={selectedGame.game_id}><h3>{selectedGame.away_team.abbrv} at {selectedGame.home_team.abbrv}</h3><div>{['q1', 'halftime', 'q3', 'final'].map((name) => { const result = board.payouts.find((item) => (item.game_id == null || item.game_id === selectedGame.game_id) && item.checkpoint === name); return <article key={name}><strong>{name === 'q1' ? '1st Quarter' : name === 'q3' ? '3rd Quarter' : name[0].toUpperCase() + name.slice(1)}</strong>{result ? <><span>{result.away_score}–{result.home_score}</span><b>{result.winner_email || 'Unclaimed square'}</b>{result.amount_cents != null && <small>${(result.amount_cents / 100).toFixed(2)} recorded</small>}</> : <span>Pending</span>}</article>; })}</div></div>)}</section>
     {board.permissions.is_admin && !board.locked && <form className="squares-pot" onSubmit={savePot}><div><h2>Admin payout setup</h2><p>Choose one fixed pot or let the total grow with every reserved block. Quarter payouts remain 25% each. Run My Pool records winners and amounts but does not move money.</p><fieldset><legend>Pot calculation</legend><label className={potMode === 'fixed' ? 'is-selected' : ''}><input type="radio" name="pot-mode" value="fixed" checked={potMode === 'fixed'} onChange={() => { setPotMode('fixed'); setPot(dollarsFromCents(board.pot_mode === 'fixed' ? board.total_pot_cents : null)); }} /> Fixed total</label><label className={potMode === 'per_square' ? 'is-selected' : ''} aria-disabled={!board.permissions.can_use_variable_pot}><input type="radio" name="pot-mode" value="per_square" checked={potMode === 'per_square'} disabled={!board.permissions.can_use_variable_pot} onChange={() => { setPotMode('per_square'); setPot(dollarsFromCents(board.per_square_cents)); }} /> Per reserved block {!board.permissions.can_use_variable_pot && <small>Commish</small>}</label></fieldset></div><label>{potMode === 'fixed' ? 'Total pot ($)' : 'Amount per reserved block ($)'}<input type="number" min="0" step="0.01" inputMode="decimal" value={pot} onChange={(event) => setPot(event.target.value)} placeholder={potMode === 'fixed' ? 'Optional' : 'Required'} required={potMode === 'per_square'} /></label><button disabled={busy}>Save payouts</button></form>}
   </main></ProtectedRoute>;
 }

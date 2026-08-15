@@ -200,18 +200,23 @@ def create_pool(
             raise HTTPException(status_code=400, detail="Lock day must be between 0 and 6")
         join_lock_time = _parse_lock_time(pool.join_lock_time) if pool.join_lock_time else None
 
-        squares_game = None
+        squares_games = []
+        selected_square_game_ids = list(dict.fromkeys(pool.squares_game_ids or ([] if pool.squares_game_id is None else [pool.squares_game_id])))
         if pool.pool_type == "squares":
-            if pool.squares_game_id is None:
-                raise HTTPException(status_code=400, detail="Squares pools require an NFL game")
-            squares_game = db.get(models.Schedule, pool.squares_game_id)
-            if squares_game is None:
-                raise HTTPException(status_code=400, detail="Selected NFL game was not found")
+            if not selected_square_game_ids:
+                raise HTTPException(status_code=400, detail="Squares pools require at least one game")
+            if len(selected_square_game_ids) > 100:
+                raise HTTPException(status_code=400, detail="Squares pools may include up to 100 games")
+            squares_games = db.query(models.Schedule).filter(
+                models.Schedule.game_id.in_(selected_square_game_ids)
+            ).all()
+            if len(squares_games) != len(selected_square_game_ids):
+                raise HTTPException(status_code=400, detail="One or more selected games were not found")
             now = datetime.now(timezone.utc).replace(tzinfo=None)
-            if squares_game.start_time <= now:
-                raise HTTPException(status_code=409, detail="Squares pools must use a game that has not started")
-        elif pool.squares_game_id is not None:
-            raise HTTPException(status_code=400, detail="Only Squares pools may select a Squares game")
+            if any(game.start_time <= now for game in squares_games):
+                raise HTTPException(status_code=409, detail="Squares pools may only include games that have not started")
+        elif selected_square_game_ids:
+            raise HTTPException(status_code=400, detail="Only Squares pools may select Squares games")
 
         billing_season = entitlements.current_season()
         entitlement = entitlements.entitlement_for_new_pool(
@@ -225,7 +230,8 @@ def create_pool(
             pickem_games_per_week=(
                 pool.pickem_games_per_week if pool.pool_type == "pickem" else None
             ),
-            squares_game_id=pool.squares_game_id if pool.pool_type == "squares" else None,
+            # Retain the first game in the legacy column during the transition.
+            squares_game_id=selected_square_game_ids[0] if pool.pool_type == "squares" else None,
             lock_time=lock_time,
             lock_day_of_week=pool.lock_day_of_week,
             lock_time_of_day=recurring_time,
@@ -245,6 +251,13 @@ def create_pool(
         if pool.pool_type == "squares":
             now = datetime.now(timezone.utc).replace(tzinfo=None)
             db.add(models.SquareBoard(pool_id=db_pool.id, created_at=now, updated_at=now))
+            for display_order, game_id in enumerate(selected_square_game_ids):
+                db.add(models.PoolSquareGame(
+                    pool_id=db_pool.id,
+                    game_id=game_id,
+                    display_order=display_order,
+                    created_at=now,
+                ))
         try:
             db.commit()
         except IntegrityError:

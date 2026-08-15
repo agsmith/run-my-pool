@@ -107,9 +107,19 @@ class Pool(Base):
         "CommissionerEntitlement", back_populates="pools"
     )
     squares_game = relationship("Schedule", foreign_keys=[squares_game_id])
+    square_games = relationship(
+        "PoolSquareGame",
+        back_populates="pool",
+        cascade="all, delete-orphan",
+        order_by="PoolSquareGame.display_order",
+    )
     square_board = relationship(
         "SquareBoard", back_populates="pool", uselist=False, cascade="all, delete-orphan"
     )
+
+    @property
+    def squares_game_ids(self):
+        return [selection.game_id for selection in self.square_games]
 
 
 class Rule(Base):
@@ -279,8 +289,21 @@ class Schedule(Base):
     away_team = relationship("Team", foreign_keys=[away_team_id])
 
 
+class PoolSquareGame(Base):
+    """An ordered game selected for a multi-game Squares board."""
+
+    __tablename__ = "pool_square_games"
+    pool_id = Column(String(36), ForeignKey(POOLS_ID_FK, ondelete="CASCADE"), primary_key=True)
+    game_id = Column(Integer, ForeignKey("schedule.game_id"), primary_key=True)
+    display_order = Column(Integer, nullable=False, default=0)
+    created_at = Column(DateTime, nullable=False)
+
+    pool = relationship("Pool", back_populates="square_games")
+    game = relationship("Schedule")
+
+
 class SquareBoard(Base):
-    """A single-game 10x10 squares board. Digits are absent until lock."""
+    """A 10x10 board shared by one or more selected games. Digits are absent until lock."""
 
     __tablename__ = "square_boards"
     pool_id = Column(String(36), ForeignKey(POOLS_ID_FK, ondelete="CASCADE"), primary_key=True)
@@ -324,10 +347,11 @@ class SquareClaim(Base):
 class SquarePayout(Base):
     __tablename__ = "square_payouts"
     __table_args__ = (
-        UniqueConstraint("pool_id", "checkpoint", name="uq_square_payout_checkpoint"),
+        UniqueConstraint("pool_id", "game_id", "checkpoint", name="uq_square_payout_game_checkpoint"),
     )
     id = Column(String(36), primary_key=True)
     pool_id = Column(String(36), ForeignKey("square_boards.pool_id", ondelete="CASCADE"), nullable=False, index=True)
+    game_id = Column(Integer, ForeignKey("schedule.game_id"), nullable=False, index=True)
     checkpoint = Column(String(16), nullable=False)
     home_score = Column(Integer, nullable=False)
     away_score = Column(Integer, nullable=False)
@@ -339,6 +363,7 @@ class SquarePayout(Base):
 
     board = relationship("SquareBoard", back_populates="payouts")
     winner = relationship("User", foreign_keys=[winner_user_id])
+    game = relationship("Schedule")
 
 
 class UpdaterRun(Base):

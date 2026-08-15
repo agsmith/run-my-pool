@@ -171,8 +171,12 @@ def apply_final_results(
 
 
 def _reconcile_square_payouts(db: Session, game: models.Schedule, result: NflGameResult, changed_at: datetime) -> None:
+    selected_pool_ids = db.query(models.PoolSquareGame.pool_id).filter(
+        models.PoolSquareGame.game_id == game.game_id
+    )
     pools = db.query(models.Pool).options(joinedload(models.Pool.square_board)).filter(
-        models.Pool.pool_type == "squares", models.Pool.squares_game_id == game.game_id
+        models.Pool.pool_type == "squares",
+        or_(models.Pool.id.in_(selected_pool_ids), models.Pool.squares_game_id == game.game_id),
     ).all()
     checkpoints = [
         ("q1", 1, result.home_q1_score, result.away_q1_score, "q1_percent"),
@@ -182,6 +186,7 @@ def _reconcile_square_payouts(db: Session, game: models.Schedule, result: NflGam
     ]
     for pool in pools:
         board = pool.square_board
+        selected_game_count = len(pool.square_games) or 1
         total_pot_cents = board.total_pot_cents
         if board.pot_mode == "per_square" and board.per_square_cents is not None:
             claim_count = db.query(func.count(models.SquareClaim.id)).filter(
@@ -207,10 +212,14 @@ def _reconcile_square_payouts(db: Session, game: models.Schedule, result: NflGam
             ).first()
             payout = db.query(models.SquarePayout).filter(
                 models.SquarePayout.pool_id == pool.id,
+                models.SquarePayout.game_id == game.game_id,
                 models.SquarePayout.checkpoint == checkpoint,
             ).first()
             if not payout:
-                payout = models.SquarePayout(id=str(uuid.uuid4()), pool_id=pool.id, checkpoint=checkpoint)
+                payout = models.SquarePayout(
+                    id=str(uuid.uuid4()), pool_id=pool.id,
+                    game_id=game.game_id, checkpoint=checkpoint,
+                )
                 db.add(payout)
             payout.home_score = home_score
             payout.away_score = away_score
@@ -218,7 +227,7 @@ def _reconcile_square_payouts(db: Session, game: models.Schedule, result: NflGam
             payout.winning_column = column
             payout.winner_user_id = claim.user_id if claim else None
             payout.amount_cents = (
-                round(total_pot_cents * getattr(board, percent_field) / 100)
+                round(total_pot_cents * getattr(board, percent_field) / 100 / selected_game_count)
                 if total_pot_cents is not None else None
             )
             payout.determined_at = changed_at

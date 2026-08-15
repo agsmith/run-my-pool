@@ -42,6 +42,25 @@ describe('SquaresPage', () => {
     expect(JSON.parse(fetch.mock.calls.find(([, options]) => options?.method === 'POST')[1].body)).toEqual({ row_index: 0, column_index: 0 });
   });
 
+  test('shows every selected game and keeps results separated by matchup', async () => {
+    const multiGameBoard = {
+      ...board,
+      lock_time: '2026-11-26T17:00:00Z',
+      games: [
+        board.game,
+        { game_id: 2, start_time: '2026-11-26T21:30:00Z', status: 'scheduled', home_team: { abbrv: 'DAL' }, away_team: { abbrv: 'NYG' } },
+      ],
+      payouts: [{ game_id: 2, checkpoint: 'q1', home_score: 10, away_score: 7, winner_email: 'winner@example.com', amount_cents: 1250 }],
+    };
+    global.fetch = jest.fn(() => response(multiGameBoard));
+    render(<SquaresPage />);
+
+    expect(await screen.findByRole('heading', { name: '2 selected games' })).toBeInTheDocument();
+    expect(screen.getAllByText('BUF at MIA').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('NYG at DAL').length).toBeGreaterThan(0);
+    expect(screen.getByText('$12.50 recorded')).toBeInTheDocument();
+  });
+
   test('shows immutable randomized digits and quarter winner after lock', async () => {
     global.fetch = jest.fn(() => response({ ...board, locked: true, home_digits: [0,1,2,3,4,5,6,7,8,9], away_digits: [9,8,7,6,5,4,3,2,1,0], payouts: [{ checkpoint: 'q1', home_score: 7, away_score: 3, winner_email: 'winner@example.com', amount_cents: 2500 }] }));
     render(<SquaresPage />);
