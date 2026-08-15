@@ -115,7 +115,7 @@ function PickBreakdownPanel({ data, week, loading, error, locked }) {
               src={`/nfl/${item.team_abbrv.toLowerCase()}.svg`}
               alt={item.team_abbrv}
               title={item.team_abbrv}
-              style={{ width: '20px', height: '20px', objectFit: 'contain', flexShrink: 0 }}
+              className="entries-team-logo entries-team-logo--breakdown"
               onError={(e) => { e.target.style.display = 'none'; }}
             />
             <span style={{ width: '36px', fontSize: '0.8rem', fontWeight: '500', flexShrink: 0 }}>
@@ -602,14 +602,7 @@ export default function LeagueEntries() {
             src={`/nfl/${NFL_TEAMS[pick.team]?.logo}`}
             alt={`${pick.team} logo`}
             title={pick.team}
-            style={{
-              width: '20px',
-              height: '20px',
-              marginRight: '0',
-              opacity: 1,
-              display: 'block',
-              margin: '0 auto 2px auto'
-            }}
+            className="entries-team-logo entries-team-logo--pick"
           />
         ) : (
           week

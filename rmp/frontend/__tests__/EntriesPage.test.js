@@ -213,8 +213,10 @@ describe('player entries page', () => {
 
     render(<LeagueEntries />);
 
-    expect(await screen.findByAltText('WSH logo')).toHaveAttribute('src', '/nfl/wsh.svg');
-    expect(screen.getByAltText('WSH logo')).toHaveAttribute('title', 'WSH');
+    const logo = await screen.findByAltText('WSH logo');
+    expect(logo).toHaveAttribute('src', '/nfl/wsh.svg');
+    expect(logo).toHaveAttribute('title', 'WSH');
+    expect(logo).toHaveClass('entries-team-logo', 'entries-team-logo--pick');
   });
 
   test('canceling a rename does not save the edited name', async () => {
@@ -282,6 +284,8 @@ describe('player entries page', () => {
     });
     render(<LeagueEntries />);
 
+    const breakdownLogo = await screen.findByAltText('BUF');
+    expect(breakdownLogo).toHaveClass('entries-team-logo', 'entries-team-logo--breakdown');
     await user.click(await screen.findByRole('button', { name: 'Show users who picked BUF' }));
     const dialog = screen.getByRole('dialog', { name: 'BUF picks' });
     expect(within(dialog).getByText('player@example.com')).toBeInTheDocument();

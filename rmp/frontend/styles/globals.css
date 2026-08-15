@@ -581,6 +581,27 @@ table {
 .entries-breakdown-week { display:flex; align-items:center; justify-content:flex-end; gap:.6rem; margin:0 0 .75rem; color:#c9d4d3; }
 .entries-breakdown-week label { font-size:.75rem; font-weight:800; letter-spacing:.05em; text-transform:uppercase; }
 .entries-breakdown-week select { min-height:38px; color:var(--ink); background:#0b1315; border:1px solid #3a5055; }
+.entries-team-logo {
+  box-sizing:border-box;
+  object-fit:contain;
+  flex:0 0 auto;
+  padding:3px;
+  background:linear-gradient(145deg,#fff 0%,#e6eff0 100%);
+  border:1px solid rgba(130,231,255,.85);
+  border-radius:50%;
+  box-shadow:0 0 0 2px rgba(3,10,12,.72),0 2px 7px rgba(0,0,0,.4);
+  filter:drop-shadow(0 1px 1px rgba(0,0,0,.22));
+}
+.entries-team-logo--breakdown {
+  width:clamp(28px,2.5vw,34px);
+  height:clamp(28px,2.5vw,34px);
+}
+.entries-team-logo--pick {
+  width:clamp(25px,2.2vw,29px);
+  height:clamp(25px,2.2vw,29px);
+  display:block;
+  margin:auto;
+}
 .pool-card__team-code { color:#e6edeb!important; }
 .pool-card__pick-count { color:#091012!important; background:var(--lime)!important; border-radius:999px!important; }
 @media (max-width:600px) {
