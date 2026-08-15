@@ -118,10 +118,25 @@ describe('SquaresPage', () => {
 
     expect(await screen.findByText('Free Squares board')).toBeInTheDocument();
     expect(screen.getByText(/0 of 25 included blocks/i)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Upgrade to Commish' })).toHaveAttribute('href', '/pricing?checkout=commissioner');
+    expect(screen.getByRole('link', { name: 'Unlock 100 blocks for $10' })).toHaveAttribute('href', '/pricing?checkout=squares-plus');
     expect(screen.queryByRole('button', { name: 'Assign block' })).not.toBeInTheDocument();
     expect(screen.getByRole('radio', { name: /Per reserved block/i })).toBeDisabled();
     expect(screen.getByRole('gridcell', { name: 'Block 1, available' })).toBeDisabled();
+  });
+
+  test('shows Squares Plus capacity while reserving Commish controls as the next upgrade', async () => {
+    global.fetch = jest.fn(() => response({
+      ...board,
+      plan: 'squares-plus', block_limit: 100,
+      permissions: { is_admin: true, can_claim: true, can_admin_assign: false, can_use_variable_pot: false },
+    }));
+    render(<SquaresPage />);
+
+    expect(await screen.findByText('Squares Plus')).toBeInTheDocument();
+    expect(screen.getByText('All 100 self-service blocks are open')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Upgrade to Commish for $29' })).toHaveAttribute('href', '/pricing?checkout=commissioner');
+    expect(screen.queryByRole('button', { name: 'Assign block' })).not.toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: /Per reserved block/i })).toBeDisabled();
   });
 
   test('explains a full free board to members without showing them billing actions', async () => {

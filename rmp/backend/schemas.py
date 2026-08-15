@@ -41,7 +41,7 @@ class LifecycleEvent(BaseModel):
         "profile",
         "support",
     ]
-    plan: Optional[Literal["free", "commissioner", "pro", "club", "club-unlimited"]] = (
+    plan: Optional[Literal["free", "squares-plus", "commissioner", "pro", "club", "club-unlimited"]] = (
         None
     )
     source: Optional[Literal["homepage", "pricing", "billing", "direct"]] = None

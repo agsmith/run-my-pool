@@ -18,6 +18,7 @@ def _headers(token):
 def _configure_stripe(monkeypatch):
     monkeypatch.setenv("STRIPE_SECRET_KEY", "sk_test_example")
     monkeypatch.setenv("STRIPE_WEBHOOK_SECRET", "whsec_example")
+    monkeypatch.setenv("STRIPE_PRICE_SQUARES_PLUS", "price_squares_plus")
     monkeypatch.setenv("STRIPE_PRICE_COMMISSIONER", "price_commissioner")
     monkeypatch.setenv("STRIPE_PRICE_PRO", "price_pro")
     monkeypatch.setenv("STRIPE_PRICE_CLUB", "price_club")
@@ -43,6 +44,36 @@ def _checkout(client, monkeypatch, token, plan="club"):
 
 
 class TestCommissionerBilling:
+    def test_squares_plus_uses_ten_dollar_stripe_price(self, client, monkeypatch):
+        token = _register_and_login(client, "squares-plus@example.com")
+        response, captured = _checkout(client, monkeypatch, token, plan="squares-plus")
+
+        assert response.status_code == 200
+        assert captured["line_items"] == [{"price": "price_squares_plus", "quantity": 1}]
+
+    def test_squares_plus_upgrades_to_commish_for_twenty_nine_dollars(
+        self, client, db_session, monkeypatch
+    ):
+        token = _register_and_login(client, "squares-plus-upgrade@example.com")
+        user = db_session.query(models.User).filter_by(email="squares-plus-upgrade@example.com").one()
+        now = datetime(2026, 8, 1)
+        order = models.BillingOrder(
+            id="squares-plus-paid-order", user_id=user.id, season=2026,
+            plan="squares-plus", status="paid", created_at=now, updated_at=now,
+        )
+        db_session.add(order)
+        db_session.add(models.CommissionerEntitlement(
+            id="squares-plus-paid-entitlement", user_id=user.id, season=2026,
+            plan="squares-plus", status="active", included_entries=100, max_pools=1,
+            unlimited_entries=False, source_order_id=order.id, activated_at=now, updated_at=now,
+        ))
+        db_session.commit()
+
+        response, captured = _checkout(client, monkeypatch, token, plan="commissioner")
+
+        assert response.status_code == 200
+        assert captured["line_items"][0]["price_data"]["unit_amount"] == 2900
+
     def test_checkout_requires_authentication(self, client):
         response = client.post(
             "/billing/checkout-session", json={"plan": "club", "season": 2026}

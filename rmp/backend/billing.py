@@ -17,6 +17,13 @@ import schemas
 router = APIRouter(prefix="/billing", tags=["billing"])
 
 PLAN_DETAILS = {
+    "squares-plus": {
+        "price_env": "STRIPE_PRICE_SQUARES_PLUS",
+        "price_cents": 1000,
+        "included_entries": 100,
+        "max_pools": 1,
+        "rank": 0.5,
+    },
     "commissioner": {
         "price_env": "STRIPE_PRICE_COMMISSIONER",
         "price_cents": 3900,
@@ -56,6 +63,8 @@ def _upgrade_allowed(current_plan: Optional[str], target_plan: str) -> bool:
         return True
     if target_plan == "club-unlimited":
         return current_plan == "club"
+    if target_plan == "squares-plus":
+        return False
     return PLAN_DETAILS.get(target_plan, {}).get("rank", 0) > PLAN_DETAILS.get(
         current_plan, {}
     ).get("rank", 0)

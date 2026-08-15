@@ -156,6 +156,10 @@ resource "aws_ecs_task_definition" "backend" {
           value = "support@runmypool.net"
         },
         {
+          name  = "STRIPE_PRICE_SQUARES_PLUS"
+          value = var.stripe_price_squares_plus
+        },
+        {
           name  = "STRIPE_PRICE_COMMISSIONER"
           value = var.stripe_price_commissioner
         },

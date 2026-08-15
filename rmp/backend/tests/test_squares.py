@@ -35,19 +35,23 @@ def _create(client, headers, game_id=9001, name="Sunday Squares"):
     return response.json()
 
 
-def _grant_commish(db, user_id):
+def _grant_plan(db, user_id, plan="commissioner"):
     now = datetime(2026, 8, 1)
     order = models.BillingOrder(
         id=f"squares-order-{user_id}", user_id=user_id, season=2026,
-        plan="commissioner", status="paid", created_at=now, updated_at=now,
+        plan=plan, status="paid", created_at=now, updated_at=now,
     )
     entitlement = models.CommissionerEntitlement(
         id=f"squares-entitlement-{user_id}", user_id=user_id, season=2026,
-        plan="commissioner", status="active", included_entries=50, max_pools=1,
+        plan=plan, status="active", included_entries=100 if plan == "squares-plus" else 50, max_pools=1,
         unlimited_entries=False, source_order_id=order.id, activated_at=now, updated_at=now,
     )
     db.add_all([order, entitlement]); db.commit()
     return entitlement
+
+
+def _grant_commish(db, user_id):
+    return _grant_plan(db, user_id)
 
 
 def test_squares_creation_requires_future_known_game(client, db_session):
@@ -80,7 +84,7 @@ def test_free_plan_includes_one_board_and_25_self_service_blocks(client, db_sess
     db_session.commit()
     blocked = client.post(f"/squares/{pool['id']}/claims", json={"row_index": 2, "column_index": 5}, headers=member_headers)
     assert blocked.status_code == 409
-    assert "Upgrade to Commish" in blocked.json()["detail"]
+    assert "Upgrade to Squares Plus" in blocked.json()["detail"]
 
     admin_assignment = client.post(f"/squares/{pool['id']}/claims", json={
         "row_index": 2, "column_index": 6,
@@ -95,6 +99,31 @@ def test_free_plan_includes_one_board_and_25_self_service_blocks(client, db_sess
     assert client.post("/pools/create", json={
         "name": "Second Free Squares Board", "pool_type": "squares", "squares_game_id": 9001,
     }, headers=headers).status_code == 409
+
+
+def test_squares_plus_opens_100_blocks_but_keeps_commish_controls_locked(client, db_session):
+    owner, headers = _register(client, "squares-plus-owner@example.com")
+    member, member_headers = _register(client, "squares-plus-member@example.com")
+    _grant_plan(db_session, owner["id"], "squares-plus")
+    _game(db_session)
+    pool = _create(client, headers, name="Squares Plus Board")
+    assert client.post(f"/pools/{pool['id']}/join", json={}, headers=member_headers).status_code == 200
+    board = client.get(f"/squares/{pool['id']}", headers=headers).json()
+
+    assert board["plan"] == "squares-plus"
+    assert board["block_limit"] == 100
+    assert board["permissions"]["can_claim"] is True
+    assert board["permissions"]["can_admin_assign"] is False
+    assert board["permissions"]["can_use_variable_pot"] is False
+    assignment = client.post(f"/squares/{pool['id']}/claims", json={
+        "row_index": 0, "column_index": 0, "user_id": member["id"],
+    }, headers=headers)
+    assert assignment.status_code == 403
+    variable_pot = client.patch(f"/squares/{pool['id']}/payouts", json={
+        "pot_mode": "per_square", "per_square_cents": 500, "total_pot_cents": None,
+        "q1_percent": 25, "halftime_percent": 25, "q3_percent": 25, "final_percent": 25,
+    }, headers=headers)
+    assert variable_pot.status_code == 403
 
 
 def test_claim_collision_release_and_admin_lock(client, db_session):

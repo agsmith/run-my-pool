@@ -49,6 +49,8 @@ def assign_owner_pools(db: Session, entitlement) -> list[models.Pool]:
         )
         .order_by(models.Pool.created_at.asc(), models.Pool.id.asc())
     )
+    if entitlement.plan == "squares-plus":
+        query = query.filter(models.Pool.pool_type == "squares")
     pools = query.all() if available is None else query.limit(available).all()
     for pool in pools:
         pool.billing_entitlement_id = entitlement.id
@@ -90,7 +92,7 @@ def capacity_usage(db: Session, pool: models.Pool) -> tuple[int, int | None, str
             models.SquareClaim.pool_id.in_(pool_ids)
         ).scalar() or 0
         limit = entitlement.included_entries
-        if pool.pool_type == "squares" and entitlement.plan == "commissioner":
+        if pool.pool_type == "squares" and entitlement.plan in ("squares-plus", "commissioner"):
             limit = COMMISSIONER_SQUARE_BLOCKS
         return entry_count + square_count, limit, entitlement.plan
 
@@ -109,6 +111,11 @@ def entitlement_for_new_pool(db: Session, owner_id: str, season: int, pool_type:
     db.query(models.User.id).filter(models.User.id == owner_id).with_for_update().one()
     entitlement = active_entitlement(db, owner_id, season)
     if entitlement:
+        if entitlement.plan == "squares-plus" and pool_type != "squares":
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Squares Plus supports one Squares board. Upgrade to Commish to create Survivor or Pick 'Em pools.",
+            )
         used = db.query(models.Pool).filter(
             models.Pool.billing_entitlement_id == entitlement.id
         ).count()
@@ -129,7 +136,7 @@ def entitlement_for_new_pool(db: Session, owner_id: str, season: int, pool_type:
         if free_boards >= 1:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail="The Free plan includes one Squares board per season. Upgrade to Commish to run another board.",
+                detail="The Free plan includes one Squares board per season. Upgrade to Squares Plus to open all 100 blocks.",
             )
 
     return None
@@ -150,7 +157,7 @@ def enforce_entry_capacity(db: Session, pool: models.Pool) -> None:
 
     if limit is not None and used >= limit:
         unit = "blocks" if pool.pool_type == "squares" else "entries"
-        upgrade = " Upgrade to Commish to open all 100 blocks." if pool.pool_type == "squares" and plan == "free" else ""
+        upgrade = " Upgrade to Squares Plus to open all 100 blocks." if pool.pool_type == "squares" and plan == "free" else ""
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=f"This pool has reached the {plan} plan limit of {limit} {unit}.{upgrade}",

@@ -38,16 +38,24 @@ describe('PricingPage', () => {
   test('shows the recommended plans and prices', () => {
     render(<PricingPage />);
     expect(screen.getByRole('heading', { name: 'Free' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Squares Plus' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Commish' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Pro' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Club' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Club Unlimited' })).toBeInTheDocument();
+    expect(screen.getByText('$10')).toBeInTheDocument();
     expect(screen.getByText('$39')).toBeInTheDocument();
     expect(screen.getByText('$79')).toBeInTheDocument();
     expect(screen.getByText('$129')).toBeInTheDocument();
     expect(screen.getByText('$249')).toBeInTheDocument();
-    expect(screen.getByText('1 Squares board with 25 reserved blocks')).toBeInTheDocument();
+    expect(screen.getByText('1 Squares board per season')).toBeInTheDocument();
+    expect(screen.getByText('Up to 25 self-service Squares reservations')).toBeInTheDocument();
+    expect(screen.getByText('1 full Squares board per season')).toBeInTheDocument();
+    expect(screen.getByText('All 100 self-service reservations')).toBeInTheDocument();
     expect(screen.getByText('Full 100-block Squares board')).toBeInTheDocument();
+    expect(screen.getByText('Admin assignment of any numbered block')).toBeInTheDocument();
+    expect(screen.getByText('Fixed-dollar or per-reserved-block pots')).toBeInTheDocument();
+    expect(screen.getByText(/start with up to ten Survivor\/Pick ’Em entries or one 25-reservation Squares board/i)).toBeInTheDocument();
   });
 
   test('makes the software-only payment model explicit', () => {
@@ -60,6 +68,7 @@ describe('PricingPage', () => {
     render(<PricingPage />);
     expect(screen.getAllByRole('link', { name: /start free/i }).some((link) => link.getAttribute('href') === '/create-account?plan=free')).toBe(true);
     expect(screen.getByRole('link', { name: /choose commissioner/i })).toHaveAttribute('href', '/create-account?plan=commissioner');
+    expect(screen.getByRole('link', { name: /choose squares plus/i })).toHaveAttribute('href', '/create-account?plan=squares-plus');
     expect(screen.getByRole('link', { name: /choose pro/i })).toHaveAttribute('href', '/create-account?plan=pro');
     expect(screen.getByRole('link', { name: /choose club/i })).toHaveAttribute('href', '/create-account?plan=club');
     expect(screen.getByRole('link', { name: /go unlimited/i })).toHaveAttribute('href', '/create-account?plan=club-unlimited');

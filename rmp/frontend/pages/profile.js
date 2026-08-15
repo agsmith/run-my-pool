@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { trackLifecycleEvent } from '../lib/lifecycleAnalytics';
 
 const PLAN_LABELS = {
+  'squares-plus': 'Squares Plus',
   commissioner: 'Commish',
   pro: 'Pro',
   club: 'Club',
@@ -12,8 +13,8 @@ const PLAN_LABELS = {
   'club-entry-block': 'Club +100 entries',
 };
 
-const PLAN_PRICES = { commissioner: 39, pro: 79, club: 129, 'club-unlimited': 249 };
-const PLAN_RANKS = { commissioner: 1, pro: 2, club: 3, 'club-unlimited': 4 };
+const PLAN_PRICES = { 'squares-plus': 10, commissioner: 39, pro: 79, club: 129, 'club-unlimited': 249 };
+const PLAN_RANKS = { 'squares-plus': 0.5, commissioner: 1, pro: 2, club: 3, 'club-unlimited': 4 };
 
 function formatMoney(amount, currency = 'usd') {
   if (amount == null) return 'Amount pending';
