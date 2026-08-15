@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import AdminUserOverview from '../components/AdminUserOverview';
 
 const overview = {
@@ -13,6 +13,10 @@ const overview = {
 };
 
 describe('AdminUserOverview', () => {
+  const rowEmails = () => screen.getAllByRole('row').slice(1).map((row) => (
+    within(row).getByText(/@example\.com/).textContent
+  ));
+
   test('shows roles, entry totals, and current-week completion without picks', () => {
     render(<AdminUserOverview overview={overview} loading={false} error="" onRefresh={() => {}} onChangeDues={() => {}} />);
 
@@ -35,6 +39,26 @@ describe('AdminUserOverview', () => {
     expect(screen.queryByText('owner@example.com')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Refresh' }));
     expect(onRefresh).toHaveBeenCalledTimes(1);
+  });
+
+  test.each([
+    ['User', ['missing@example.com', 'owner@example.com', 'partial@example.com'], ['partial@example.com', 'owner@example.com', 'missing@example.com']],
+    ['Pool role', ['missing@example.com', 'partial@example.com', 'owner@example.com'], ['owner@example.com', 'missing@example.com', 'partial@example.com']],
+    ['Dues paid', ['missing@example.com', 'partial@example.com', 'owner@example.com'], ['owner@example.com', 'missing@example.com', 'partial@example.com']],
+    ['Total entries', ['missing@example.com', 'owner@example.com', 'partial@example.com'], ['partial@example.com', 'owner@example.com', 'missing@example.com']],
+    ['Surviving', ['missing@example.com', 'owner@example.com', 'partial@example.com'], ['owner@example.com', 'partial@example.com', 'missing@example.com']],
+    ['Week 4 picks', ['missing@example.com', 'partial@example.com', 'owner@example.com'], ['owner@example.com', 'partial@example.com', 'missing@example.com']],
+  ])('sorts the %s column in both directions', (label, ascending, descending) => {
+    render(<AdminUserOverview overview={overview} loading={false} error="" onRefresh={() => {}} onChangeDues={() => {}} />);
+
+    const sortButton = screen.getByRole('button', { name: new RegExp(`Sort by ${label}`) });
+    fireEvent.click(sortButton);
+    expect(sortButton.closest('th')).toHaveAttribute('aria-sort', 'ascending');
+    expect(rowEmails()).toEqual(ascending);
+
+    fireEvent.click(sortButton);
+    expect(sortButton.closest('th')).toHaveAttribute('aria-sort', 'descending');
+    expect(rowEmails()).toEqual(descending);
   });
 
   test('lets a league admin choose a managed user for a login email change', () => {

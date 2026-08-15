@@ -1498,6 +1498,10 @@ table {
 .admin-user-overview__table { width:100%; min-width:760px; border-collapse:collapse; }
 .admin-user-overview__table th,.admin-user-overview__table td { padding:.85rem 1rem; text-align:left; border-bottom:1px solid #25373b; }
 .admin-user-overview__table th { color:#9fb0b1; background:#0a1113; font-size:.62rem; font-weight:900; letter-spacing:.1em; text-transform:uppercase; }
+.broadcast-v2--admin .admin-section button.admin-user-overview__sort { display:inline-flex; align-items:center; justify-content:flex-start; gap:.42rem; min-height:0; margin:0; padding:0; color:inherit!important; background:transparent!important; border:0!important; font:inherit!important; letter-spacing:inherit; text-align:left; text-transform:inherit; cursor:pointer; }
+.broadcast-v2--admin .admin-section button.admin-user-overview__sort:hover { color:var(--ice)!important; background:transparent!important; }
+.admin-user-overview__sort:focus-visible { outline:2px solid var(--lime); outline-offset:4px; }
+.admin-user-overview__sort-indicator { min-width:.8rem; color:var(--ice); font-size:.65rem; line-height:1; }
 .admin-user-overview__table td { color:#d6dfde; font-size:.82rem; }
 .admin-user-overview__table tbody tr:last-child td { border-bottom:0; }
 .admin-user-overview__table td strong { color:var(--ink); }
