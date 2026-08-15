@@ -83,6 +83,7 @@ def _claim_payload(claim: models.SquareClaim) -> dict:
         "id": claim.id,
         "row_index": claim.row_index,
         "column_index": claim.column_index,
+        "block_number": claim.row_index * 10 + claim.column_index + 1,
         "user_id": claim.user_id,
         "user_email": claim.user.email,
         "display_name": claim.display_name,
@@ -176,8 +177,9 @@ def claim_square(pool_id: str, request: schemas.SquareClaimCreate, db: Session =
     except IntegrityError:
         db.rollback()
         raise HTTPException(status_code=409, detail="That square has already been claimed")
-    create_audit_log(db, "CLAIM_SQUARE", f"Claimed square ({request.row_index}, {request.column_index})", current_user.id, "square", claim.id, {"pool_id": pool.id, "assigned_to": target_id})
-    return {"id": claim.id, "row_index": claim.row_index, "column_index": claim.column_index, "user_id": claim.user_id}
+    block_number = claim.row_index * 10 + claim.column_index + 1
+    create_audit_log(db, "CLAIM_SQUARE", f"Reserved block {block_number}", current_user.id, "square", claim.id, {"pool_id": pool.id, "assigned_to": target_id, "block_number": block_number})
+    return {"id": claim.id, "row_index": claim.row_index, "column_index": claim.column_index, "block_number": block_number, "user_id": claim.user_id}
 
 
 @router.delete("/{pool_id}/claims/{claim_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -191,10 +193,10 @@ def release_square(pool_id: str, claim_id: str, db: Session = Depends(deps.get_d
         raise HTTPException(status_code=403, detail="You cannot release another member's square")
     if pool.square_board.locked_at or _now() >= pool.squares_game.start_time:
         raise HTTPException(status_code=409, detail="This Squares board is locked")
-    cell = [claim.row_index, claim.column_index]
+    block_number = claim.row_index * 10 + claim.column_index + 1
     db.delete(claim)
     db.commit()
-    create_audit_log(db, "RELEASE_SQUARE", f"Released square ({cell[0]}, {cell[1]})", current_user.id, "square", claim_id, {"pool_id": pool.id})
+    create_audit_log(db, "RELEASE_SQUARE", f"Released block {block_number}", current_user.id, "square", claim_id, {"pool_id": pool.id, "block_number": block_number})
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 

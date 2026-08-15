@@ -1668,6 +1668,12 @@ table {
 .squares-instructions { color: #a9bcb7; margin: 1rem 0; }
 .squares-screen-actions { display: flex; flex-wrap: wrap; gap: .65rem; }
 .squares-print-header { display: none; }
+.squares-manual-assignment { display: flex; align-items: end; gap: .8rem; margin: 1rem 0; padding: 1rem; border: 1px solid #45675f; border-radius: 10px; background: #10231f; }
+.squares-manual-assignment > div { display: grid; flex: 1; gap: .2rem; }
+.squares-manual-assignment > div span { color: #a9bcb7; font-size: .85rem; }
+.squares-manual-assignment label { display: grid; gap: .3rem; color: #dceae6; font-size: .78rem; font-weight: 800; }
+.squares-manual-assignment select, .squares-manual-assignment input { min-height: 40px; padding: .45rem .6rem; border: 1px solid #56736c; border-radius: 6px; background: #071311; color: #fff; }
+.squares-manual-assignment input { width: 88px; }
 .squares-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .75rem; margin: 1rem 0; }
 .squares-summary > div { display: grid; gap: .25rem; padding: .85rem 1rem; border: 1px solid #35534c; border-radius: 10px; background: #0c1b18; }
 .squares-summary span { color: #9eb2ad; font-size: .74rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
@@ -1676,7 +1682,9 @@ table {
 .squares-grid { display: grid; grid-template-columns: 92px repeat(10, minmax(64px, 1fr)); min-width: 820px; gap: 3px; background: #17312b; padding: 3px; border-radius: 12px; }
 .squares-row { display: contents; }
 .squares-corner, .squares-axis { min-height: 58px; display: grid; place-items: center; text-align: center; background: #10231f; color: #d7ff3f; font-weight: 800; }
-.squares-cell { min-height: 64px; border: 0; background: #edf7f3; color: #18342d; font-size: .78rem; overflow: hidden; padding: .3rem; }
+.squares-cell { position: relative; min-height: 64px; border: 0; background: #edf7f3; color: #18342d; font-size: .78rem; overflow: hidden; padding: .3rem; }
+.squares-block-number { position: absolute; top: 3px; left: 5px; color: #36544c; font-size: .65rem; font-weight: 900; line-height: 1; }
+.squares-block-owner { display: block; max-width: 100%; padding-top: .65rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .squares-cell:not(:disabled):hover { background: #d7ff3f; }
 .squares-cell.is-claimed { background: #8ccfc2; font-weight: 700; }
 .squares-cell.is-mine { background: #d7ff3f; }
@@ -1686,15 +1694,17 @@ table {
 .squares-reservations { margin-top: 1.5rem; padding: 1.25rem; border: 1px solid #35534c; border-radius: 12px; background: #0c1b18; }
 .squares-reservations h2, .squares-reservations p { margin: 0 0 .35rem; }
 .squares-reservations ul { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: .6rem; margin: 1rem 0 0; padding: 0; list-style: none; }
-.squares-reservations li { display: flex; justify-content: space-between; gap: .75rem; padding: .65rem .75rem; background: #142923; border-radius: 8px; }
+.squares-reservations li { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .35rem .75rem; padding: .65rem .75rem; background: #142923; border-radius: 8px; }
 .squares-reservations li strong { overflow-wrap: anywhere; }
-.squares-reservations li span { flex: 0 0 auto; color: #d7ff3f; }
+.squares-reservations li span { color: #d7ff3f; overflow-wrap: anywhere; }
 .squares-pot { margin-top: 2rem; display: flex; align-items: end; gap: 1rem; padding: 1.25rem; border: 1px solid #35534c; border-radius: 12px; }
 .squares-pot > div { flex: 1; }
 .squares-pot h2, .squares-pot p { margin: 0 0 .35rem; }
 .squares-pot label { display: grid; gap: .35rem; }
 @media (max-width: 700px) {
   .squares-summary { grid-template-columns: 1fr; }
+  .squares-manual-assignment { align-items: stretch; flex-direction: column; }
+  .squares-manual-assignment input { box-sizing: border-box; width: 100%; }
   .squares-pot { align-items: stretch; flex-direction: column; }
 }
 @media print {
@@ -1705,7 +1715,7 @@ table {
   .squares-page .workspace-header,
   .squares-page .workspace-alert,
   .squares-page .squares-screen-actions,
-  .squares-page .squares-claim-for,
+  .squares-page .squares-manual-assignment,
   .squares-page .squares-pot { display: none!important; }
   .squares-print-header { display: block; margin: 0 0 .12in; border-bottom: 2px solid #17312b; }
   .squares-print-header span { font-size: 9pt; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }

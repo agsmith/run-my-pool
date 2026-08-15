@@ -33,6 +33,8 @@ describe('SquaresPage', () => {
     render(<SquaresPage />);
     expect(await screen.findByRole('heading', { name: 'BUF at MIA' })).toBeInTheDocument();
     expect(screen.getAllByRole('gridcell')).toHaveLength(100);
+    expect(screen.getByRole('gridcell', { name: 'Block 1, available' })).toBeInTheDocument();
+    expect(screen.getByRole('gridcell', { name: 'Block 100, available' })).toBeInTheDocument();
     expect(screen.getAllByText('?')).toHaveLength(20);
     await user.click(screen.getAllByRole('gridcell')[0]);
     await waitFor(() => expect(fetch).toHaveBeenCalledWith('/squares/pool-1/claims', expect.objectContaining({ method: 'POST' })));
@@ -79,7 +81,7 @@ describe('SquaresPage', () => {
 
     expect(await screen.findByText('$500.00')).toBeInTheDocument();
     expect(screen.getByText('owner@example.com')).toBeInTheDocument();
-    expect(screen.getByRole('gridcell', { name: 'Reserved by owner@example.com' })).toBeDisabled();
+    expect(screen.getByRole('gridcell', { name: 'Block 1, reserved by owner@example.com' })).toBeDisabled();
     expect(screen.queryByRole('heading', { name: 'Admin payout setup' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /lock & randomize/i })).not.toBeInTheDocument();
   });
@@ -91,5 +93,22 @@ describe('SquaresPage', () => {
 
     await user.click(await screen.findByRole('button', { name: 'Print / Save PDF' }));
     expect(window.print).toHaveBeenCalledTimes(1);
+  });
+
+  test('lets an admin assign block 36 directly to a selected member', async () => {
+    global.fetch = jest.fn((url, options = {}) => {
+      if (options.method === 'POST' && String(url).endsWith('/claims')) return response({ id: 'claim-36' });
+      return response({ ...board, members: [{ id: 'user-2', email: 'player@example.com' }] });
+    });
+    const user = userEvent.setup();
+    render(<SquaresPage />);
+
+    await user.selectOptions(await screen.findByLabelText('Member'), 'user-2');
+    await user.type(screen.getByLabelText('Block number'), '36');
+    await user.click(screen.getByRole('button', { name: 'Assign block' }));
+
+    await waitFor(() => expect(fetch).toHaveBeenCalledWith('/squares/pool-1/claims', expect.objectContaining({ method: 'POST' })));
+    const request = fetch.mock.calls.find(([, options]) => options?.method === 'POST')[1];
+    expect(JSON.parse(request.body)).toEqual({ row_index: 3, column_index: 5, user_id: 'user-2' });
   });
 });

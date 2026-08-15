@@ -50,6 +50,7 @@ def test_claim_collision_release_and_admin_lock(client, db_session):
     pool = _create(client, headers)
     first = client.post(f"/squares/{pool['id']}/claims", json={"row_index": 2, "column_index": 7}, headers=headers)
     assert first.status_code == 201
+    assert first.json()["block_number"] == 28
     collision = client.post(f"/squares/{pool['id']}/claims", json={"row_index": 2, "column_index": 7}, headers=headers)
     assert collision.status_code == 409
     released = client.delete(f"/squares/{pool['id']}/claims/{first.json()['id']}", headers=headers)
@@ -93,6 +94,7 @@ def test_member_sees_reservations_and_pot_but_cannot_administer_board(client, db
     assert body["permissions"]["is_admin"] is False
     assert body["members"] == []
     assert body["claims"][0]["user_email"] == owner["email"]
+    assert body["claims"][0]["block_number"] == 47
     assert body["home_digits"] is None and body["away_digits"] is None
 
     denied_payout = client.patch(f"/squares/{pool['id']}/payouts", json={
