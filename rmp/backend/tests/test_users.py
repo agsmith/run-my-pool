@@ -155,6 +155,7 @@ class TestUserEndpoints:
         }
         assert data["unassigned"] == 2
         assert all(user["pool_count"] == 0 for user in data["users"])
+        assert all(user["email_verified"] is True for user in data["users"])
 
     def test_super_admin_filters_users_without_pools(self, client, db_session):
         assigned_token = _register_and_login(client, "assigned@users.example.com")
