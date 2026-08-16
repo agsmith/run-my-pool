@@ -492,6 +492,66 @@ def get_pool(
         raise HTTPException(status_code=500, detail="Failed to retrieve pool")
 
 
+@router.get("/{pool_id}/members", response_model=schemas.PoolMemberDirectoryOut)
+def get_pool_members(
+    pool_id: str,
+    db: Session = Depends(deps.get_db),
+    current_user: models.User = Depends(deps.get_current_user),
+):
+    """List the accounts participating in a pool for fellow pool members."""
+    pool = db.query(models.Pool).filter(models.Pool.id == pool_id).first()
+    if not pool:
+        raise HTTPException(status_code=404, detail="Pool not found")
+    if not is_platform_super_admin(current_user) and not is_pool_participant(
+        db, pool_id, current_user.id
+    ):
+        raise HTTPException(status_code=403, detail="League membership required")
+
+    memberships = db.query(models.PoolMember).filter(
+        models.PoolMember.pool_id == pool_id
+    ).all()
+    membership_by_user = {membership.user_id: membership for membership in memberships}
+    admin_ids = {
+        user_id
+        for (user_id,) in db.query(models.PoolAdmin.user_id)
+        .filter(models.PoolAdmin.pool_id == pool_id)
+        .all()
+    }
+    entry_counts = dict(
+        db.query(models.Entry.user_id, func.count(models.Entry.id))
+        .filter(models.Entry.pool_id == pool_id)
+        .group_by(models.Entry.user_id)
+        .all()
+    )
+    user_ids = set(membership_by_user) | admin_ids | set(entry_counts)
+    if pool.owner_id:
+        user_ids.add(pool.owner_id)
+    users = db.query(models.User).filter(models.User.id.in_(user_ids or [""])).all()
+
+    def pool_role(user_id: str) -> str:
+        if user_id == pool.owner_id:
+            return "Commissioner"
+        if user_id in admin_ids:
+            return "Admin"
+        return "Member"
+
+    result = [
+        {
+            "id": user.id,
+            "email": user.email,
+            "pool_role": pool_role(user.id),
+            "entry_count": int(entry_counts.get(user.id, 0)),
+            "joined_at": membership_by_user.get(user.id).joined_at
+            if membership_by_user.get(user.id)
+            else None,
+        }
+        for user in users
+    ]
+    role_order = {"Commissioner": 0, "Admin": 1, "Member": 2}
+    result.sort(key=lambda user: (role_order[user["pool_role"]], user["email"].lower()))
+    return {"pool_id": pool_id, "total_users": len(result), "users": result}
+
+
 @router.get("/{pool_id}/lock-status")
 def get_pool_lock_status(
     pool_id: str,

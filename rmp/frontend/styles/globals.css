@@ -1176,6 +1176,16 @@ table {
 .pool-home-actions button > span { grid-row:1/3; align-self:center; color:var(--lime); font-family:Impact,'Arial Narrow',sans-serif; font-size:1.45rem; font-style:italic; }
 .pool-home-actions strong { align-self:end; font-size:.76rem; letter-spacing:.07em; text-transform:uppercase; }
 .pool-home-actions small { color:var(--muted)!important; font-size:.74rem; font-weight:500; }
+.pool-members-main { display:grid; gap:1.35rem; }
+.pool-members-list { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.85rem; }
+.pool-member-card { display:grid; grid-template-columns:auto minmax(0,1fr) auto; align-items:center; gap:.9rem; padding:1rem 1.1rem; background:#0d1517; border:1px solid #314449; }
+.pool-member-card__avatar { display:grid; place-items:center; width:42px; height:42px; color:#091012; background:var(--lime,#d7ff3f); border-radius:50%; font-weight:950; }
+.pool-member-card > div:nth-child(2) { display:grid; min-width:0; gap:.15rem; }
+.pool-member-card > div:nth-child(2) strong { overflow:hidden; color:var(--ink,#f2f5f4); font-size:.9rem; text-overflow:ellipsis; white-space:nowrap; }
+.pool-member-card span { color:var(--muted,#9aabad); font-size:.72rem; font-weight:700; letter-spacing:.04em; text-transform:uppercase; }
+.pool-member-card__entries { display:grid; justify-items:end; gap:.05rem; }
+.pool-member-card__entries strong { color:var(--ice,#9fefff); font-size:1.25rem; }
+.pool-members-state { padding:2rem; color:var(--muted,#9aabad); background:#0d1517; border:1px solid #314449; text-align:center; }
 .pool-home-details { display:grid; grid-template-columns:minmax(210px,.65fr) 2fr; gap:1.3rem; margin-top:1rem; padding:1.4rem!important; background:linear-gradient(145deg,#142124,#0e1719)!important; border:1px solid #314449!important; }
 .pool-home-details__heading > span { color:var(--ice); font-size:.65rem; font-weight:900; letter-spacing:.14em; text-transform:uppercase; }
 .pool-home-details__heading h2 { margin:.4rem 0 0; font-family:Impact,'Arial Narrow',sans-serif; font-size:2rem; font-style:italic; font-weight:400; text-transform:uppercase; }
@@ -1238,6 +1248,7 @@ table {
 .member-pool-welcome__actions button:last-child { color:var(--ice)!important; background:#10191c!important; border-color:#40575c!important; }
 @media (max-width:760px) {
   .pool-home-actions { grid-template-columns:1fr; }
+  .pool-members-list { grid-template-columns:1fr; }
   .pool-home-actions button { border-right:0!important; border-bottom:1px solid #314449!important; }
   .pool-home-actions button:last-child { border-bottom:0!important; }
   .pool-home-details { grid-template-columns:1fr; }

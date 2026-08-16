@@ -473,6 +473,28 @@ class TestPoolEndpoints:
         assert response.status_code == 403
         assert response.json()["detail"] == "League membership required"
 
+    def test_pool_members_directory_is_scoped_to_pool_participants(self, client):
+        owner = _register(client, "directory.owner@example.com")
+        member = _register(client, "directory.member@example.com")
+        outsider = _register(client, "directory.outsider@example.com")
+        pool = client.post(
+            "/pools/create", json={"name": "Member Directory Pool"}, headers=owner
+        ).json()
+        joined = client.post(f"/pools/{pool['id']}/join", json={}, headers=member)
+        assert joined.status_code == 200
+
+        response = client.get(f"/pools/{pool['id']}/members", headers=member)
+        denied = client.get(f"/pools/{pool['id']}/members", headers=outsider)
+
+        assert response.status_code == 200
+        assert response.json()["total_users"] == 2
+        assert [(user["email"], user["pool_role"]) for user in response.json()["users"]] == [
+            ("directory.owner@example.com", "Commissioner"),
+            ("directory.member@example.com", "Member"),
+        ]
+        assert denied.status_code == 403
+        assert denied.json()["detail"] == "League membership required"
+
     def test_lock_status_requires_membership(self, client):
         owner = _register(client, "lock.status.owner@example.com")
         outsider = _register(client, "lock.status.outsider@example.com")

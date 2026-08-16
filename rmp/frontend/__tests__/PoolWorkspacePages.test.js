@@ -62,6 +62,7 @@ describe('pool workspace pages', () => {
     expect(screen.getByText('Private · Password required')).toBeInTheDocument();
     expect(screen.getByText('Sunday at 1:00 PM · America/New_York')).toBeInTheDocument();
     expect(screen.getAllByRole('link', { name: 'My Entries' })).toHaveLength(1);
+    expect(screen.getByRole('link', { name: 'Members' })).toHaveAttribute('href', '/pool/pool-1/members');
     expect(screen.getAllByText('My Entries')).toHaveLength(2);
     expect(screen.getAllByText('Weekly Matchups')).toHaveLength(2);
     expect(screen.getAllByText('Forum')).toHaveLength(2);

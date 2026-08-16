@@ -362,6 +362,20 @@ class PoolOut(BaseModel):
         json_encoders = {datetime: lambda v: v.isoformat() if v else None}
 
 
+class PoolMemberDirectoryUser(BaseModel):
+    id: str
+    email: EmailStr
+    pool_role: str
+    entry_count: int = 0
+    joined_at: Optional[datetime] = None
+
+
+class PoolMemberDirectoryOut(BaseModel):
+    pool_id: str
+    total_users: int
+    users: List[PoolMemberDirectoryUser]
+
+
 class SquareClaimCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
     row_index: int = Field(ge=0, le=9)
