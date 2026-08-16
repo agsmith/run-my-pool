@@ -87,7 +87,7 @@ variable "stripe_price_commissioner" {
 variable "stripe_price_squares_plus" {
   description = "Stripe Price ID for the Squares Plus seasonal plan"
   type        = string
-  default     = ""
+  default     = "price_1U57kKEd3ZgbNfSQAbTX5E3Y"
 }
 
 variable "stripe_price_pro" {
