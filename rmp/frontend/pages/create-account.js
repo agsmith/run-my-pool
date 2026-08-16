@@ -49,6 +49,7 @@ export default function CreateAccount() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [accountCreated, setAccountCreated] = useState(false);
+  const [verificationNeeded, setVerificationNeeded] = useState(true);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const selectedPlan = typeof router.query?.plan === 'string' ? router.query.plan : '';
@@ -84,16 +85,19 @@ export default function CreateAccount() {
     }
     setLoading(true);
     let res;
+    let registrationData = {};
     try {
       res = await fetch(process.env.NEXT_PUBLIC_API_URL + '/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: email.trim().toLowerCase(), password })
       });
+      const data = typeof res.json === 'function' ? await res.json().catch(() => ({})) : {};
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
         throw new Error(registrationError(data.detail));
       }
+      registrationData = data;
+      setVerificationNeeded(data.email_verified !== true);
     } catch (err) {
       setError(err.message || 'Account creation failed. Please try again.');
       setLoading(false);
@@ -104,7 +108,10 @@ export default function CreateAccount() {
     // failure must never turn a successful registration into an error that
     // encourages the user to submit the form again.
     setAccountCreated(true);
-    setSuccess('Account created successfully! Check your email to verify your account.');
+    const needsVerification = registrationData.email_verified !== true;
+    setSuccess(needsVerification
+      ? 'Account created successfully! Check your email to verify your account.'
+      : 'Account created successfully! You can sign in now.');
     const checkoutNext = createPoolIntent
       ? '/create-pool?source=splash'
       : requestedNext
@@ -114,9 +121,11 @@ export default function CreateAccount() {
           : selectedPlan === 'free'
             ? '/create-pool?source=splash'
             : '/dashboard';
-    const verificationUrl = `/verify-email?email=${encodeURIComponent(email.trim().toLowerCase())}&next=${encodeURIComponent(checkoutNext)}`;
+    const nextUrl = needsVerification
+      ? `/verify-email?email=${encodeURIComponent(email.trim().toLowerCase())}&next=${encodeURIComponent(checkoutNext)}`
+      : `/login?message=${encodeURIComponent('Account created successfully. Please sign in.')}&next=${encodeURIComponent(checkoutNext)}`;
     try {
-      await router.push(verificationUrl);
+      await router.push(nextUrl);
     } catch (_navigationError) {
       // Keep the confirmed success state visible. The sign-in link below is a
       // reliable fallback on Safari and other browsers if navigation fails.
@@ -172,7 +181,9 @@ export default function CreateAccount() {
             fontSize: '0.875rem'
           }}>
             {success}
-            {accountCreated && <div><Link href={`/verify-email?email=${encodeURIComponent(email.trim().toLowerCase())}`}>Verification help</Link></div>}
+            {accountCreated && <div>{verificationNeeded
+              ? <Link href={`/verify-email?email=${encodeURIComponent(email.trim().toLowerCase())}`}>Verification help</Link>
+              : <Link href="/login">Continue to sign in</Link>}</div>}
           </div>
         )}
 

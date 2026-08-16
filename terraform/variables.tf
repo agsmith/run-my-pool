@@ -180,6 +180,12 @@ variable "backend_db_max_overflow" {
   default     = 5
 }
 
+variable "require_email_verification" {
+  description = "Require new accounts to verify their email before signing in"
+  type        = bool
+  default     = false
+}
+
 variable "result_updater_schedule_enabled" {
   description = "Enable the new ECS result updater only after dry-run validation and Lambda cutover"
   type        = bool

@@ -194,6 +194,10 @@ resource "aws_ecs_task_definition" "backend" {
         {
           name  = "DB_POOL_RECYCLE_SECONDS"
           value = "1800"
+        },
+        {
+          name  = "REQUIRE_EMAIL_VERIFICATION"
+          value = tostring(var.require_email_verification)
         }
       ]
 

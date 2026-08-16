@@ -118,6 +118,24 @@ describe('CreateAccountPage', () => {
     )
   })
 
+  test('skips verification when the backend has verification disabled', async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ email: 'new@example.com', email_verified: true }),
+    })
+    const user = userEvent.setup()
+    render(<CreateAccountPage />)
+
+    await user.type(screen.getByPlaceholderText(/enter your email/i), 'new@example.com')
+    await user.type(screen.getByPlaceholderText(/^enter your password$/i), 'ValidPass1!')
+    await user.type(screen.getByPlaceholderText(/confirm your password/i), 'ValidPass1!')
+    await user.click(screen.getByRole('button', { name: 'Create Account' }))
+
+    expect(mockPush).toHaveBeenCalledWith(
+      `/login?message=${encodeURIComponent('Account created successfully. Please sign in.')}&next=${encodeURIComponent('/dashboard')}`,
+    )
+  })
+
   test('continues a splash-page pool creation after registration and login', async () => {
     mockQuery = { intent: 'create-pool' }
     global.fetch = jest.fn().mockResolvedValue({ ok: true })
