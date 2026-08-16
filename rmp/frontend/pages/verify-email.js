@@ -66,7 +66,7 @@ export default function VerifyEmailPage() {
   const loginHref = `/login?message=${encodeURIComponent('Email verified successfully. Please sign in.')}&next=${encodeURIComponent(next)}`;
   return <main className="auth-page" style={baseStyles.authPageContainer}>
     <div className="auth-card" style={baseStyles.authCard}>
-      <div className="auth-brand"><h1><BrandLogo className="auth-brand__logo" alt="Run My Pool" variant="compact" priority /></h1><p>Verify your email</p></div>
+      <div className="auth-brand"><h1><BrandLogo className="auth-brand__logo" alt="Run My Pool" variant="compact" priority /></h1><p>{status === 'verified' ? 'Email Verified' : 'Verify your email'}</p></div>
       <div className={`auth-notice ${status === 'error' ? 'auth-notice--error' : 'auth-notice--success'}`} role="status">{message}</div>
       {status === 'verified' ? <Link className="auth-submit auth-link-button" href={loginHref}>Continue to sign in</Link> : <form onSubmit={resend} className="verification-resend-form">
         <label>Email address<input type="email" required value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" /></label>

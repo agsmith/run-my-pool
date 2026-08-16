@@ -10,7 +10,7 @@ export default function MyApp({ Component, pageProps }) {
   const isMarketingPage = ['/', '/pricing'].includes(router.pathname)
 
   const getExperience = (pathname) => {
-    if (['/login', '/register', '/create-account', '/forgot-password', '/reset-password'].includes(pathname)) return 'auth'
+    if (['/login', '/register', '/create-account', '/forgot-password', '/reset-password', '/verify-email'].includes(pathname)) return 'auth'
     if (pathname === '/offline') return 'utility'
     if (pathname === '/support') return 'support'
     if (pathname.startsWith('/admin')) return 'admin'

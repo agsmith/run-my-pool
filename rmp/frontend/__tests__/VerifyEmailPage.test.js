@@ -16,6 +16,7 @@ describe('VerifyEmailPage', () => {
     render(<VerifyEmailPage />);
 
     expect(await screen.findByText(/email verified successfully/i)).toBeInTheDocument();
+    expect(screen.getByText('Email Verified')).toBeInTheDocument();
     expect(fetch).toHaveBeenCalledWith('/auth/verify-email', expect.objectContaining({
       method: 'POST', body: JSON.stringify({ token: 'a'.repeat(43) }),
     }));
