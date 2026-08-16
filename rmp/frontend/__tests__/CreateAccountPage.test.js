@@ -1,0 +1,176 @@
+import '@testing-library/jest-dom'
+import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import CreateAccountPage from '../pages/create-account'
+
+const mockTrackLifecycleEvent = jest.fn()
+jest.mock('../lib/lifecycleAnalytics', () => ({
+  trackLifecycleEvent: (...args) => mockTrackLifecycleEvent(...args),
+}))
+
+const mockPush = jest.fn()
+let mockQuery = {}
+
+jest.mock('next/router', () => ({
+  useRouter: () => ({ push: mockPush, query: mockQuery }),
+}))
+
+jest.mock('../styles/globalStyles', () => ({
+  baseStyles: { authPageContainer: {}, authCard: {} },
+}))
+
+describe('CreateAccountPage', () => {
+  beforeEach(() => {
+    mockPush.mockClear()
+    mockTrackLifecycleEvent.mockClear()
+    mockQuery = {}
+  })
+
+  test('uses the Broadcast Night product brand without an emoji', () => {
+    const { container } = render(<CreateAccountPage />)
+    expect(screen.getByRole('heading', { name: /run my pool/i })).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: /run my pool/i })).toHaveAttribute('src', '/brand/promotional/rmp-alt-compact-dark.png')
+    expect(container).not.toHaveTextContent('🏈')
+  })
+
+  test('shows and hides both password fields independently', async () => {
+    const user = userEvent.setup()
+    render(<CreateAccountPage />)
+    const password = screen.getByPlaceholderText(/^enter your password$/i)
+    const confirmation = screen.getByPlaceholderText(/confirm your password/i)
+
+    await user.click(screen.getByRole('button', { name: /show new account password/i }))
+    expect(password).toHaveAttribute('type', 'text')
+    expect(confirmation).toHaveAttribute('type', 'password')
+
+    await user.click(screen.getByRole('button', { name: /show password confirmation/i }))
+    expect(confirmation).toHaveAttribute('type', 'text')
+  })
+
+  test('links existing users back to login', () => {
+    render(<CreateAccountPage />)
+    expect(screen.getByRole('link', { name: /already have an account/i })).toHaveAttribute('href', '/login')
+  })
+
+  test('shows the package selected on the pricing page and allows changing it', () => {
+    mockQuery = { plan: 'pro' }
+    render(<CreateAccountPage />)
+
+    const selection = screen.getByLabelText('Selected package')
+    expect(selection).toHaveTextContent('Pro')
+    expect(screen.getByRole('link', { name: /change package/i })).toHaveAttribute('href', '/pricing')
+    expect(mockTrackLifecycleEvent).toHaveBeenCalledWith('account_creation_view', {
+      page: 'create_account',
+      plan: 'pro',
+      source: 'pricing',
+    })
+  })
+
+  test('shows the API reason when account creation is rejected', async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: false,
+      json: async () => ({ detail: 'Email already registered' }),
+    })
+    const user = userEvent.setup()
+    render(<CreateAccountPage />)
+
+    await user.type(screen.getByPlaceholderText(/enter your email/i), 'Existing@Example.com')
+    await user.type(screen.getByPlaceholderText(/^enter your password$/i), 'ValidPass1!')
+    await user.type(screen.getByPlaceholderText(/confirm your password/i), 'ValidPass1!')
+    await user.click(screen.getByRole('button', { name: 'Create Account' }))
+
+    expect(await screen.findByText(/your account may have been created successfully/i)).toBeInTheDocument()
+    expect(JSON.parse(global.fetch.mock.calls[0][1].body).email).toBe('existing@example.com')
+  })
+
+  test('keeps confirmed success visible if client-side navigation fails', async () => {
+    global.fetch = jest.fn().mockResolvedValue({ ok: true })
+    mockPush.mockRejectedValueOnce(new Error('Safari navigation interrupted'))
+    const user = userEvent.setup()
+    render(<CreateAccountPage />)
+
+    await user.type(screen.getByPlaceholderText(/enter your email/i), 'new@example.com')
+    await user.type(screen.getByPlaceholderText(/^enter your password$/i), 'ValidPass1!')
+    await user.type(screen.getByPlaceholderText(/confirm your password/i), 'ValidPass1!')
+    await user.click(screen.getByRole('button', { name: 'Create Account' }))
+
+    expect(await screen.findByText(/account created successfully/i)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /verification help/i })).toHaveAttribute('href', '/verify-email?email=new%40example.com')
+    expect(screen.getByRole('button', { name: 'Account Created' })).toBeDisabled()
+    expect(screen.queryByText(/account creation failed/i)).not.toBeInTheDocument()
+    expect(global.fetch).toHaveBeenCalledTimes(1)
+  })
+
+  test('routes a new account to email verification before its continuation', async () => {
+    mockQuery = { plan: 'squares-plus' }
+    global.fetch = jest.fn().mockResolvedValue({ ok: true })
+    const user = userEvent.setup()
+    render(<CreateAccountPage />)
+
+    expect(screen.getByLabelText('Selected package')).toHaveTextContent('Squares Plus')
+    await user.type(screen.getByPlaceholderText(/enter your email/i), 'Squares@Example.com')
+    await user.type(screen.getByPlaceholderText(/^enter your password$/i), 'ValidPass1!')
+    await user.type(screen.getByPlaceholderText(/confirm your password/i), 'ValidPass1!')
+    await user.click(screen.getByRole('button', { name: 'Create Account' }))
+
+    expect(mockPush).toHaveBeenCalledWith(
+      `/verify-email?email=squares%40example.com&next=${encodeURIComponent('/pricing?checkout=squares-plus')}`,
+    )
+  })
+
+  test('continues a splash-page pool creation after registration and login', async () => {
+    mockQuery = { intent: 'create-pool' }
+    global.fetch = jest.fn().mockResolvedValue({ ok: true })
+    const user = userEvent.setup()
+    render(<CreateAccountPage />)
+
+    await user.type(screen.getByPlaceholderText(/enter your email/i), 'new@example.com')
+    await user.type(screen.getByPlaceholderText(/^enter your password$/i), 'ValidPass1!')
+    await user.type(screen.getByPlaceholderText(/confirm your password/i), 'ValidPass1!')
+    await user.click(screen.getByRole('button', { name: 'Create Account' }))
+
+    expect(mockPush).toHaveBeenCalledWith(expect.stringContaining(
+      `next=${encodeURIComponent('/create-pool?source=splash')}`,
+    ))
+  })
+
+  test('continues a selected Free package into pool setup after login', async () => {
+    mockQuery = { plan: 'free' }
+    global.fetch = jest.fn().mockResolvedValue({ ok: true })
+    const user = userEvent.setup()
+    render(<CreateAccountPage />)
+
+    expect(screen.getByRole('link', { name: /already have an account/i })).toHaveAttribute(
+      'href',
+      `/login?next=${encodeURIComponent('/create-pool?source=splash')}`,
+    )
+    await user.type(screen.getByPlaceholderText(/enter your email/i), 'free@example.com')
+    await user.type(screen.getByPlaceholderText(/^enter your password$/i), 'ValidPass1!')
+    await user.type(screen.getByPlaceholderText(/confirm your password/i), 'ValidPass1!')
+    await user.click(screen.getByRole('button', { name: 'Create Account' }))
+
+    expect(mockPush).toHaveBeenCalledWith(expect.stringContaining(
+      `next=${encodeURIComponent('/create-pool?source=splash')}`,
+    ))
+  })
+
+  test('returns a newly registered invitee to the original pool invitation', async () => {
+    mockQuery = { next: '/leagues?invite=pool-1' }
+    global.fetch = jest.fn().mockResolvedValue({ ok: true })
+    const user = userEvent.setup()
+    render(<CreateAccountPage />)
+
+    expect(screen.getByRole('link', { name: /already have an account/i })).toHaveAttribute(
+      'href',
+      `/login?next=${encodeURIComponent('/leagues?invite=pool-1')}`,
+    )
+    await user.type(screen.getByPlaceholderText(/enter your email/i), 'invitee@example.com')
+    await user.type(screen.getByPlaceholderText(/^enter your password$/i), 'ValidPass1!')
+    await user.type(screen.getByPlaceholderText(/confirm your password/i), 'ValidPass1!')
+    await user.click(screen.getByRole('button', { name: 'Create Account' }))
+
+    expect(mockPush).toHaveBeenCalledWith(expect.stringContaining(
+      `next=${encodeURIComponent('/leagues?invite=pool-1')}`,
+    ))
+  })
+})
