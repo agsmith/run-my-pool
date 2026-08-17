@@ -100,6 +100,25 @@ resource "aws_iam_role" "result_updater_task" {
   tags               = local.common_tags
 }
 
+data "aws_iam_policy_document" "result_updater_email" {
+  statement {
+    effect    = "Allow"
+    actions   = ["ses:SendEmail"]
+    resources = [aws_ses_domain_identity.runmypool.arn]
+    condition {
+      test     = "StringEquals"
+      variable = "ses:FromAddress"
+      values   = ["accounts@runmypool.net"]
+    }
+  }
+}
+
+resource "aws_iam_role_policy" "result_updater_email" {
+  name   = "weekly-owner-report-email"
+  role   = aws_iam_role.result_updater_task.id
+  policy = data.aws_iam_policy_document.result_updater_email.json
+}
+
 resource "aws_ecs_task_definition" "result_updater" {
   family                   = local.result_updater_family
   network_mode             = "awsvpc"
@@ -123,6 +142,10 @@ resource "aws_ecs_task_definition" "result_updater" {
         { name = "DB_POOL_RECYCLE_SECONDS", value = "300" },
         { name = "IMAGE_REVISION", value = var.backend_image_tag },
         { name = "PYTHONDONTWRITEBYTECODE", value = "1" },
+        { name = "AWS_SES_REGION", value = var.aws_region },
+        { name = "EMAIL_FROM", value = "Run My Pool Reports <accounts@runmypool.net>" },
+        { name = "EMAIL_REPLY_TO", value = "support@runmypool.net" },
+        { name = "FRONTEND_URL", value = "https://runmypool.net" },
       ]
       secrets = [
         { name = "DATABASE_URL", valueFrom = var.database_url_secret_arn }
@@ -257,9 +280,18 @@ resource "aws_sfn_state_machine" "result_updater" {
   }
 
   definition = jsonencode({
-    Comment = "Run the NFL result updater and retry container failures"
-    StartAt = "RunUpdater"
+    Comment = "Run scheduled Run My Pool jobs and retry container failures"
+    StartAt = "SelectJob"
     States = {
+      SelectJob = {
+        Type = "Choice"
+        Choices = [{
+          Variable     = "$.job"
+          StringEquals = "owner_reports"
+          Next         = "RunOwnerReports"
+        }]
+        Default = "RunUpdater"
+      }
       RunUpdater = {
         Type           = "Task"
         Resource       = "arn:aws:states:::ecs:runTask.sync"
@@ -289,12 +321,47 @@ resource "aws_sfn_state_machine" "result_updater" {
         }]
         End = true
       }
+      RunOwnerReports = {
+        Type           = "Task"
+        Resource       = "arn:aws:states:::ecs:runTask.sync"
+        TimeoutSeconds = 300
+        Parameters = {
+          Cluster        = aws_ecs_cluster.main.arn
+          TaskDefinition = local.result_updater_family
+          LaunchType     = "FARGATE"
+          Overrides = {
+            ContainerOverrides = [{
+              Name    = "result-updater"
+              Command = ["python", "-m", "pool_reports"]
+            }]
+          }
+          NetworkConfiguration = {
+            AwsvpcConfiguration = {
+              Subnets        = [aws_subnet.public_a.id, aws_subnet.public_b.id]
+              SecurityGroups = [aws_security_group.result_updater.id]
+              AssignPublicIp = "ENABLED"
+            }
+          }
+        }
+        Retry = [{
+          ErrorEquals     = ["States.TaskFailed", "States.Timeout", "AmazonECS.Unknown"]
+          IntervalSeconds = 30
+          MaxAttempts     = 3
+          BackoffRate     = 2
+        }]
+        Catch = [{
+          ErrorEquals = ["States.ALL"]
+          ResultPath  = "$.failure"
+          Next        = "NotifyFailure"
+        }]
+        End = true
+      }
       NotifyFailure = {
         Type     = "Task"
         Resource = "arn:aws:states:::sns:publish"
         Parameters = {
           TopicArn    = aws_sns_topic.result_updater_alerts.arn
-          Subject     = "Run My Pool result updater failed"
+          Subject     = "Run My Pool scheduled job failed"
           "Message.$" = "States.JsonToString($)"
         }
         Next = "Failed"
@@ -407,6 +474,27 @@ resource "aws_scheduler_schedule" "result_updater_corrections" {
     dead_letter_config {
       arn = aws_sqs_queue.result_updater_dlq.arn
     }
+  }
+}
+
+resource "aws_scheduler_schedule" "owner_pool_reports" {
+  name                         = "runmypool-weekly-owner-pool-reports"
+  state                        = var.owner_pool_reports_schedule_enabled ? "ENABLED" : "DISABLED"
+  schedule_expression          = "cron(0 10 ? * TUE *)"
+  schedule_expression_timezone = "America/New_York"
+
+  flexible_time_window { mode = "OFF" }
+
+  target {
+    arn      = aws_sfn_state_machine.result_updater.arn
+    role_arn = aws_iam_role.result_updater_scheduler.arn
+    input    = jsonencode({ job = "owner_reports" })
+
+    retry_policy {
+      maximum_event_age_in_seconds = 3600
+      maximum_retry_attempts       = 3
+    }
+    dead_letter_config { arn = aws_sqs_queue.result_updater_dlq.arn }
   }
 }
 

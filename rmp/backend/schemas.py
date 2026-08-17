@@ -353,6 +353,9 @@ class PoolOut(BaseModel):
     owner_id: str
     billing_entitlement_id: Optional[str] = None
     billing_season: Optional[int] = None
+    owner_reports_enabled: bool = False
+    owner_reports_frequency: str = "weekly"
+    owner_reports_last_sent_at: Optional[datetime] = None
     plan: Optional[str] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
@@ -361,6 +364,39 @@ class PoolOut(BaseModel):
     class Config:
         orm_mode = True
         json_encoders = {datetime: lambda v: v.isoformat() if v else None}
+
+
+class OwnerReportPreferenceUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    enabled: bool
+    frequency: Literal["weekly"] = "weekly"
+
+
+class OwnerReportPreferenceOut(BaseModel):
+    pool_id: str
+    enabled: bool
+    frequency: Literal["weekly"]
+    last_sent_at: Optional[datetime] = None
+
+
+class OwnerPoolReportOut(BaseModel):
+    pool_id: str
+    pool_name: str
+    pool_type: str
+    week: Optional[int] = None
+    members: int
+    engaged_members: int
+    total_entries: int
+    remaining_entries: int
+    eliminated_entries: int
+    weekly_entries_with_picks: int
+    weekly_eligible_entries: int
+    weekly_picks: int
+    weekly_wins: int
+    weekly_losses: int
+    season_picks: int
+    forum_messages: int
+    popular_locked_picks: List[dict] = Field(default_factory=list)
 
 
 class PoolMemberDirectoryUser(BaseModel):

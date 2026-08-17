@@ -1473,6 +1473,20 @@ table {
 .broadcast-v2--admin .admin-access-panel__footer button { color:#091012!important; background:var(--lime)!important; border:1px solid var(--lime)!important; border-radius:0!important; }
 .admin-access-panel__footer span { color:var(--ice); font-size:.8rem; font-weight:700; }
 @media (max-width:600px) { .admin-access-panel__options { grid-template-columns:1fr; } }
+.owner-pool-reports { display:grid; gap:1rem; margin:0 0 2rem; padding:1.2rem; background:linear-gradient(145deg,#162226,#10191c); border:1px solid #314449; border-top:3px solid var(--ice); }
+.owner-pool-reports__heading > span { color:var(--ice); font-size:.65rem; font-weight:900; letter-spacing:.14em; text-transform:uppercase; }
+.broadcast-v2--admin .owner-pool-reports h4 { margin:.35rem 0; color:#e8efed; font-family:Impact,'Arial Narrow',sans-serif; font-size:1.55rem; font-style:italic; font-weight:400; text-transform:uppercase; }
+.owner-pool-reports p { margin:0; color:var(--muted); }
+.owner-pool-reports__metrics { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:.65rem; }
+.owner-pool-reports__metrics > div { display:grid; gap:.2rem; padding:.85rem; background:#0c1416; border:1px solid #34484c; }
+.owner-pool-reports__metrics strong { color:var(--lime); font-size:1.35rem; }
+.owner-pool-reports__metrics span { color:var(--muted); font-size:.7rem; font-weight:800; text-transform:uppercase; }
+.owner-pool-reports__action { display:flex; align-items:center; gap:1rem; flex-wrap:wrap; padding-top:.85rem; border-top:1px solid #314449; }
+.owner-pool-reports__action label { display:flex; align-items:center; gap:.7rem; cursor:pointer; }
+.owner-pool-reports__action label > span { display:grid; gap:.1rem; }
+.owner-pool-reports__action small { color:var(--muted); }
+.owner-pool-reports__action p { color:var(--ice); font-weight:700; }
+@media (max-width:700px) { .owner-pool-reports__metrics { grid-template-columns:1fr 1fr; } }
 .admin-lock-settings { display:grid; gap:1rem; margin:0 0 2rem; padding:1.2rem; background:linear-gradient(145deg,#162226,#10191c); border:1px solid #314449; border-top:3px solid var(--ice); }
 .admin-lock-settings__heading span { color:var(--ice); font-size:.65rem; font-weight:900; letter-spacing:.14em; text-transform:uppercase; }
 .broadcast-v2--admin .admin-lock-settings__heading h4 { margin:.35rem 0; color:var(--ink); font-family:Impact,'Arial Narrow',sans-serif; font-size:1.55rem; font-style:italic; font-weight:400; text-transform:uppercase; }

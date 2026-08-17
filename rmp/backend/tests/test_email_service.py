@@ -4,6 +4,7 @@ from email_service import (
     send_email_verification_email,
     send_password_reset_email,
     send_pool_invitation_email,
+    send_pool_owner_report,
 )
 
 
@@ -65,3 +66,28 @@ def test_pool_invitation_uses_continuation_link_without_private_code(mock_client
     assert "login?next=%2Fleagues%3Finvite%3Dpool-1" in text
     assert "Ask the commissioner for the join code separately" in text
     assert "huddle" not in text
+
+
+@patch("email_service.boto3.client")
+def test_owner_report_uses_ses_and_escapes_pool_content(mock_client, monkeypatch):
+    ses = Mock()
+    ses.send_email.return_value = {"MessageId": "report-123"}
+    mock_client.return_value = ses
+    monkeypatch.setenv("FRONTEND_URL", "https://runmypool.net")
+
+    message_id = send_pool_owner_report("owner@example.com", {
+        "pool_id": "pool-1", "pool_name": "Office <script>alert(1)</script>",
+        "week": 4, "engaged_members": 8, "members": 10,
+        "remaining_entries": 12, "total_entries": 15,
+        "weekly_entries_with_picks": 11, "weekly_eligible_entries": 12,
+        "weekly_wins": 7, "weekly_losses": 4, "season_picks": 45,
+        "forum_messages": 9, "popular_locked_picks": [{"team": "BUF", "picks": 6}],
+    })
+
+    assert message_id == "report-123"
+    request = ses.send_email.call_args.kwargs
+    assert request["Destination"] == {"ToAddresses": ["owner@example.com"]}
+    html_body = request["Content"]["Simple"]["Body"]["Html"]["Data"]
+    assert "<script>" not in html_body
+    assert "Office &lt;script&gt;alert(1)&lt;/script&gt;" in html_body
+    assert "BUF (6)" in html_body

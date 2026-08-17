@@ -192,6 +192,12 @@ variable "result_updater_schedule_enabled" {
   default     = false
 }
 
+variable "owner_pool_reports_schedule_enabled" {
+  description = "Enable weekly email reports for pool owners who explicitly opt in"
+  type        = bool
+  default     = true
+}
+
 variable "result_updater_alert_email" {
   description = "Email address that receives result updater failure notifications"
   type        = string

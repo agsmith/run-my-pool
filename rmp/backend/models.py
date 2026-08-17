@@ -93,6 +93,9 @@ class Pool(Base):
         index=True,
     )
     billing_season = Column(Integer, nullable=True, index=True)
+    owner_reports_enabled = Column(Boolean, nullable=False, default=False, server_default="0")
+    owner_reports_frequency = Column(String(20), nullable=False, default="weekly", server_default="weekly")
+    owner_reports_last_sent_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime)
     updated_at = Column(DateTime)
     # relationships

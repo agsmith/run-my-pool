@@ -9,6 +9,7 @@ import AdminAccessControl from '../../../components/AdminAccessControl';
 import OwnershipTransferControl from '../../../components/OwnershipTransferControl';
 import LeagueLockSettings from '../../../components/LeagueLockSettings';
 import LeaguePasswordViewer from '../../../components/LeaguePasswordViewer';
+import OwnerPoolReports from '../../../components/OwnerPoolReports';
 import { getAuditUsername } from '../../../utils/auditDisplay';
 import { downloadAuditCsv } from '../../../utils/auditCsv';
 
@@ -528,6 +529,8 @@ export default function AdminPortal() {
           {accessMessage && <span role="status">{accessMessage}</span>}
         </div>
       </div>
+
+      {league?.owner_id === user?.id && <OwnerPoolReports poolId={leagueId} />}
       
       {/* View/Search Leagues */}
       <div style={{ marginBottom: '3rem' }}>

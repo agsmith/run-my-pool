@@ -140,3 +140,51 @@ def send_pool_invitation_email(recipient: str, pool_id: str, pool_name: str, is_
     message_id = response["MessageId"]
     log_event(logger, logging.INFO, "pool_invitation_email_queued", message_id=message_id, pool_id=pool_id)
     return message_id
+
+
+def send_pool_owner_report(recipient: str, report: dict) -> str:
+    """Send a concise, branded weekly pool-health report."""
+    region = os.getenv("AWS_SES_REGION", "us-east-1")
+    frontend_url = os.getenv("FRONTEND_URL", "https://runmypool.net").rstrip("/")
+    sender = os.getenv("EMAIL_FROM", "Run My Pool Reports <no-reply@runmypool.net>")
+    reply_to = os.getenv("EMAIL_REPLY_TO", "support@runmypool.net")
+    pool_name = " ".join(report["pool_name"].split())
+    safe_name = html.escape(pool_name)
+    report_url = f"{frontend_url}/admin/league/{report['pool_id']}"
+    completion = f"{report['weekly_entries_with_picks']}/{report['weekly_eligible_entries']}"
+    popular_text = ", ".join(f"{item['team']} ({item['picks']})" for item in report["popular_locked_picks"]) or "Available after picks lock"
+    text_body = (
+        f"{pool_name} — Week {report['week']} pool report\n\n"
+        f"Members engaged: {report['engaged_members']}/{report['members']}\n"
+        f"Entries remaining: {report['remaining_entries']}/{report['total_entries']}\n"
+        f"Weekly entry completion: {completion}\n"
+        f"Week results: {report['weekly_wins']} wins, {report['weekly_losses']} losses\n"
+        f"Season picks: {report['season_picks']}\nForum messages: {report['forum_messages']}\n"
+        f"Popular locked picks: {popular_text}\n\nManage pool: {report_url}\n"
+        "You are receiving this because you enabled weekly owner reports. You can opt out in Pool Management."
+    )
+    html_body = (
+        '<div style="background:#071113;color:#e8efed;padding:28px;font-family:Arial,sans-serif">'
+        '<div style="color:#d7ff3f;font-size:12px;font-weight:700;letter-spacing:2px">WEEKLY POOL REPORT</div>'
+        f'<h1 style="margin:8px 0">{safe_name} · Week {report["week"]}</h1>'
+        f'<p><strong>{report["engaged_members"]}/{report["members"]}</strong> members engaged &nbsp; '
+        f'<strong>{report["remaining_entries"]}/{report["total_entries"]}</strong> entries remaining</p>'
+        f'<p><strong>{completion}</strong> eligible entries picked this week &nbsp; '
+        f'<strong>{report["weekly_wins"]}</strong> wins / <strong>{report["weekly_losses"]}</strong> losses</p>'
+        f'<p>{report["season_picks"]} season picks · {report["forum_messages"]} forum messages</p>'
+        f'<p><strong>Popular locked picks:</strong> {html.escape(popular_text)}</p>'
+        f'<p><a href="{html.escape(report_url, quote=True)}" style="display:inline-block;background:#d7ff3f;color:#071113;padding:12px 18px;text-decoration:none;font-weight:700">Open commissioner dashboard</a></p>'
+        '<p style="color:#9dafb2;font-size:12px">You enabled weekly owner reports. Opt out any time in Pool Management.</p></div>'
+    )
+    response = boto3.client("sesv2", region_name=region).send_email(
+        FromEmailAddress=sender,
+        Destination={"ToAddresses": [recipient]},
+        ReplyToAddresses=[reply_to],
+        Content={"Simple": {
+            "Subject": {"Data": f"{pool_name}: Week {report['week']} pool report", "Charset": "UTF-8"},
+            "Body": {"Text": {"Data": text_body, "Charset": "UTF-8"}, "Html": {"Data": html_body, "Charset": "UTF-8"}},
+        }},
+    )
+    message_id = response["MessageId"]
+    log_event(logger, logging.INFO, "owner_pool_report_queued", message_id=message_id, pool_id=report["pool_id"])
+    return message_id
