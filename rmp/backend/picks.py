@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 from sqlalchemy import and_, case, func, or_
 from typing import List
 import uuid
@@ -7,7 +7,14 @@ from datetime import datetime, timezone
 
 from deps import get_db, get_current_user
 from models import Pick, Entry, Schedule, Team, Pool, User
-from schemas import PickCreate, PickUpdate, PickOut, PickBreakdownItem, PickEmStandingOut
+from schemas import (
+    LeaderboardEntryOut,
+    PickBreakdownItem,
+    PickCreate,
+    PickEmStandingOut,
+    PickOut,
+    PickUpdate,
+)
 from audit_utils import log_create_operation, log_update_operation, log_delete_operation
 from admin import is_user_locked_in_pool
 from pool_access import is_pool_participant
@@ -350,6 +357,94 @@ def get_pickem_standings(
             "picks_made": int(row.picks_made or 0),
         }
         for index, row in enumerate(ordered)
+    ]
+
+
+@router.get(
+    "/picks/pool/{pool_id}/leaderboard",
+    response_model=List[LeaderboardEntryOut],
+)
+def get_pool_leaderboard(
+    pool_id: str,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    """Rank every pool entry using only selections that members may see."""
+    pool = db.query(Pool).filter(Pool.id == pool_id).first()
+    if not pool:
+        raise HTTPException(status_code=404, detail="Pool not found")
+    if not is_pool_participant(db, pool_id, current_user.id):
+        raise HTTPException(status_code=403, detail="Pool membership required")
+    if pool.pool_type not in {"survivor", "pickem"}:
+        raise HTTPException(
+            status_code=400,
+            detail="Leaderboards are only available for Survivor and Pick 'Em pools",
+        )
+
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    entries = (
+        db.query(Entry)
+        .options(selectinload(Entry.picks), selectinload(Entry.user))
+        .filter(Entry.pool_id == pool_id)
+        .order_by(Entry.name, Entry.id)
+        .all()
+    )
+    weeks = {pick.week for entry in entries for pick in entry.picks}
+    revealed_weeks = {
+        week
+        for week in weeks
+        if (deadline := pool_week_lock_time(pool, current_season_games(db, week)))
+        is not None
+        and deadline <= now
+    }
+
+    rows = []
+    for entry in entries:
+        visible_picks = sorted(
+            (
+                pick
+                for pick in entry.picks
+                if pick.week in revealed_weeks
+                or pick.locked
+                or pick.result in {"win", "loss"}
+            ),
+            key=lambda pick: (pick.week, pick.game_id or 0, pick.id),
+        )
+        rows.append(
+            {
+                "entry": entry,
+                "correct_picks": sum(pick.result == "win" for pick in visible_picks),
+                "completed_picks": sum(
+                    pick.result in {"win", "loss"} for pick in visible_picks
+                ),
+                "picks": visible_picks,
+            }
+        )
+
+    rows.sort(
+        key=lambda row: (
+            -row["correct_picks"],
+            -row["completed_picks"],
+            row["entry"].name.casefold(),
+            row["entry"].id,
+        )
+    )
+    return [
+        {
+            "rank": index + 1,
+            "entry_id": row["entry"].id,
+            "entry_name": row["entry"].name,
+            "user_id": row["entry"].user_id,
+            "user_email": row["entry"].user.email,
+            "correct_picks": row["correct_picks"],
+            "completed_picks": row["completed_picks"],
+            "alive": row["entry"].alive,
+            "picks": [
+                {"week": pick.week, "team": pick.team, "result": pick.result}
+                for pick in row["picks"]
+            ],
+        }
+        for index, row in enumerate(rows)
     ]
 
 

@@ -479,6 +479,24 @@ class PickEmStandingOut(BaseModel):
     picks_made: int
 
 
+class LeaderboardPickOut(BaseModel):
+    week: int
+    team: str
+    result: Optional[str] = None
+
+
+class LeaderboardEntryOut(BaseModel):
+    rank: int
+    entry_id: str
+    entry_name: str
+    user_id: str
+    user_email: EmailStr
+    correct_picks: int
+    completed_picks: int
+    alive: bool
+    picks: List[LeaderboardPickOut] = Field(default_factory=list)
+
+
 class AuditLogOut(BaseModel):
     id: str
     user_id: Optional[str] = None

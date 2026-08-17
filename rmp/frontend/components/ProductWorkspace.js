@@ -26,6 +26,7 @@ export function PoolWorkspaceNav({ poolId, poolName, poolType = 'survivor', acti
   const items = [
     { id: 'overview', label: 'Pool Home', href: `/pool/${poolId}` },
     { id: 'entries', label: entryLabel, href: entryHref },
+    ...(poolType === 'survivor' || poolType === 'pickem' ? [{ id: 'leaderboard', label: 'Leaderboard', href: `/pool/${poolId}/leaderboard` }] : []),
     { id: 'members', label: 'Members', href: `/pool/${poolId}/members` },
     { id: 'matchups', label: 'Weekly Matchups', href: `/pool/${poolId}/matchups` },
     { id: 'messages', label: 'Forum', href: `/pool/${poolId}/messages` },

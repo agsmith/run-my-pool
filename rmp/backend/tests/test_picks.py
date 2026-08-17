@@ -153,6 +153,74 @@ class TestPickEndpoints:
         assert response.json()[0]["points"] == 1
         assert response.json()[0]["possible_points"] == 2
 
+    @pytest.mark.parametrize("pool_type", ["survivor", "pickem"])
+    def test_pool_leaderboard_ranks_all_entries_without_revealing_unlocked_picks(
+        self, client, db_session, pool_type
+    ):
+        token = _register_and_login(
+            client, email=f"{pool_type}.leaderboard@example.com"
+        )
+        headers = _authed(token)
+        pool = client.post(
+            "/pools/create",
+            json={"name": f"{pool_type.title()} Leaderboard", "pool_type": pool_type},
+            headers=headers,
+        ).json()
+        owner_entry_id = _create_entry(client, headers, pool["id"], "Two Wins")
+        member = models.User(
+            id=f"{pool_type}-leaderboard-member",
+            email=f"member.{pool_type}@example.com",
+            hashed_password="unused",
+            is_active=True,
+            email_verified=True,
+        )
+        member_entry = models.Entry(
+            id=f"{pool_type}-member-entry",
+            pool_id=pool["id"],
+            user_id=member.id,
+            name="One Win",
+            alive=False,
+        )
+        db_session.add_all([member, member_entry])
+        db_session.flush()
+        db_session.add_all(
+            [
+                models.Pick(id=f"{pool_type}-win-1", entry_id=owner_entry_id, week=1, team="BUF", result="win"),
+                models.Pick(id=f"{pool_type}-win-2", entry_id=owner_entry_id, week=2, team="MIA", result="win"),
+                models.Pick(id=f"{pool_type}-hidden", entry_id=owner_entry_id, week=3, team="GB", result=None, locked=False),
+                models.Pick(id=f"{pool_type}-locked", entry_id=owner_entry_id, week=4, team="NYJ", result=None, locked=True),
+                models.Pick(id=f"{pool_type}-member-win", entry_id=member_entry.id, week=1, team="CHI", result="win"),
+                models.Pick(id=f"{pool_type}-member-loss", entry_id=member_entry.id, week=2, team="DAL", result="loss"),
+            ]
+        )
+        db_session.commit()
+
+        response = client.get(
+            f"/picks/pool/{pool['id']}/leaderboard", headers=headers
+        )
+
+        assert response.status_code == 200
+        rows = response.json()
+        assert [row["entry_name"] for row in rows] == ["Two Wins", "One Win"]
+        assert rows[0]["rank"] == 1
+        assert rows[0]["correct_picks"] == 2
+        assert rows[0]["completed_picks"] == 2
+        assert [pick["team"] for pick in rows[0]["picks"]] == ["BUF", "MIA", "NYJ"]
+        assert rows[1]["rank"] == 2
+        assert rows[1]["alive"] is False
+        assert rows[1]["user_email"] == member.email
+
+    def test_pool_leaderboard_requires_membership(self, client):
+        owner_token = _register_and_login(client, email="leaderboard.owner@example.com")
+        pool_id = _create_pool(client, _authed(owner_token))
+        outsider_token = _register_and_login(client, email="leaderboard.outsider@example.com")
+
+        response = client.get(
+            f"/picks/pool/{pool_id}/leaderboard", headers=_authed(outsider_token)
+        )
+
+        assert response.status_code == 403
+
     def test_pickem_fixed_slate_rejects_extra_game_but_allows_changing_a_pick(self, client, db_session):
         token = _register_and_login(client, email="pickem.limit@example.com")
         headers = _authed(token)
