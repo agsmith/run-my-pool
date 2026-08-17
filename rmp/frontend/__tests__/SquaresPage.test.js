@@ -38,9 +38,10 @@ describe('SquaresPage', () => {
     expect(screen.getByRole('gridcell', { name: 'Block 1, available' })).toBeInTheDocument();
     expect(screen.getByRole('gridcell', { name: 'Block 100, available' })).toBeInTheDocument();
     expect(screen.getAllByText('?')).toHaveLength(20);
+    await user.type(screen.getByRole('textbox', { name: 'Display name' }), 'Tony S.');
     await user.click(screen.getAllByRole('gridcell')[0]);
     await waitFor(() => expect(fetch).toHaveBeenCalledWith('/squares/pool-1/claims', expect.objectContaining({ method: 'POST' })));
-    expect(JSON.parse(fetch.mock.calls.find(([, options]) => options?.method === 'POST')[1].body)).toEqual({ row_index: 0, column_index: 0 });
+    expect(JSON.parse(fetch.mock.calls.find(([, options]) => options?.method === 'POST')[1].body)).toEqual({ row_index: 0, column_index: 0, display_name: 'Tony S.' });
   });
 
   test('shows every selected game and keeps results separated by matchup', async () => {
@@ -63,9 +64,9 @@ describe('SquaresPage', () => {
   });
 
   test('shows immutable randomized digits and quarter winner after lock', async () => {
-    global.fetch = jest.fn(() => response({ ...board, locked: true, home_digits: [0,1,2,3,4,5,6,7,8,9], away_digits: [9,8,7,6,5,4,3,2,1,0], payouts: [{ checkpoint: 'q1', home_score: 7, away_score: 3, winner_email: 'winner@example.com', amount_cents: 2500 }] }));
+    global.fetch = jest.fn(() => response({ ...board, locked: true, home_digits: [0,1,2,3,4,5,6,7,8,9], away_digits: [9,8,7,6,5,4,3,2,1,0], payouts: [{ checkpoint: 'q1', home_score: 7, away_score: 3, winner_email: 'winner@example.com', winner_display_name: 'Tony S.', amount_cents: 2500 }] }));
     render(<SquaresPage />);
-    expect(await screen.findByText('winner@example.com')).toBeInTheDocument();
+    expect(await screen.findByText('Tony S.')).toBeInTheDocument();
     expect(screen.getByText('$25.00 recorded')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /lock & randomize/i })).not.toBeInTheDocument();
     expect(screen.getAllByRole('gridcell')[0]).toBeDisabled();
@@ -117,13 +118,14 @@ describe('SquaresPage', () => {
       ...board,
       total_pot_cents: 50000,
       permissions: { is_admin: false, can_claim: true },
-      claims: [{ id: 'claim-1', row_index: 0, column_index: 0, user_id: 'user-2', user_email: 'owner@example.com', display_name: null }],
+      claims: [{ id: 'claim-1', row_index: 0, column_index: 0, user_id: 'user-2', user_email: 'owner@example.com', display_name: 'Tony S.' }],
     }));
     render(<SquaresPage />);
 
     expect(await screen.findByText('$500.00')).toBeInTheDocument();
-    expect(screen.getByText('owner@example.com')).toBeInTheDocument();
-    expect(screen.getByRole('gridcell', { name: 'Block 1, reserved by owner@example.com' })).toBeDisabled();
+    expect(screen.getAllByText('Tony S.')).toHaveLength(2);
+    expect(screen.queryByText('owner@example.com')).not.toBeInTheDocument();
+    expect(screen.getByRole('gridcell', { name: 'Block 1, reserved by Tony S.' })).toBeDisabled();
     expect(screen.queryByRole('heading', { name: 'Admin payout setup' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /lock & randomize/i })).not.toBeInTheDocument();
   });
@@ -190,11 +192,23 @@ describe('SquaresPage', () => {
     render(<SquaresPage />);
 
     await user.selectOptions(await screen.findByLabelText('Member'), 'user-2');
+    await user.type(screen.getByLabelText('Display name'), 'Player Two');
     await user.type(screen.getByLabelText('Block number'), '36');
     await user.click(screen.getByRole('button', { name: 'Assign block' }));
 
     await waitFor(() => expect(fetch).toHaveBeenCalledWith('/squares/pool-1/claims', expect.objectContaining({ method: 'POST' })));
     const request = fetch.mock.calls.find(([, options]) => options?.method === 'POST')[1];
-    expect(JSON.parse(request.body)).toEqual({ row_index: 3, column_index: 5, user_id: 'user-2' });
+    expect(JSON.parse(request.body)).toEqual({ row_index: 3, column_index: 5, display_name: 'Player Two', user_id: 'user-2' });
+  });
+
+  test('requires a display name before reserving a square', async () => {
+    global.fetch = jest.fn(() => response(board));
+    const user = userEvent.setup();
+    render(<SquaresPage />);
+
+    await user.click((await screen.findAllByRole('gridcell'))[0]);
+
+    expect(await screen.findByText('Enter a display name before reserving a square.')).toBeInTheDocument();
+    expect(fetch).not.toHaveBeenCalledWith('/squares/pool-1/claims', expect.objectContaining({ method: 'POST' }));
   });
 });

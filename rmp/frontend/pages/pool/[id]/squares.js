@@ -18,16 +18,17 @@ export default function SquaresPage() {
   const [potMode, setPotMode] = useState('fixed');
   const [claimFor, setClaimFor] = useState('');
   const [manualBlock, setManualBlock] = useState('');
+  const [displayName, setDisplayName] = useState('');
   const claims = useMemo(() => Object.fromEntries((board?.claims || []).map((c) => [`${c.row_index}-${c.column_index}`, c])), [board]);
   const reservations = useMemo(() => {
     const grouped = new Map();
     for (const claim of board?.claims || []) {
-      const reservation = grouped.get(claim.user_id) || { user_id: claim.user_id, user_email: claim.user_email, count: 0, blocks: [] };
+      const reservation = grouped.get(claim.user_id) || { user_id: claim.user_id, display_name: claim.display_name || 'Reserved player', count: 0, blocks: [] };
       reservation.count += 1;
       reservation.blocks.push(claim.block_number ?? (claim.row_index * 10 + claim.column_index + 1));
       grouped.set(claim.user_id, reservation);
     }
-    return Array.from(grouped.values()).map((reservation) => ({ ...reservation, blocks: reservation.blocks.sort((a, b) => a - b) })).sort((a, b) => a.user_email.localeCompare(b.user_email));
+    return Array.from(grouped.values()).map((reservation) => ({ ...reservation, blocks: reservation.blocks.sort((a, b) => a - b) })).sort((a, b) => a.display_name.localeCompare(b.display_name));
   }, [board]);
 
   const load = async () => {
@@ -36,16 +37,22 @@ export default function SquaresPage() {
     if (!response.ok) throw new Error(data.detail || 'Unable to load the Squares board.');
     const mode = data.pot_mode || 'fixed';
     setBoard(data); setPotMode(mode); setPot(dollarsFromCents(mode === 'per_square' ? data.per_square_cents : data.total_pot_cents));
+    setDisplayName((current) => current || data.claims?.find((claim) => claim.user_id === user?.id)?.display_name || '');
   };
   useEffect(() => { if (query.id) load().catch((err) => setError(err.message)); }, [query.id]);
 
   const choose = async (row, column) => {
     const claim = claims[`${row}-${column}`];
+    const normalizedDisplayName = displayName.trim().replace(/\s+/g, ' ');
+    if (!claim && !normalizedDisplayName) {
+      setError('Enter a display name before reserving a square.');
+      return false;
+    }
     setBusy(true); setError('');
     try {
       const response = await fetch(claim ? `${process.env.NEXT_PUBLIC_API_URL}/squares/${query.id}/claims/${claim.id}` : `${process.env.NEXT_PUBLIC_API_URL}/squares/${query.id}/claims`, {
         method: claim ? 'DELETE' : 'POST', headers: { ...authHeaders(), 'Content-Type': 'application/json' },
-        body: claim ? undefined : JSON.stringify({ row_index: row, column_index: column, ...(claimFor ? { user_id: claimFor } : {}) }),
+        body: claim ? undefined : JSON.stringify({ row_index: row, column_index: column, display_name: normalizedDisplayName, ...(claimFor ? { user_id: claimFor } : {}) }),
       });
       const data = response.status === 204 ? {} : await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.detail || 'Unable to update that square.');
@@ -116,7 +123,8 @@ export default function SquaresPage() {
     {board.permissions.is_admin && board.plan === 'free' && <aside className="squares-upgrade"><div><span>Free Squares board</span><strong>{board.claims.length} of {board.block_limit ?? 25} included blocks reserved</strong><p>Upgrade to Squares Plus for all 100 self-service blocks. Commish also adds member assignment and per-reservation pots.</p></div><Link href="/pricing?checkout=squares-plus">Unlock 100 blocks for $10</Link></aside>}
     {board.permissions.is_admin && board.plan === 'squares-plus' && <aside className="squares-upgrade"><div><span>Squares Plus</span><strong>All 100 self-service blocks are open</strong><p>Upgrade to Commish for admin member assignment and per-reservation pots.</p></div><Link href="/pricing?checkout=commissioner">Upgrade to Commish for $29</Link></aside>}
     {!board.permissions.is_admin && board.plan === 'free' && !board.permissions.can_claim && !board.locked && <aside className="squares-upgrade squares-upgrade--member"><div><span>Reservation limit reached</span><strong>All {board.block_limit ?? 25} included blocks are reserved</strong><p>Ask the pool commissioner to upgrade before more blocks can be reserved.</p></div></aside>}
-    {board.permissions.is_admin && !board.locked && board.permissions.can_admin_assign && <form className="squares-manual-assignment" onSubmit={assignBlock}><div><strong>Assign a block</strong><span>Choose a member, then enter any available number from 1–100. Grid clicks also assign to this member.</span></div><label>Member<select value={claimFor} onChange={(event) => setClaimFor(event.target.value)}><option value="">Myself</option>{(board.members || []).filter((member) => member.id !== user?.id).map((member) => <option key={member.id} value={member.id}>{member.email}</option>)}</select></label><label>Block number<input type="number" min="1" max="100" step="1" inputMode="numeric" value={manualBlock} onChange={(event) => setManualBlock(event.target.value)} placeholder="1–100" /></label><button type="submit" disabled={busy || !manualBlock}>Assign block</button></form>}
+    {!board.locked && <section className="squares-display-name"><div><strong>Board display name</strong><span>This is the name other players will see instead of your account email.</span></div><label>Display name<input type="text" maxLength="100" autoComplete="nickname" value={displayName} onChange={(event) => setDisplayName(event.target.value)} placeholder="Example: Tony S." /></label></section>}
+    {board.permissions.is_admin && !board.locked && board.permissions.can_admin_assign && <form className="squares-manual-assignment" onSubmit={assignBlock}><div><strong>Assign a block</strong><span>Choose a member, enter their board display name, then enter any available number from 1–100. Grid clicks also assign to this member.</span></div><label>Member<select value={claimFor} onChange={(event) => { setClaimFor(event.target.value); setDisplayName(''); }}><option value="">Myself</option>{(board.members || []).filter((member) => member.id !== user?.id).map((member) => <option key={member.id} value={member.id}>{member.email}</option>)}</select></label><label>Block number<input type="number" min="1" max="100" step="1" inputMode="numeric" value={manualBlock} onChange={(event) => setManualBlock(event.target.value)} placeholder="1–100" /></label><button type="submit" disabled={busy || !manualBlock || !displayName.trim()}>Assign block</button></form>}
     <section className="squares-summary" aria-label="Squares pool summary">
       <div><span>Total pot</span><strong>{board.total_pot_cents == null ? 'Not set' : `$${(board.total_pot_cents / 100).toFixed(2)}`}</strong>{board.pot_mode === 'per_square' && board.per_square_cents != null && <small>${(board.per_square_cents / 100).toFixed(2)} per reserved block</small>}</div>
       <div><span>Reserved</span><strong>{board.claims.length}/{board.block_limit ?? 100} included</strong><small>100 blocks on the board</small></div>
@@ -129,14 +137,14 @@ export default function SquaresPage() {
       {Array.from({ length: 10 }, (_, col) => <div className="squares-axis" key={`a${col}`}>{board.away_digits?.[col] ?? '?'}</div>)}
       {Array.from({ length: 10 }, (_, row) => <div className="squares-row" key={row}>
         <div className="squares-axis">{board.home_digits?.[row] ?? '?'}</div>
-        {Array.from({ length: 10 }, (_, col) => { const claim = claims[`${row}-${col}`]; const blockNumber = row * 10 + col + 1; const mayRelease = claim?.user_id === user?.id || board.permissions.is_admin; const owner = claim?.display_name || claim?.user_email; return <button key={col} role="gridcell" aria-label={claim ? `Block ${blockNumber}, reserved by ${owner}` : `Block ${blockNumber}, available`} disabled={busy || board.locked || (!board.permissions.can_claim && !claim) || (claim && !mayRelease)} className={`squares-cell ${claim ? 'is-claimed' : ''} ${claim?.user_id === user?.id ? 'is-mine' : ''}`} onClick={() => choose(row, col)} title={claim ? `Block ${blockNumber} · Reserved by ${owner}` : `Block ${blockNumber} · Available`}><span className="squares-block-number">{blockNumber}</span>{claim && <span className="squares-block-owner">{claim.display_name || claim.user_email.split('@')[0]}</span>}</button>; })}
+        {Array.from({ length: 10 }, (_, col) => { const claim = claims[`${row}-${col}`]; const blockNumber = row * 10 + col + 1; const mayRelease = claim?.user_id === user?.id || board.permissions.is_admin; const owner = claim?.display_name || 'Reserved player'; return <button key={col} role="gridcell" aria-label={claim ? `Block ${blockNumber}, reserved by ${owner}` : `Block ${blockNumber}, available`} disabled={busy || board.locked || (!board.permissions.can_claim && !claim) || (claim && !mayRelease)} className={`squares-cell ${claim ? 'is-claimed' : ''} ${claim?.user_id === user?.id ? 'is-mine' : ''}`} onClick={() => choose(row, col)} title={claim ? `Block ${blockNumber} · Reserved by ${owner}` : `Block ${blockNumber} · Available`}><span className="squares-block-number">{blockNumber}</span>{claim && <span className="squares-block-owner">{owner}</span>}</button>; })}
       </div>)}
     </div></div>
     <section className="squares-reservations" aria-labelledby="squares-reservations-heading">
       <div><h2 id="squares-reservations-heading">Reservations</h2><p>Everyone in the pool can see who has reserved squares.</p></div>
-      {reservations.length ? <ul>{reservations.map((reservation) => <li key={reservation.user_id}><strong>{reservation.user_email}</strong><span>{reservation.count} {reservation.count === 1 ? 'square' : 'squares'} · Blocks {reservation.blocks.join(', ')}</span></li>)}</ul> : <p>No squares have been reserved yet.</p>}
+      {reservations.length ? <ul>{reservations.map((reservation) => <li key={reservation.user_id}><strong>{reservation.display_name}</strong><span>{reservation.count} {reservation.count === 1 ? 'square' : 'squares'} · Blocks {reservation.blocks.join(', ')}</span></li>)}</ul> : <p>No squares have been reserved yet.</p>}
     </section>
-    <section className="squares-results"><h2>Quarter winners</h2>{games.map((selectedGame) => <div className="squares-game-results" key={selectedGame.game_id}><h3>{selectedGame.away_team.abbrv} at {selectedGame.home_team.abbrv} results</h3><div>{['q1', 'halftime', 'q3', 'final'].map((name) => { const result = board.payouts.find((item) => (item.game_id == null || item.game_id === selectedGame.game_id) && item.checkpoint === name); return <article key={name}><strong>{name === 'q1' ? '1st Quarter' : name === 'q3' ? '3rd Quarter' : name[0].toUpperCase() + name.slice(1)}</strong>{result ? <><span>{result.away_score}–{result.home_score}</span><b>{result.winner_email || 'Unclaimed square'}</b>{result.amount_cents != null && <small>${(result.amount_cents / 100).toFixed(2)} recorded</small>}</> : <span>Pending</span>}</article>; })}</div></div>)}</section>
+    <section className="squares-results"><h2>Quarter winners</h2>{games.map((selectedGame) => <div className="squares-game-results" key={selectedGame.game_id}><h3>{selectedGame.away_team.abbrv} at {selectedGame.home_team.abbrv} results</h3><div>{['q1', 'halftime', 'q3', 'final'].map((name) => { const result = board.payouts.find((item) => (item.game_id == null || item.game_id === selectedGame.game_id) && item.checkpoint === name); return <article key={name}><strong>{name === 'q1' ? '1st Quarter' : name === 'q3' ? '3rd Quarter' : name[0].toUpperCase() + name.slice(1)}</strong>{result ? <><span>{result.away_score}–{result.home_score}</span><b>{result.winner_display_name || (result.winner_email ? 'Reserved player' : 'Unclaimed square')}</b>{result.amount_cents != null && <small>${(result.amount_cents / 100).toFixed(2)} recorded</small>}</> : <span>Pending</span>}</article>; })}</div></div>)}</section>
     {board.permissions.is_admin && !board.locked && <form className="squares-pot" onSubmit={savePot}><div><h2>Admin payout setup</h2><p>Choose one fixed pot or let the total grow with every reserved block. Quarter payouts remain 25% each. Run My Pool records winners and amounts but does not move money.</p><fieldset><legend>Pot calculation</legend><label className={potMode === 'fixed' ? 'is-selected' : ''}><input type="radio" name="pot-mode" value="fixed" checked={potMode === 'fixed'} onChange={() => { setPotMode('fixed'); setPot(dollarsFromCents(board.pot_mode === 'fixed' ? board.total_pot_cents : null)); }} /> Fixed total</label><label className={potMode === 'per_square' ? 'is-selected' : ''} aria-disabled={!board.permissions.can_use_variable_pot}><input type="radio" name="pot-mode" value="per_square" checked={potMode === 'per_square'} disabled={!board.permissions.can_use_variable_pot} onChange={() => { setPotMode('per_square'); setPot(dollarsFromCents(board.per_square_cents)); }} /> Per reserved block {!board.permissions.can_use_variable_pot && <small>Commish</small>}</label></fieldset></div><label>{potMode === 'fixed' ? 'Total pot ($)' : 'Amount per reserved block ($)'}<input type="number" min="0" step="0.01" inputMode="decimal" value={pot} onChange={(event) => setPot(event.target.value)} placeholder={potMode === 'fixed' ? 'Optional' : 'Required'} required={potMode === 'per_square'} /></label><button disabled={busy}>Save payouts</button></form>}
   </main></ProtectedRoute>;
 }

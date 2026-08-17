@@ -116,6 +116,7 @@ def board_payload(db: Session, pool: models.Pool, user: models.User) -> dict:
     claims = db.query(models.SquareClaim).options(joinedload(models.SquareClaim.user)).filter(
         models.SquareClaim.pool_id == pool.id
     ).all()
+    claims_by_cell = {(claim.row_index, claim.column_index): claim for claim in claims}
     payouts = db.query(models.SquarePayout).options(joinedload(models.SquarePayout.winner)).filter(
         models.SquarePayout.pool_id == pool.id
     ).all()
@@ -177,6 +178,11 @@ def board_payload(db: Session, pool: models.Pool, user: models.User) -> dict:
             "winning_column": payout.winning_column,
             "winner_user_id": payout.winner_user_id,
             "winner_email": payout.winner.email if payout.winner else None,
+            "winner_display_name": (
+                claims_by_cell[(payout.winning_row, payout.winning_column)].display_name
+                if (payout.winning_row, payout.winning_column) in claims_by_cell
+                else None
+            ),
             "amount_cents": payout.amount_cents,
             "determined_at": payout.determined_at,
         } for payout in payouts],
@@ -219,7 +225,7 @@ def claim_square(pool_id: str, request: schemas.SquareClaimCreate, db: Session =
     claim = models.SquareClaim(
         id=str(uuid.uuid4()), pool_id=pool.id, row_index=request.row_index,
         column_index=request.column_index, user_id=target_id, assigned_by=current_user.id,
-        display_name=(request.display_name or "").strip() or None, claimed_at=_now(),
+        display_name=request.display_name, claimed_at=_now(),
     )
     db.add(claim)
     try:
@@ -228,8 +234,8 @@ def claim_square(pool_id: str, request: schemas.SquareClaimCreate, db: Session =
         db.rollback()
         raise HTTPException(status_code=409, detail="That square has already been claimed")
     block_number = claim.row_index * 10 + claim.column_index + 1
-    create_audit_log(db, "CLAIM_SQUARE", f"Reserved block {block_number}", current_user.id, "square", claim.id, {"pool_id": pool.id, "assigned_to": target_id, "block_number": block_number})
-    return {"id": claim.id, "row_index": claim.row_index, "column_index": claim.column_index, "block_number": block_number, "user_id": claim.user_id}
+    create_audit_log(db, "CLAIM_SQUARE", f"Reserved block {block_number}", current_user.id, "square", claim.id, {"pool_id": pool.id, "assigned_to": target_id, "display_name": claim.display_name, "block_number": block_number})
+    return {"id": claim.id, "row_index": claim.row_index, "column_index": claim.column_index, "block_number": block_number, "user_id": claim.user_id, "display_name": claim.display_name}
 
 
 @router.delete("/{pool_id}/claims/{claim_id}", status_code=status.HTTP_204_NO_CONTENT)

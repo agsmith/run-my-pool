@@ -383,7 +383,15 @@ class SquareClaimCreate(BaseModel):
     row_index: int = Field(ge=0, le=9)
     column_index: int = Field(ge=0, le=9)
     user_id: Optional[str] = None
-    display_name: Optional[str] = Field(default=None, max_length=100)
+    display_name: str = Field(min_length=1, max_length=100)
+
+    @field_validator("display_name")
+    @classmethod
+    def normalize_display_name(cls, value: str) -> str:
+        normalized = " ".join(value.split())
+        if not normalized:
+            raise ValueError("Display name is required")
+        return normalized
 
 
 class SquarePayoutConfig(BaseModel):

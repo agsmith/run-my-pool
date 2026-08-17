@@ -97,12 +97,13 @@ def test_free_plan_includes_one_board_and_25_self_service_blocks(client, db_sess
         ) for index in range(25)
     ])
     db_session.commit()
-    blocked = client.post(f"/squares/{pool['id']}/claims", json={"row_index": 2, "column_index": 5}, headers=member_headers)
+    blocked = client.post(f"/squares/{pool['id']}/claims", json={"row_index": 2, "column_index": 5, "display_name": "Member"}, headers=member_headers)
     assert blocked.status_code == 409
     assert "Upgrade to Squares Plus" in blocked.json()["detail"]
 
     admin_assignment = client.post(f"/squares/{pool['id']}/claims", json={
         "row_index": 2, "column_index": 6,
+        "display_name": "Member",
         "user_id": db_session.query(models.User).filter_by(email="free-squares-member@example.com").one().id,
     }, headers=headers)
     assert admin_assignment.status_code == 403
@@ -131,7 +132,7 @@ def test_squares_plus_opens_100_blocks_but_keeps_commish_controls_locked(client,
     assert board["permissions"]["can_admin_assign"] is False
     assert board["permissions"]["can_use_variable_pot"] is False
     assignment = client.post(f"/squares/{pool['id']}/claims", json={
-        "row_index": 0, "column_index": 0, "user_id": member["id"],
+        "row_index": 0, "column_index": 0, "user_id": member["id"], "display_name": "Member",
     }, headers=headers)
     assert assignment.status_code == 403
     variable_pot = client.patch(f"/squares/{pool['id']}/payouts", json={
@@ -145,21 +146,37 @@ def test_claim_collision_release_and_admin_lock(client, db_session):
     owner, headers = _register(client, "board-owner@example.com")
     _game(db_session)
     pool = _create(client, headers)
-    first = client.post(f"/squares/{pool['id']}/claims", json={"row_index": 2, "column_index": 7}, headers=headers)
+    first = client.post(f"/squares/{pool['id']}/claims", json={"row_index": 2, "column_index": 7, "display_name": "Board Owner"}, headers=headers)
     assert first.status_code == 201
     assert first.json()["block_number"] == 28
-    collision = client.post(f"/squares/{pool['id']}/claims", json={"row_index": 2, "column_index": 7}, headers=headers)
+    collision = client.post(f"/squares/{pool['id']}/claims", json={"row_index": 2, "column_index": 7, "display_name": "Board Owner"}, headers=headers)
     assert collision.status_code == 409
     released = client.delete(f"/squares/{pool['id']}/claims/{first.json()['id']}", headers=headers)
     assert released.status_code == 204
-    client.post(f"/squares/{pool['id']}/claims", json={"row_index": 2, "column_index": 7}, headers=headers)
+    client.post(f"/squares/{pool['id']}/claims", json={"row_index": 2, "column_index": 7, "display_name": "Board Owner"}, headers=headers)
     locked = client.post(f"/squares/{pool['id']}/lock", headers=headers)
     assert locked.status_code == 200
     body = locked.json()
     assert sorted(body["home_digits"]) == list(range(10))
     assert sorted(body["away_digits"]) == list(range(10))
     assert client.post(f"/squares/{pool['id']}/lock", headers=headers).status_code == 409
-    assert client.post(f"/squares/{pool['id']}/claims", json={"row_index": 1, "column_index": 1}, headers=headers).status_code == 409
+    assert client.post(f"/squares/{pool['id']}/claims", json={"row_index": 1, "column_index": 1, "display_name": "Board Owner"}, headers=headers).status_code == 409
+
+
+def test_claim_requires_and_normalizes_a_display_name(client, db_session):
+    _, headers = _register(client, "display-name-owner@example.com")
+    _game(db_session)
+    pool = _create(client, headers, name="Display Name Board")
+
+    missing = client.post(f"/squares/{pool['id']}/claims", json={"row_index": 0, "column_index": 0}, headers=headers)
+    blank = client.post(f"/squares/{pool['id']}/claims", json={"row_index": 0, "column_index": 0, "display_name": "   "}, headers=headers)
+    claimed = client.post(f"/squares/{pool['id']}/claims", json={"row_index": 0, "column_index": 0, "display_name": "  Tony   S.  "}, headers=headers)
+
+    assert missing.status_code == 422
+    assert blank.status_code == 422
+    assert claimed.status_code == 201
+    board = client.get(f"/squares/{pool['id']}", headers=headers).json()
+    assert board["claims"][0]["display_name"] == "Tony S."
 
 
 def test_nonmember_cannot_read_board(client, db_session):
@@ -181,7 +198,7 @@ def test_member_sees_reservations_and_pot_but_cannot_administer_board(client, db
         "q3_percent": 25, "final_percent": 25,
     }, headers=owner_headers)
     assert configured.status_code == 200
-    claimed = client.post(f"/squares/{pool['id']}/claims", json={"row_index": 4, "column_index": 6}, headers=owner_headers)
+    claimed = client.post(f"/squares/{pool['id']}/claims", json={"row_index": 4, "column_index": 6, "display_name": "Visible Owner"}, headers=owner_headers)
     assert claimed.status_code == 201
 
     visible = client.get(f"/squares/{pool['id']}", headers=member_headers)
@@ -191,6 +208,7 @@ def test_member_sees_reservations_and_pot_but_cannot_administer_board(client, db
     assert body["permissions"]["is_admin"] is False
     assert body["members"] == []
     assert body["claims"][0]["user_email"] == owner["email"]
+    assert body["claims"][0]["display_name"] == "Visible Owner"
     assert body["claims"][0]["block_number"] == 47
     assert body["home_digits"] is None and body["away_digits"] is None
 
@@ -201,7 +219,7 @@ def test_member_sees_reservations_and_pot_but_cannot_administer_board(client, db
     assert denied_payout.status_code == 403
     assert client.post(f"/squares/{pool['id']}/lock", headers=member_headers).status_code == 403
     assigned_to_owner = client.post(f"/squares/{pool['id']}/claims", json={
-        "row_index": 0, "column_index": 0, "user_id": owner["id"],
+        "row_index": 0, "column_index": 0, "user_id": owner["id"], "display_name": "Visible Owner",
     }, headers=member_headers)
     assert assigned_to_owner.status_code == 403
 
@@ -228,8 +246,8 @@ def test_per_square_pot_tracks_authoritative_reservation_count(client, db_sessio
     assert configured.json()["per_square_cents"] == 500
     assert configured.json()["total_pot_cents"] == 0
 
-    first = client.post(f"/squares/{pool['id']}/claims", json={"row_index": 0, "column_index": 0}, headers=headers)
-    second = client.post(f"/squares/{pool['id']}/claims", json={"row_index": 0, "column_index": 1}, headers=headers)
+    first = client.post(f"/squares/{pool['id']}/claims", json={"row_index": 0, "column_index": 0, "display_name": "Pot Owner"}, headers=headers)
+    second = client.post(f"/squares/{pool['id']}/claims", json={"row_index": 0, "column_index": 1, "display_name": "Pot Owner"}, headers=headers)
     assert first.status_code == 201 and second.status_code == 201
     assert client.get(f"/squares/{pool['id']}", headers=headers).json()["total_pot_cents"] == 1000
 
