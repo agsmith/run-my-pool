@@ -52,7 +52,7 @@ export default function WeeklyActionCenter({ summary, loading, error, onAction }
       </div>
       <dl className={`weekly-action__stats${showPoolPicksRemaining ? ' weekly-action__stats--three' : ''}`}>
         <div>
-          <dt>Entries remaining</dt>
+          <dt>My entries remaining</dt>
           <dd>{summary.entries_remaining}/{summary.total_entries}</dd>
         </div>
         <div>
@@ -60,7 +60,7 @@ export default function WeeklyActionCenter({ summary, loading, error, onAction }
           <dd>{summary.week_selections}/{summary.week_selection_total}</dd>
         </div>
         {showPoolPicksRemaining && <div>
-          <dt>Picks remaining</dt>
+          <dt>Total entries remaining</dt>
           <dd>{summary.pool_entries_remaining}/{summary.pool_total_entries}</dd>
         </div>}
       </dl>

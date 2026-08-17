@@ -17,7 +17,8 @@ describe('WeeklyActionCenter', () => {
     expect(screen.getByRole('heading', { name: 'Week 4 Action Center' })).toBeInTheDocument();
     expect(screen.getByText('3/4')).toBeInTheDocument();
     expect(screen.getByText('1/3')).toBeInTheDocument();
-    expect(screen.getByText('Picks remaining')).toBeInTheDocument();
+    expect(screen.getByText('My entries remaining')).toBeInTheDocument();
+    expect(screen.getByText('Total entries remaining')).toBeInTheDocument();
     expect(screen.getByText('500/750')).toBeInTheDocument();
     expect(screen.getByText(/2 selections still needed/i)).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Continue picks' }));
@@ -32,7 +33,7 @@ describe('WeeklyActionCenter', () => {
       />,
     );
 
-    expect(screen.queryByText('Picks remaining')).not.toBeInTheDocument();
+    expect(screen.queryByText('Total entries remaining')).not.toBeInTheDocument();
     expect(screen.queryByText('500/750')).not.toBeInTheDocument();
   });
 

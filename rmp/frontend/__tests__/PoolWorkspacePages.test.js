@@ -67,6 +67,8 @@ describe('pool workspace pages', () => {
     expect(screen.getAllByText('My Entries')).toHaveLength(2);
     expect(screen.getAllByText('Weekly Matchups')).toHaveLength(2);
     expect(screen.getAllByText('Forum')).toHaveLength(2);
+    expect(screen.getByText('My entries remaining')).toBeInTheDocument();
+    expect(screen.getByText('Total entries remaining')).toBeInTheDocument();
     expect(screen.getByText('500/750')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Delete Pool' }));
 
