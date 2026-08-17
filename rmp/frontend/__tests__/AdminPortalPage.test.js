@@ -27,6 +27,9 @@ jest.mock('../components/LeagueLockSettings', () => function MockLocks() {
 jest.mock('../components/LeaguePasswordViewer', () => function MockPassword() {
   return <div>Current password viewer</div>;
 });
+jest.mock('../components/OwnerPoolReports', () => function MockOwnerReports() {
+  return <div>Weekly owner reports</div>;
+});
 
 const league = {
   id: 'pool-1', name: 'Office Survivor', owner_id: 'owner-1', is_private: false,
@@ -76,6 +79,7 @@ describe('commissioner portal', () => {
 
     expect(await screen.findByRole('heading', { name: 'Office Survivor' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Pool Management' })).toBeInTheDocument();
+    expect(screen.getByText('Weekly owner reports')).toBeInTheDocument();
     expect(screen.getByText('Pool lock settings')).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Create Pool' })).not.toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Modify Pool' })).not.toBeInTheDocument();
