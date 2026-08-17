@@ -41,7 +41,7 @@ describe('PoolLeaderboardPage', () => {
     expect(await screen.findByText('Alpha Blitz')).toBeInTheDocument();
     expect(screen.getByText('Goal Line')).toBeInTheDocument();
     expect(screen.getByLabelText('Rank 1')).toHaveTextContent('1');
-    expect(screen.getByText('4')).toBeInTheDocument();
+    expect(screen.getByLabelText('4 correct picks')).toHaveTextContent('4');
     expect(screen.getByText('Eliminated')).toBeInTheDocument();
     expect(screen.getByLabelText('Alpha Blitz revealed picks')).toHaveTextContent('W1 BUF');
     expect(screen.getByRole('link', { name: 'Leaderboard' })).toHaveAttribute('aria-current', 'page');

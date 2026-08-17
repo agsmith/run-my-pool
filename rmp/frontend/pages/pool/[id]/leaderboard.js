@@ -38,8 +38,8 @@ export default function PoolLeaderboardPage() {
       {entries.map((entry) => <article className="leaderboard-entry" key={entry.entry_id}>
         <div className="leaderboard-entry__rank" aria-label={`Rank ${entry.rank}`}>{entry.rank}</div>
         <div className="leaderboard-entry__identity"><strong>{entry.entry_name}</strong><span>{entry.user_email}</span></div>
-        <div className="leaderboard-entry__score"><strong>{entry.correct_picks}</strong><span>Correct</span></div>
-        <div className="leaderboard-entry__record"><strong>{entry.completed_picks}</strong><span>Final picks</span></div>
+        <div className="leaderboard-entry__score" aria-label={`${entry.correct_picks} correct picks`}><strong>{entry.correct_picks}</strong><span>Correct</span></div>
+        <div className="leaderboard-entry__record" aria-label={`${entry.completed_picks} final picks`}><strong>{entry.completed_picks}</strong><span>Final picks</span></div>
         <span className={`leaderboard-entry__status ${entry.alive ? 'is-alive' : 'is-eliminated'}`}>{entry.alive ? 'Remaining' : 'Eliminated'}</span>
         <div className="leaderboard-entry__picks" aria-label={`${entry.entry_name} revealed picks`}>
           {entry.picks.length ? entry.picks.map((pick, index) => <span className={`leaderboard-pick is-${pick.result || 'pending'}`} key={`${pick.week}-${pick.team}-${index}`}><b>W{pick.week}</b> {pick.team}</span>) : <span className="leaderboard-entry__empty">No revealed picks yet</span>}
