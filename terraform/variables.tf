@@ -81,31 +81,31 @@ variable "cors_origins" {
 variable "stripe_price_commissioner" {
   description = "Stripe one-time Price ID for the Commissioner seasonal plan"
   type        = string
-  default     = "price_1U3MIdEd3ZgbNfSQlTGWfZt6"
+  default     = "price_1U5VeLHzJHWFhiJuLHP2N7MM"
 }
 
 variable "stripe_price_squares_plus" {
   description = "Stripe Price ID for the Squares Plus seasonal plan"
   type        = string
-  default     = "price_1U57kKEd3ZgbNfSQAbTX5E3Y"
+  default     = "price_1U5VdjHzJHWFhiJucl0bsE1Z"
 }
 
 variable "stripe_price_pro" {
   description = "Stripe one-time Price ID for the Pro seasonal plan"
   type        = string
-  default     = "price_1U3MIxEd3ZgbNfSQmBNcLUEh"
+  default     = "price_1U5VecHzJHWFhiJuAWpI0R5F"
 }
 
 variable "stripe_price_club" {
   description = "Stripe one-time Price ID for the Club seasonal plan"
   type        = string
-  default     = "price_1U3MJCEd3ZgbNfSQfQPhUFj8"
+  default     = "price_1U5VeoHzJHWFhiJuRjj1wqsL"
 }
 
 variable "stripe_price_club_unlimited" {
   description = "Stripe one-time Price ID for the Club Unlimited seasonal plan"
   type        = string
-  default     = "price_1U3MJWEd3ZgbNfSQ055U4PVq"
+  default     = "price_1U5Vf5HzJHWFhiJuRIxaA1aJ"
 }
 
 variable "stripe_automatic_tax" {
