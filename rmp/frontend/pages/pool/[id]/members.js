@@ -37,7 +37,7 @@ export default function PoolMembersPage() {
       {directory.users.map((member) => <article key={member.id} className="pool-member-card">
         <div className="pool-member-card__avatar" aria-hidden="true">{member.email.slice(0, 1).toUpperCase()}</div>
         <div><strong>{member.email}</strong><span>{member.pool_role}</span></div>
-        <div className="pool-member-card__entries"><strong>{member.entry_count}</strong><span>{member.entry_count === 1 ? 'Entry' : 'Entries'}</span></div>
+        <div className="pool-member-card__entries" aria-label={`${member.remaining_entry_count} of ${member.total_entry_count} entries remaining`}><strong>{member.remaining_entry_count}/{member.total_entry_count}</strong><span>Remaining / Total</span></div>
       </article>)}
     </section>}
   </main></div></ProtectedRoute>;

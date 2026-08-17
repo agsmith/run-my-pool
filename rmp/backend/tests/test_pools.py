@@ -481,7 +481,9 @@ class TestPoolEndpoints:
         assert response.status_code == 403
         assert response.json()["detail"] == "League membership required"
 
-    def test_pool_members_directory_is_scoped_to_pool_participants(self, client):
+    def test_pool_members_directory_is_scoped_and_sorted_by_remaining_entries(
+        self, client, db_session
+    ):
         owner = _register(client, "directory.owner@example.com")
         member = _register(client, "directory.member@example.com")
         outsider = _register(client, "directory.outsider@example.com")
@@ -490,15 +492,43 @@ class TestPoolEndpoints:
         ).json()
         joined = client.post(f"/pools/{pool['id']}/join", json={}, headers=member)
         assert joined.status_code == 200
+        owner_entries = [
+            client.post(
+                "/entries/create",
+                json={"pool_id": pool["id"], "name": f"Owner Entry {index}"},
+                headers=owner,
+            ).json()
+            for index in range(2)
+        ]
+        member_entries = [
+            client.post(
+                "/entries/create",
+                json={"pool_id": pool["id"], "name": f"Member Entry {index}"},
+                headers=member,
+            ).json()
+            for index in range(3)
+        ]
+        db_session.query(models.Entry).filter(
+            models.Entry.id.in_([owner_entries[0]["id"], member_entries[0]["id"]])
+        ).update({models.Entry.alive: False}, synchronize_session=False)
+        db_session.commit()
 
         response = client.get(f"/pools/{pool['id']}/members", headers=member)
         denied = client.get(f"/pools/{pool['id']}/members", headers=outsider)
 
         assert response.status_code == 200
         assert response.json()["total_users"] == 2
-        assert [(user["email"], user["pool_role"]) for user in response.json()["users"]] == [
-            ("directory.owner@example.com", "Commissioner"),
-            ("directory.member@example.com", "Member"),
+        assert [
+            (
+                user["email"],
+                user["pool_role"],
+                user["remaining_entry_count"],
+                user["total_entry_count"],
+            )
+            for user in response.json()["users"]
+        ] == [
+            ("directory.member@example.com", "Member", 2, 3),
+            ("directory.owner@example.com", "Commissioner", 1, 2),
         ]
         assert denied.status_code == 403
         assert denied.json()["detail"] == "League membership required"

@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
-from sqlalchemy import func
+from sqlalchemy import case, func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from typing import List, Optional
@@ -525,12 +525,20 @@ def get_pool_members(
         .filter(models.PoolAdmin.pool_id == pool_id)
         .all()
     }
-    entry_counts = dict(
-        db.query(models.Entry.user_id, func.count(models.Entry.id))
+    entry_counts = {
+        user_id: {
+            "total": int(total_count),
+            "remaining": int(remaining_count or 0),
+        }
+        for user_id, total_count, remaining_count in db.query(
+            models.Entry.user_id,
+            func.count(models.Entry.id),
+            func.sum(case((models.Entry.alive.is_(True), 1), else_=0)),
+        )
         .filter(models.Entry.pool_id == pool_id)
         .group_by(models.Entry.user_id)
         .all()
-    )
+    }
     user_ids = set(membership_by_user) | admin_ids | set(entry_counts)
     if pool.owner_id:
         user_ids.add(pool.owner_id)
@@ -548,15 +556,22 @@ def get_pool_members(
             "id": user.id,
             "email": user.email,
             "pool_role": pool_role(user.id),
-            "entry_count": int(entry_counts.get(user.id, 0)),
+            "entry_count": entry_counts.get(user.id, {}).get("total", 0),
+            "remaining_entry_count": entry_counts.get(user.id, {}).get("remaining", 0),
+            "total_entry_count": entry_counts.get(user.id, {}).get("total", 0),
             "joined_at": membership_by_user.get(user.id).joined_at
             if membership_by_user.get(user.id)
             else None,
         }
         for user in users
     ]
-    role_order = {"Commissioner": 0, "Admin": 1, "Member": 2}
-    result.sort(key=lambda user: (role_order[user["pool_role"]], user["email"].lower()))
+    result.sort(
+        key=lambda user: (
+            -user["remaining_entry_count"],
+            -user["total_entry_count"],
+            user["email"].lower(),
+        )
+    )
     return {"pool_id": pool_id, "total_users": len(result), "users": result}
 
 

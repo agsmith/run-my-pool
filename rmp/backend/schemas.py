@@ -367,6 +367,8 @@ class PoolMemberDirectoryUser(BaseModel):
     email: EmailStr
     pool_role: str
     entry_count: int = 0
+    remaining_entry_count: int = 0
+    total_entry_count: int = 0
     joined_at: Optional[datetime] = None
 
 
