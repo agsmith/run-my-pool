@@ -183,7 +183,7 @@ variable "backend_db_max_overflow" {
 variable "require_email_verification" {
   description = "Require new accounts to verify their email before signing in"
   type        = bool
-  default     = false
+  default     = true
 }
 
 variable "result_updater_schedule_enabled" {
