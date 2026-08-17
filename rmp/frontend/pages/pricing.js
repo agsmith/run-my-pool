@@ -73,6 +73,7 @@ export default function PricingPage() {
   const selectedCheckoutPlan = plans.find(
     (plan) => (plan.slug || plan.name.toLowerCase()) === requestedCheckout && plan.name !== 'Free',
   );
+  const signedInIdentity = auth?.user?.email || auth?.user?.username || '';
 
   useEffect(() => {
     trackLifecycleEvent('pricing_view', { page: 'pricing', source: 'homepage' });
@@ -92,7 +93,12 @@ export default function PricingPage() {
         body: JSON.stringify({ plan: planSlug, season }),
       });
       const body = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(body.detail || 'Unable to start secure checkout.');
+      if (!response.ok) {
+        const detail = body.detail || 'Unable to start secure checkout.';
+        throw new Error(response.status === 409 && signedInIdentity
+          ? `${detail} This checkout is using the signed-in account ${signedInIdentity}.`
+          : detail);
+      }
       trackLifecycleEvent('checkout_started', { page: 'pricing', plan: planSlug, source: 'pricing' });
       window.location.assign(body.checkout_url);
       return true;
@@ -101,7 +107,7 @@ export default function PricingPage() {
       setCheckoutPlan('');
       return false;
     }
-  }, [auth?.token]);
+  }, [auth?.token, signedInIdentity]);
 
   return (
     <div className="rmp-landing pricing-page">
@@ -137,7 +143,12 @@ export default function PricingPage() {
             <Link href="/pricing" aria-current="page">Pricing</Link>
           </div>
           <div className="rmp-nav-actions">
-            <Link href="/login" className="rmp-login">Login</Link>
+            {auth?.user ? (
+              <>
+                <Link href="/dashboard" className="rmp-login">Dashboard</Link>
+                <button type="button" className="rmp-login" onClick={auth.logout}>Sign out</button>
+              </>
+            ) : <Link href="/login" className="rmp-login">Login</Link>}
             <Link href={freeStartHref} className="rmp-nav-cta">Start free <span>↗</span></Link>
           </div>
         </nav>
@@ -158,6 +169,7 @@ export default function PricingPage() {
                 <span>YOU&apos;RE PURCHASING</span>
                 <strong>{selectedCheckoutPlan.name}</strong>
                 <p><b>{selectedCheckoutPlan.price}</b> {selectedCheckoutPlan.cadence}</p>
+                {signedInIdentity && <p>Signed in as <b>{signedInIdentity}</b></p>}
               </div>
               {auth?.token ? (
                 <button type="button" disabled={Boolean(checkoutPlan)} onClick={() => beginCheckout(requestedCheckout)}>

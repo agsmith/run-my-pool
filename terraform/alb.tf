@@ -149,6 +149,31 @@ resource "aws_lb_listener_rule" "redirect_www_to_apex" {
   }
 }
 
+# Stripe checkout returns are browser pages, not backend API endpoints. Keep
+# this exact legacy path on the frontend ahead of the broader /billing/* rule
+# so already-issued Checkout Sessions continue to land on the confirmation UI.
+resource "aws_lb_listener_rule" "billing_success_frontend" {
+  listener_arn = aws_lb_listener.https.arn
+  priority     = 2
+
+  condition {
+    path_pattern {
+      values = ["/billing/success"]
+    }
+  }
+
+  action {
+    type = "forward"
+
+    forward {
+      target_group {
+        arn    = aws_lb_target_group.frontend.arn
+        weight = 1
+      }
+    }
+  }
+}
+
 # Route API paths to backend — split across two rules (ALB limit: 5 values per condition)
 resource "aws_lb_listener_rule" "backend_api_1" {
   listener_arn = aws_lb_listener.https.arn

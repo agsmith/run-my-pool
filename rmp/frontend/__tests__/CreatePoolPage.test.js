@@ -103,6 +103,7 @@ describe('CreatePool', () => {
       { game_id: 102, start_time: '2099-11-27T21:30:00Z', away_team: { abbrv: 'NYG' }, home_team: { abbrv: 'DAL' } },
     ];
     fetch
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ entitlement: null }) })
       .mockResolvedValueOnce({ ok: true, json: async () => games })
       .mockResolvedValueOnce({ ok: true, json: async () => ({ id: 'thanksgiving-board' }) });
     render(<CreatePool />);
@@ -120,6 +121,26 @@ describe('CreatePool', () => {
       squares_game_ids: [101, 102],
     }));
     expect(mockPush).toHaveBeenCalledWith('/pool/thanksgiving-board/squares');
+  });
+
+  test('restricts Squares Plus owners to the Squares format', async () => {
+    const games = [
+      { game_id: 101, start_time: '2099-11-27T17:00:00Z', away_team: { abbrv: 'CHI' }, home_team: { abbrv: 'DET' } },
+    ];
+    fetch
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ entitlement: { plan: 'squares-plus', status: 'active' } }),
+      })
+      .mockResolvedValueOnce({ ok: true, json: async () => games });
+
+    render(<CreatePool />);
+
+    expect(await screen.findByText(/Squares Plus plan includes one Squares pool/i)).toBeInTheDocument();
+    expect(screen.queryByRole('radio', { name: /survivor/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('radio', { name: /pick ’em/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: /squares/i })).toBeChecked();
+    expect(await screen.findByRole('checkbox', { name: /CHI at DET/i })).toBeInTheDocument();
   });
 
   test('sends supported Survivor settings and a shareable private join code', async () => {

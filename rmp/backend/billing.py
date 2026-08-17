@@ -3,9 +3,11 @@ import os
 import uuid
 from datetime import datetime, timezone
 from typing import Optional
+from urllib.parse import urlencode
 
 import stripe
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi.responses import RedirectResponse
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -326,7 +328,7 @@ def create_checkout_session(
             customer_email=current_user.email,
             client_reference_id=current_user.id,
             line_items=line_items,
-            success_url=f"{frontend_url}/billing/success?session_id={{CHECKOUT_SESSION_ID}}",
+            success_url=f"{frontend_url}/checkout/success?session_id={{CHECKOUT_SESSION_ID}}",
             cancel_url=(
                 f"{frontend_url}/profile?checkout=cancelled"
                 if order_type == "entry_blocks"
@@ -355,6 +357,16 @@ def create_checkout_session(
         "session_id": checkout.id,
         "order_id": order.id,
     }
+
+
+@router.get("/success", include_in_schema=False)
+def redirect_legacy_checkout_success(session_id: str = Query(..., min_length=1)):
+    """Keep already-issued Stripe redirects working outside the API namespace."""
+    frontend_url = os.getenv("FRONTEND_URL", "https://runmypool.net").rstrip("/")
+    query = urlencode({"session_id": session_id})
+    return RedirectResponse(
+        url=f"{frontend_url}/checkout/success?{query}", status_code=307
+    )
 
 
 @router.post("/webhook")

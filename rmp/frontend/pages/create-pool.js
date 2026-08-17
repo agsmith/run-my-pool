@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import ProtectedRoute from '../components/ProtectedRoute';
 
@@ -28,6 +28,35 @@ export default function CreatePool() {
   const [nameSuggestions, setNameSuggestions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [upcomingGames, setUpcomingGames] = useState([]);
+  const [entitlementPlan, setEntitlementPlan] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+    const season = Number(process.env.NEXT_PUBLIC_NFL_SEASON) || new Date().getFullYear();
+    const loadCreationAccess = async () => {
+      try {
+        const response = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/billing/overview?season=${season}`,
+          { credentials: 'include' },
+        );
+        if (!response.ok) return;
+        const overview = await response.json();
+        const plan = overview.entitlement?.status === 'active' ? overview.entitlement.plan : '';
+        if (cancelled) return;
+        setEntitlementPlan(plan);
+        if (plan === 'squares-plus') {
+          setForm((current) => ({ ...current, pool_type: 'squares' }));
+          const scheduleResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/schedule/`);
+          const games = scheduleResponse.ok ? await scheduleResponse.json() : [];
+          if (!cancelled) setUpcomingGames(games.filter((game) => new Date(game.start_time) > new Date()).slice(0, 80));
+        }
+      } catch {
+        // The backend remains the authority if billing context cannot load.
+      }
+    };
+    loadCreationAccess();
+    return () => { cancelled = true; };
+  }, []);
 
   const update = (field, value) => {
     setForm((current) => ({ ...current, [field]: value }));
@@ -51,6 +80,9 @@ export default function CreatePool() {
     setNameSuggestions([]);
     setLoading(true);
     try {
+      if (entitlementPlan === 'squares-plus' && form.pool_type !== 'squares') {
+        throw new Error("Squares Plus can only create Squares pools. Upgrade to Commish for Survivor or Pick 'Em.");
+      }
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/pools/create`, {
         method: 'POST',
         headers: {
@@ -91,6 +123,7 @@ export default function CreatePool() {
 
   const isPickEm = form.pool_type === 'pickem';
   const isSquares = form.pool_type === 'squares';
+  const squaresOnly = entitlementPlan === 'squares-plus';
   const toggleSquaresGame = (gameId) => setForm((current) => ({
     ...current,
     squares_game_ids: current.squares_game_ids.includes(gameId)
@@ -113,25 +146,26 @@ export default function CreatePool() {
 
       <fieldset className="create-pool-section create-pool-format">
         <legend>1. Choose a format</legend>
+        {squaresOnly && <p className="create-pool-help" role="status">Your Squares Plus plan includes one Squares pool. Upgrade to Commish to create Survivor or Pick &rsquo;Em pools.</p>}
         <div className="create-pool-format-grid">
-          <label className={form.pool_type === 'survivor' ? 'is-selected' : ''}>
+          {!squaresOnly && <label className={form.pool_type === 'survivor' ? 'is-selected' : ''}>
             <input type="radio" name="pool_type" value="survivor" checked={form.pool_type === 'survivor'} onChange={() => selectType('survivor')} />
             <span className="create-pool-format-title">Survivor <b>Classic</b></span>
             <strong>One team per week</strong>
             <small>A correct pick survives. A losing pick eliminates the entry. Teams cannot be reused.</small>
-          </label>
+          </label>}
           <label className={isSquares ? 'is-selected' : ''}>
             <input type="radio" name="pool_type" value="squares" checked={isSquares} onChange={() => selectType('squares')} />
             <span className="create-pool-format-title">Squares <b>Game day</b></span>
             <strong>Claim a spot on the 10×10 grid</strong>
             <small>Score digits are securely randomized when the board locks. Winners are recorded after each quarter.</small>
           </label>
-          <label className={isPickEm ? 'is-selected' : ''}>
+          {!squaresOnly && <label className={isPickEm ? 'is-selected' : ''}>
             <input type="radio" name="pool_type" value="pickem" checked={isPickEm} onChange={() => selectType('pickem')} />
             <span className="create-pool-format-title">Pick ’Em</span>
             <strong>Pick the weekly slate</strong>
             <small>No spreads. Default to every game or require a smaller number. Every correct winner earns one point.</small>
-          </label>
+          </label>}
         </div>
       </fieldset>
 

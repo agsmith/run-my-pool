@@ -144,7 +144,7 @@ table {
 .rmp-mark { width:27px; height:29px; border:2px solid currentColor; border-radius:52% 48% 48% 52%; transform:rotate(-24deg); display:inline-flex; align-items:center; justify-content:center; gap:2px; }
 .rmp-mark i { height:10px; width:1px; background:currentColor; transform:rotate(24deg); }
 .rmp-nav-links { display:flex; gap:34px; }
-.rmp-nav-links a, .rmp-login { color:#c5cecf; text-decoration:none; font-size:12px; font-weight:700; display:flex; align-items:center; }
+.rmp-nav-links a, .rmp-login { color:#c5cecf; text-decoration:none; font-family:inherit; font-size:12px; font-weight:700; display:flex; align-items:center; background:none; border:0; padding:0; cursor:pointer; }
 .rmp-nav-links a:hover, .rmp-login:hover { color:white; }
 .rmp-nav-actions { display:flex; align-items:center; gap:22px; }
 .rmp-nav-cta { text-decoration:none; background:var(--lime); color:#101514; padding:13px 17px; min-height:42px; font-size:11px; font-weight:900; letter-spacing:.04em; clip-path:polygon(7px 0,100% 0,100% calc(100% - 7px),calc(100% - 7px) 100%,0 100%,0 7px); }

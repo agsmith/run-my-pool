@@ -76,10 +76,13 @@ describe('PricingPage', () => {
   });
 
   test('takes a signed-in Free customer directly to pool setup', () => {
-    mockAuth = { user: { id: 'user-1' }, token: 'token' };
+    mockAuth = { user: { id: 'user-1', email: 'owner@example.com' }, token: 'token', logout: jest.fn() };
     render(<PricingPage />);
 
     expect(screen.getAllByRole('link', { name: /start free/i }).every((link) => link.getAttribute('href') === '/create-pool?source=splash')).toBe(true);
+    expect(screen.queryByRole('link', { name: /^login$/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /^dashboard$/i })).toHaveAttribute('href', '/dashboard');
+    expect(screen.getByRole('button', { name: /sign out/i })).toBeInTheDocument();
   });
 
   test('keeps a signed-in customer in the buy flow and shows the paid package first', async () => {
@@ -113,6 +116,27 @@ describe('PricingPage', () => {
       method: 'POST',
       body: expect.stringContaining('"plan":"pro"'),
     }));
+  });
+
+  test('identifies the signed-in account when an existing entitlement blocks checkout', async () => {
+    const user = userEvent.setup();
+    mockRouter.query = { checkout: 'squares-plus' };
+    mockAuth = {
+      user: { id: 'user-1', email: 'owner@example.com' },
+      token: 'token',
+      logout: jest.fn(),
+    };
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: false,
+      status: 409,
+      json: async () => ({ detail: 'You already have club-unlimited access for 2026' }),
+    });
+    render(<PricingPage />);
+
+    expect(screen.getByLabelText('Selected package')).toHaveTextContent('Signed in as owner@example.com');
+    await user.click(screen.getByRole('button', { name: /continue to secure checkout/i }));
+
+    expect(await screen.findByText(/already have club-unlimited access.*signed-in account owner@example.com/i)).toBeInTheDocument();
   });
 
   test('preserves the package when a returning customer still needs to sign in', () => {

@@ -91,11 +91,22 @@ class TestCommissionerBilling:
         assert captured["mode"] == "payment"
         assert captured["line_items"] == [{"price": "price_club", "quantity": 1}]
         assert captured["success_url"].endswith("session_id={CHECKOUT_SESSION_ID}")
+        assert "/checkout/success?" in captured["success_url"]
         assert captured["cancel_url"].endswith("/pricing?checkout=cancelled&plan=club")
         assert captured["metadata"]["plan"] == "club"
         order = db_session.query(models.BillingOrder).one()
         assert captured["metadata"]["order_id"] == order.id
         assert order.status == "pending"
+
+    def test_legacy_billing_success_redirects_to_frontend_checkout_page(self, client):
+        response = client.get(
+            "/billing/success?session_id=cs_test_existing", follow_redirects=False
+        )
+
+        assert response.status_code == 307
+        assert response.headers["location"] == (
+            "https://runmypool.net/checkout/success?session_id=cs_test_existing"
+        )
 
     def test_unknown_plan_is_rejected_before_contacting_stripe(
         self, client, monkeypatch
@@ -319,6 +330,58 @@ class TestCommissionerBilling:
         assert response.status_code == 200
         assert response.json()["billing_entitlement_id"] == entitlement.id
         assert response.json()["billing_season"] == 2026
+
+    def test_squares_plus_rejects_survivor_and_pickem_pool_creation(
+        self, client, db_session
+    ):
+        token = _register_and_login(client, "squares-only-owner@example.com")
+        user = (
+            db_session.query(models.User)
+            .filter_by(email="squares-only-owner@example.com")
+            .one()
+        )
+        now = datetime(2026, 8, 1)
+        order = models.BillingOrder(
+            id="squares-only-order",
+            user_id=user.id,
+            season=2026,
+            plan="squares-plus",
+            status="paid",
+            created_at=now,
+            updated_at=now,
+        )
+        entitlement = models.CommissionerEntitlement(
+            id="squares-only-entitlement",
+            user_id=user.id,
+            season=2026,
+            plan="squares-plus",
+            status="active",
+            included_entries=100,
+            max_pools=1,
+            unlimited_entries=False,
+            source_order_id=order.id,
+            activated_at=now,
+            updated_at=now,
+        )
+        db_session.add_all([order, entitlement])
+        db_session.commit()
+
+        survivor = client.post(
+            "/pools/create",
+            json={"name": "Blocked Survivor", "pool_type": "survivor"},
+            headers=_headers(token),
+        )
+        pickem = client.post(
+            "/pools/create",
+            json={"name": "Blocked Pick Em", "pool_type": "pickem"},
+            headers=_headers(token),
+        )
+
+        assert survivor.status_code == 409
+        assert pickem.status_code == 409
+        assert "supports one Squares board" in survivor.json()["detail"]
+        assert "supports one Squares board" in pickem.json()["detail"]
+        assert db_session.query(models.Pool).filter_by(owner_id=user.id).count() == 0
 
     def test_paid_plan_pool_limit_is_enforced_server_side(self, client, db_session):
         token = _register_and_login(client, "one-pool-plan@example.com")
