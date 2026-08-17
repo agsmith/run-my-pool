@@ -72,6 +72,7 @@ export default function Profile() {
     (plan) => PLAN_RANKS[plan] > (PLAN_RANKS[entitlement?.plan] || 0)
       && (plan !== 'club-unlimited' || entitlement?.plan === 'club'),
   );
+  const hasUnusedPaidPool = entitlement?.status === 'active' && billing?.can_create_pool === true;
 
   const beginCheckout = async ({ plan, orderType = 'plan', quantity = 1 }) => {
     const busyKey = orderType === 'entry_blocks' ? 'entry-blocks' : plan;
@@ -125,6 +126,16 @@ export default function Profile() {
                 <div><span>Entry usage</span><strong>{entitlement?.unlimited_entries ? `${billing.used_entries} / Unlimited` : `${billing.used_entries} / ${entitlement?.included_entries ?? 10}`}</strong></div>
                 <div><span>Pool capacity</span><strong>{entitlement?.max_pools ?? (entitlement?.unlimited_entries ? 'Unlimited' : 1)}</strong></div>
               </div>
+
+              {hasUnusedPaidPool && (
+                <div className="billing-actions" aria-labelledby="create-purchased-pool-title">
+                  <h3 id="create-purchased-pool-title">Your purchased pool is ready</h3>
+                  <p>Your purchase remains attached to this account if you leave pool setup. Return whenever you are ready.</p>
+                  <div className="billing-actions__options">
+                    <Link href="/create-pool?source=splash">Create your pool</Link>
+                  </div>
+                </div>
+              )}
 
               {(upgradePlans.length > 0 || entitlement?.plan === 'club') && (
                 <div className="billing-actions" aria-labelledby="billing-actions-title">

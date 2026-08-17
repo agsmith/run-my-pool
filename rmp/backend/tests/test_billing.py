@@ -423,10 +423,17 @@ class TestCommissionerBilling:
         second = client.post(
             "/pools/create", json={"name": "Blocked Pool"}, headers=_headers(token)
         )
+        overview = client.get(
+            "/billing/overview?season=2026", headers=_headers(token)
+        )
 
         assert first.status_code == 200
         assert second.status_code == 409
         assert "allows 1 active pool" in second.json()["detail"]
+        assert overview.status_code == 200
+        assert overview.json()["used_pools"] == 1
+        assert overview.json()["available_pool_slots"] == 0
+        assert overview.json()["can_create_pool"] is False
 
     def test_entry_limit_uses_persisted_pool_entitlement(self, client, db_session):
         token = _register_and_login(client, "capacity-owner@example.com")
@@ -586,6 +593,9 @@ class TestCommissionerBilling:
 
         assert owner.status_code == 200
         assert owner.json()["entitlement"]["plan"] == "pro"
+        assert owner.json()["used_pools"] == 0
+        assert owner.json()["can_create_pool"] is True
+        assert owner.json()["available_pool_slots"] == 1
         assert owner.json()["orders"][0]["amount_total"] == 7900
         assert owner.json()["orders"][0]["created_at"] is not None
         assert other.status_code == 200
@@ -594,6 +604,9 @@ class TestCommissionerBilling:
             "entitlement": None,
             "orders": [],
             "used_entries": 0,
+            "used_pools": 0,
+            "can_create_pool": True,
+            "available_pool_slots": None,
         }
 
     def test_billing_overview_requires_authentication(self, client):

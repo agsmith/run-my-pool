@@ -175,6 +175,9 @@ class BillingOverviewOut(BaseModel):
     entitlement: Optional[CommissionerEntitlementOut] = None
     orders: List[BillingOrderOut]
     used_entries: int = 0
+    used_pools: int = 0
+    can_create_pool: bool = True
+    available_pool_slots: Optional[int] = None
 
 
 class LeagueAdminUserSummary(BaseModel):

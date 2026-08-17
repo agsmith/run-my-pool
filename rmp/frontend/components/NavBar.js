@@ -8,6 +8,28 @@ export default function NavBar() {
   const { user, logout } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [canCreatePool, setCanCreatePool] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!user) {
+      setCanCreatePool(false);
+      return () => { cancelled = true; };
+    }
+    const season = Number(process.env.NEXT_PUBLIC_NFL_SEASON) || new Date().getFullYear();
+    const token = localStorage.getItem('access_token');
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/billing/overview?season=${season}`, {
+      headers: { Authorization: `Bearer ${token}` },
+      credentials: 'include',
+    })
+      .then(async (response) => {
+        if (!response.ok) throw new Error('Unable to load pool creation access');
+        return response.json();
+      })
+      .then((overview) => { if (!cancelled) setCanCreatePool(overview.can_create_pool === true); })
+      .catch(() => { if (!cancelled) setCanCreatePool(true); });
+    return () => { cancelled = true; };
+  }, [user]);
 
   useEffect(() => {
     const checkDevice = () => {
@@ -135,6 +157,16 @@ export default function NavBar() {
         >
           Pools
         </Link>
+        {user && canCreatePool && <Link
+          href="/create-pool?source=splash"
+          className="broadcast-nav__create-pool"
+          style={navStyles.navLink}
+          onClick={closeMobileMenu}
+          onMouseEnter={handleLinkHover}
+          onMouseLeave={handleLinkLeave}
+        >
+          Create Pool
+        </Link>}
         <Link
           href="/install"
           style={navStyles.navLink}

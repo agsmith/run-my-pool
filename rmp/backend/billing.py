@@ -467,10 +467,17 @@ def billing_overview(
         .all()
     )
     used_entries = 0
+    used_pools = 0
+    can_create_pool = True
+    available_pool_slots = None
     if entitlement:
         pool_ids = db.query(models.Pool.id).filter(
             models.Pool.billing_entitlement_id == entitlement.id
         )
+        used_pools = pool_ids.count()
+        if entitlement.max_pools is not None:
+            available_pool_slots = max(entitlement.max_pools - used_pools, 0)
+            can_create_pool = available_pool_slots > 0
         used_entries = (
             db.query(func.count(models.Entry.id))
             .filter(models.Entry.pool_id.in_(pool_ids))
@@ -482,6 +489,9 @@ def billing_overview(
         "entitlement": entitlement,
         "orders": orders,
         "used_entries": used_entries,
+        "used_pools": used_pools,
+        "can_create_pool": can_create_pool,
+        "available_pool_slots": available_pool_slots,
     }
 
 

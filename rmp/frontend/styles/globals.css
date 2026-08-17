@@ -1140,6 +1140,12 @@ table {
 .league-directory__header > span { color:var(--ice); font-size:.68rem; font-weight:900; letter-spacing:.16em; text-transform:uppercase; }
 .league-directory__header h1 { margin:.55rem 0 .7rem; font-family:Impact,'Arial Narrow',sans-serif; font-size:clamp(3.2rem,7vw,6rem)!important; font-style:italic; font-weight:400; line-height:.88; text-transform:uppercase; }
 .league-directory__header p { max-width:680px; margin:0; }
+.broadcast-nav .broadcast-nav__create-pool { color:#091012!important; background:var(--lime)!important; }
+.league-directory__purchase-recovery { display:flex; align-items:center; justify-content:space-between; gap:1.5rem; margin:1.25rem 0; padding:1.25rem; background:linear-gradient(120deg,rgba(215,255,63,.13),rgba(159,239,255,.08)); border:1px solid rgba(215,255,63,.48); }
+.league-directory__purchase-recovery span { color:var(--lime); font-size:.68rem; font-weight:900; letter-spacing:.14em; text-transform:uppercase; }
+.league-directory__purchase-recovery h2 { margin:.3rem 0; color:var(--ink); font-family:Impact,'Arial Narrow',sans-serif; font-size:1.8rem; font-style:italic; font-weight:400; text-transform:uppercase; }
+.league-directory__purchase-recovery p { margin:0; color:var(--muted); }
+.league-directory__purchase-recovery button { flex:0 0 auto; min-height:46px; padding:.75rem 1.1rem; color:#091012; background:var(--lime); border:1px solid var(--lime); text-transform:uppercase; }
 .league-directory__views { display:flex; gap:0; margin:1.25rem 0 0; border-bottom:1px solid #314449; }
 .league-directory__views button { min-height:46px; padding:.7rem 1rem; color:#879799; background:transparent; border:0; border-bottom:3px solid transparent; border-radius:0!important; font-size:.72rem; font-weight:900; letter-spacing:.07em; text-transform:uppercase; }
 .league-directory__views button:hover { color:var(--ink); background:#111c1f; filter:none; }
@@ -1173,6 +1179,7 @@ table {
 .league-directory__state { padding:3rem; color:var(--muted); background:#10191c; border:1px dashed #3a4c50; text-align:center; }
 .league-directory__state--error { color:var(--danger); border-color:rgba(255,129,122,.45); }
 @media (max-width:760px) {
+  .league-directory__purchase-recovery { align-items:stretch; flex-direction:column; }
   .league-directory__controls { grid-template-columns:1fr; }
   .league-directory__controls > div { display:grid; grid-template-columns:repeat(3,1fr); }
 }

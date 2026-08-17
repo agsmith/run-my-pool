@@ -49,6 +49,23 @@ describe('profile billing overview', () => {
     expect(mockTrackLifecycleEvent).toHaveBeenCalledWith('billing_overview_view', { page: 'profile' });
   });
 
+  test('offers a return to setup while paid pool capacity remains unused', async () => {
+    global.fetch = jest.fn(() => response({
+      season: 2026,
+      entitlement: { plan: 'pro', status: 'active', included_entries: 150, max_pools: 1, unlimited_entries: false },
+      used_entries: 0,
+      used_pools: 0,
+      can_create_pool: true,
+      available_pool_slots: 1,
+      orders: [],
+    }));
+
+    render(<Profile />);
+
+    expect(await screen.findByRole('heading', { name: /your purchased pool is ready/i })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /create your pool/i })).toHaveAttribute('href', '/create-pool?source=splash');
+  });
+
   test('explains free access when there are no payments', async () => {
     global.fetch = jest.fn(() => response({ season: 2026, entitlement: null, orders: [] }));
     render(<Profile />);

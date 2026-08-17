@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom'
-import { render, screen, act } from '@testing-library/react'
+import { render, screen, act, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import NavBar from '../components/NavBar'
 
@@ -26,6 +26,10 @@ jest.mock('next/router', () => ({
 beforeEach(() => {
   // Default to unauthenticated state
   useAuth.mockReturnValue({ user: null, logout: jest.fn() })
+  global.fetch = jest.fn().mockResolvedValue({
+    ok: true,
+    json: async () => ({ can_create_pool: true }),
+  })
 })
 
 // ---------------------------------------------------------------------------
@@ -91,6 +95,24 @@ describe('NavBar', () => {
     render(<NavBar />)
 
     expect(screen.getByRole('link', { name: /profile/i })).toBeInTheDocument()
+  })
+
+  test('shows Create Pool when the authenticated user has pool capacity', async () => {
+    useAuth.mockReturnValue({ user: { email: 'a@b.com' }, logout: jest.fn() })
+
+    render(<NavBar />)
+
+    await waitFor(() => expect(screen.getByRole('link', { name: /create pool/i })).toHaveAttribute('href', '/create-pool?source=splash'))
+  })
+
+  test('hides Create Pool when the authenticated user has exhausted pool capacity', async () => {
+    useAuth.mockReturnValue({ user: { email: 'a@b.com' }, logout: jest.fn() })
+    global.fetch.mockResolvedValue({ ok: true, json: async () => ({ can_create_pool: false }) })
+
+    render(<NavBar />)
+
+    await waitFor(() => expect(global.fetch).toHaveBeenCalled())
+    expect(screen.queryByRole('link', { name: /create pool/i })).not.toBeInTheDocument()
   })
 
   test('does not show Profile link when user is not authenticated', () => {

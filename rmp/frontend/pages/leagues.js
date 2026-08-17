@@ -22,6 +22,7 @@ export default function Leagues() {
   const [joinErrorId, setJoinErrorId] = useState(null);
   const [submittingId, setSubmittingId] = useState(null);
   const [lockClock, setLockClock] = useState(() => Date.now());
+  const [billing, setBilling] = useState(null);
 
   useEffect(() => {
     const timer = window.setInterval(() => setLockClock(Date.now()), 30000);
@@ -34,12 +35,14 @@ export default function Leagues() {
         setInviteError('');
         const token = localStorage.getItem('access_token');
         const headers = { Authorization: `Bearer ${token}` };
-        const [allResponse, mineResponse, inviteResponse] = await Promise.all([
+        const season = Number(process.env.NEXT_PUBLIC_NFL_SEASON) || new Date().getFullYear();
+        const [allResponse, mineResponse, inviteResponse, billingResponse] = await Promise.all([
           fetch(`${process.env.NEXT_PUBLIC_API_URL}/pools/`, { headers }),
           fetch(`${process.env.NEXT_PUBLIC_API_URL}/pools/my-pools`, { headers }),
           invitePoolId
             ? fetch(`${process.env.NEXT_PUBLIC_API_URL}/pools/invite/${encodeURIComponent(invitePoolId)}`, { headers, cache: 'no-store' })
             : Promise.resolve(null),
+          fetch(`${process.env.NEXT_PUBLIC_API_URL}/billing/overview?season=${season}`, { headers, credentials: 'include' }),
         ]);
         if (!allResponse.ok) throw new Error('Unable to load pools');
         const allPools = await allResponse.json();
@@ -56,6 +59,7 @@ export default function Leagues() {
         } else {
           setMembershipError('Unable to load your pool memberships. Please try again.');
         }
+        if (billingResponse.ok) setBilling(await billingResponse.json());
       } catch (err) {
         setError(err.message || 'Unable to load pools');
       } finally {
@@ -64,6 +68,9 @@ export default function Leagues() {
     };
     loadPools();
   }, [invitePoolId]);
+
+  const entitlement = billing?.entitlement;
+  const hasUnusedPaidPool = entitlement?.status === 'active' && billing?.can_create_pool === true;
 
   const filteredPools = useMemo(() => pools.filter((pool) => {
     const matchesText = `${pool.name} ${pool.description || ''}`.toLowerCase().includes(search.toLowerCase());
@@ -118,6 +125,17 @@ export default function Leagues() {
           <h1>Join a Pool</h1>
           <p>Public pools are open to every player. Private pools require the join code supplied by the commissioner.</p>
         </header>
+
+        {hasUnusedPaidPool && (
+          <section className="league-directory__purchase-recovery" aria-labelledby="purchased-pool-title">
+            <div>
+              <span>Purchase ready</span>
+              <h2 id="purchased-pool-title">Create your purchased pool</h2>
+              <p>Your paid plan is saved to this account. You can leave setup and return here until all included pool slots are used.</p>
+            </div>
+            <button type="button" onClick={() => router.push('/create-pool?source=splash')}>Create pool</button>
+          </section>
+        )}
 
         <nav className="league-directory__views" aria-label="League directory views">
           <button

@@ -19,13 +19,16 @@ function response(data, ok = true) {
   return Promise.resolve({ ok, json: () => Promise.resolve(data) });
 }
 
+const emptyBilling = { season: 2026, entitlement: null, orders: [], used_entries: 0, used_pools: 0 };
+
 beforeEach(() => {
   mockPush.mockReset();
   mockQuery = {};
   window.localStorage.setItem('access_token', 'test-token');
   global.fetch = jest.fn()
     .mockImplementationOnce(() => response(pools))
-    .mockImplementationOnce(() => response([]));
+    .mockImplementationOnce(() => response([]))
+    .mockImplementationOnce(() => response(emptyBilling));
 });
 
 afterEach(() => {
@@ -64,7 +67,8 @@ describe('Join a Pool', () => {
   test('shows memberships in My Pools and excludes pools not joined', async () => {
     global.fetch = jest.fn()
       .mockImplementationOnce(() => response(pools))
-      .mockImplementationOnce(() => response([pools[1]]));
+      .mockImplementationOnce(() => response([pools[1]]))
+      .mockImplementationOnce(() => response(emptyBilling));
     const user = userEvent.setup();
     render(<Leagues />);
     await screen.findByRole('heading', { name: 'Public Pool' });
@@ -77,7 +81,8 @@ describe('Join a Pool', () => {
   test('keeps Browse Pools available when memberships fail to load', async () => {
     global.fetch = jest.fn()
       .mockImplementationOnce(() => response(pools))
-      .mockImplementationOnce(() => response({ detail: 'Failed' }, false));
+      .mockImplementationOnce(() => response({ detail: 'Failed' }, false))
+      .mockImplementationOnce(() => response(emptyBilling));
     const user = userEvent.setup();
     render(<Leagues />);
 
@@ -97,8 +102,8 @@ describe('Join a Pool', () => {
     const publicCard = screen.getByRole('heading', { name: 'Public Pool' }).closest('article');
     await user.click(publicCard.querySelector('button'));
 
-    await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(3));
-    expect(JSON.parse(global.fetch.mock.calls[2][1].body)).toEqual({ password: null });
+    await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(4));
+    expect(JSON.parse(global.fetch.mock.calls[3][1].body)).toEqual({ password: null });
     expect(mockPush).toHaveBeenCalledWith('/pool/public-pool?joined=1');
   });
 
@@ -115,12 +120,12 @@ describe('Join a Pool', () => {
     expect(password).toHaveAttribute('type', 'text');
     expect(password).toHaveAttribute('autocomplete', 'one-time-code');
     expect(password).toHaveAttribute('name', 'pool-join-code-private-pool');
-    expect(global.fetch).toHaveBeenCalledTimes(2);
+    expect(global.fetch).toHaveBeenCalledTimes(3);
 
     await user.type(password, 'huddle42');
     await user.click(screen.getByRole('button', { name: /submit join code/i }));
-    await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(3));
-    expect(JSON.parse(global.fetch.mock.calls[2][1].body)).toEqual({ password: 'huddle42' });
+    await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(4));
+    expect(JSON.parse(global.fetch.mock.calls[3][1].body)).toEqual({ password: 'huddle42' });
     expect(mockPush).toHaveBeenCalledWith('/pool/private-pool?joined=1');
   });
 
@@ -135,7 +140,8 @@ describe('Join a Pool', () => {
     global.fetch = jest.fn()
       .mockImplementationOnce(() => response([pools[0]]))
       .mockImplementationOnce(() => response([]))
-      .mockImplementationOnce(() => response(invitedPool));
+      .mockImplementationOnce(() => response(invitedPool))
+      .mockImplementationOnce(() => response(emptyBilling));
 
     render(<Leagues />);
 
@@ -162,7 +168,8 @@ describe('Join a Pool', () => {
     const closedPool = { ...pools[0], id: 'closed-pool', name: 'Closed Pool', join_lock_time: '2020-01-01T00:00:00' };
     global.fetch = jest.fn()
       .mockImplementationOnce(() => response([closedPool]))
-      .mockImplementationOnce(() => response([]));
+      .mockImplementationOnce(() => response([]))
+      .mockImplementationOnce(() => response(emptyBilling));
 
     render(<Leagues />);
     const card = (await screen.findByRole('heading', { name: 'Closed Pool' })).closest('article');
@@ -174,7 +181,8 @@ describe('Join a Pool', () => {
     const ownerManaged = { id: 'free-squares', name: 'Owner Squares', pool_type: 'squares', plan: 'free', is_private: false };
     global.fetch = jest.fn()
       .mockImplementationOnce(() => response([ownerManaged]))
-      .mockImplementationOnce(() => response([]));
+      .mockImplementationOnce(() => response([]))
+      .mockImplementationOnce(() => response(emptyBilling));
 
     render(<Leagues />);
 
@@ -182,5 +190,27 @@ describe('Join a Pool', () => {
     expect(card).toHaveTextContent('Owner-managed');
     expect(card).toHaveTextContent('not open for online joining');
     expect(card.querySelector('button')).toBeNull();
+  });
+
+  test('lets an owner resume creation while a purchased pool slot is unused', async () => {
+    global.fetch = jest.fn()
+      .mockImplementationOnce(() => response(pools))
+      .mockImplementationOnce(() => response([]))
+      .mockImplementationOnce(() => response({
+        season: 2026,
+        entitlement: { plan: 'commissioner', status: 'active', max_pools: 1 },
+        orders: [],
+        used_entries: 0,
+        used_pools: 0,
+        can_create_pool: true,
+        available_pool_slots: 1,
+      }));
+    const user = userEvent.setup();
+
+    render(<Leagues />);
+
+    expect(await screen.findByRole('heading', { name: /create your purchased pool/i })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /^create pool$/i }));
+    expect(mockPush).toHaveBeenCalledWith('/create-pool?source=splash');
   });
 });
