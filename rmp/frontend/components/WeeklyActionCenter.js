@@ -40,6 +40,9 @@ export default function WeeklyActionCenter({ summary, loading, error, onAction }
   }
 
   const guidance = weeklyGuidance(summary);
+  const showPoolPicksRemaining = summary.pool_type === 'survivor'
+    && Number.isFinite(summary.pool_entries_remaining)
+    && Number.isFinite(summary.pool_total_entries);
   return (
     <section className="weekly-action" aria-labelledby="weekly-action-title">
       <div className="weekly-action__intro">
@@ -47,7 +50,7 @@ export default function WeeklyActionCenter({ summary, loading, error, onAction }
         <h2 id="weekly-action-title">Week {summary.week} Action Center</h2>
         <p>{guidance.message}</p>
       </div>
-      <dl className="weekly-action__stats">
+      <dl className={`weekly-action__stats${showPoolPicksRemaining ? ' weekly-action__stats--three' : ''}`}>
         <div>
           <dt>Entries remaining</dt>
           <dd>{summary.entries_remaining}/{summary.total_entries}</dd>
@@ -56,6 +59,10 @@ export default function WeeklyActionCenter({ summary, loading, error, onAction }
           <dt>Selections submitted</dt>
           <dd>{summary.week_selections}/{summary.week_selection_total}</dd>
         </div>
+        {showPoolPicksRemaining && <div>
+          <dt>Picks remaining</dt>
+          <dd>{summary.pool_entries_remaining}/{summary.pool_total_entries}</dd>
+        </div>}
       </dl>
       <button className="weekly-action__button" onClick={() => onAction(Boolean(guidance.createEntry))}>
         {guidance.action}

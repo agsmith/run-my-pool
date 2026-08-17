@@ -28,6 +28,7 @@ const pool = {
 };
 const activitySummary = {
   pool_type: 'survivor', entries_remaining: 2, total_entries: 3,
+  pool_entries_remaining: 500, pool_total_entries: 750,
   week: 5, week_selections: 1, week_selection_total: 2,
 };
 
@@ -66,6 +67,7 @@ describe('pool workspace pages', () => {
     expect(screen.getAllByText('My Entries')).toHaveLength(2);
     expect(screen.getAllByText('Weekly Matchups')).toHaveLength(2);
     expect(screen.getAllByText('Forum')).toHaveLength(2);
+    expect(screen.getByText('500/750')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Delete Pool' }));
 
     expect(global.confirm).toHaveBeenCalled();

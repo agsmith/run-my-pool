@@ -247,7 +247,7 @@ class TestPoolEndpoints:
         assert any(pool["name"] == test_pool_data["name"] for pool in pools)
 
     def test_activity_summary_counts_only_current_users_entries_and_selections(
-        self, client
+        self, client, db_session
     ):
         owner = _register(client, "activity.owner@example.com")
         member = _register(client, "activity.member@example.com")
@@ -294,6 +294,10 @@ class TestPoolEndpoints:
             ).status_code
             == 200
         )
+        db_session.query(models.Entry).filter(
+            models.Entry.id == owner_entry["id"]
+        ).update({models.Entry.alive: False})
+        db_session.commit()
 
         response = client.get(
             f"/pools/{pool['id']}/activity-summary?week=1", headers=member
@@ -304,6 +308,8 @@ class TestPoolEndpoints:
             "pool_type": "survivor",
             "entries_remaining": 2,
             "total_entries": 2,
+            "pool_entries_remaining": 2,
+            "pool_total_entries": 3,
             "week": 1,
             "week_selections": 1,
             "week_selection_total": 2,
@@ -334,6 +340,8 @@ class TestPoolEndpoints:
             "pool_type": "survivor",
             "entries_remaining": 1,
             "total_entries": 1,
+            "pool_entries_remaining": 1,
+            "pool_total_entries": 1,
             "week": 7,
             "week_selections": 0,
             "week_selection_total": 1,

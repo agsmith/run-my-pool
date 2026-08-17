@@ -9,7 +9,7 @@ describe('WeeklyActionCenter', () => {
     const user = userEvent.setup();
     render(
       <WeeklyActionCenter
-        summary={{ week: 4, entries_remaining: 3, total_entries: 4, week_selections: 1, week_selection_total: 3 }}
+        summary={{ pool_type: 'survivor', week: 4, entries_remaining: 3, total_entries: 4, pool_entries_remaining: 500, pool_total_entries: 750, week_selections: 1, week_selection_total: 3 }}
         onAction={onAction}
       />,
     );
@@ -17,9 +17,23 @@ describe('WeeklyActionCenter', () => {
     expect(screen.getByRole('heading', { name: 'Week 4 Action Center' })).toBeInTheDocument();
     expect(screen.getByText('3/4')).toBeInTheDocument();
     expect(screen.getByText('1/3')).toBeInTheDocument();
+    expect(screen.getByText('Picks remaining')).toBeInTheDocument();
+    expect(screen.getByText('500/750')).toBeInTheDocument();
     expect(screen.getByText(/2 selections still needed/i)).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Continue picks' }));
     expect(onAction).toHaveBeenCalledWith(false);
+  });
+
+  test('does not show the pool-wide survivor metric for other pool types', () => {
+    render(
+      <WeeklyActionCenter
+        summary={{ pool_type: 'pickem', week: 4, entries_remaining: 3, total_entries: 4, pool_entries_remaining: 500, pool_total_entries: 750, week_selections: 1, week_selection_total: 3 }}
+        onAction={jest.fn()}
+      />,
+    );
+
+    expect(screen.queryByText('Picks remaining')).not.toBeInTheDocument();
+    expect(screen.queryByText('500/750')).not.toBeInTheDocument();
   });
 
   test('sends a member with no entries to first-entry creation', async () => {

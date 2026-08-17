@@ -387,10 +387,18 @@ def get_pool_activity_summary(
         if pool.pool_type == "pickem"
         else 1
     )
+    pool_total_entries = None
+    pool_entries_remaining = None
+    if pool.pool_type == "survivor":
+        pool_entries = db.query(models.Entry).filter(models.Entry.pool_id == pool_id)
+        pool_total_entries = pool_entries.count()
+        pool_entries_remaining = pool_entries.filter(models.Entry.alive.is_(True)).count()
     return {
         "pool_type": pool.pool_type,
         "entries_remaining": entries_remaining,
         "total_entries": total_entries,
+        "pool_entries_remaining": pool_entries_remaining,
+        "pool_total_entries": pool_total_entries,
         "week": selected_week,
         "week_selections": week_selections,
         "week_selection_total": entries_remaining * scheduled_games,
