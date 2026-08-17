@@ -51,9 +51,12 @@ def _lock_time(pool: models.Pool) -> datetime:
 
 
 def _is_admin(db: Session, pool: models.Pool, user: models.User) -> bool:
+    if is_platform_super_admin(user):
+        return True
+    if entitlements.pool_plan(db, pool) == "free":
+        return pool.owner_id == user.id
     return bool(
-        is_platform_super_admin(user)
-        or pool.owner_id == user.id
+        pool.owner_id == user.id
         or db.query(models.PoolAdmin).filter(
             models.PoolAdmin.pool_id == pool.id,
             models.PoolAdmin.user_id == user.id,
@@ -62,6 +65,15 @@ def _is_admin(db: Session, pool: models.Pool, user: models.User) -> bool:
 
 
 def _require_participant(db: Session, pool: models.Pool, user: models.User) -> None:
+    if (
+        entitlements.pool_plan(db, pool) == "free"
+        and pool.owner_id != user.id
+        and not is_platform_super_admin(user)
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail="This free Squares board is managed privately by its owner.",
+        )
     if not is_platform_super_admin(user) and not is_pool_participant(db, pool.id, user.id):
         raise HTTPException(status_code=403, detail="Pool membership required")
 
@@ -267,13 +279,18 @@ def update_claim_display_name(
     pool = _pool(db, pool_id)
     if not _is_admin(db, pool, current_user):
         raise HTTPException(status_code=403, detail="Pool admin access required")
+    target_claim = db.query(models.SquareClaim).filter(
+        models.SquareClaim.id == request.claim_id,
+        models.SquareClaim.pool_id == pool.id,
+    ).first()
+    if not target_claim:
+        raise HTTPException(status_code=404, detail="Squares reservation not found")
     claims = db.query(models.SquareClaim).filter(
         models.SquareClaim.pool_id == pool.id,
-        models.SquareClaim.user_id == request.user_id,
+        models.SquareClaim.user_id == target_claim.user_id,
+        models.SquareClaim.display_name == target_claim.display_name,
     ).all()
-    if not claims:
-        raise HTTPException(status_code=404, detail="No Squares reservations found for this member")
-    previous_names = sorted({claim.display_name for claim in claims if claim.display_name})
+    previous_name = target_claim.display_name
     for claim in claims:
         claim.display_name = request.display_name
     db.commit()
@@ -282,12 +299,12 @@ def update_claim_display_name(
         "UPDATE_SQUARE_DISPLAY_NAME",
         f"Updated display name on {len(claims)} Squares reservation(s)",
         current_user.id,
-        "pool_user",
-        request.user_id,
+        "square",
+        request.claim_id,
         {
             "pool_id": pool.id,
-            "user_id": request.user_id,
-            "previous_display_names": previous_names,
+            "user_id": target_claim.user_id,
+            "previous_display_name": previous_name,
             "display_name": request.display_name,
             "claim_count": len(claims),
         },

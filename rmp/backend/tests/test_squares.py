@@ -78,14 +78,35 @@ def test_squares_board_accepts_multiple_games_and_locks_at_earliest_kickoff(clie
     assert {selection.game_id for selection in persisted} == {9002, 9003}
 
 
-def test_free_plan_includes_one_board_and_25_self_service_blocks(client, db_session):
+def test_free_plan_is_owner_managed_with_all_100_blocks(client, db_session):
     owner, headers = _register(client, "free-squares-owner@example.com")
-    _, member_headers = _register(client, "free-squares-member@example.com")
+    member, member_headers = _register(client, "free-squares-member@example.com")
     _game(db_session)
     pool = _create(client, headers, name="Free Squares Board")
-    assert client.post(f"/pools/{pool['id']}/join", json={}, headers=member_headers).status_code == 200
+    db_session.add(models.PoolAdmin(pool_id=pool["id"], user_id=member["id"]))
+    db_session.commit()
+    join = client.post(f"/pools/{pool['id']}/join", json={}, headers=member_headers)
+    assert join.status_code == 403
+    assert "owner-managed" in join.json()["detail"]
+    assert client.get(f"/squares/{pool['id']}", headers=member_headers).status_code == 403
+    assert client.get(f"/admin/pools/{pool['id']}/users-overview", headers=member_headers).status_code == 403
+    assert client.get(f"/pools/invite/{pool['id']}", headers=member_headers).status_code == 403
+    invite = client.post(
+        f"/pools/{pool['id']}/invite-email",
+        json={"email": "player@example.com"},
+        headers=headers,
+    )
+    assert invite.status_code == 403
+    directory_pool = next(
+        item for item in client.get("/pools/", headers=member_headers).json()
+        if item["id"] == pool["id"]
+    )
+    assert directory_pool["plan"] == "free"
+    owner_pool = client.get(f"/pools/{pool['id']}", headers=headers).json()
+    assert owner_pool["plan"] == "free"
     board = client.get(f"/squares/{pool['id']}", headers=headers).json()
-    assert board["plan"] == "free" and board["block_limit"] == 25
+    assert board["plan"] == "free" and board["block_limit"] == 100
+    assert board["permissions"]["can_claim"] is True
     assert board["permissions"]["can_admin_assign"] is False
     assert board["permissions"]["can_use_variable_pot"] is False
 
@@ -97,9 +118,8 @@ def test_free_plan_includes_one_board_and_25_self_service_blocks(client, db_sess
         ) for index in range(25)
     ])
     db_session.commit()
-    blocked = client.post(f"/squares/{pool['id']}/claims", json={"row_index": 2, "column_index": 5, "display_name": "Member"}, headers=member_headers)
-    assert blocked.status_code == 409
-    assert "Upgrade to Squares Plus" in blocked.json()["detail"]
+    twenty_sixth = client.post(f"/squares/{pool['id']}/claims", json={"row_index": 2, "column_index": 5, "display_name": "External Player"}, headers=headers)
+    assert twenty_sixth.status_code == 201
 
     admin_assignment = client.post(f"/squares/{pool['id']}/claims", json={
         "row_index": 2, "column_index": 6,
@@ -182,6 +202,7 @@ def test_claim_requires_and_normalizes_a_display_name(client, db_session):
 def test_admin_updates_display_name_for_all_member_claims_and_audits(client, db_session):
     owner, owner_headers = _register(client, "rename-squares-owner@example.com")
     member, member_headers = _register(client, "rename-squares-member@example.com")
+    _grant_commish(db_session, owner["id"])
     _game(db_session)
     pool = _create(client, owner_headers, name="Rename Squares Board")
     assert client.post(f"/pools/{pool['id']}/join", json={}, headers=member_headers).status_code == 200
@@ -195,12 +216,12 @@ def test_admin_updates_display_name_for_all_member_claims_and_audits(client, db_
 
     forbidden = client.patch(
         f"/squares/{pool['id']}/claims/display-name",
-        json={"user_id": member["id"], "display_name": "Not Allowed"},
+        json={"claim_id": claimed.json()["id"], "display_name": "Not Allowed"},
         headers=member_headers,
     )
     renamed = client.patch(
         f"/squares/{pool['id']}/claims/display-name",
-        json={"user_id": member["id"], "display_name": "  New   Name  "},
+        json={"claim_id": claimed.json()["id"], "display_name": "  New   Name  "},
         headers=owner_headers,
     )
 
@@ -214,7 +235,34 @@ def test_admin_updates_display_name_for_all_member_claims_and_audits(client, db_
     details = json.loads(audit.details)
     assert audit.user_id == owner["id"]
     assert details["additional_data"]["claim_count"] == 2
-    assert details["additional_data"]["previous_display_names"] == ["Old Name"]
+    assert details["additional_data"]["previous_display_name"] == "Old Name"
+
+
+def test_free_owner_keeps_external_players_separate_when_renaming(client, db_session):
+    _, headers = _register(client, "external-squares-owner@example.com")
+    _game(db_session)
+    pool = _create(client, headers, name="External Players Board")
+    claims = []
+    for column, name in ((0, "Tony"), (1, "Tony"), (2, "Mike")):
+        response = client.post(
+            f"/squares/{pool['id']}/claims",
+            json={"row_index": 0, "column_index": column, "display_name": name},
+            headers=headers,
+        )
+        assert response.status_code == 201
+        claims.append(response.json())
+
+    renamed = client.patch(
+        f"/squares/{pool['id']}/claims/display-name",
+        json={"claim_id": claims[0]["id"], "display_name": "Anthony"},
+        headers=headers,
+    )
+
+    assert renamed.status_code == 200
+    names_by_block = {
+        claim["block_number"]: claim["display_name"] for claim in renamed.json()["claims"]
+    }
+    assert names_by_block == {1: "Anthony", 2: "Anthony", 3: "Mike"}
 
 
 def test_nonmember_cannot_read_board(client, db_session):
@@ -228,6 +276,7 @@ def test_nonmember_cannot_read_board(client, db_session):
 def test_member_sees_reservations_and_pot_but_cannot_administer_board(client, db_session):
     owner, owner_headers = _register(client, "visible-board-owner@example.com")
     _, member_headers = _register(client, "visible-board-member@example.com")
+    _grant_commish(db_session, owner["id"])
     _game(db_session)
     pool = _create(client, owner_headers)
     assert client.post(f"/pools/{pool['id']}/join", json={}, headers=member_headers).status_code == 200

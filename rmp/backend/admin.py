@@ -18,6 +18,7 @@ import models
 import schemas
 import deps
 import auth
+import entitlements
 from audit_utils import log_admin_action
 from odds_service import freeze_week_lines
 from schedule import current_season_games, current_season_week
@@ -43,6 +44,8 @@ def verify_admin_access(pool_id: str, current_user: models.User, db: Session) ->
             is not None
         )
     pool = db.query(models.Pool).filter(models.Pool.id == pool_id).first()
+    if pool and pool.pool_type == "squares" and entitlements.pool_plan(db, pool) == "free":
+        return pool.owner_id == current_user.id
     if pool and pool.owner_id == current_user.id:
         return True
     pool_admin = (

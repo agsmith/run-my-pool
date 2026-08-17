@@ -51,4 +51,22 @@ describe('PoolLaunchChecklist', () => {
     await user.click(screen.getByRole('button', { name: /open Pick ’Em board/i }));
     expect(onNavigate).toHaveBeenCalledWith('/pool/pickem-1/pickem');
   });
+
+  test('explains the owner-managed free Squares workflow instead of showing invitations', async () => {
+    const user = userEvent.setup();
+    const onNavigate = jest.fn();
+    render(<PoolLaunchChecklist
+      pool={{ id: 'squares-1', name: 'Squares', is_private: false, pool_type: 'squares', plan: 'free' }}
+      onClose={jest.fn()}
+      onNavigate={onNavigate}
+      onSendInvite={jest.fn()}
+    />);
+
+    expect(screen.getByText(/free board is private to you/i)).toBeInTheDocument();
+    expect(screen.getByText(/players cannot join online/i)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /copy invite/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /send invite/i })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Enter received selections' }));
+    expect(onNavigate).toHaveBeenCalledWith('/pool/squares-1/squares');
+  });
 });

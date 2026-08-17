@@ -10,7 +10,7 @@ import models
 
 
 FREE_INCLUDED_ENTRIES = 10
-FREE_SQUARE_BLOCKS = 25
+FREE_SQUARE_BLOCKS = 100
 COMMISSIONER_SQUARE_BLOCKS = 100
 
 
@@ -136,7 +136,7 @@ def entitlement_for_new_pool(db: Session, owner_id: str, season: int, pool_type:
         if free_boards >= 1:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail="The Free plan includes one Squares board per season. Upgrade to Squares Plus to open all 100 blocks.",
+                detail="The Free plan includes one owner-managed Squares board per season. Upgrade to Squares Plus for online player joining and self-service reservations.",
             )
 
     return None
@@ -157,7 +157,7 @@ def enforce_entry_capacity(db: Session, pool: models.Pool) -> None:
 
     if limit is not None and used >= limit:
         unit = "blocks" if pool.pool_type == "squares" else "entries"
-        upgrade = " Upgrade to Squares Plus to open all 100 blocks." if pool.pool_type == "squares" and plan == "free" else ""
+        upgrade = " Upgrade to Squares Plus for online player joining and self-service reservations." if pool.pool_type == "squares" and plan == "free" else ""
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=f"This pool has reached the {plan} plan limit of {limit} {unit}.{upgrade}",

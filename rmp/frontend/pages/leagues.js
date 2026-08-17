@@ -186,6 +186,7 @@ export default function Leagues() {
               const joined = joinedIds.has(pool.id);
               const enteringPassword = joiningId === pool.id;
               const registrationClosed = isLeagueJoinLocked(pool, new Date(lockClock));
+              const ownerManagedSquares = pool.pool_type === 'squares' && pool.plan === 'free' && !joined;
               return (
                 <article className="league-directory__card" key={pool.id}>
                   <div className="league-directory__card-head">
@@ -193,6 +194,7 @@ export default function Leagues() {
                       {pool.is_private ? 'Private' : 'Public'}
                     </span>
                     <span className="league-directory__badge">{pool.pool_type === 'pickem' ? 'Pick ’Em' : pool.pool_type === 'squares' ? 'Squares' : 'Survivor'}</span>
+                    {ownerManagedSquares && <span className="league-directory__badge">Owner-managed</span>}
                     {joined && <span className="league-directory__joined">Joined</span>}
                   </div>
                   <h2>{pool.name}</h2>
@@ -225,6 +227,8 @@ export default function Leagues() {
                       <button type="button" className="league-directory__primary" onClick={() => router.push(`/pool/${pool.id}`)}>
                         Open pool
                       </button>
+                    ) : ownerManagedSquares ? (
+                      <span className="league-directory__closed">Owner-managed · not open for online joining</span>
                     ) : registrationClosed ? (
                       <span className="league-directory__closed">Registration closed</span>
                     ) : (

@@ -48,14 +48,15 @@ describe('PricingPage', () => {
     expect(screen.getByText('$79')).toBeInTheDocument();
     expect(screen.getByText('$129')).toBeInTheDocument();
     expect(screen.getByText('$249')).toBeInTheDocument();
-    expect(screen.getByText('1 Squares board per season')).toBeInTheDocument();
-    expect(screen.getByText('Up to 25 self-service Squares reservations')).toBeInTheDocument();
+    expect(screen.getByText('1 owner-managed 100-block Squares board per season')).toBeInTheDocument();
+    expect(screen.getByText('No online Squares player joining or invitations')).toBeInTheDocument();
     expect(screen.getByText('1 full Squares board per season')).toBeInTheDocument();
+    expect(screen.getByText('Online player invitations and joining')).toBeInTheDocument();
     expect(screen.getByText('All 100 self-service reservations')).toBeInTheDocument();
     expect(screen.getByText('Full 100-block Squares board')).toBeInTheDocument();
     expect(screen.getByText('Admin assignment of any numbered block')).toBeInTheDocument();
     expect(screen.getByText('Fixed-dollar or per-reserved-block pots')).toBeInTheDocument();
-    expect(screen.getByText(/start with up to ten Survivor\/Pick ’Em entries or one 25-reservation Squares board/i)).toBeInTheDocument();
+    expect(screen.getByText(/one owner-managed 100-block Squares board/i)).toBeInTheDocument();
   });
 
   test('makes the software-only payment model explicit', () => {

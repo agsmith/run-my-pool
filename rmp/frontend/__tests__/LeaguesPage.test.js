@@ -169,4 +169,18 @@ describe('Join a Pool', () => {
     expect(card).toHaveTextContent('Registration closed');
     expect(card.querySelector('button')).toBeNull();
   });
+
+  test('shows free Squares boards without allowing online joining', async () => {
+    const ownerManaged = { id: 'free-squares', name: 'Owner Squares', pool_type: 'squares', plan: 'free', is_private: false };
+    global.fetch = jest.fn()
+      .mockImplementationOnce(() => response([ownerManaged]))
+      .mockImplementationOnce(() => response([]));
+
+    render(<Leagues />);
+
+    const card = (await screen.findByRole('heading', { name: 'Owner Squares' })).closest('article');
+    expect(card).toHaveTextContent('Owner-managed');
+    expect(card).toHaveTextContent('not open for online joining');
+    expect(card.querySelector('button')).toBeNull();
+  });
 });

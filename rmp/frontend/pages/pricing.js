@@ -11,8 +11,8 @@ const plans = [
     name: 'Free',
     price: '$0',
     cadence: 'forever',
-    description: 'Run a small pool and experience the full weekly rhythm.',
-    features: ['1 active pool', 'Up to 10 Survivor/Pick ’Em entries', '1 Squares board per season', 'Up to 25 self-service Squares reservations', 'Fixed-dollar pot and branded PDF', 'Weekly picks and standings', 'Private or public access'],
+    description: 'Run a small pool or manually manage a complete Squares board.',
+    features: ['1 active pool', 'Up to 10 Survivor/Pick ’Em entries', '1 owner-managed 100-block Squares board per season', 'Owner enters externally received Squares selections', 'No online Squares player joining or invitations', 'Fixed-dollar pot and branded PDF', 'Weekly picks and standings'],
     cta: 'Start free',
   },
   {
@@ -21,7 +21,7 @@ const plans = [
     price: '$10',
     cadence: 'per board / season',
     description: 'Fill a complete game-day board without paying for commissioner tools you do not need.',
-    features: ['1 full Squares board per season', 'All 100 self-service reservations', 'Fixed-dollar pot', 'Automatic digits and winners', 'Branded print / PDF export', 'Upgrade to Commish for $29'],
+    features: ['1 full Squares board per season', 'Online player invitations and joining', 'All 100 self-service reservations', 'Fixed-dollar pot', 'Automatic digits and winners', 'Branded print / PDF export', 'Upgrade to Commish for $29'],
     cta: 'Choose Squares Plus',
   },
   {
@@ -147,7 +147,7 @@ export default function PricingPage() {
         <section className="pricing-hero rmp-shell">
           <p className="rmp-eyebrow"><span /> SIMPLE COMMISSIONER PRICING</p>
           <h1>RUN THE POOL.<br /><em>SKIP THE BUSYWORK.</em></h1>
-          <p>Players always participate free. Start with up to ten Survivor/Pick ’Em entries or one 25-reservation Squares board, then upgrade only when you need more capacity or commissioner controls.</p>
+          <p>Players always participate free on paid pools. Start with up to ten Survivor/Pick ’Em entries or one owner-managed 100-block Squares board, then upgrade Squares when you want online player joining and self-service reservations.</p>
         </section>
 
         <section className="pricing-grid rmp-shell" aria-label="Pricing plans">
@@ -216,7 +216,7 @@ export default function PricingPage() {
             <article><h3>Do players pay?</h3><p>No. Participants join, make picks, and follow standings at no software charge.</p></article>
             <article><h3>Do you hold prize money?</h3><p>No. Run My Pool provides management software and does not collect stakes or distribute winnings.</p></article>
             <article><h3>Can I upgrade later?</h3><p>Yes. Squares pools can move from Free to Squares Plus and then Commish. Other pools can upgrade through Free, Commish, Pro, Club, and Club Unlimited without rebuilding. You pay only the difference for the current season.</p></article>
-            <article><h3>How does Free Squares work?</h3><p>Free includes one board per season with up to 25 self-service reservations. Squares Plus opens all 100 blocks for $10. Commish adds admin assignment and fixed-dollar or per-reserved-block pots.</p></article>
+            <article><h3>How does Free Squares work?</h3><p>Free includes one complete 100-block board per season for the owner to manage manually. Players send their selections outside Run My Pool, and the owner enters each display name and block. Squares Plus adds online invitations, player joining, and self-service reservations for $10. Commish adds advanced assignment and per-reserved-block pots.</p></article>
             <article><h3>What happens after 500 Club entries?</h3><p>Club expands in 100-entry blocks for $25 each, or you can upgrade to Club Unlimited for the $120 difference.</p></article>
             <article><h3>When should I choose Unlimited?</h3><p>Choose Club Unlimited when you need unlimited entries or pools. You can select it initially or upgrade from Club later.</p></article>
           </div>

@@ -130,20 +130,21 @@ describe('SquaresPage', () => {
     expect(screen.queryByRole('button', { name: /lock & randomize/i })).not.toBeInTheDocument();
   });
 
-  test('shows the free loss-leader limit and paid feature upgrade path', async () => {
+  test('shows the owner-managed free workflow and online-access upgrade path', async () => {
     global.fetch = jest.fn(() => response({
       ...board,
-      plan: 'free', block_limit: 25,
-      permissions: { is_admin: true, can_claim: false, can_admin_assign: false, can_use_variable_pot: false },
+      plan: 'free', block_limit: 100,
+      permissions: { is_admin: true, can_claim: true, can_admin_assign: false, can_use_variable_pot: false },
     }));
     render(<SquaresPage />);
 
-    expect(await screen.findByText('Free Squares board')).toBeInTheDocument();
-    expect(screen.getByText(/0 of 25 included blocks/i)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Unlock 100 blocks for $10' })).toHaveAttribute('href', '/pricing?checkout=squares-plus');
+    expect(await screen.findByText('Free · Owner-managed')).toBeInTheDocument();
+    expect(screen.getByText(/all 100 blocks are available for you to manage/i)).toBeInTheDocument();
+    expect(screen.getByText(/players cannot join this free board online/i)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Enable online player access for $10' })).toHaveAttribute('href', '/pricing?checkout=squares-plus');
     expect(screen.queryByRole('button', { name: 'Assign block' })).not.toBeInTheDocument();
     expect(screen.getByRole('radio', { name: /Per reserved block/i })).toBeDisabled();
-    expect(screen.getByRole('gridcell', { name: 'Block 1, available' })).toBeDisabled();
+    expect(screen.getByRole('gridcell', { name: 'Block 1, available' })).toBeEnabled();
   });
 
   test('shows Squares Plus capacity while reserving Commish controls as the next upgrade', async () => {
@@ -161,17 +162,22 @@ describe('SquaresPage', () => {
     expect(screen.getByRole('radio', { name: /Per reserved block/i })).toBeDisabled();
   });
 
-  test('explains a full free board to members without showing them billing actions', async () => {
+  test('keeps externally collected players separate on an owner-managed free board', async () => {
     global.fetch = jest.fn(() => response({
       ...board,
-      plan: 'free', block_limit: 25,
-      permissions: { is_admin: false, can_claim: false, can_admin_assign: false, can_use_variable_pot: false },
+      plan: 'free', block_limit: 100,
+      permissions: { is_admin: true, can_claim: true, can_admin_assign: false, can_use_variable_pot: false },
+      claims: [
+        { id: 'tony-1', row_index: 0, column_index: 0, user_id: 'user-1', user_email: 'owner@example.com', display_name: 'Tony' },
+        { id: 'mike-1', row_index: 0, column_index: 1, user_id: 'user-1', user_email: 'owner@example.com', display_name: 'Mike' },
+      ],
     }));
     render(<SquaresPage />);
 
-    expect(await screen.findByText('Reservation limit reached')).toBeInTheDocument();
-    expect(screen.getByText(/ask the pool commissioner to upgrade/i)).toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: 'Upgrade to Commish' })).not.toBeInTheDocument();
+    expect(await screen.findAllByText('Tony')).toHaveLength(2);
+    expect(screen.getAllByText('Mike')).toHaveLength(2);
+    expect(screen.getByText(/players cannot join this free board online/i)).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'Edit name' })).toHaveLength(2);
   });
 
   test('opens the browser print dialog for printing or PDF export', async () => {
@@ -237,7 +243,7 @@ describe('SquaresPage', () => {
 
     await waitFor(() => expect(fetch).toHaveBeenCalledWith('/squares/pool-1/claims/display-name', expect.objectContaining({ method: 'PATCH' })));
     const request = fetch.mock.calls.find(([url, options]) => String(url).endsWith('/claims/display-name') && options?.method === 'PATCH')[1];
-    expect(JSON.parse(request.body)).toEqual({ user_id: 'user-2', display_name: 'New Name' });
+    expect(JSON.parse(request.body)).toEqual({ claim_id: 'claim-1', display_name: 'New Name' });
     expect(await screen.findAllByText('New Name')).toHaveLength(3);
   });
 });

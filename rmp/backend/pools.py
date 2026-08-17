@@ -123,6 +123,8 @@ def _has_admin_access(db: Session, pool: models.Pool, user_id: str) -> bool:
     user = db.query(models.User).filter(models.User.id == user_id).first()
     if user and is_platform_super_admin(user):
         return True
+    if pool.pool_type == "squares" and entitlements.pool_plan(db, pool) == "free":
+        return pool.owner_id == user_id
     if pool.owner_id == user_id:
         return True
     return db.query(models.PoolAdmin).filter(
@@ -309,7 +311,7 @@ def get_my_pools(
 ):
     """Get all pools where the current user is the owner or a member."""
     try:
-        return (
+        pools = (
             db.query(models.Pool)
             .outerjoin(models.PoolMember, models.PoolMember.pool_id == models.Pool.id)
             .filter(
@@ -319,6 +321,13 @@ def get_my_pools(
             .distinct()
             .all()
         )
+        visible_pools = []
+        for pool in pools:
+            pool.plan = entitlements.pool_plan(db, pool)
+            if pool.pool_type == "squares" and pool.plan == "free" and pool.owner_id != current_user.id:
+                continue
+            visible_pools.append(pool)
+        return visible_pools
     except Exception:
         logger.exception("my_pools_query_failed", extra={"event": "my_pools_query_failed", "user_id": current_user.id})
         raise HTTPException(status_code=500, detail="Failed to retrieve pools")
@@ -417,7 +426,10 @@ def list_pools(
     Private league metadata is visible here, but joining and all participant
     data remain protected by the league password and membership checks.
     """
-    return db.query(models.Pool).offset(skip).limit(limit).all()
+    pools = db.query(models.Pool).offset(skip).limit(limit).all()
+    for pool in pools:
+        pool.plan = entitlements.pool_plan(db, pool)
+    return pools
 
 
 @router.get("/invite/{pool_id}", response_model=schemas.PoolInviteOut)
@@ -430,6 +442,11 @@ def get_pool_invite(
     pool = db.query(models.Pool).filter(models.Pool.id == pool_id).first()
     if not pool:
         raise HTTPException(status_code=404, detail="Pool invitation not found")
+    if pool.pool_type == "squares" and entitlements.pool_plan(db, pool) == "free":
+        raise HTTPException(
+            status_code=403,
+            detail="Free Squares boards are owner-managed and do not accept online players. The owner can upgrade to Squares Plus to invite players.",
+        )
     return pool
 
 
@@ -446,6 +463,11 @@ def email_pool_invitation(
         raise HTTPException(status_code=404, detail="Pool not found")
     if not _has_admin_access(db, pool, current_user.id):
         raise HTTPException(status_code=403, detail="Only pool admins can send invitations")
+    if pool.pool_type == "squares" and entitlements.pool_plan(db, pool) == "free":
+        raise HTTPException(
+            status_code=403,
+            detail="Free Squares boards are owner-managed. Upgrade to Squares Plus to invite players and enable self-service reservations.",
+        )
 
     window_start = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=1)
     recent_sends = db.query(models.AuditLog).filter(
@@ -491,6 +513,13 @@ def get_pool(
 
         if not is_platform_super_admin(current_user) and not is_pool_participant(db, pool_id, current_user.id):
             raise HTTPException(status_code=403, detail="League membership required")
+
+        pool.plan = entitlements.pool_plan(db, pool)
+        if pool.pool_type == "squares" and pool.plan == "free" and pool.owner_id != current_user.id and not is_platform_super_admin(current_user):
+            raise HTTPException(
+                status_code=403,
+                detail="This free Squares board is managed privately by its owner.",
+            )
 
         return pool
     except HTTPException:
@@ -710,6 +739,12 @@ def join_pool(
     ).first()
     if existing or pool.owner_id == current_user.id:
         return {"message": "Already joined", "pool_id": pool_id}
+
+    if pool.pool_type == "squares" and entitlements.pool_plan(db, pool) == "free":
+        raise HTTPException(
+            status_code=403,
+            detail="This free Squares board is owner-managed and does not accept online players. Ask the owner to record your blocks, or have them upgrade to Squares Plus.",
+        )
 
     now = datetime.now(timezone.utc).replace(tzinfo=None)
     if pool.join_lock_time is not None and pool.join_lock_time <= now:

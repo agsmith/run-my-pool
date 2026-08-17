@@ -353,6 +353,7 @@ class PoolOut(BaseModel):
     owner_id: str
     billing_entitlement_id: Optional[str] = None
     billing_season: Optional[int] = None
+    plan: Optional[str] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
     rule_values: Optional[List[PoolRuleValueOut]] = []
@@ -396,7 +397,7 @@ class SquareClaimCreate(BaseModel):
 
 class SquareDisplayNameUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    user_id: str
+    claim_id: str
     display_name: str = Field(min_length=1, max_length=100)
 
     @field_validator("display_name")

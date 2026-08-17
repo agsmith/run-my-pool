@@ -475,7 +475,8 @@ export default function AdminPortal() {
         <div>
           <span>Player access</span>
           <h4>Pool Visibility</h4>
-          <p>Public pools can be joined by anyone. Private pools require the commissioner password.</p>
+          <p>{league?.pool_type === 'squares' && league?.plan === 'free' ? 'Free Squares boards are owner-managed. Players send selections to you outside Run My Pool, and you enter their names and blocks.' : 'Public pools can be joined by anyone. Private pools require the commissioner password.'}</p>
+          {league?.pool_type === 'squares' && league?.plan === 'free' && <button type="button" onClick={() => router.push('/pricing?checkout=squares-plus')}>Upgrade for online player access</button>}
         </div>
         <div className="admin-access-panel__options">
           <label className={!accessSettings.is_private ? 'is-selected' : ''}>
@@ -483,6 +484,7 @@ export default function AdminPortal() {
               type="radio"
               name="pool-visibility"
               checked={!accessSettings.is_private}
+              disabled={league?.pool_type === 'squares' && league?.plan === 'free'}
               onChange={() => setAccessSettings((current) => ({ ...current, is_private: false, join_password: '' }))}
             />
             <span><strong>Public</strong><small>No password required</small></span>
@@ -492,12 +494,13 @@ export default function AdminPortal() {
               type="radio"
               name="pool-visibility"
               checked={accessSettings.is_private}
+              disabled={league?.pool_type === 'squares' && league?.plan === 'free'}
               onChange={() => setAccessSettings((current) => ({ ...current, is_private: true }))}
             />
             <span><strong>Private</strong><small>Password required</small></span>
           </label>
         </div>
-        {accessSettings.is_private && (
+        {accessSettings.is_private && !(league?.pool_type === 'squares' && league?.plan === 'free') && (
           <div className="admin-access-panel__password">
             <LeaguePasswordViewer
               poolId={leagueId}
@@ -519,7 +522,7 @@ export default function AdminPortal() {
           </div>
         )}
         <div className="admin-access-panel__footer">
-          <button type="button" onClick={handleSaveAccess} disabled={savingAccess}>
+          <button type="button" onClick={handleSaveAccess} disabled={savingAccess || (league?.pool_type === 'squares' && league?.plan === 'free')}>
             {savingAccess ? 'Saving…' : 'Save access settings'}
           </button>
           {accessMessage && <span role="status">{accessMessage}</span>}
