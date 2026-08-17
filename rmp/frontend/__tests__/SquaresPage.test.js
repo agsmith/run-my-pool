@@ -211,4 +211,33 @@ describe('SquaresPage', () => {
     expect(await screen.findByText('Enter a display name before reserving a square.')).toBeInTheDocument();
     expect(fetch).not.toHaveBeenCalledWith('/squares/pool-1/claims', expect.objectContaining({ method: 'POST' }));
   });
+
+  test('lets an admin rename every reservation owned by a member', async () => {
+    const claimedBoard = {
+      ...board,
+      claims: [
+        { id: 'claim-1', row_index: 0, column_index: 0, user_id: 'user-2', user_email: 'player@example.com', display_name: 'Old Name' },
+        { id: 'claim-2', row_index: 0, column_index: 1, user_id: 'user-2', user_email: 'player@example.com', display_name: 'Old Name' },
+      ],
+    };
+    global.fetch = jest.fn((url, options = {}) => {
+      if (options.method === 'PATCH' && String(url).endsWith('/claims/display-name')) {
+        return response({ ...claimedBoard, claims: claimedBoard.claims.map((claim) => ({ ...claim, display_name: 'New Name' })) });
+      }
+      return response(claimedBoard);
+    });
+    const user = userEvent.setup();
+    render(<SquaresPage />);
+
+    await user.click(await screen.findByRole('button', { name: 'Edit name' }));
+    const nameInput = screen.getByRole('textbox', { name: 'Display name for Old Name' });
+    await user.clear(nameInput);
+    await user.type(nameInput, 'New Name');
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(fetch).toHaveBeenCalledWith('/squares/pool-1/claims/display-name', expect.objectContaining({ method: 'PATCH' })));
+    const request = fetch.mock.calls.find(([url, options]) => String(url).endsWith('/claims/display-name') && options?.method === 'PATCH')[1];
+    expect(JSON.parse(request.body)).toEqual({ user_id: 'user-2', display_name: 'New Name' });
+    expect(await screen.findAllByText('New Name')).toHaveLength(3);
+  });
 });

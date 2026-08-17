@@ -179,6 +179,44 @@ def test_claim_requires_and_normalizes_a_display_name(client, db_session):
     assert board["claims"][0]["display_name"] == "Tony S."
 
 
+def test_admin_updates_display_name_for_all_member_claims_and_audits(client, db_session):
+    owner, owner_headers = _register(client, "rename-squares-owner@example.com")
+    member, member_headers = _register(client, "rename-squares-member@example.com")
+    _game(db_session)
+    pool = _create(client, owner_headers, name="Rename Squares Board")
+    assert client.post(f"/pools/{pool['id']}/join", json={}, headers=member_headers).status_code == 200
+    for column in (0, 1):
+        claimed = client.post(
+            f"/squares/{pool['id']}/claims",
+            json={"row_index": 0, "column_index": column, "display_name": "Old Name"},
+            headers=member_headers,
+        )
+        assert claimed.status_code == 201
+
+    forbidden = client.patch(
+        f"/squares/{pool['id']}/claims/display-name",
+        json={"user_id": member["id"], "display_name": "Not Allowed"},
+        headers=member_headers,
+    )
+    renamed = client.patch(
+        f"/squares/{pool['id']}/claims/display-name",
+        json={"user_id": member["id"], "display_name": "  New   Name  "},
+        headers=owner_headers,
+    )
+
+    assert forbidden.status_code == 403
+    assert renamed.status_code == 200
+    member_claims = [claim for claim in renamed.json()["claims"] if claim["user_id"] == member["id"]]
+    assert len(member_claims) == 2
+    assert {claim["display_name"] for claim in member_claims} == {"New Name"}
+    db_session.expire_all()
+    audit = db_session.query(models.AuditLog).filter_by(action="UPDATE_SQUARE_DISPLAY_NAME").one()
+    details = json.loads(audit.details)
+    assert audit.user_id == owner["id"]
+    assert details["additional_data"]["claim_count"] == 2
+    assert details["additional_data"]["previous_display_names"] == ["Old Name"]
+
+
 def test_nonmember_cannot_read_board(client, db_session):
     _, owner_headers = _register(client, "private-board-owner@example.com")
     _, outsider_headers = _register(client, "squares-outsider@example.com")

@@ -256,6 +256,45 @@ def release_square(pool_id: str, claim_id: str, db: Session = Depends(deps.get_d
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
+@router.patch("/{pool_id}/claims/display-name")
+def update_claim_display_name(
+    pool_id: str,
+    request: schemas.SquareDisplayNameUpdate,
+    db: Session = Depends(deps.get_db),
+    current_user: models.User = Depends(deps.get_current_user),
+):
+    """Update the board-facing name on every claim owned by one member."""
+    pool = _pool(db, pool_id)
+    if not _is_admin(db, pool, current_user):
+        raise HTTPException(status_code=403, detail="Pool admin access required")
+    claims = db.query(models.SquareClaim).filter(
+        models.SquareClaim.pool_id == pool.id,
+        models.SquareClaim.user_id == request.user_id,
+    ).all()
+    if not claims:
+        raise HTTPException(status_code=404, detail="No Squares reservations found for this member")
+    previous_names = sorted({claim.display_name for claim in claims if claim.display_name})
+    for claim in claims:
+        claim.display_name = request.display_name
+    db.commit()
+    create_audit_log(
+        db,
+        "UPDATE_SQUARE_DISPLAY_NAME",
+        f"Updated display name on {len(claims)} Squares reservation(s)",
+        current_user.id,
+        "pool_user",
+        request.user_id,
+        {
+            "pool_id": pool.id,
+            "user_id": request.user_id,
+            "previous_display_names": previous_names,
+            "display_name": request.display_name,
+            "claim_count": len(claims),
+        },
+    )
+    return board_payload(db, pool, current_user)
+
+
 @router.post("/{pool_id}/lock")
 def lock_board(pool_id: str, db: Session = Depends(deps.get_db), current_user: models.User = Depends(deps.get_current_user)):
     pool = _pool(db, pool_id)

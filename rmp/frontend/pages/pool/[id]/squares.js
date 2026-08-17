@@ -19,6 +19,8 @@ export default function SquaresPage() {
   const [claimFor, setClaimFor] = useState('');
   const [manualBlock, setManualBlock] = useState('');
   const [displayName, setDisplayName] = useState('');
+  const [editingUserId, setEditingUserId] = useState('');
+  const [editingDisplayName, setEditingDisplayName] = useState('');
   const claims = useMemo(() => Object.fromEntries((board?.claims || []).map((c) => [`${c.row_index}-${c.column_index}`, c])), [board]);
   const reservations = useMemo(() => {
     const grouped = new Map();
@@ -107,6 +109,19 @@ export default function SquaresPage() {
     } catch (err) { setError(err.message); } finally { setBusy(false); }
   };
 
+  const saveReservationDisplayName = async (event) => {
+    event.preventDefault(); setBusy(true); setError('');
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/squares/${query.id}/claims/display-name`, {
+        method: 'PATCH', headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: editingUserId, display_name: editingDisplayName }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.detail || 'Unable to update that display name.');
+      setBoard(data); setEditingUserId(''); setEditingDisplayName('');
+    } catch (err) { setError(err.message); } finally { setBusy(false); }
+  };
+
   if (!board) return <ProtectedRoute><main className="product-page-shell"><p>{error || 'Loading Squares board…'}</p></main></ProtectedRoute>;
   const games = board.games?.length ? board.games : [board.game];
   const game = games[0];
@@ -142,7 +157,7 @@ export default function SquaresPage() {
     </div></div>
     <section className="squares-reservations" aria-labelledby="squares-reservations-heading">
       <div><h2 id="squares-reservations-heading">Reservations</h2><p>Everyone in the pool can see who has reserved squares.</p></div>
-      {reservations.length ? <ul>{reservations.map((reservation) => <li key={reservation.user_id}><strong>{reservation.display_name}</strong><span>{reservation.count} {reservation.count === 1 ? 'square' : 'squares'} · Blocks {reservation.blocks.join(', ')}</span></li>)}</ul> : <p>No squares have been reserved yet.</p>}
+      {reservations.length ? <ul>{reservations.map((reservation) => <li key={reservation.user_id}><div><strong>{reservation.display_name}</strong><span>{reservation.count} {reservation.count === 1 ? 'square' : 'squares'} · Blocks {reservation.blocks.join(', ')}</span></div>{board.permissions.is_admin && (editingUserId === reservation.user_id ? <form className="squares-reservation-name-edit" onSubmit={saveReservationDisplayName}><label><input aria-label={`Display name for ${reservation.display_name}`} value={editingDisplayName} maxLength="100" onChange={(event) => setEditingDisplayName(event.target.value)} autoFocus /></label><button type="submit" disabled={busy || !editingDisplayName.trim()}>Save</button><button type="button" onClick={() => { setEditingUserId(''); setEditingDisplayName(''); }}>Cancel</button></form> : <button type="button" onClick={() => { setEditingUserId(reservation.user_id); setEditingDisplayName(reservation.display_name === 'Reserved player' ? '' : reservation.display_name); }}>Edit name</button>)}</li>)}</ul> : <p>No squares have been reserved yet.</p>}
     </section>
     <section className="squares-results"><h2>Quarter winners</h2>{games.map((selectedGame) => <div className="squares-game-results" key={selectedGame.game_id}><h3>{selectedGame.away_team.abbrv} at {selectedGame.home_team.abbrv} results</h3><div>{['q1', 'halftime', 'q3', 'final'].map((name) => { const result = board.payouts.find((item) => (item.game_id == null || item.game_id === selectedGame.game_id) && item.checkpoint === name); return <article key={name}><strong>{name === 'q1' ? '1st Quarter' : name === 'q3' ? '3rd Quarter' : name[0].toUpperCase() + name.slice(1)}</strong>{result ? <><span>{result.away_score}–{result.home_score}</span><b>{result.winner_display_name || (result.winner_email ? 'Reserved player' : 'Unclaimed square')}</b>{result.amount_cents != null && <small>${(result.amount_cents / 100).toFixed(2)} recorded</small>}</> : <span>Pending</span>}</article>; })}</div></div>)}</section>
     {board.permissions.is_admin && !board.locked && <form className="squares-pot" onSubmit={savePot}><div><h2>Admin payout setup</h2><p>Choose one fixed pot or let the total grow with every reserved block. Quarter payouts remain 25% each. Run My Pool records winners and amounts but does not move money.</p><fieldset><legend>Pot calculation</legend><label className={potMode === 'fixed' ? 'is-selected' : ''}><input type="radio" name="pot-mode" value="fixed" checked={potMode === 'fixed'} onChange={() => { setPotMode('fixed'); setPot(dollarsFromCents(board.pot_mode === 'fixed' ? board.total_pot_cents : null)); }} /> Fixed total</label><label className={potMode === 'per_square' ? 'is-selected' : ''} aria-disabled={!board.permissions.can_use_variable_pot}><input type="radio" name="pot-mode" value="per_square" checked={potMode === 'per_square'} disabled={!board.permissions.can_use_variable_pot} onChange={() => { setPotMode('per_square'); setPot(dollarsFromCents(board.per_square_cents)); }} /> Per reserved block {!board.permissions.can_use_variable_pot && <small>Commish</small>}</label></fieldset></div><label>{potMode === 'fixed' ? 'Total pot ($)' : 'Amount per reserved block ($)'}<input type="number" min="0" step="0.01" inputMode="decimal" value={pot} onChange={(event) => setPot(event.target.value)} placeholder={potMode === 'fixed' ? 'Optional' : 'Required'} required={potMode === 'per_square'} /></label><button disabled={busy}>Save payouts</button></form>}

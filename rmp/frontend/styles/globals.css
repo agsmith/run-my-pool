@@ -1775,9 +1775,13 @@ table {
 .squares-reservations { margin-top: 1.5rem; padding: 1.25rem; border: 1px solid #35534c; border-radius: 12px; background: #0c1b18; }
 .squares-reservations h2, .squares-reservations p { margin: 0 0 .35rem; }
 .squares-reservations ul { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: .6rem; margin: 1rem 0 0; padding: 0; list-style: none; }
-.squares-reservations li { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .35rem .75rem; padding: .65rem .75rem; background: #142923; border-radius: 8px; }
+.squares-reservations li { display: flex; flex-wrap: wrap; align-items:center; justify-content: space-between; gap: .35rem .75rem; padding: .65rem .75rem; background: #142923; border-radius: 8px; }
+.squares-reservations li > div { display:grid; gap:.15rem; }
 .squares-reservations li strong { overflow-wrap: anywhere; }
 .squares-reservations li span { color: #d7ff3f; overflow-wrap: anywhere; }
+.squares-reservations li > button, .squares-reservation-name-edit button { min-height:36px; padding:.35rem .6rem; border:1px solid #56736c; border-radius:5px; background:#071311; color:#fff; cursor:pointer; }
+.squares-reservation-name-edit { display:flex; flex-wrap:wrap; gap:.35rem; }
+.squares-reservation-name-edit input { min-height:36px; padding:.35rem .5rem; border:1px solid #56736c; border-radius:5px; background:#071311; color:#fff; }
 .squares-pot { margin-top: 2rem; display: flex; align-items: end; gap: 1rem; padding: 1.25rem; border: 1px solid #35534c; border-radius: 12px; }
 .squares-pot > div { flex: 1; }
 .squares-pot h2, .squares-pot p { margin: 0 0 .35rem; }
