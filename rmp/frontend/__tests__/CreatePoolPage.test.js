@@ -12,6 +12,15 @@ jest.mock('next/router', () => ({
 
 jest.mock('../components/ProtectedRoute', () => ({ children }) => children);
 
+const billingOverviewResponse = (entitlement = null) => ({
+  ok: true,
+  json: async () => ({ entitlement, orders: [], used_entries: 0 }),
+});
+
+const findCreatePoolCall = () => fetch.mock.calls.find(
+  ([url, options]) => String(url).endsWith('/pools/create') && options?.method === 'POST',
+);
+
 describe('CreatePool', () => {
   beforeEach(() => {
     global.fetch = jest.fn();
@@ -21,7 +30,9 @@ describe('CreatePool', () => {
 
   test('shows unique name suggestions and lets the owner select one', async () => {
     const user = userEvent.setup();
-    fetch.mockResolvedValueOnce({
+    fetch
+      .mockResolvedValueOnce(billingOverviewResponse())
+      .mockResolvedValueOnce({
         ok: false,
         json: async () => ({
           detail: {
@@ -54,7 +65,9 @@ describe('CreatePool', () => {
 
   test('lets the commissioner choose Pick Em and sends the pool type', async () => {
     const user = userEvent.setup();
-    fetch.mockResolvedValue({ ok: true, json: async () => ({ id: 'pickem-pool' }) });
+    fetch
+      .mockResolvedValueOnce(billingOverviewResponse())
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ id: 'pickem-pool' }) });
     render(<CreatePool />);
 
     await user.click(screen.getByRole('radio', { name: /pick ’em/i }));
@@ -64,7 +77,8 @@ describe('CreatePool', () => {
     await user.type(screen.getByPlaceholderText(/enter pool name/i), 'Office Pick Em');
     await user.click(screen.getByRole('button', { name: /create pick ’em pool/i }));
 
-    const createCall = fetch.mock.calls.find(([url, options]) => String(url).endsWith('/pools/create') && options?.method === 'POST');
+    const createCall = findCreatePoolCall();
+    expect(createCall).toBeDefined();
     expect(JSON.parse(createCall[1].body)).toEqual(expect.objectContaining({
       pool_type: 'pickem',
       lock_day_of_week: 6,
@@ -77,7 +91,9 @@ describe('CreatePool', () => {
 
   test('defaults Pick Em to all games and allows a fixed weekly slate', async () => {
     const user = userEvent.setup();
-    fetch.mockResolvedValue({ ok: true, json: async () => ({ id: 'five-game-pool' }) });
+    fetch
+      .mockResolvedValueOnce(billingOverviewResponse())
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ id: 'five-game-pool' }) });
     render(<CreatePool />);
 
     await user.click(screen.getByRole('radio', { name: /pick ’em/i }));
@@ -90,7 +106,9 @@ describe('CreatePool', () => {
     await user.type(screen.getByPlaceholderText(/enter pool name/i), 'Five Game Pick Em');
     await user.click(screen.getByRole('button', { name: /create pick ’em pool/i }));
 
-    expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual(expect.objectContaining({
+    const createCall = findCreatePoolCall();
+    expect(createCall).toBeDefined();
+    expect(JSON.parse(createCall[1].body)).toEqual(expect.objectContaining({
       pool_type: 'pickem',
       pickem_games_per_week: 5,
     }));
@@ -103,7 +121,7 @@ describe('CreatePool', () => {
       { game_id: 102, start_time: '2099-11-27T21:30:00Z', away_team: { abbrv: 'NYG' }, home_team: { abbrv: 'DAL' } },
     ];
     fetch
-      .mockResolvedValueOnce({ ok: true, json: async () => ({ entitlement: null }) })
+      .mockResolvedValueOnce(billingOverviewResponse())
       .mockResolvedValueOnce({ ok: true, json: async () => games })
       .mockResolvedValueOnce({ ok: true, json: async () => ({ id: 'thanksgiving-board' }) });
     render(<CreatePool />);
@@ -115,7 +133,8 @@ describe('CreatePool', () => {
     await user.type(screen.getByPlaceholderText(/enter pool name/i), 'Thanksgiving Squares');
     await user.click(screen.getByRole('button', { name: /create squares pool/i }));
 
-    const createCall = fetch.mock.calls.find(([url, options]) => String(url).endsWith('/pools/create') && options?.method === 'POST');
+    const createCall = findCreatePoolCall();
+    expect(createCall).toBeDefined();
     expect(JSON.parse(createCall[1].body)).toEqual(expect.objectContaining({
       pool_type: 'squares',
       squares_game_ids: [101, 102],
@@ -145,7 +164,9 @@ describe('CreatePool', () => {
 
   test('sends supported Survivor settings and a shareable private join code', async () => {
     const user = userEvent.setup();
-    fetch.mockResolvedValue({ ok: true, json: async () => ({ id: 'survivor-pool' }) });
+    fetch
+      .mockResolvedValueOnce(billingOverviewResponse())
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ id: 'survivor-pool' }) });
     render(<CreatePool />);
 
     expect(screen.getByText(/entries without a selection receive the best available automatic pick/i)).toBeInTheDocument();
@@ -158,7 +179,9 @@ describe('CreatePool', () => {
     await user.type(joinCode, 'huddle42');
     await user.click(screen.getByRole('button', { name: /create survivor pool/i }));
 
-    expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual(expect.objectContaining({
+    const createCall = findCreatePoolCall();
+    expect(createCall).toBeDefined();
+    expect(JSON.parse(createCall[1].body)).toEqual(expect.objectContaining({
       pool_type: 'survivor', lock_day_of_week: 3, lock_timezone: 'America/Chicago',
       is_private: true, join_password: 'huddle42',
     }));
