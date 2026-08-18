@@ -182,6 +182,7 @@ export default function LeagueEntries() {
   const [selectedEntry, setSelectedEntry] = useState(null);
   const [showMatchupOverlay, setShowMatchupOverlay] = useState(false);
   const [selectedTeam, setSelectedTeam] = useState(null);
+  const [clearingPick, setClearingPick] = useState(false);
 
   useEffect(() => {
     const timer = window.setInterval(() => setLockClock(Date.now()), 30000);
@@ -409,7 +410,46 @@ export default function LeagueEntries() {
   };
 
   const handleTeamSelect = (team) => {
-    setSelectedTeam(team);
+    setSelectedTeam((currentTeam) => currentTeam === team ? null : team);
+  };
+
+  const handleClearPick = async () => {
+    if (!selectedWeek || !selectedEntry || clearingPick) return;
+    const { currentPick } = getPickAvailability(
+      allPicks[selectedEntry.id] || [],
+      selectedWeek
+    );
+    if (!currentPick) return;
+
+    setClearingPick(true);
+    setError('');
+    try {
+      const token = localStorage.getItem('access_token');
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/picks/${currentPick.id}`,
+        {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      if (!response.ok) {
+        const errorData = await response.json();
+        setError(errorData.detail || 'Failed to clear pick');
+        return;
+      }
+      setAllPicks((previousPicks) => ({
+        ...previousPicks,
+        [selectedEntry.id]: (previousPicks[selectedEntry.id] || []).filter(
+          (pick) => pick.id !== currentPick.id
+        ),
+      }));
+      setSelectedTeam(null);
+      setShowMatchupOverlay(false);
+    } catch {
+      setError('Failed to clear pick');
+    } finally {
+      setClearingPick(false);
+    }
   };
 
   const handleSubmitPick = async () => {
@@ -792,7 +832,7 @@ export default function LeagueEntries() {
           </div>
 
           {/* Sticky Footer with Buttons */}
-          <div className="entries-overlay__footer" style={{
+          <div className={`entries-overlay__footer${currentPick ? ' has-clear-pick' : ''}`} style={{
             padding: '1rem 2rem 2rem 2rem',
             borderTop: '1px solid #e5e7eb',
             backgroundColor: 'white',
@@ -801,6 +841,14 @@ export default function LeagueEntries() {
             gap: '1rem', 
             justifyContent: 'flex-end'
           }}>
+            {currentPick && <button
+              type="button"
+              onClick={handleClearPick}
+              disabled={clearingPick}
+              className="entries-overlay__clear-pick"
+            >
+              {clearingPick ? 'Clearing…' : 'Clear Pick'}
+            </button>}
             <button
               onClick={() => setShowMatchupOverlay(false)}
               style={{

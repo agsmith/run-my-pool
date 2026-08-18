@@ -50,6 +50,10 @@ function installApi({ pool = {}, entries = [], picks = {}, lockWeeks = {}, creat
       const request = JSON.parse(options.body);
       return jsonResponse({ id: 'pick-new', ...request, locked: false });
     }
+    const deletePickMatch = path.match(/\/picks\/([^/]+)$/);
+    if (deletePickMatch && options.method === 'DELETE') {
+      return jsonResponse({ message: 'Pick deleted successfully' });
+    }
     if (path.endsWith('/entries/create') && options.method === 'POST' && (createdEntry || createEntries.length)) {
       const requested = JSON.parse(options.body);
       const nextEntry = createEntries[createIndex++] || createdEntry || {
@@ -157,6 +161,29 @@ describe('player entries page', () => {
       }),
     ));
     expect(screen.queryByRole('heading', { name: /week 2 matchups/i })).not.toBeInTheDocument();
+  });
+
+  test('clears an unlocked Survivor pick and leaves the week blank', async () => {
+    const user = userEvent.setup();
+    installApi({
+      entries: [{ id: 'entry-1', name: 'Still Alive', alive: true }],
+      picks: { 'entry-1': [{ id: 'pick-2', week: 2, team: 'BUF', locked: false }] },
+      lockWeeks: { '2': { locked: false, deadline: '2026-09-13T17:00:00Z' } },
+    });
+    render(<LeagueEntries />);
+
+    const row = (await screen.findByText('Still Alive')).closest('tr');
+    await user.click(within(row).getByTitle('BUF'));
+    expect(await screen.findByText('CURRENT PICK')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Clear Pick' }));
+
+    await waitFor(() => expect(fetch).toHaveBeenCalledWith(
+      expect.stringContaining('/picks/pick-2'),
+      expect.objectContaining({ method: 'DELETE' }),
+    ));
+    expect(screen.queryByRole('heading', { name: /week 2 matchups/i })).not.toBeInTheDocument();
+    expect(within(row).queryByTitle('BUF')).not.toBeInTheDocument();
+    expect(within(row).getByRole('button', { name: '2' })).toBeEnabled();
   });
 
   test('keeps existing Week 1 picks visible after adding another entry', async () => {

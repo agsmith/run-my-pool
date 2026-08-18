@@ -613,6 +613,16 @@ async def delete_pick(
     # a delayed or failed worker cannot create a deletion window.
     entry = pick.entry
     pool = db.query(Pool).filter(Pool.id == entry.pool_id).first()
+    if not entry.alive:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Entry has been eliminated",
+        )
+    if is_user_locked_in_pool(db, entry.pool_id, current_user.id):
+        raise HTTPException(
+            status_code=423,
+            detail="Your account is locked in this pool. Contact the pool admin.",
+        )
     if pool:
         _check_pick_lock(db, pool, pick.team, pick.week)
 

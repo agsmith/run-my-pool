@@ -1149,6 +1149,33 @@ class TestUserLockEnforcement:
         )
         assert resp.status_code == 423, resp.text
 
+    def test_locked_user_cannot_clear_pick(self, client, db_session):
+        """Locked users cannot clear a previously saved Survivor pick."""
+        admin_token = _register_and_login(client, email="enf_clear_admin@example.com")
+        user_token = _register_and_login(client, email="enf_clear_user@example.com")
+        pool_id = _create_pool(client, _authed(admin_token))
+        entry_resp = client.post(
+            "/entries/create",
+            json={"pool_id": pool_id, "name": "Clear Pick Entry"},
+            headers=_authed(user_token),
+        )
+        assert entry_resp.status_code == 200
+        pick_resp = client.post(
+            "/picks/create",
+            json={"entry_id": entry_resp.json()["id"], "week": 1, "team": "NE"},
+            headers=_authed(user_token),
+        )
+        assert pick_resp.status_code == 200
+
+        user_id = self._get_user_id(db_session, "enf_clear_user@example.com")
+        self._lock_user(client, admin_token, pool_id, user_id)
+
+        response = client.delete(
+            f"/picks/{pick_resp.json()['id']}", headers=_authed(user_token)
+        )
+        assert response.status_code == 423
+        assert "locked" in response.json()["detail"].lower()
+
     def test_locked_user_can_still_log_in(self, client, db_session):
         """Locking a user in a pool does not affect their ability to log in."""
         admin_token = _register_and_login(client, email="enf_login_admin@example.com")
