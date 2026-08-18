@@ -456,6 +456,9 @@ class CommissionerEntitlement(Base):
     """Highest commissioner plan granted to a user for a football season."""
 
     __tablename__ = "commissioner_entitlements"
+    __table_args__ = (
+        UniqueConstraint("user_id", "season", name="uq_commissioner_entitlement_user_season"),
+    )
     id = Column(String(36), primary_key=True)
     user_id = Column(String(36), ForeignKey(USERS_ID_FK), nullable=False, index=True)
     season = Column(Integer, nullable=False)

@@ -45,6 +45,10 @@ jobs:
           SECRET_KEY: ci-test-secret-key
         run: python -m pytest tests/ -q --tb=short
 
+      - name: Validate payment test traceability
+        working-directory: ../..
+        run: python tools/validate_payment_coverage.py
+
       - name: Audit dependencies
         run: pip-audit --require-hashes -r requirements-dev.txt
 
@@ -92,12 +96,12 @@ jobs:
       - name: Install dependencies
         run: pip install --require-hashes -r requirements-dev.txt
 
-      - name: Run updater tests against MySQL 8.4
+      - name: Run integration tests against MySQL 8.4
         env:
           DATABASE_URL: sqlite:///./test.db
           SECRET_KEY: ci-test-secret-key
           MYSQL_INTEGRATION_URL: mysql+mysqlconnector://runmypool_test:testpassword@127.0.0.1:3306/runmypool_test
-        run: python -m pytest tests/test_result_updater_mysql.py -q --tb=short --no-cov
+        run: python -m pytest tests/test_result_updater_mysql.py tests/test_billing_mysql.py -q --tb=short --no-cov
 
   updater-container-smoke:
     name: Result updater container smoke test

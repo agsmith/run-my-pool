@@ -8,3 +8,5 @@ frontend/public/workbox-*.js
 frontend/public/workbox-*.js.map
 frontend/public/fallback-*.js
 frontend/public/fallback-*.js.map
+frontend/playwright-report/
+frontend/test-results/
