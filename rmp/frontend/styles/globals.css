@@ -1178,7 +1178,15 @@ table {
 .league-directory__actions button:disabled { opacity:.5; cursor:not-allowed; transform:none; }
 .league-directory__state { padding:3rem; color:var(--muted); background:#10191c; border:1px dashed #3a4c50; text-align:center; }
 .league-directory__state--error { color:var(--danger); border-color:rgba(255,129,122,.45); }
+.admin-danger-zone { display:grid; grid-template-columns:1fr auto; gap:1rem 1.5rem; align-items:center; margin:0 0 3rem; padding:1.25rem; background:#2a1111; border:1px solid rgba(248,113,113,.55); border-left:4px solid #ef4444; }
+.admin-danger-zone span { color:#fca5a5; font-size:.68rem; font-weight:900; letter-spacing:.14em; text-transform:uppercase; }
+.admin-danger-zone h4 { margin:.25rem 0; color:#fff!important; font-size:1.2rem; }
+.admin-danger-zone p { margin:0; color:#fecaca; }
+.admin-danger-zone button { min-height:44px; padding:.7rem 1rem; color:#fff; background:#dc2626; border:1px solid #f87171; font-weight:900; text-transform:uppercase; }
+.admin-danger-zone button:disabled { cursor:not-allowed; opacity:.65; }
+.admin-danger-zone .admin-danger-zone__error { grid-column:1 / -1; color:#fca5a5; }
 @media (max-width:760px) {
+  .admin-danger-zone { grid-template-columns:1fr; }
   .league-directory__purchase-recovery { align-items:stretch; flex-direction:column; }
   .league-directory__controls { grid-template-columns:1fr; }
   .league-directory__controls > div { display:grid; grid-template-columns:repeat(3,1fr); }

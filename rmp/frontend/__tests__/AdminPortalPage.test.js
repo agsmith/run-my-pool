@@ -151,6 +151,38 @@ describe('commissioner portal', () => {
     expect(screen.getByLabelText('Join password')).toHaveValue('');
   });
 
+  test('deletes only the current pool after owner confirmation', async () => {
+    const confirm = jest.spyOn(window, 'confirm').mockReturnValue(true);
+    installApi({
+      'DELETE /pools/pool-1': () => response({ message: 'Pool deleted successfully' }),
+    });
+    const user = userEvent.setup();
+    render(<AdminPortal />);
+    await screen.findByRole('heading', { name: 'Pool Management' });
+
+    expect(screen.queryByLabelText(/select pool to delete/i)).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Delete this pool' }));
+
+    expect(confirm).toHaveBeenCalledWith(expect.stringContaining('Delete "Office Survivor"?'));
+    expect(fetch).toHaveBeenCalledWith('/pools/pool-1', expect.objectContaining({
+      method: 'DELETE',
+      headers: { Authorization: 'Bearer token' },
+    }));
+    expect(mockPush).toHaveBeenCalledWith('/dashboard?message=Pool deleted successfully');
+  });
+
+  test('does not delete the current pool when confirmation is cancelled', async () => {
+    jest.spyOn(window, 'confirm').mockReturnValue(false);
+    const user = userEvent.setup();
+    render(<AdminPortal />);
+    await screen.findByRole('heading', { name: 'Pool Management' });
+
+    await user.click(screen.getByRole('button', { name: 'Delete this pool' }));
+
+    expect(fetch.mock.calls.some(([, options]) => options?.method === 'DELETE')).toBe(false);
+    expect(mockPush).not.toHaveBeenCalled();
+  });
+
   test('validates entry lookup and pick correction before calling the API', async () => {
     const user = userEvent.setup();
     render(<AdminPortal />);

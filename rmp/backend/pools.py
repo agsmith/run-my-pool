@@ -834,11 +834,51 @@ def delete_pool(
                 status_code=403, detail="Only pool owner can delete the pool"
             )
 
-        # TODO: Check if pool has entries before deletion
-        # For now, allow deletion
-
-        db.delete(pool)
+        pool_name = pool.name
+        entry_ids = db.query(models.Entry.id).filter(models.Entry.pool_id == pool_id)
+        db.query(models.Pick).filter(models.Pick.entry_id.in_(entry_ids)).delete(
+            synchronize_session=False
+        )
+        db.query(models.SquarePayout).filter(
+            models.SquarePayout.pool_id == pool_id
+        ).delete(synchronize_session=False)
+        db.query(models.SquareClaim).filter(
+            models.SquareClaim.pool_id == pool_id
+        ).delete(synchronize_session=False)
+        for model in (
+            models.Entry,
+            models.MessageBoard,
+            models.PoolGameLine,
+            models.PoolUserLock,
+            models.PoolAdmin,
+            models.PoolMember,
+            models.PoolRuleValue,
+            models.PoolRule,
+            models.PoolSquareGame,
+            models.SquareBoard,
+        ):
+            db.query(model).filter(model.pool_id == pool_id).delete(
+                synchronize_session=False
+            )
+        db.query(models.Pool).filter(models.Pool.id == pool_id).delete(
+            synchronize_session=False
+        )
         db.commit()
+
+        log_delete_operation(
+            db=db,
+            entity_type="pool",
+            entity_id=pool_id,
+            user_id=current_user.id,
+            entity_data={"name": pool_name},
+        )
+        log_event(
+            logger,
+            logging.INFO,
+            "pool_deleted",
+            pool_id=pool_id,
+            user_id=current_user.id,
+        )
 
         return {"message": "Pool deleted successfully"}
     except HTTPException:

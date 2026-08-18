@@ -246,6 +246,83 @@ class TestPoolEndpoints:
         assert len(pools) >= 1
         assert any(pool["name"] == test_pool_data["name"] for pool in pools)
 
+    def test_owner_can_delete_current_pool_with_dependent_data(
+        self, client, db_session
+    ):
+        owner = _register(client, "delete.pool.owner@example.com")
+        created = client.post(
+            "/pools/create", json={"name": "Delete This Pool"}, headers=owner
+        ).json()
+        owner_user = (
+            db_session.query(models.User)
+            .filter(models.User.email == "delete.pool.owner@example.com")
+            .one()
+        )
+        entry = models.Entry(
+            id="delete-pool-entry",
+            user_id=owner_user.id,
+            pool_id=created["id"],
+            name="Disposable Entry",
+            alive=True,
+            created_at=datetime.now(timezone.utc).replace(tzinfo=None),
+        )
+        db_session.add(entry)
+        db_session.flush()
+        db_session.add_all(
+            [
+                models.Pick(
+                    id="delete-pool-pick",
+                    entry_id=entry.id,
+                    week=1,
+                    team="BUF",
+                    locked=False,
+                    created_at=datetime.now(timezone.utc).replace(tzinfo=None),
+                ),
+                models.MessageBoard(
+                    id="delete-pool-message",
+                    pool_id=created["id"],
+                    user_id=owner_user.id,
+                    message="Delete me",
+                    created_at=datetime.now(timezone.utc).replace(tzinfo=None),
+                ),
+                models.PoolUserLock(
+                    pool_id=created["id"],
+                    user_id=owner_user.id,
+                    locked_at=datetime.now(timezone.utc).replace(tzinfo=None),
+                    reason="Delete me",
+                ),
+            ]
+        )
+        db_session.commit()
+
+        response = client.delete(f"/pools/{created['id']}", headers=owner)
+
+        assert response.status_code == 200
+        assert response.json() == {"message": "Pool deleted successfully"}
+        assert db_session.query(models.Pool).filter_by(id=created["id"]).count() == 0
+        assert db_session.query(models.Entry).filter_by(pool_id=created["id"]).count() == 0
+        assert db_session.query(models.Pick).filter_by(id="delete-pool-pick").count() == 0
+        assert db_session.query(models.MessageBoard).filter_by(pool_id=created["id"]).count() == 0
+        assert db_session.query(models.PoolAdmin).filter_by(pool_id=created["id"]).count() == 0
+        assert db_session.query(models.PoolMember).filter_by(pool_id=created["id"]).count() == 0
+        assert db_session.query(models.PoolUserLock).filter_by(pool_id=created["id"]).count() == 0
+        audit = db_session.query(models.AuditLog).filter_by(
+            action="DELETE_POOL"
+        ).one()
+        assert "Delete This Pool" in audit.details
+
+    def test_non_owner_cannot_delete_pool(self, client, db_session):
+        owner = _register(client, "delete.guard.owner@example.com")
+        other = _register(client, "delete.guard.other@example.com")
+        created = client.post(
+            "/pools/create", json={"name": "Protected Pool"}, headers=owner
+        ).json()
+
+        response = client.delete(f"/pools/{created['id']}", headers=other)
+
+        assert response.status_code == 403
+        assert db_session.query(models.Pool).filter_by(id=created["id"]).count() == 1
+
     def test_activity_summary_counts_only_current_users_entries_and_selections(
         self, client, db_session
     ):

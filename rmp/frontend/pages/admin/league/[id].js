@@ -29,6 +29,8 @@ export default function AdminPortal() {
   const [accessMessage, setAccessMessage] = useState('');
   const [savingAccess, setSavingAccess] = useState(false);
   const [passwordChanged, setPasswordChanged] = useState(0);
+  const [deletingPool, setDeletingPool] = useState(false);
+  const [deletePoolMessage, setDeletePoolMessage] = useState('');
   
   // User Management State
   const [resetPasswordData, setResetPasswordData] = useState({ username: '' });
@@ -409,6 +411,30 @@ export default function AdminPortal() {
     return data;
   };
 
+  const handleDeletePool = async () => {
+    if (!league?.id || deletingPool) return;
+    const confirmed = window.confirm(
+      `Delete "${league.name}"? This permanently deletes the pool, entries, picks, messages, and all other pool data. This cannot be undone.`,
+    );
+    if (!confirmed) return;
+
+    setDeletingPool(true);
+    setDeletePoolMessage('');
+    try {
+      const token = localStorage.getItem('access_token');
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/pools/${encodeURIComponent(league.id)}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.detail || 'Unable to delete pool');
+      router.push('/dashboard?message=Pool deleted successfully');
+    } catch (err) {
+      setDeletePoolMessage(err.message || 'Unable to delete pool');
+      setDeletingPool(false);
+    }
+  };
+
   const handleDeleteEntry = async () => {
     if (!deleteEntryData.entryId.trim()) {
       setEntryActionMessage('Enter an entry ID to delete.');
@@ -598,60 +624,19 @@ export default function AdminPortal() {
 
       <LeagueLockSettings league={league} onSave={handleSaveLockSettings} />
 
-      {/* Delete League */}
-      <div style={{ marginBottom: '3rem' }}>
-        <h4 style={{ color: '#2d3748', marginBottom: '1rem' }}>Delete Pool</h4>
-        <div style={{ 
-          backgroundColor: '#fef2f2', 
-          padding: '1.5rem', 
-          borderRadius: '8px',
-          border: '1px solid #fecaca'
-        }}>
-          <div style={{ marginBottom: '1rem' }}>
-            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500', color: '#374151' }}>
-              Select Pool to Delete
-            </label>
-            <select
-              style={{
-                width: '100%',
-                padding: '0.75rem',
-                border: '1px solid #d1d5db',
-                borderRadius: '6px',
-                fontSize: '1rem'
-              }}
-            >
-              <option value="">Select a pool...</option>
-              {leagues.map(league => (
-                <option key={league.id} value={league.id}>{league.name}</option>
-              ))}
-            </select>
+      {(league?.owner_id === user?.id || user?.role === 'SUPER_ADMIN') && (
+        <div className="admin-danger-zone">
+          <div>
+            <span>Danger zone</span>
+            <h4>Delete this pool</h4>
+            <p>Permanently delete <strong>{league?.name}</strong>, including its entries, picks, messages, and settings.</p>
           </div>
-          <div style={{ 
-            backgroundColor: '#fee2e2', 
-            color: '#991b1b', 
-            padding: '1rem', 
-            borderRadius: '6px', 
-            marginBottom: '1rem',
-            fontSize: '0.875rem'
-          }}>
-            ⚠️ Warning: This action cannot be undone. All entries and data associated with this pool will be permanently deleted.
-          </div>
-          <button
-            style={{
-              backgroundColor: '#dc2626',
-              color: 'white',
-              padding: '0.75rem 1.5rem',
-              border: 'none',
-              borderRadius: '6px',
-              cursor: 'pointer',
-              fontSize: '1rem',
-              fontWeight: '500'
-            }}
-          >
-            Delete Selected Pool
+          <button type="button" onClick={handleDeletePool} disabled={deletingPool}>
+            {deletingPool ? 'Deleting…' : 'Delete this pool'}
           </button>
+          {deletePoolMessage && <p className="admin-danger-zone__error" role="alert">{deletePoolMessage}</p>}
         </div>
-      </div>
+      )}
     </div>
   );
 
