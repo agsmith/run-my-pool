@@ -46,7 +46,7 @@ jobs:
         run: python -m pytest tests/ -q --tb=short
 
       - name: Validate payment test traceability
-        working-directory: ../..
+        working-directory: .
         run: python tools/validate_payment_coverage.py
 
       - name: Audit dependencies
