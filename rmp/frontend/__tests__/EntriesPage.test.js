@@ -251,7 +251,9 @@ describe('player entries page', () => {
     installApi({ entries: [{ id: 'entry-1', name: 'Original Name', alive: true }] });
     render(<LeagueEntries />);
 
-    await user.click(await screen.findByRole('button', { name: /original name/i }));
+    const entryName = await screen.findByText('Original Name');
+    expect(entryName.closest('button')).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Rename Original Name' }));
     const input = screen.getByDisplayValue('Original Name');
     await user.clear(input);
     await user.type(input, 'Changed Name');

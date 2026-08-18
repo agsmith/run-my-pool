@@ -1432,34 +1432,8 @@ export default function LeagueEntries() {
                           </button>
                         </div>
                       ) : (
-                        <button className="entries-name-button"
-                          onClick={() => handleStartEditingEntryName(entry)}
-                          style={{ 
-                            background: 'none',
-                            border: 'none',
-                            cursor: 'pointer',
-                            padding: '8px 16px',
-                            borderRadius: '8px',
-                            transition: 'all 0.2s ease',
-                            fontSize: 'inherit',
-                            fontWeight: 'inherit',
-                            fontFamily: 'inherit',
-                            textAlign: 'left',
-                            width: '100%'
-                          }}
-                          onMouseEnter={(e) => {
-                            e.target.style.backgroundColor = '#f0f4ff';
-                            e.target.style.transform = 'translateX(4px)';
-                          }}
-                          onMouseLeave={(e) => {
-                            e.target.style.backgroundColor = 'transparent';
-                            e.target.style.transform = 'translateX(0)';
-                          }}
-                          onFocus={(e) => e.target.style.backgroundColor = '#f0f4ff'}
-                          onBlur={(e) => e.target.style.backgroundColor = 'transparent'}
-                          title="Click to edit entry name"
-                        >
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <div className="entries-name-display">
+                          <div className="entries-name-display__label">
                             {entry.alive === false && (
                               <span style={{ 
                                 color: '#dc3545', 
@@ -1474,7 +1448,16 @@ export default function LeagueEntries() {
                             )}
                             <span>{entry.name}</span>
                           </div>
-                        </button>
+                          <button
+                            type="button"
+                            className="entries-name-edit"
+                            onClick={() => handleStartEditingEntryName(entry)}
+                            aria-label={`Rename ${entry.name}`}
+                            title="Rename entry"
+                          >
+                            Rename
+                          </button>
+                        </div>
                       )}
                     </td>
                     {Array.from({ length: 18 }, (_, i) => i + 1).map(week => (

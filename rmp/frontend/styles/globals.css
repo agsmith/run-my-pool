@@ -675,7 +675,7 @@ table {
 .broadcast-v2--entries .entries-table-scroll { position:relative; max-width:100%; overflow-x:auto!important; overscroll-behavior-inline:contain; border:1px solid #314449; border-radius:0!important; box-shadow:none!important; scrollbar-color:var(--lime) #111a1d; }
 .broadcast-v2--entries .entries-season-table { min-width:1180px; }
 .broadcast-v2--entries .entries-season-table__name { min-width:180px; }
-.broadcast-v2--entries .entries-name-button { color:var(--ink)!important; }
+.broadcast-v2--entries .entries-name-display { color:var(--ink)!important; }
 .broadcast-v2--entries .entries-breakdown { color:var(--ink)!important; background:#10191c!important; border:1px solid #314449!important; border-radius:0!important; }
 .broadcast-v2--entries .entries-breakdown h3 { color:var(--ink)!important; font-family:Impact,'Arial Narrow',sans-serif; font-style:italic; letter-spacing:.03em; text-transform:uppercase; }
 .broadcast-v2--entries .entries-overlay__dialog { color:var(--ink); background:#0e1719!important; border:1px solid #40555a; border-radius:0!important; box-shadow:0 24px 80px rgba(0,0,0,.6); }
@@ -694,8 +694,11 @@ table {
 .broadcast-v2--entries .entries-season-table tbody tr:hover { background:#1a292d!important; transform:none!important; }
 .broadcast-v2--entries .entries-season-table td { color:#dbe4e2!important; border-color:#2d3f43!important; }
 .broadcast-v2--entries .entries-season-table tbody .entries-season-table__name { color:var(--ink)!important; background:inherit!important; }
-.broadcast-v2--entries .entries-name-button { color:var(--ink)!important; background:transparent!important; }
-.broadcast-v2--entries .entries-name-button:hover,.broadcast-v2--entries .entries-name-button:focus { color:var(--ice)!important; background:#1a292d!important; }
+.broadcast-v2--entries .entries-name-display { display:flex; align-items:center; justify-content:space-between; gap:.65rem; min-width:0; padding:8px 10px; }
+.broadcast-v2--entries .entries-name-display__label { display:flex; align-items:center; gap:8px; min-width:0; }
+.broadcast-v2--entries .entries-name-edit { flex:0 0 auto; color:var(--ice); background:transparent; border:1px solid #40555a; padding:5px 7px; cursor:pointer; font:inherit; font-size:.62rem; font-weight:900; letter-spacing:.04em; text-transform:uppercase; }
+.broadcast-v2--entries .entries-name-edit:hover { color:#091012; background:var(--ice); border-color:var(--ice); }
+.broadcast-v2--entries .entries-name-edit:focus-visible { outline:2px solid var(--lime); outline-offset:2px; }
 .broadcast-v2--entries .entries-name-editor input { color:var(--ink)!important; background:#0b1315!important; border-color:var(--ice)!important; border-radius:0!important; }
 .broadcast-v2--entries .entries-season-table__week > button { color:var(--ice)!important; background:#0b1315!important; border-color:#40555a!important; }
 .broadcast-v2--entries .entries-breakdown { color:var(--ink)!important; background:#10191c!important; border-color:#314449!important; }
@@ -747,9 +750,9 @@ table {
   .broadcast-v2--entries .entries-season-table__name { position:sticky; left:0; z-index:2; width:136px; min-width:136px; max-width:136px; padding-inline:8px!important; box-shadow:8px 0 12px rgba(0,0,0,.22); }
   .broadcast-v2--entries thead .entries-season-table__name { z-index:3; background:#111a1d!important; }
   .broadcast-v2--entries tbody .entries-season-table__name { background:#121c1f!important; }
-  .broadcast-v2--entries .entries-name-button { padding:7px 5px!important; overflow:hidden; }
-  .broadcast-v2--entries .entries-name-button > div { min-width:0; flex-direction:column; align-items:flex-start!important; gap:3px!important; }
-  .broadcast-v2--entries .entries-name-button span:last-child { display:block; max-width:116px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .broadcast-v2--entries .entries-name-display { align-items:flex-start; flex-direction:column; gap:6px; padding:7px 5px!important; overflow:hidden; }
+  .broadcast-v2--entries .entries-name-display__label { min-width:0; flex-direction:column; align-items:flex-start!important; gap:3px!important; }
+  .broadcast-v2--entries .entries-name-display__label span:last-child { display:block; max-width:116px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .broadcast-v2--entries .entries-name-editor { display:grid!important; grid-template-columns:1fr 32px 32px; gap:4px!important; }
   .broadcast-v2--entries .entries-name-editor input { width:100%!important; min-width:0!important; padding:7px!important; }
   .broadcast-v2--entries .entries-name-editor button { padding:7px 4px!important; }
