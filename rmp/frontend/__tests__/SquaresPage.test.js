@@ -34,9 +34,15 @@ describe('SquaresPage', () => {
     render(<SquaresPage />);
     expect(await screen.findByRole('heading', { name: 'BUF at MIA' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'BUF at MIA results' })).toBeInTheDocument();
+    const blockName = screen.getByText('Block Name');
+    const grid = screen.getByRole('grid', { name: '10 by 10 Squares board' });
+    expect(blockName.compareDocumentPosition(grid) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(screen.getAllByRole('gridcell')).toHaveLength(100);
-    expect(screen.getByRole('gridcell', { name: 'Block 1, available' })).toBeInTheDocument();
+    const firstBlock = screen.getByRole('gridcell', { name: 'Block 1, available' });
+    expect(firstBlock).toBeInTheDocument();
+    expect(firstBlock.querySelector('.squares-block-number')).toHaveTextContent('1');
     expect(screen.getByRole('gridcell', { name: 'Block 100, available' })).toBeInTheDocument();
+    expect(screen.queryByText('Assign a block')).not.toBeInTheDocument();
     expect(screen.getAllByText('?')).toHaveLength(20);
     await user.type(screen.getByRole('textbox', { name: 'Display name' }), 'Tony S.');
     await user.click(screen.getAllByRole('gridcell')[0]);
@@ -125,7 +131,10 @@ describe('SquaresPage', () => {
     expect(await screen.findByText('$500.00')).toBeInTheDocument();
     expect(screen.getAllByText('Tony S.')).toHaveLength(2);
     expect(screen.queryByText('owner@example.com')).not.toBeInTheDocument();
-    expect(screen.getByRole('gridcell', { name: 'Block 1, reserved by Tony S.' })).toBeDisabled();
+    const claimedBlock = screen.getByRole('gridcell', { name: 'Block 1, reserved by Tony S.' });
+    expect(claimedBlock).toBeDisabled();
+    expect(claimedBlock.querySelector('.squares-block-number')).not.toBeInTheDocument();
+    expect(claimedBlock.querySelector('.squares-block-owner')).toHaveTextContent('Tony S.');
     expect(screen.queryByRole('heading', { name: 'Admin payout setup' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /lock & randomize/i })).not.toBeInTheDocument();
   });
@@ -187,24 +196,6 @@ describe('SquaresPage', () => {
 
     await user.click(await screen.findByRole('button', { name: 'Print / Save PDF' }));
     expect(window.print).toHaveBeenCalledTimes(1);
-  });
-
-  test('lets an admin assign block 36 directly to a selected member', async () => {
-    global.fetch = jest.fn((url, options = {}) => {
-      if (options.method === 'POST' && String(url).endsWith('/claims')) return response({ id: 'claim-36' });
-      return response({ ...board, members: [{ id: 'user-2', email: 'player@example.com' }] });
-    });
-    const user = userEvent.setup();
-    render(<SquaresPage />);
-
-    await user.selectOptions(await screen.findByLabelText('Member'), 'user-2');
-    await user.type(screen.getByLabelText('Display name'), 'Player Two');
-    await user.type(screen.getByLabelText('Block number'), '36');
-    await user.click(screen.getByRole('button', { name: 'Assign block' }));
-
-    await waitFor(() => expect(fetch).toHaveBeenCalledWith('/squares/pool-1/claims', expect.objectContaining({ method: 'POST' })));
-    const request = fetch.mock.calls.find(([, options]) => options?.method === 'POST')[1];
-    expect(JSON.parse(request.body)).toEqual({ row_index: 3, column_index: 5, display_name: 'Player Two', user_id: 'user-2' });
   });
 
   test('requires a display name before reserving a square', async () => {

@@ -1767,15 +1767,11 @@ table {
 .squares-upgrade > a { flex:0 0 auto; padding:.7rem .85rem; color:#071311; background:#d7ff3f; font-size:.7rem; font-weight:900; text-decoration:none; text-transform:uppercase; }
 .squares-upgrade--member { border-color:rgba(159,239,255,.45); border-left-color:#9fefff; background:linear-gradient(110deg,rgba(159,239,255,.11),#10231f 62%); }
 .squares-upgrade--member span { color:#9fefff; }
-.squares-display-name, .squares-manual-assignment { display: flex; align-items: end; gap: .8rem; margin: 1rem 0; padding: 1rem; border: 1px solid #45675f; border-radius: 10px; background: #10231f; }
-.squares-display-name > div, .squares-manual-assignment > div { display: grid; flex: 1; gap: .2rem; }
+.squares-display-name { display: flex; align-items: end; gap: .8rem; margin: 1rem 0; padding: 1rem; border: 1px solid #45675f; border-radius: 10px; background: #10231f; }
+.squares-display-name > div { display: grid; flex: 1; gap: .2rem; }
 .squares-display-name > div span { color: #a9bcb7; font-size: .85rem; }
 .squares-display-name label { display: grid; gap: .3rem; color: #dceae6; font-size: .78rem; font-weight: 800; }
 .squares-display-name input { min-width: 220px; min-height: 40px; padding: .45rem .6rem; border: 1px solid #56736c; border-radius: 6px; background: #071311; color: #fff; }
-.squares-manual-assignment > div span { color: #a9bcb7; font-size: .85rem; }
-.squares-manual-assignment label { display: grid; gap: .3rem; color: #dceae6; font-size: .78rem; font-weight: 800; }
-.squares-manual-assignment select, .squares-manual-assignment input { min-height: 40px; padding: .45rem .6rem; border: 1px solid #56736c; border-radius: 6px; background: #071311; color: #fff; }
-.squares-manual-assignment input { width: 88px; }
 .squares-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .75rem; margin: 1rem 0; }
 .squares-summary > div { display: grid; gap: .25rem; padding: .85rem 1rem; border: 1px solid #35534c; border-radius: 10px; background: #0c1b18; }
 .squares-summary span { color: #9eb2ad; font-size: .74rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
@@ -1786,7 +1782,7 @@ table {
 .squares-row { display: contents; }
 .squares-corner, .squares-axis { min-height: 58px; display: grid; place-items: center; text-align: center; background: #10231f; color: #d7ff3f; font-weight: 800; }
 .squares-cell { position: relative; min-height: 64px; border: 0; background: #edf7f3; color: #18342d; font-size: .78rem; overflow: hidden; padding: .3rem; }
-.squares-block-number { position: absolute; top: 3px; left: 5px; color: #36544c; font-size: .65rem; font-weight: 900; line-height: 1; }
+.squares-block-number { display: grid; width: 100%; height: 100%; place-items: center; color: #36544c; font-size: .78rem; font-weight: 900; line-height: 1; }
 .squares-block-owner { display: block; max-width: 100%; padding-top: .65rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .squares-cell:not(:disabled):hover { background: #d7ff3f; }
 .squares-cell.is-claimed { background: #8ccfc2; font-weight: 700; }
@@ -1826,9 +1822,8 @@ table {
   .squares-summary { grid-template-columns: 1fr; }
   .squares-upgrade { align-items:stretch; flex-direction:column; }
   .squares-upgrade > a { text-align:center; }
-  .squares-display-name, .squares-manual-assignment { align-items: stretch; flex-direction: column; }
+  .squares-display-name { align-items: stretch; flex-direction: column; }
   .squares-display-name input { box-sizing: border-box; min-width: 0; width: 100%; }
-  .squares-manual-assignment input { box-sizing: border-box; width: 100%; }
   .squares-pot { align-items: stretch; flex-direction: column; }
 }
 @media print {
@@ -1841,7 +1836,6 @@ table {
   .squares-page .squares-screen-actions,
   .squares-page .squares-upgrade,
   .squares-page .squares-display-name,
-  .squares-page .squares-manual-assignment,
   .squares-page .squares-pot { display: none!important; }
   .squares-print-header { display: block; margin: 0 0 .12in; border-bottom: 2px solid #17312b; }
   .squares-print-header span { font-size: 9pt; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }

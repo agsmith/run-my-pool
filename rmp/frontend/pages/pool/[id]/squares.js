@@ -16,8 +16,6 @@ export default function SquaresPage() {
   const [busy, setBusy] = useState(false);
   const [pot, setPot] = useState('');
   const [potMode, setPotMode] = useState('fixed');
-  const [claimFor, setClaimFor] = useState('');
-  const [manualBlock, setManualBlock] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [editingUserId, setEditingUserId] = useState('');
   const [editingDisplayName, setEditingDisplayName] = useState('');
@@ -56,30 +54,13 @@ export default function SquaresPage() {
     try {
       const response = await fetch(claim ? `${process.env.NEXT_PUBLIC_API_URL}/squares/${query.id}/claims/${claim.id}` : `${process.env.NEXT_PUBLIC_API_URL}/squares/${query.id}/claims`, {
         method: claim ? 'DELETE' : 'POST', headers: { ...authHeaders(), 'Content-Type': 'application/json' },
-        body: claim ? undefined : JSON.stringify({ row_index: row, column_index: column, display_name: normalizedDisplayName, ...(claimFor ? { user_id: claimFor } : {}) }),
+        body: claim ? undefined : JSON.stringify({ row_index: row, column_index: column, display_name: normalizedDisplayName }),
       });
       const data = response.status === 204 ? {} : await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.detail || 'Unable to update that square.');
       await load();
       return true;
     } catch (err) { setError(err.message); return false; } finally { setBusy(false); }
-  };
-
-  const assignBlock = async (event) => {
-    event.preventDefault();
-    const blockNumber = Number(manualBlock);
-    if (!Number.isInteger(blockNumber) || blockNumber < 1 || blockNumber > 100) {
-      setError('Enter a block number from 1 to 100.');
-      return;
-    }
-    const row = Math.floor((blockNumber - 1) / 10);
-    const column = (blockNumber - 1) % 10;
-    const existing = claims[`${row}-${column}`];
-    if (existing) {
-      setError(`Block ${blockNumber} is already reserved by ${existing.display_name || existing.user_email}.`);
-      return;
-    }
-    if (await choose(row, column)) setManualBlock('');
   };
 
   const lock = async () => {
@@ -139,8 +120,6 @@ export default function SquaresPage() {
     {error && <div className="workspace-alert workspace-alert--error">{error}</div>}
     {board.permissions.is_admin && board.plan === 'free' && <aside className="squares-upgrade"><div><span>Free · Owner-managed</span><strong>All 100 blocks are available for you to manage</strong><p>Collect selections from players yourself, enter their display name, and reserve their requested blocks. Players cannot join this free board online. Upgrade to Squares Plus to invite players and let them reserve their own blocks.</p></div><Link href="/pricing?checkout=squares-plus">Enable online player access for $10</Link></aside>}
     {board.permissions.is_admin && board.plan === 'squares-plus' && <aside className="squares-upgrade"><div><span>Squares Plus</span><strong>All 100 self-service blocks are open</strong><p>Upgrade to Commish for admin member assignment and per-reservation pots.</p></div><Link href="/pricing?checkout=commissioner">Upgrade to Commish for $29</Link></aside>}
-    {!board.locked && <section className="squares-display-name"><div><strong>{board.plan === 'free' ? 'Player display name' : 'Board display name'}</strong><span>{board.plan === 'free' ? 'Enter the name of the player whose externally received block selections you are recording. Change it before entering blocks for another player.' : 'This is the name other players will see instead of your account email.'}</span></div><label>Display name<input type="text" maxLength="100" autoComplete="nickname" value={displayName} onChange={(event) => setDisplayName(event.target.value)} placeholder="Example: Tony S." /></label></section>}
-    {board.permissions.is_admin && !board.locked && board.permissions.can_admin_assign && <form className="squares-manual-assignment" onSubmit={assignBlock}><div><strong>Assign a block</strong><span>Choose a member, enter their board display name, then enter any available number from 1–100. Grid clicks also assign to this member.</span></div><label>Member<select value={claimFor} onChange={(event) => { setClaimFor(event.target.value); setDisplayName(''); }}><option value="">Myself</option>{(board.members || []).filter((member) => member.id !== user?.id).map((member) => <option key={member.id} value={member.id}>{member.email}</option>)}</select></label><label>Block number<input type="number" min="1" max="100" step="1" inputMode="numeric" value={manualBlock} onChange={(event) => setManualBlock(event.target.value)} placeholder="1–100" /></label><button type="submit" disabled={busy || !manualBlock || !displayName.trim()}>Assign block</button></form>}
     <section className="squares-summary" aria-label="Squares pool summary">
       <div><span>Total pot</span><strong>{board.total_pot_cents == null ? 'Not set' : `$${(board.total_pot_cents / 100).toFixed(2)}`}</strong>{board.pot_mode === 'per_square' && board.per_square_cents != null && <small>${(board.per_square_cents / 100).toFixed(2)} per reserved block</small>}</div>
       <div><span>Reserved</span><strong>{board.claims.length}/{board.block_limit ?? 100} included</strong><small>100 blocks on the board</small></div>
@@ -148,12 +127,13 @@ export default function SquaresPage() {
     </section>
     <p className="squares-instructions">Home score runs down the left. Away score runs across the top. {!board.locked && 'Score digits are generated randomly by the server when the board locks.'}</p>
     <section className="squares-games" aria-labelledby="squares-games-heading"><div><h2 id="squares-games-heading">Games on this board</h2><p>The same grid and score digits apply to every matchup.</p></div><ul>{games.map((item) => <li key={item.game_id}><strong>{item.away_team.abbrv} at {item.home_team.abbrv}</strong><span>{new Date(item.start_time).toLocaleString()}</span></li>)}</ul></section>
+    {!board.locked && <section className="squares-display-name"><div><strong>{board.plan === 'free' ? 'Player display name' : 'Block Name'}</strong><span>{board.plan === 'free' ? 'Enter the name of the player whose externally received block selections you are recording. Change it before entering blocks for another player.' : 'This is the name other players will see instead of your account email.'}</span></div><label>Display name<input type="text" maxLength="100" autoComplete="nickname" value={displayName} onChange={(event) => setDisplayName(event.target.value)} placeholder="Example: Tony S." /></label></section>}
     <div className="squares-scroll"><div className="squares-grid" role="grid" aria-label="10 by 10 Squares board">
       <div className="squares-corner">HOME ↓<br />AWAY →</div>
       {Array.from({ length: 10 }, (_, col) => <div className="squares-axis" key={`a${col}`}>{board.away_digits?.[col] ?? '?'}</div>)}
       {Array.from({ length: 10 }, (_, row) => <div className="squares-row" key={row}>
         <div className="squares-axis">{board.home_digits?.[row] ?? '?'}</div>
-        {Array.from({ length: 10 }, (_, col) => { const claim = claims[`${row}-${col}`]; const blockNumber = row * 10 + col + 1; const mayRelease = claim?.user_id === user?.id || board.permissions.is_admin; const owner = claim?.display_name || 'Reserved player'; return <button key={col} role="gridcell" aria-label={claim ? `Block ${blockNumber}, reserved by ${owner}` : `Block ${blockNumber}, available`} disabled={busy || board.locked || (!board.permissions.can_claim && !claim) || (claim && !mayRelease)} className={`squares-cell ${claim ? 'is-claimed' : ''} ${claim?.user_id === user?.id ? 'is-mine' : ''}`} onClick={() => choose(row, col)} title={claim ? `Block ${blockNumber} · Reserved by ${owner}` : `Block ${blockNumber} · Available`}><span className="squares-block-number">{blockNumber}</span>{claim && <span className="squares-block-owner">{owner}</span>}</button>; })}
+        {Array.from({ length: 10 }, (_, col) => { const claim = claims[`${row}-${col}`]; const blockNumber = row * 10 + col + 1; const mayRelease = claim?.user_id === user?.id || board.permissions.is_admin; const owner = claim?.display_name || 'Reserved player'; return <button key={col} role="gridcell" aria-label={claim ? `Block ${blockNumber}, reserved by ${owner}` : `Block ${blockNumber}, available`} disabled={busy || board.locked || (!board.permissions.can_claim && !claim) || (claim && !mayRelease)} className={`squares-cell ${claim ? 'is-claimed' : ''} ${claim?.user_id === user?.id ? 'is-mine' : ''}`} onClick={() => choose(row, col)} title={claim ? `Block ${blockNumber} · Reserved by ${owner}` : `Block ${blockNumber} · Available`}>{claim ? <span className="squares-block-owner">{owner}</span> : <span className="squares-block-number">{blockNumber}</span>}</button>; })}
       </div>)}
     </div></div>
     <section className="squares-reservations" aria-labelledby="squares-reservations-heading">
