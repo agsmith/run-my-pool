@@ -72,7 +72,7 @@ def create_entry(
                     lock_time = datetime.fromisoformat(lock_time)
                 except ValueError:
                     lock_time = None
-            if lock_time and lock_time < datetime.now(timezone.utc).replace(
+            if lock_time and lock_time <= datetime.now(timezone.utc).replace(
                 tzinfo=None
             ):
                 raise HTTPException(
@@ -309,7 +309,7 @@ def delete_entry(
                     lock_time = datetime.fromisoformat(lock_time)
                 except ValueError:
                     lock_time = None
-            if lock_time and lock_time < now:
+            if lock_time and lock_time <= now:
                 raise HTTPException(
                     status_code=423,
                     detail="Pool is locked. Entry deletion is not allowed after the lock time.",

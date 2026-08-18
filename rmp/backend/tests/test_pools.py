@@ -740,6 +740,37 @@ class TestPoolJoining:
             == "League registration is closed. Contact the league admin."
         )
 
+    def test_saved_registration_lock_blocks_join_and_new_entries(self, client):
+        owner = _register(client, "saved.deadline.owner@example.com")
+        pool = client.post(
+            "/pools/create",
+            json={"name": "Saved Deadline Pool", "is_private": False},
+            headers=owner,
+        ).json()
+        past = (datetime.now(timezone.utc) - timedelta(minutes=5)).strftime(
+            "%Y-%m-%d %H:%M:%S"
+        )
+
+        saved = client.patch(
+            f"/pools/{pool['id']}",
+            json={"join_lock_time": past},
+            headers=owner,
+        )
+        assert saved.status_code == 200, saved.text
+        assert saved.json()["join_lock_time"] is not None
+
+        member = _register(client, "saved.deadline.member@example.com")
+        join = client.post(f"/pools/{pool['id']}/join", json={}, headers=member)
+        entry = client.post(
+            "/entries/create",
+            json={"pool_id": pool["id"], "name": "Late Entry"},
+            headers=member,
+        )
+
+        assert join.status_code == 423
+        assert entry.status_code == 423
+        assert "locked" in entry.json()["detail"].lower()
+
     def test_owner_can_save_recurring_weekly_lock(self, client):
         owner = _register(client, "recurring.owner@example.com")
         pool = client.post(

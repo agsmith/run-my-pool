@@ -39,12 +39,22 @@ describe('LeagueLockSettings', () => {
 
   test('rehydrates and changes the registration deadline independently', async () => {
     const onSave = jest.fn().mockResolvedValue({});
+    const showPicker = jest.fn();
     render(<LeagueLockSettings league={league} onSave={onSave} />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Change registration lock' }));
-    expect(screen.getByLabelText('Registration lock date')).toHaveValue('2026-09-01');
-    expect(screen.getByLabelText('Registration lock time')).toHaveValue('12:00');
-    fireEvent.change(screen.getByLabelText('Registration lock date'), { target: { value: '2026-09-08' } });
+    const dateInput = screen.getByLabelText('Registration lock date');
+    const timeInput = screen.getByLabelText('Registration lock time');
+    dateInput.showPicker = showPicker;
+    timeInput.showPicker = showPicker;
+    expect(dateInput).toHaveAttribute('type', 'date');
+    expect(timeInput).toHaveAttribute('type', 'time');
+    expect(dateInput).toHaveValue('2026-09-01');
+    expect(timeInput).toHaveValue('12:00');
+    fireEvent.click(dateInput);
+    fireEvent.click(timeInput);
+    expect(showPicker).toHaveBeenCalledTimes(2);
+    fireEvent.change(dateInput, { target: { value: '2026-09-08' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
 
     await waitFor(() => expect(onSave).toHaveBeenCalledWith({ join_lock_time: '2026-09-08 16:00:00' }));

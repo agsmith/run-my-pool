@@ -12,6 +12,14 @@ export const DAYS_OF_WEEK = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Frid
 
 const pad = (value) => String(value).padStart(2, '0');
 
+const openNativePicker = (event) => {
+  try {
+    event.currentTarget.showPicker?.();
+  } catch {
+    // Browsers without programmatic picker support still use the native control.
+  }
+};
+
 const asUtcDate = (value) => {
   if (!value) return null;
   const normalized = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(value) ? value : `${value.replace(' ', 'T')}Z`;
@@ -191,8 +199,8 @@ export default function LeagueLockSettings({ league, onSave }) {
       )}
       {activeModal === 'registration' && (
         <Modal title="Change registration lock" description="Set the final date and time when members can join or manage entries." onClose={() => setActiveModal(null)} onSave={saveRegistration} saving={saving}>
-          <label>Date<input aria-label="Registration lock date" type="date" value={registration.date} onChange={(event) => setRegistration({ ...registration, date: event.target.value })} /></label>
-          <label>Time<input aria-label="Registration lock time" type="time" value={registration.time} onChange={(event) => setRegistration({ ...registration, time: event.target.value })} /></label>
+          <label>Date<input aria-label="Registration lock date" type="date" value={registration.date} onClick={openNativePicker} onChange={(event) => setRegistration({ ...registration, date: event.target.value })} /></label>
+          <label>Time<input aria-label="Registration lock time" type="time" value={registration.time} onClick={openNativePicker} onChange={(event) => setRegistration({ ...registration, time: event.target.value })} /></label>
           <label>Timezone<select value={registration.timezone} onChange={(event) => setRegistration({ ...registration, timezone: event.target.value })}>{TIMEZONES.map((timezone) => <option key={timezone.iana} value={timezone.iana}>{timezone.label}</option>)}</select></label>
         </Modal>
       )}
