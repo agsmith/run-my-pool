@@ -23,8 +23,8 @@ describe('PoolLeaderboardPage', () => {
       if (path === '/pools/pool-1') return response({ id: 'pool-1', name: 'Office Survivor', pool_type: 'survivor' });
       if (path === '/pools/pool-1/is-admin') return response({ has_admin_access: false });
       if (path === '/picks/pool/pool-1/leaderboard') return response([
-        { rank: 1, entry_id: 'entry-1', entry_name: 'Alpha Blitz', user_display_name: 'alpha', correct_picks: 4, completed_picks: 4, alive: true, picks: [{ week: 1, team: 'BUF', result: 'win' }, { week: 2, team: 'MIA', result: 'win' }] },
-        { rank: 2, entry_id: 'entry-2', entry_name: 'Goal Line', user_display_name: 'goal', correct_picks: 2, completed_picks: 3, alive: false, picks: [{ week: 1, team: 'DAL', result: 'loss' }] },
+        { rank: 2, entry_id: 'entry-1', entry_name: 'Alpha Blitz', user_display_name: 'alpha', correct_picks: 0, completed_picks: 0, alive: true, picks: [] },
+        { rank: 1, entry_id: 'entry-2', entry_name: 'Goal Line', user_display_name: 'goal', correct_picks: 2, completed_picks: 3, alive: false, picks: [{ week: 1, team: 'DAL', result: 'win' }, { week: 2, team: 'BUF', result: 'win' }, { week: 3, team: 'MIA', result: 'loss' }] },
       ]);
       throw new Error(`Unexpected request ${path}`);
     });
@@ -35,21 +35,21 @@ describe('PoolLeaderboardPage', () => {
     localStorage.clear();
   });
 
-  test('shows survivor entries with only picks remaining and orders alive entries first', async () => {
+  test('shows only weeks survived and orders survivor entries highest to lowest', async () => {
     render(<PoolLeaderboardPage />);
 
     expect(await screen.findByText('Alpha Blitz')).toBeInTheDocument();
     expect(screen.getByText('Goal Line')).toBeInTheDocument();
     expect(screen.getByLabelText('Rank 1')).toHaveTextContent('1');
-    expect(screen.getByLabelText('1 picks remaining')).toHaveTextContent('1');
-    expect(screen.getByLabelText('0 picks remaining')).toHaveTextContent('0');
+    expect(screen.getByLabelText('2 weeks survived')).toHaveTextContent('2');
+    expect(screen.getByLabelText('0 weeks survived')).toHaveTextContent('0');
     expect(screen.queryByText('Correct')).not.toBeInTheDocument();
     expect(screen.queryByText('Final picks')).not.toBeInTheDocument();
     expect(screen.queryByText('Eliminated')).not.toBeInTheDocument();
-    expect(screen.getByLabelText('Alpha Blitz revealed picks')).toHaveTextContent('W1 BUF');
+    expect(screen.getByLabelText('Goal Line revealed picks')).toHaveTextContent('W1 DAL');
     const entries = screen.getByRole('region', { name: 'Pool leaderboard' }).querySelectorAll('.leaderboard-entry');
-    expect(entries[0]).toHaveTextContent('Alpha Blitz');
-    expect(entries[1]).toHaveTextContent('Goal Line');
+    expect(entries[0]).toHaveTextContent('Goal Line');
+    expect(entries[1]).toHaveTextContent('Alpha Blitz');
     expect(screen.getByRole('link', { name: 'Leaderboard' })).toHaveAttribute('aria-current', 'page');
   });
 
