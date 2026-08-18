@@ -1,5 +1,6 @@
 import '@testing-library/jest-dom';
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import PoolMembersPage from '../pages/pool/[id]/members';
 
 process.env.NEXT_PUBLIC_API_URL = '';
@@ -34,7 +35,8 @@ describe('PoolMembersPage', () => {
     localStorage.clear();
   });
 
-  test('shows every pool member in remaining-entry order with remaining and total counts', async () => {
+  test('defaults to alphabetical order and sorts by remaining picks', async () => {
+    const user = userEvent.setup();
     render(<PoolMembersPage />);
 
     expect(await screen.findByText('owner')).toBeInTheDocument();
@@ -45,9 +47,20 @@ describe('PoolMembersPage', () => {
     expect(screen.getByText('2 members')).toBeInTheDocument();
     expect(screen.getByLabelText('3 of 4 entries remaining')).toHaveTextContent('3/4');
     expect(screen.getByLabelText('1 of 3 entries remaining')).toHaveTextContent('1/3');
-    const memberCards = screen.getByRole('region', { name: 'Pool members' }).querySelectorAll('.pool-member-card');
+    let memberCards = screen.getByRole('region', { name: 'Pool members' }).querySelectorAll('.pool-member-card');
     expect(memberCards[0]).toHaveTextContent('member');
     expect(memberCards[1]).toHaveTextContent('owner');
+    await user.click(screen.getByRole('button', { name: 'Picks Remaining' }));
+    memberCards = screen.getByRole('region', { name: 'Pool members' }).querySelectorAll('.pool-member-card');
+    expect(memberCards[0]).toHaveTextContent('member');
+    expect(memberCards[1]).toHaveTextContent('owner');
+    await user.click(screen.getByRole('button', { name: 'Picks Remaining High–Low' }));
+    memberCards = screen.getByRole('region', { name: 'Pool members' }).querySelectorAll('.pool-member-card');
+    expect(memberCards[0]).toHaveTextContent('owner');
+    expect(memberCards[1]).toHaveTextContent('member');
+    await user.click(screen.getByRole('button', { name: 'Name' }));
+    memberCards = screen.getByRole('region', { name: 'Pool members' }).querySelectorAll('.pool-member-card');
+    expect(memberCards[0]).toHaveTextContent('member');
     expect(screen.getByRole('link', { name: 'Members' })).toHaveAttribute('aria-current', 'page');
     expect(fetch).toHaveBeenCalledWith('/pools/pool-1/members', expect.objectContaining({
       headers: { Authorization: 'Bearer token' },

@@ -24,7 +24,7 @@
 .leaderboard-state { padding:2rem; border:1px dashed var(--bn-line); color:var(--bn-muted); text-align:center; }
 .leaderboard-list { display:grid; gap:.75rem; }
 .leaderboard-entry { display:grid; grid-template-columns:48px minmax(180px,1fr) 90px 90px auto; gap:1rem; align-items:center; padding:1rem; border:1px solid var(--bn-line); background:linear-gradient(145deg,var(--bn-panel),var(--bn-panel-soft)); }
-.leaderboard-entry__rank { display:grid; place-items:center; width:42px; height:42px; color:#091012; background:var(--bn-lime); font-size:1.1rem; font-weight:950; }
+.leaderboard-entry__rank { display:grid; place-items:center; width:42px; height:42px; color:#d7ff3f!important; background:#111a1d!important; border:2px solid #d7ff3f; font-size:1.1rem; font-weight:950; }
 .leaderboard-entry__identity,.leaderboard-entry__score,.leaderboard-entry__record { display:flex; flex-direction:column; min-width:0; }
 .leaderboard-entry__identity strong { color:var(--bn-ink); overflow-wrap:anywhere; }
 .leaderboard-entry__identity span,.leaderboard-entry__score span,.leaderboard-entry__record span { color:var(--bn-muted); font-size:.7rem; font-weight:800; letter-spacing:.06em; text-transform:uppercase; }
@@ -1217,6 +1217,10 @@ table {
 .pool-members-page { width:100%; overflow-x:hidden; }
 .pool-members-main { display:grid; gap:1.35rem; }
 .pool-members-list { display:grid; grid-template-columns:minmax(0,1fr); gap:.65rem; }
+.pool-members-sort { display:flex; align-items:center; flex-wrap:wrap; gap:.55rem; margin-bottom:.75rem; color:var(--muted,#9aabad); font-size:.72rem; font-weight:800; letter-spacing:.04em; text-transform:uppercase; }
+.pool-members-sort button { min-height:36px; padding:.45rem .7rem; color:var(--ice,#9fefff); background:#0d1517; border:1px solid #40555a; cursor:pointer; font:inherit; }
+.pool-members-sort button[aria-pressed="true"] { color:#091012; background:var(--lime,#d7ff3f); border-color:var(--lime,#d7ff3f); }
+.pool-members-sort button:focus-visible { outline:2px solid var(--ice,#9fefff); outline-offset:2px; }
 .pool-member-card { display:grid; grid-template-columns:auto minmax(0,1fr) auto; align-items:center; width:100%; gap:.9rem; padding:1rem 1.1rem; overflow:hidden; background:#0d1517; border:1px solid #314449; }
 .pool-member-card__avatar { display:grid; place-items:center; width:42px; height:42px; color:#091012; background:var(--lime,#d7ff3f); border-radius:50%; font-weight:950; }
 .pool-member-card > div:nth-child(2) { display:grid; min-width:0; gap:.15rem; }

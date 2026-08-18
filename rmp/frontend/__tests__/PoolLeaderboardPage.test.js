@@ -35,15 +35,21 @@ describe('PoolLeaderboardPage', () => {
     localStorage.clear();
   });
 
-  test('shows every ranked entry and its revealed pick history', async () => {
+  test('shows survivor entries with only picks remaining and orders alive entries first', async () => {
     render(<PoolLeaderboardPage />);
 
     expect(await screen.findByText('Alpha Blitz')).toBeInTheDocument();
     expect(screen.getByText('Goal Line')).toBeInTheDocument();
     expect(screen.getByLabelText('Rank 1')).toHaveTextContent('1');
-    expect(screen.getByLabelText('4 correct picks')).toHaveTextContent('4');
-    expect(screen.getByText('Eliminated')).toBeInTheDocument();
+    expect(screen.getByLabelText('1 picks remaining')).toHaveTextContent('1');
+    expect(screen.getByLabelText('0 picks remaining')).toHaveTextContent('0');
+    expect(screen.queryByText('Correct')).not.toBeInTheDocument();
+    expect(screen.queryByText('Final picks')).not.toBeInTheDocument();
+    expect(screen.queryByText('Eliminated')).not.toBeInTheDocument();
     expect(screen.getByLabelText('Alpha Blitz revealed picks')).toHaveTextContent('W1 BUF');
+    const entries = screen.getByRole('region', { name: 'Pool leaderboard' }).querySelectorAll('.leaderboard-entry');
+    expect(entries[0]).toHaveTextContent('Alpha Blitz');
+    expect(entries[1]).toHaveTextContent('Goal Line');
     expect(screen.getByRole('link', { name: 'Leaderboard' })).toHaveAttribute('aria-current', 'page');
   });
 
