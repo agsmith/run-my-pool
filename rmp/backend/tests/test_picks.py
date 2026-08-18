@@ -208,7 +208,7 @@ class TestPickEndpoints:
         assert [pick["team"] for pick in rows[0]["picks"]] == ["BUF", "MIA", "NYJ"]
         assert rows[1]["rank"] == 2
         assert rows[1]["alive"] is False
-        assert rows[1]["user_display_name"] == "leaderboard.member"
+        assert rows[1]["user_display_name"] == f"member.{pool_type}"
         assert "user_email" not in rows[1]
 
     def test_pool_leaderboard_requires_membership(self, client):
