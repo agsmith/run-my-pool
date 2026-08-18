@@ -8,6 +8,7 @@ from typing import List
 import uuid
 from datetime import datetime, timedelta, timezone
 from audit_utils import log_create_operation, log_delete_operation
+from public_identity import public_display_name
 
 router = APIRouter(prefix="/messages", tags=["messages"])
 
@@ -56,7 +57,7 @@ def list_pool_messages(
             "user_id": message.user_id,
             "message": message.message,
             "created_at": message.created_at.isoformat() if message.created_at else "",
-            "user_email": user.email,
+            "user_display_name": public_display_name(user),
         }
         result.append(schemas.MessageBoardOut(**message_dict))
 
@@ -145,7 +146,7 @@ def post_message(
         user_id=db_message.user_id,
         message=db_message.message,
         created_at=db_message.created_at.isoformat(),
-        user_email=current_user.email,
+        user_display_name=public_display_name(current_user),
     )
 
 

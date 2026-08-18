@@ -37,7 +37,7 @@ describe('PickEmPage', () => {
       const path = String(url);
       if (path === '/pools/pool-1') return response({ id: 'pool-1', name: 'Office Pick Em', pool_type: 'pickem' });
       if (path === '/entries/pool/pool-1') return response([{ id: 'entry-1', name: 'My Card' }]);
-      if (path === '/picks/pool/pool-1/standings') return response([{ rank: 1, entry_id: 'entry-1', entry_name: 'My Card', user_email: 'me@example.com', points: 4, possible_points: 5 }]);
+      if (path === '/picks/pool/pool-1/standings') return response([{ rank: 1, entry_id: 'entry-1', entry_name: 'My Card', user_display_name: 'me', points: 4, possible_points: 5 }]);
       if (path === '/schedule/week/1') return response([game]);
       if (path === '/picks/entry/entry-1') return response([]);
       if (path === '/picks/create' && options.method === 'POST') {

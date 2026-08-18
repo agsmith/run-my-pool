@@ -35,8 +35,8 @@ export default function PoolMembersPage() {
     <WorkspaceHeader eyebrow="Pool roster" title="Members" description="Everyone currently participating in this pool." meta={directory ? `${directory.total_users} ${directory.total_users === 1 ? 'member' : 'members'}` : null} />
     {error ? <div className="workspace-alert workspace-alert--error" role="alert">{error}</div> : !directory ? <div className="pool-members-state">Loading members…</div> : directory.users.length === 0 ? <div className="pool-members-state">No members have joined this pool yet.</div> : <section className="pool-members-list" aria-label="Pool members">
       {directory.users.map((member) => <article key={member.id} className="pool-member-card">
-        <div className="pool-member-card__avatar" aria-hidden="true">{member.email.slice(0, 1).toUpperCase()}</div>
-        <div><strong>{member.email}</strong><span>{member.pool_role}</span></div>
+        <div className="pool-member-card__avatar" aria-hidden="true">{member.display_name.slice(0, 1).toUpperCase()}</div>
+        <div><strong>{member.display_name}</strong><span>{member.pool_role}</span></div>
         <div className="pool-member-card__entries" aria-label={`${member.remaining_entry_count} of ${member.total_entry_count} entries remaining`}><strong>{member.remaining_entry_count}/{member.total_entry_count}</strong><span>Remaining / Total</span></div>
       </article>)}
     </section>}

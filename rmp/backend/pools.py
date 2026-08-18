@@ -22,6 +22,7 @@ from cryptography.fernet import Fernet, InvalidToken
 from app_logging import log_event
 from platform_admin import is_platform_super_admin
 from email_service import send_pool_invitation_email
+from public_identity import public_display_name
 
 logger = logging.getLogger("runmypool.pools")
 
@@ -583,7 +584,7 @@ def get_pool_members(
     result = [
         {
             "id": user.id,
-            "email": user.email,
+            "display_name": public_display_name(user),
             "pool_role": pool_role(user.id),
             "entry_count": entry_counts.get(user.id, {}).get("total", 0),
             "remaining_entry_count": entry_counts.get(user.id, {}).get("remaining", 0),
@@ -598,7 +599,7 @@ def get_pool_members(
         key=lambda user: (
             -user["remaining_entry_count"],
             -user["total_entry_count"],
-            user["email"].lower(),
+            user["display_name"].lower(),
         )
     )
     return {"pool_id": pool_id, "total_users": len(result), "users": result}

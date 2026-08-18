@@ -149,7 +149,7 @@ function PickBreakdownPanel({ data, week, loading, error, locked }) {
           <div className="admin-user-overview__table-wrap"><table className="admin-user-overview__table">
             <thead><tr><th>User</th><th>Entries</th></tr></thead>
             <tbody>{(selectedBreakdown.users || []).map((pickedUser) => <tr key={pickedUser.user_id}>
-              <td data-label="User"><strong>{pickedUser.email}</strong></td>
+              <td data-label="User"><strong>{pickedUser.display_name}</strong></td>
               <td data-label="Entries">{pickedUser.entry_count}</td>
             </tr>)}</tbody>
           </table></div>

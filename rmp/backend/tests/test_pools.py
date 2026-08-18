@@ -597,16 +597,17 @@ class TestPoolEndpoints:
         assert response.json()["total_users"] == 2
         assert [
             (
-                user["email"],
+                user["display_name"],
                 user["pool_role"],
                 user["remaining_entry_count"],
                 user["total_entry_count"],
             )
             for user in response.json()["users"]
         ] == [
-            ("directory.member@example.com", "Member", 2, 3),
-            ("directory.owner@example.com", "Commissioner", 1, 2),
+            ("directory.member", "Member", 2, 3),
+            ("directory.owner", "Commissioner", 1, 2),
         ]
+        assert all("email" not in user for user in response.json()["users"])
         assert denied.status_code == 403
         assert denied.json()["detail"] == "League membership required"
 

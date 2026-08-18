@@ -208,7 +208,8 @@ class TestPickEndpoints:
         assert [pick["team"] for pick in rows[0]["picks"]] == ["BUF", "MIA", "NYJ"]
         assert rows[1]["rank"] == 2
         assert rows[1]["alive"] is False
-        assert rows[1]["user_email"] == member.email
+        assert rows[1]["user_display_name"] == "leaderboard.member"
+        assert "user_email" not in rows[1]
 
     def test_pool_leaderboard_requires_membership(self, client):
         owner_token = _register_and_login(client, email="leaderboard.owner@example.com")
@@ -565,8 +566,8 @@ class TestPickBreakdown:
         assert item["team_abbrv"] == "BUF"
         assert item["count"] == 3
         assert item["users"] == [
-            {"user_id": item["users"][0]["user_id"], "email": "reveal.member@example.com", "entry_count": 1},
-            {"user_id": item["users"][1]["user_id"], "email": "reveal.owner@example.com", "entry_count": 2},
+            {"user_id": item["users"][0]["user_id"], "display_name": "reveal.member", "entry_count": 1},
+            {"user_id": item["users"][1]["user_id"], "display_name": "reveal.owner", "entry_count": 2},
         ]
         assert sum(user["entry_count"] for user in item["users"]) == item["count"]
 

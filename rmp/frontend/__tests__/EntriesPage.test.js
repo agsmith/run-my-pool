@@ -277,8 +277,8 @@ describe('player entries page', () => {
       breakdown: [{
         team: 'BUF', team_id: 1, team_name: 'Buffalo Bills', team_abbrv: 'BUF', count: 3,
         users: [
-          { user_id: 'user-1', email: 'player@example.com', entry_count: 2 },
-          { user_id: 'user-2', email: 'friend@example.com', entry_count: 1 },
+          { user_id: 'user-1', display_name: 'player', entry_count: 2 },
+          { user_id: 'user-2', display_name: 'friend', entry_count: 1 },
         ],
       }],
     });
@@ -288,8 +288,9 @@ describe('player entries page', () => {
     expect(breakdownLogo).toHaveClass('entries-team-logo', 'entries-team-logo--breakdown');
     await user.click(await screen.findByRole('button', { name: 'Show users who picked BUF' }));
     const dialog = screen.getByRole('dialog', { name: 'BUF picks' });
-    expect(within(dialog).getByText('player@example.com')).toBeInTheDocument();
-    expect(within(dialog).getByText('friend@example.com')).toBeInTheDocument();
+    expect(within(dialog).getByText('player')).toBeInTheDocument();
+    expect(within(dialog).getByText('friend')).toBeInTheDocument();
+    expect(within(dialog).queryByText(/@example\.com/)).not.toBeInTheDocument();
     expect(within(dialog).getByText('2')).toBeInTheDocument();
     expect(within(dialog).getByText('1')).toBeInTheDocument();
     await user.click(within(dialog).getByRole('button', { name: 'Close pick details' }));
@@ -305,7 +306,7 @@ describe('player entries page', () => {
         '1': [],
         '2': [{
           team: 'MIA', team_id: 2, team_name: 'Miami Dolphins', team_abbrv: 'MIA', count: 1,
-          users: [{ user_id: 'user-1', email: 'player@example.com', entry_count: 1 }],
+          users: [{ user_id: 'user-1', display_name: 'player', entry_count: 1 }],
         }],
       },
     });

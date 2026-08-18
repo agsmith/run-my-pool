@@ -404,7 +404,7 @@ class OwnerPoolReportOut(BaseModel):
 
 class PoolMemberDirectoryUser(BaseModel):
     id: str
-    email: EmailStr
+    display_name: str
     pool_role: str
     entry_count: int = 0
     remaining_entry_count: int = 0
@@ -533,7 +533,7 @@ class PickEmStandingOut(BaseModel):
     entry_id: str
     entry_name: str
     user_id: str
-    user_email: EmailStr
+    user_display_name: str
     points: int
     possible_points: int
     picks_made: int
@@ -550,7 +550,7 @@ class LeaderboardEntryOut(BaseModel):
     entry_id: str
     entry_name: str
     user_id: str
-    user_email: EmailStr
+    user_display_name: str
     correct_picks: int
     completed_picks: int
     alive: bool
@@ -582,7 +582,7 @@ class AuditFilterOptions(BaseModel):
 
 class PickBreakdownUser(BaseModel):
     user_id: str
-    email: EmailStr
+    display_name: str
     entry_count: int
 
 
@@ -607,7 +607,7 @@ class MessageBoardOut(BaseModel):
     user_id: str
     message: str
     created_at: str
-    user_email: Optional[str] = None
+    user_display_name: Optional[str] = None
 
     class Config:
         orm_mode = True

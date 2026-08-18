@@ -68,6 +68,13 @@ class TestMessageBoardAccess:
 
         resp = _post_msg(client, token, pool_id)
         assert resp.status_code == 200
+        assert resp.json()["user_display_name"] == "alive"
+        assert "user_email" not in resp.json()
+
+        listed = client.get(f"/messages/pool/{pool_id}", headers=_h(token))
+        assert listed.status_code == 200
+        assert listed.json()[0]["user_display_name"] == "alive"
+        assert "user_email" not in listed.json()[0]
 
     def test_eliminated_entry_user_can_post(self, client, db_session):
         """User whose entry is alive=False (eliminated) can still post — membership

@@ -37,7 +37,7 @@ export default function PoolLeaderboardPage() {
     {error ? <div className="workspace-alert workspace-alert--error" role="alert">{error}</div> : !entries ? <div className="leaderboard-state">Loading leaderboard…</div> : entries.length === 0 ? <div className="leaderboard-state">No entries have been created yet.</div> : <section className="leaderboard-list" aria-label="Pool leaderboard">
       {entries.map((entry) => <article className="leaderboard-entry" key={entry.entry_id}>
         <div className="leaderboard-entry__rank" aria-label={`Rank ${entry.rank}`}>{entry.rank}</div>
-        <div className="leaderboard-entry__identity"><strong>{entry.entry_name}</strong><span>{entry.user_email}</span></div>
+        <div className="leaderboard-entry__identity"><strong>{entry.entry_name}</strong><span>{entry.user_display_name}</span></div>
         <div className="leaderboard-entry__score" aria-label={`${entry.correct_picks} correct picks`}><strong>{entry.correct_picks}</strong><span>Correct</span></div>
         <div className="leaderboard-entry__record" aria-label={`${entry.completed_picks} final picks`}><strong>{entry.completed_picks}</strong><span>Final picks</span></div>
         <span className={`leaderboard-entry__status ${entry.alive ? 'is-alive' : 'is-eliminated'}`}>{entry.alive ? 'Remaining' : 'Eliminated'}</span>

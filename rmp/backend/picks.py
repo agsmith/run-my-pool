@@ -20,6 +20,7 @@ from admin import is_user_locked_in_pool
 from pool_access import is_pool_participant
 from schedule import current_season_games
 from weekly_locks import pool_week_lock_time
+from public_identity import display_name_from_email, public_display_name
 
 router = APIRouter()
 
@@ -351,7 +352,7 @@ def get_pickem_standings(
             "entry_id": row.id,
             "entry_name": row.name,
             "user_id": row.user_id,
-            "user_email": row.email,
+            "user_display_name": display_name_from_email(row.email),
             "points": int(row.points or 0),
             "possible_points": int(row.possible_points or 0),
             "picks_made": int(row.picks_made or 0),
@@ -435,7 +436,7 @@ def get_pool_leaderboard(
             "entry_id": row["entry"].id,
             "entry_name": row["entry"].name,
             "user_id": row["entry"].user_id,
-            "user_email": row["entry"].user.email,
+            "user_display_name": public_display_name(row["entry"].user),
             "correct_picks": row["correct_picks"],
             "completed_picks": row["completed_picks"],
             "alive": row["entry"].alive,
@@ -703,7 +704,7 @@ def get_pick_breakdown(
     for row in user_rows:
         users_by_team.setdefault(row.team, []).append({
             "user_id": row.id,
-            "email": row.email,
+            "display_name": display_name_from_email(row.email),
             "entry_count": row.entry_count,
         })
 

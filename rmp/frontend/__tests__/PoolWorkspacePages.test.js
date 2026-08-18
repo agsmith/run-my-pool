@@ -174,15 +174,15 @@ describe('pool workspace pages', () => {
   test('posts and deletes only the current user’s message', async () => {
     global.confirm = jest.fn(() => true);
     const initial = [
-      { id: 'mine', user_id: 'user-1', user_email: 'player@example.com', message: 'My update', created_at: '2026-09-01T12:00:00Z' },
-      { id: 'other', user_id: 'user-2', user_email: 'other@example.com', message: 'Other update', created_at: '2026-09-01T13:00:00Z' },
+      { id: 'mine', user_id: 'user-1', user_display_name: 'player', message: 'My update', created_at: '2026-09-01T12:00:00Z' },
+      { id: 'other', user_id: 'user-2', user_display_name: 'other', message: 'Other update', created_at: '2026-09-01T13:00:00Z' },
     ];
     global.fetch = jest.fn((url, options = {}) => {
       const path = String(url);
       if (path.endsWith('/pools/pool-1')) return response(pool);
       if (path.endsWith('/messages/pool/pool-1') && !options.method) return response(initial);
       if (path.endsWith('/messages/pool/pool-1') && options.method === 'POST') {
-        return response({ id: 'new', user_id: 'user-1', user_email: 'player@example.com', message: 'Sunday reminder', created_at: '2026-09-02T12:00:00Z' });
+        return response({ id: 'new', user_id: 'user-1', user_display_name: 'player', message: 'Sunday reminder', created_at: '2026-09-02T12:00:00Z' });
       }
       if (path.endsWith('/messages/mine') && options.method === 'DELETE') return response({ message: 'deleted' });
       throw new Error(`Unexpected request ${path}`);
@@ -192,8 +192,8 @@ describe('pool workspace pages', () => {
 
     expect(await screen.findByText('My update')).toBeInTheDocument();
     expect(screen.getByText('Other update')).toBeInTheDocument();
-    expect(screen.getByText('player@example.com').closest('.message-card__author')).toBeInTheDocument();
-    expect(screen.getByText('other@example.com')).toHaveClass('message-card__author');
+    expect(screen.getByText('player').closest('.message-card__author')).toBeInTheDocument();
+    expect(screen.getByText('other')).toHaveClass('message-card__author');
     expect(screen.getAllByTitle('Delete your message')).toHaveLength(1);
 
     await user.type(screen.getByPlaceholderText(/share something/i), 'Sunday reminder');

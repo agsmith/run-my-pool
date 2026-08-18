@@ -23,8 +23,8 @@ describe('PoolLeaderboardPage', () => {
       if (path === '/pools/pool-1') return response({ id: 'pool-1', name: 'Office Survivor', pool_type: 'survivor' });
       if (path === '/pools/pool-1/is-admin') return response({ has_admin_access: false });
       if (path === '/picks/pool/pool-1/leaderboard') return response([
-        { rank: 1, entry_id: 'entry-1', entry_name: 'Alpha Blitz', user_email: 'alpha@example.com', correct_picks: 4, completed_picks: 4, alive: true, picks: [{ week: 1, team: 'BUF', result: 'win' }, { week: 2, team: 'MIA', result: 'win' }] },
-        { rank: 2, entry_id: 'entry-2', entry_name: 'Goal Line', user_email: 'goal@example.com', correct_picks: 2, completed_picks: 3, alive: false, picks: [{ week: 1, team: 'DAL', result: 'loss' }] },
+        { rank: 1, entry_id: 'entry-1', entry_name: 'Alpha Blitz', user_display_name: 'alpha', correct_picks: 4, completed_picks: 4, alive: true, picks: [{ week: 1, team: 'BUF', result: 'win' }, { week: 2, team: 'MIA', result: 'win' }] },
+        { rank: 2, entry_id: 'entry-2', entry_name: 'Goal Line', user_display_name: 'goal', correct_picks: 2, completed_picks: 3, alive: false, picks: [{ week: 1, team: 'DAL', result: 'loss' }] },
       ]);
       throw new Error(`Unexpected request ${path}`);
     });
