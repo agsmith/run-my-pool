@@ -34,9 +34,7 @@ describe('SquaresPage', () => {
     render(<SquaresPage />);
     expect(await screen.findByRole('heading', { name: 'BUF at MIA' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'BUF at MIA results' })).toBeInTheDocument();
-    const blockName = screen.getByText('Block Name');
-    const grid = screen.getByRole('grid', { name: '10 by 10 Squares board' });
-    expect(blockName.compareDocumentPosition(grid) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.queryByText('Block Name')).not.toBeInTheDocument();
     expect(screen.getAllByRole('gridcell')).toHaveLength(100);
     const firstBlock = screen.getByRole('gridcell', { name: 'Block 1, available' });
     expect(firstBlock).toBeInTheDocument();
@@ -44,8 +42,10 @@ describe('SquaresPage', () => {
     expect(screen.getByRole('gridcell', { name: 'Block 100, available' })).toBeInTheDocument();
     expect(screen.queryByText('Assign a block')).not.toBeInTheDocument();
     expect(screen.getAllByText('?')).toHaveLength(20);
-    await user.type(screen.getByRole('textbox', { name: 'Display name' }), 'Tony S.');
     await user.click(screen.getAllByRole('gridcell')[0]);
+    expect(screen.getByRole('dialog', { name: 'Name this block' })).toBeInTheDocument();
+    await user.type(screen.getByRole('textbox', { name: 'Block name' }), 'Tony S.');
+    await user.click(screen.getByRole('button', { name: 'Reserve block' }));
     await waitFor(() => expect(fetch).toHaveBeenCalledWith('/squares/pool-1/claims', expect.objectContaining({ method: 'POST' })));
     expect(JSON.parse(fetch.mock.calls.find(([, options]) => options?.method === 'POST')[1].body)).toEqual({ row_index: 0, column_index: 0, display_name: 'Tony S.' });
   });
@@ -186,7 +186,7 @@ describe('SquaresPage', () => {
     expect(await screen.findAllByText('Tony')).toHaveLength(2);
     expect(screen.getAllByText('Mike')).toHaveLength(2);
     expect(screen.getByText(/players cannot join this free board online/i)).toBeInTheDocument();
-    expect(screen.getAllByRole('button', { name: 'Edit name' })).toHaveLength(2);
+    expect(screen.queryByRole('button', { name: 'Edit name' })).not.toBeInTheDocument();
   });
 
   test('opens the browser print dialog for printing or PDF export', async () => {
@@ -198,18 +198,20 @@ describe('SquaresPage', () => {
     expect(window.print).toHaveBeenCalledTimes(1);
   });
 
-  test('requires a display name before reserving a square', async () => {
+  test('cancels name entry without reserving the square', async () => {
     global.fetch = jest.fn(() => response(board));
     const user = userEvent.setup();
     render(<SquaresPage />);
 
     await user.click((await screen.findAllByRole('gridcell'))[0]);
-
-    expect(await screen.findByText('Enter a display name before reserving a square.')).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'Name this block' })).toBeInTheDocument();
+    await user.type(screen.getByRole('textbox', { name: 'Block name' }), 'Do Not Save');
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByRole('dialog', { name: 'Name this block' })).not.toBeInTheDocument();
     expect(fetch).not.toHaveBeenCalledWith('/squares/pool-1/claims', expect.objectContaining({ method: 'POST' }));
   });
 
-  test('lets an admin rename every reservation owned by a member', async () => {
+  test('lets an admin edit another member block from the grid', async () => {
     const claimedBoard = {
       ...board,
       claims: [
@@ -219,22 +221,41 @@ describe('SquaresPage', () => {
     };
     global.fetch = jest.fn((url, options = {}) => {
       if (options.method === 'PATCH' && String(url).endsWith('/claims/display-name')) {
-        return response({ ...claimedBoard, claims: claimedBoard.claims.map((claim) => ({ ...claim, display_name: 'New Name' })) });
+        return response({ ...claimedBoard, claims: claimedBoard.claims.map((claim) => claim.id === 'claim-1' ? { ...claim, display_name: 'New Name' } : claim) });
       }
       return response(claimedBoard);
     });
     const user = userEvent.setup();
     render(<SquaresPage />);
 
-    await user.click(await screen.findByRole('button', { name: 'Edit name' }));
-    const nameInput = screen.getByRole('textbox', { name: 'Display name for Old Name' });
+    await user.click(await screen.findByRole('gridcell', { name: 'Block 1, reserved by Old Name' }));
+    expect(screen.getByRole('dialog', { name: 'Edit this block' })).toBeInTheDocument();
+    const nameInput = screen.getByRole('textbox', { name: 'Block name' });
     await user.clear(nameInput);
     await user.type(nameInput, 'New Name');
-    await user.click(screen.getByRole('button', { name: 'Save' }));
+    await user.click(screen.getByRole('button', { name: 'Save block' }));
 
     await waitFor(() => expect(fetch).toHaveBeenCalledWith('/squares/pool-1/claims/display-name', expect.objectContaining({ method: 'PATCH' })));
     const request = fetch.mock.calls.find(([url, options]) => String(url).endsWith('/claims/display-name') && options?.method === 'PATCH')[1];
     expect(JSON.parse(request.body)).toEqual({ claim_id: 'claim-1', display_name: 'New Name' });
-    expect(await screen.findAllByText('New Name')).toHaveLength(3);
+    expect(await screen.findAllByText('New Name')).toHaveLength(2);
+  });
+
+  test('clearing the name unclaims an owned block', async () => {
+    const claimedBoard = { ...board, claims: [{ id: 'claim-1', row_index: 0, column_index: 0, user_id: 'user-1', display_name: 'My Block' }] };
+    global.fetch = jest.fn((url, options = {}) => {
+      if (options.method === 'PATCH') return response({ ...claimedBoard, claims: [] });
+      return response(claimedBoard);
+    });
+    const user = userEvent.setup();
+    render(<SquaresPage />);
+
+    await user.click(await screen.findByRole('gridcell', { name: 'Block 1, reserved by My Block' }));
+    await user.clear(screen.getByRole('textbox', { name: 'Block name' }));
+    await user.click(screen.getByRole('button', { name: 'Unclaim block' }));
+
+    await waitFor(() => expect(fetch).toHaveBeenCalledWith('/squares/pool-1/claims/display-name', expect.objectContaining({ method: 'PATCH' })));
+    expect(JSON.parse(fetch.mock.calls.find(([, options]) => options?.method === 'PATCH')[1].body)).toEqual({ claim_id: 'claim-1', display_name: '' });
+    expect(await screen.findByRole('gridcell', { name: 'Block 1, available' })).toBeInTheDocument();
   });
 });

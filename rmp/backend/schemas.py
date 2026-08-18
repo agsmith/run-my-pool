@@ -437,14 +437,12 @@ class SquareClaimCreate(BaseModel):
 class SquareDisplayNameUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid")
     claim_id: str
-    display_name: str = Field(min_length=1, max_length=100)
+    display_name: str = Field(max_length=100)
 
     @field_validator("display_name")
     @classmethod
     def normalize_display_name(cls, value: str) -> str:
         normalized = " ".join(value.split())
-        if not normalized:
-            raise ValueError("Display name is required")
         return normalized
 
 

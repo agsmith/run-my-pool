@@ -246,7 +246,20 @@ def claim_square(pool_id: str, request: schemas.SquareClaimCreate, db: Session =
         db.rollback()
         raise HTTPException(status_code=409, detail="That square has already been claimed")
     block_number = claim.row_index * 10 + claim.column_index + 1
-    create_audit_log(db, "CLAIM_SQUARE", f"Reserved block {block_number}", current_user.id, "square", claim.id, {"pool_id": pool.id, "assigned_to": target_id, "display_name": claim.display_name, "block_number": block_number})
+    target_user = db.query(models.User).filter(models.User.id == target_id).one()
+    create_audit_log(
+        db, "CLAIM_SQUARE",
+        f"{target_user.email} claimed square {block_number} as {claim.display_name}",
+        current_user.id, "square", claim.id,
+        {
+            "pool_id": pool.id,
+            "actor_username": current_user.email,
+            "claimed_by_username": target_user.email,
+            "assigned_to": target_id,
+            "display_name": claim.display_name,
+            "block_number": block_number,
+        },
+    )
     return {"id": claim.id, "row_index": claim.row_index, "column_index": claim.column_index, "block_number": block_number, "user_id": claim.user_id, "display_name": claim.display_name}
 
 
@@ -262,9 +275,11 @@ def release_square(pool_id: str, claim_id: str, db: Session = Depends(deps.get_d
     if pool.square_board.locked_at or _now() >= _lock_time(pool):
         raise HTTPException(status_code=409, detail="This Squares board is locked")
     block_number = claim.row_index * 10 + claim.column_index + 1
+    claimed_by_username = claim.user.email
+    display_name = claim.display_name
     db.delete(claim)
     db.commit()
-    create_audit_log(db, "RELEASE_SQUARE", f"Released block {block_number}", current_user.id, "square", claim_id, {"pool_id": pool.id, "block_number": block_number})
+    create_audit_log(db, "RELEASE_SQUARE", f"{current_user.email} released square {block_number} claimed by {claimed_by_username} as {display_name}", current_user.id, "square", claim_id, {"pool_id": pool.id, "actor_username": current_user.email, "claimed_by_username": claimed_by_username, "display_name": display_name, "block_number": block_number})
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
@@ -275,38 +290,48 @@ def update_claim_display_name(
     db: Session = Depends(deps.get_db),
     current_user: models.User = Depends(deps.get_current_user),
 ):
-    """Update the board-facing name on every claim owned by one member."""
+    """Update one claim, or release it when its display name is cleared."""
     pool = _pool(db, pool_id)
-    if not _is_admin(db, pool, current_user):
-        raise HTTPException(status_code=403, detail="Pool admin access required")
-    target_claim = db.query(models.SquareClaim).filter(
+    _require_participant(db, pool, current_user)
+    target_claim = db.query(models.SquareClaim).options(joinedload(models.SquareClaim.user)).filter(
         models.SquareClaim.id == request.claim_id,
         models.SquareClaim.pool_id == pool.id,
     ).first()
     if not target_claim:
         raise HTTPException(status_code=404, detail="Squares reservation not found")
-    claims = db.query(models.SquareClaim).filter(
-        models.SquareClaim.pool_id == pool.id,
-        models.SquareClaim.user_id == target_claim.user_id,
-        models.SquareClaim.display_name == target_claim.display_name,
-    ).all()
+    if target_claim.user_id != current_user.id and not _is_admin(db, pool, current_user):
+        raise HTTPException(status_code=403, detail="You cannot change another member's square")
+    if pool.square_board.locked_at or _now() >= _lock_time(pool):
+        raise HTTPException(status_code=409, detail="This Squares board is locked")
+
     previous_name = target_claim.display_name
-    for claim in claims:
-        claim.display_name = request.display_name
+    claimed_user_id = target_claim.user_id
+    block_number = target_claim.row_index * 10 + target_claim.column_index + 1
+    claimed_by_username = target_claim.user.email
+    if not request.display_name:
+        db.delete(target_claim)
+        action = "RELEASE_SQUARE"
+        description = f"{current_user.email} released square {block_number} claimed by {claimed_by_username} as {previous_name}"
+    else:
+        target_claim.display_name = request.display_name
+        action = "UPDATE_SQUARE_DISPLAY_NAME"
+        description = f"{current_user.email} renamed square {block_number} claimed by {claimed_by_username} from {previous_name} to {request.display_name}"
     db.commit()
     create_audit_log(
         db,
-        "UPDATE_SQUARE_DISPLAY_NAME",
-        f"Updated display name on {len(claims)} Squares reservation(s)",
+        action,
+        description,
         current_user.id,
         "square",
         request.claim_id,
         {
             "pool_id": pool.id,
-            "user_id": target_claim.user_id,
+            "actor_username": current_user.email,
+            "claimed_by_username": claimed_by_username,
+            "user_id": claimed_user_id,
+            "block_number": block_number,
             "previous_display_name": previous_name,
             "display_name": request.display_name,
-            "claim_count": len(claims),
         },
     )
     return board_payload(db, pool, current_user)

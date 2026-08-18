@@ -184,7 +184,7 @@ def test_claim_collision_release_and_admin_lock(client, db_session):
 
 
 def test_claim_requires_and_normalizes_a_display_name(client, db_session):
-    _, headers = _register(client, "display-name-owner@example.com")
+    owner, headers = _register(client, "display-name-owner@example.com")
     _game(db_session)
     pool = _create(client, headers, name="Display Name Board")
 
@@ -197,9 +197,16 @@ def test_claim_requires_and_normalizes_a_display_name(client, db_session):
     assert claimed.status_code == 201
     board = client.get(f"/squares/{pool['id']}", headers=headers).json()
     assert board["claims"][0]["display_name"] == "Tony S."
+    audit = db_session.query(models.AuditLog).filter_by(action="CLAIM_SQUARE").one()
+    audit_payload = json.loads(audit.details)
+    details = audit_payload["additional_data"]
+    assert audit_payload["description"] == f"{owner['email']} claimed square 1 as Tony S."
+    assert details["claimed_by_username"] == owner["email"]
+    assert details["block_number"] == 1
+    assert details["display_name"] == "Tony S."
 
 
-def test_admin_updates_display_name_for_all_member_claims_and_audits(client, db_session):
+def test_member_and_admin_can_update_allowed_claims_and_audits(client, db_session):
     owner, owner_headers = _register(client, "rename-squares-owner@example.com")
     member, member_headers = _register(client, "rename-squares-member@example.com")
     _grant_commish(db_session, owner["id"])
@@ -214,28 +221,67 @@ def test_admin_updates_display_name_for_all_member_claims_and_audits(client, db_
         )
         assert claimed.status_code == 201
 
+    member_renamed = client.patch(
+        f"/squares/{pool['id']}/claims/display-name",
+        json={"claim_id": claimed.json()["id"], "display_name": "Member Name"},
+        headers=member_headers,
+    )
+    owner_claim = client.post(
+        f"/squares/{pool['id']}/claims",
+        json={"row_index": 1, "column_index": 0, "display_name": "Owner Name"},
+        headers=owner_headers,
+    )
     forbidden = client.patch(
         f"/squares/{pool['id']}/claims/display-name",
-        json={"claim_id": claimed.json()["id"], "display_name": "Not Allowed"},
+        json={"claim_id": owner_claim.json()["id"], "display_name": "Not Allowed"},
         headers=member_headers,
     )
     renamed = client.patch(
         f"/squares/{pool['id']}/claims/display-name",
-        json={"claim_id": claimed.json()["id"], "display_name": "  New   Name  "},
+        json={"claim_id": claimed.json()["id"], "display_name": "  Admin   Name  "},
         headers=owner_headers,
     )
 
+    assert member_renamed.status_code == 200
     assert forbidden.status_code == 403
     assert renamed.status_code == 200
     member_claims = [claim for claim in renamed.json()["claims"] if claim["user_id"] == member["id"]]
     assert len(member_claims) == 2
-    assert {claim["display_name"] for claim in member_claims} == {"New Name"}
+    assert {claim["display_name"] for claim in member_claims} == {"Old Name", "Admin Name"}
     db_session.expire_all()
-    audit = db_session.query(models.AuditLog).filter_by(action="UPDATE_SQUARE_DISPLAY_NAME").one()
+    audit = db_session.query(models.AuditLog).filter_by(action="UPDATE_SQUARE_DISPLAY_NAME").order_by(models.AuditLog.created_at.desc()).first()
     details = json.loads(audit.details)
     assert audit.user_id == owner["id"]
-    assert details["additional_data"]["claim_count"] == 2
-    assert details["additional_data"]["previous_display_name"] == "Old Name"
+    assert details["additional_data"]["block_number"] == 2
+    assert details["additional_data"]["actor_username"] == owner["email"]
+    assert details["additional_data"]["claimed_by_username"] == member["email"]
+    assert details["additional_data"]["previous_display_name"] == "Member Name"
+
+
+def test_clearing_own_claim_name_unclaims_square_and_audits(client, db_session):
+    member, headers = _register(client, "clear-square@example.com")
+    _game(db_session)
+    pool = _create(client, headers, name="Clear Square Board")
+    claimed = client.post(
+        f"/squares/{pool['id']}/claims",
+        json={"row_index": 3, "column_index": 5, "display_name": "Clear Me"},
+        headers=headers,
+    )
+
+    cleared = client.patch(
+        f"/squares/{pool['id']}/claims/display-name",
+        json={"claim_id": claimed.json()["id"], "display_name": "   "},
+        headers=headers,
+    )
+
+    assert cleared.status_code == 200
+    assert cleared.json()["claims"] == []
+    audit = db_session.query(models.AuditLog).filter_by(action="RELEASE_SQUARE").one()
+    details = json.loads(audit.details)["additional_data"]
+    assert details["block_number"] == 36
+    assert details["actor_username"] == member["email"]
+    assert details["claimed_by_username"] == member["email"]
+    assert details["previous_display_name"] == "Clear Me"
 
 
 def test_free_owner_keeps_external_players_separate_when_renaming(client, db_session):
@@ -262,7 +308,7 @@ def test_free_owner_keeps_external_players_separate_when_renaming(client, db_ses
     names_by_block = {
         claim["block_number"]: claim["display_name"] for claim in renamed.json()["claims"]
     }
-    assert names_by_block == {1: "Anthony", 2: "Anthony", 3: "Mike"}
+    assert names_by_block == {1: "Anthony", 2: "Tony", 3: "Mike"}
 
 
 def test_nonmember_cannot_read_board(client, db_session):
