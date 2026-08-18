@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Cookie, Depends, HTTPException, Response, status
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
@@ -24,6 +24,8 @@ SECRET_KEY = os.environ["SECRET_KEY"]
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24
 ACCESS_TOKEN_COOKIE = "rmp_access_token"
+PERSISTENT_SESSION_COOKIE = "rmp_persistent_session"
+PERSISTENT_SESSION_TTL = timedelta(days=400)
 LOGIN_ATTEMPT_LIMIT = 5
 LOGIN_ATTEMPT_WINDOW = timedelta(minutes=15)
 EMAIL_VERIFICATION_TTL = timedelta(hours=24)
@@ -67,6 +69,18 @@ def create_access_token(data: dict, expires_delta: timedelta = None):
     expire = datetime.now(timezone.utc).replace(tzinfo=None) + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
+
+def _set_auth_cookie(response: Response, key: str, value: str, max_age: int) -> None:
+    response.set_cookie(
+        key=key,
+        value=value,
+        max_age=max_age,
+        httponly=True,
+        secure=os.getenv("ENVIRONMENT", "production").lower() != "development",
+        samesite="lax",
+        path="/",
+    )
 
 @router.post("/register", response_model=schemas.UserOut)
 def register(user: schemas.UserCreate, db: Session = Depends(deps.get_db)):
@@ -191,20 +205,38 @@ def login(
     log_event(logger, logging.INFO, "login_succeeded", user_id=db_user.id)
     
     access_token = create_access_token(data={"sub": db_user.email})
-    response.set_cookie(
-        key=ACCESS_TOKEN_COOKIE,
-        value=access_token,
-        max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-        httponly=True,
-        secure=os.getenv("ENVIRONMENT", "production").lower() != "development",
-        samesite="lax",
-        path="/",
+    persistent_token = secrets.token_urlsafe(32)
+    session_now = datetime.now(timezone.utc).replace(tzinfo=None)
+    db.add(models.PersistentSession(
+        token_digest=hashlib.sha256(persistent_token.encode("utf-8")).hexdigest(),
+        user_id=db_user.id,
+        created_at=session_now,
+        last_used_at=session_now,
+        expires_at=session_now + PERSISTENT_SESSION_TTL,
+    ))
+    db.commit()
+    _set_auth_cookie(response, ACCESS_TOKEN_COOKIE, access_token, ACCESS_TOKEN_EXPIRE_MINUTES * 60)
+    _set_auth_cookie(
+        response,
+        PERSISTENT_SESSION_COOKIE,
+        persistent_token,
+        int(PERSISTENT_SESSION_TTL.total_seconds()),
     )
     return {"access_token": access_token, "token_type": "bearer"}
 
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
-def logout(response: Response):
+def logout(
+    response: Response,
+    rmp_persistent_session: str | None = Cookie(default=None),
+    db: Session = Depends(deps.get_db),
+):
+    if rmp_persistent_session:
+        digest = hashlib.sha256(rmp_persistent_session.encode("utf-8")).hexdigest()
+        session = db.query(models.PersistentSession).filter_by(token_digest=digest).first()
+        if session and session.revoked_at is None:
+            session.revoked_at = datetime.now(timezone.utc).replace(tzinfo=None)
+            db.commit()
     response.delete_cookie(
         key=ACCESS_TOKEN_COOKIE,
         httponly=True,
@@ -212,10 +244,28 @@ def logout(response: Response):
         samesite="lax",
         path="/",
     )
+    response.delete_cookie(
+        key=PERSISTENT_SESSION_COOKIE,
+        httponly=True,
+        secure=os.getenv("ENVIRONMENT", "production").lower() != "development",
+        samesite="lax",
+        path="/",
+    )
 
 @router.get("/me", response_model=schemas.UserOut)
-def get_current_user_info(current_user: models.User = Depends(deps.get_current_user)):
+def get_current_user_info(
+    response: Response,
+    rmp_persistent_session: str | None = Cookie(default=None),
+    current_user: models.User = Depends(deps.get_current_user),
+):
     """Get current user information."""
+    if rmp_persistent_session:
+        _set_auth_cookie(
+            response,
+            PERSISTENT_SESSION_COOKIE,
+            rmp_persistent_session,
+            int(PERSISTENT_SESSION_TTL.total_seconds()),
+        )
     return current_user
 
 @router.post("/forgot-password")
@@ -327,6 +377,10 @@ def reset_password(request: schemas.ResetPasswordRequest, db: Session = Depends(
         # Update the password
         db_user.hashed_password = get_password_hash(request.new_password)
         db_user.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
+        db.query(models.PersistentSession).filter(
+            models.PersistentSession.user_id == db_user.id,
+            models.PersistentSession.revoked_at.is_(None),
+        ).update({"revoked_at": db_user.updated_at}, synchronize_session=False)
         db.add(models.UsedPasswordResetToken(token_digest=token_digest, used_at=db_user.updated_at))
         db.commit()
         

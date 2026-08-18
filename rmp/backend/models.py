@@ -210,6 +210,16 @@ class UsedPasswordResetToken(Base):
     used_at = Column(DateTime, nullable=False)
 
 
+class PersistentSession(Base):
+    __tablename__ = "persistent_sessions"
+    token_digest = Column(String(64), primary_key=True)
+    user_id = Column(String(36), ForeignKey(USERS_ID_FK, ondelete="CASCADE"), nullable=False, index=True)
+    created_at = Column(DateTime, nullable=False)
+    last_used_at = Column(DateTime, nullable=False)
+    expires_at = Column(DateTime, nullable=False, index=True)
+    revoked_at = Column(DateTime, nullable=True)
+
+
 class EmailVerificationToken(Base):
     __tablename__ = "email_verification_tokens"
     token_digest = Column(String(64), primary_key=True)

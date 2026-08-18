@@ -1,5 +1,6 @@
 import pytest
 from unittest.mock import Mock, patch
+import auth
 from auth import SECRET_KEY
 
 
@@ -209,9 +210,29 @@ class TestAuthEndpoints:
 
         cookie = login.headers["set-cookie"].lower()
         assert "rmp_access_token=" in cookie
+        assert "rmp_persistent_session=" in cookie
         assert "httponly" in cookie
         assert "samesite=lax" in cookie
         assert client.get("/auth/me").status_code == 200
+
+    def test_persistent_session_authenticates_after_access_token_expires(
+        self, client, test_user_data
+    ):
+        client.post("/auth/register", json=test_user_data)
+        client.post(
+            "/auth/login",
+            json={"email": test_user_data["email"], "password": test_user_data["password"]},
+        )
+        expired = auth.create_access_token(
+            {"sub": test_user_data["email"]}, expires_delta=timedelta(seconds=-1)
+        )
+        client.cookies.set("rmp_access_token", expired)
+
+        response = client.get("/auth/me")
+
+        assert response.status_code == 200
+        assert response.json()["email"] == test_user_data["email"]
+        assert "rmp_persistent_session=" in response.headers["set-cookie"].lower()
 
     def test_logout_clears_cookie_session(self, client, test_user_data):
         client.post("/auth/register", json=test_user_data)
@@ -227,6 +248,7 @@ class TestAuthEndpoints:
         logout = client.post("/auth/logout")
 
         assert logout.status_code == 204
+        assert "rmp_persistent_session=" in logout.headers["set-cookie"].lower()
         assert client.get("/auth/me").status_code == 401
 
     def test_login_invalid_credentials(self, client, test_user_data):
