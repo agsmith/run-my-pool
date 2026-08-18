@@ -3,7 +3,6 @@
 from datetime import datetime, timezone
 
 from fastapi import HTTPException, status
-from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 import models
@@ -78,30 +77,49 @@ def pool_plan(db: Session, pool: models.Pool) -> str:
     return entitlement.plan if entitlement else "free"
 
 
-def capacity_usage(db: Session, pool: models.Pool) -> tuple[int, int | None, str]:
-    """Return authoritative used capacity, limit, and plan for a pool."""
+def capacity_usage(
+    db: Session, pool: models.Pool, *, locking_read: bool = False
+) -> tuple[int, int | None, str]:
+    """Return authoritative used capacity, limit, and plan for a pool.
+
+    MySQL repeatable-read transactions can retain a snapshot taken before a
+    capacity lock was acquired. Mutation paths use ``locking_read=True`` so
+    the count is built from current ``SELECT ... FOR UPDATE`` reads after the
+    pool/entitlement row has serialized competing requests.
+    """
     entitlement = entitlement_for_pool(db, pool)
     if entitlement:
-        pool_ids = db.query(models.Pool.id).filter(
-            models.Pool.billing_entitlement_id == entitlement.id
+        entry_query = (
+            db.query(models.Entry.id)
+            .join(models.Pool, models.Entry.pool_id == models.Pool.id)
+            .filter(models.Pool.billing_entitlement_id == entitlement.id)
         )
-        entry_count = db.query(func.count(models.Entry.id)).filter(
-            models.Entry.pool_id.in_(pool_ids)
-        ).scalar() or 0
-        square_count = db.query(func.count(models.SquareClaim.id)).filter(
-            models.SquareClaim.pool_id.in_(pool_ids)
-        ).scalar() or 0
+        square_query = (
+            db.query(models.SquareClaim.id)
+            .join(models.Pool, models.SquareClaim.pool_id == models.Pool.id)
+            .filter(models.Pool.billing_entitlement_id == entitlement.id)
+        )
+        if locking_read:
+            entry_count = len(entry_query.with_for_update().all())
+            square_count = len(square_query.with_for_update().all())
+        else:
+            entry_count = entry_query.count()
+            square_count = square_query.count()
         limit = entitlement.included_entries
         if pool.pool_type == "squares" and entitlement.plan in ("squares-plus", "commissioner"):
             limit = COMMISSIONER_SQUARE_BLOCKS
         return entry_count + square_count, limit, entitlement.plan
 
-    entry_count = db.query(func.count(models.Entry.id)).filter(
-        models.Entry.pool_id == pool.id
-    ).scalar() or 0
-    square_count = db.query(func.count(models.SquareClaim.id)).filter(
+    entry_query = db.query(models.Entry.id).filter(models.Entry.pool_id == pool.id)
+    square_query = db.query(models.SquareClaim.id).filter(
         models.SquareClaim.pool_id == pool.id
-    ).scalar() or 0
+    )
+    if locking_read:
+        entry_count = len(entry_query.with_for_update().all())
+        square_count = len(square_query.with_for_update().all())
+    else:
+        entry_count = entry_query.count()
+        square_count = square_query.count()
     limit = FREE_SQUARE_BLOCKS if pool.pool_type == "squares" else FREE_INCLUDED_ENTRIES
     return entry_count + square_count, limit, "free"
 
@@ -153,7 +171,7 @@ def enforce_entry_capacity(db: Session, pool: models.Pool) -> None:
         ).with_for_update().one()
         if entitlement.unlimited_entries or entitlement.included_entries is None:
             return
-    used, limit, plan = capacity_usage(db, pool)
+    used, limit, plan = capacity_usage(db, pool, locking_read=True)
 
     if limit is not None and used >= limit:
         unit = "blocks" if pool.pool_type == "squares" else "entries"
