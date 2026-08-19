@@ -71,6 +71,17 @@ describe('AdminUserOverview', () => {
     expect(onChangeEmail).toHaveBeenCalledWith(overview.users[0]);
   });
 
+  test('offers pool removal for members but not the owner', () => {
+    const onRemoveUser = jest.fn();
+    render(<AdminUserOverview overview={overview} loading={false} error="" onRefresh={() => {}} onChangeEmail={() => {}} onChangeDues={() => {}} onRemoveUser={onRemoveUser} />);
+
+    const ownerRow = screen.getByText('owner@example.com').closest('tr');
+    expect(within(ownerRow).queryByRole('button', { name: 'Remove from pool' })).not.toBeInTheDocument();
+    const memberRow = screen.getByText('partial@example.com').closest('tr');
+    fireEvent.click(within(memberRow).getByRole('button', { name: 'Remove from pool' }));
+    expect(onRemoveUser).toHaveBeenCalledWith(overview.users[1]);
+  });
+
   test('lets a pool admin check and uncheck a users dues status', async () => {
     const onChangeDues = jest.fn().mockResolvedValue(undefined);
     const { rerender } = render(

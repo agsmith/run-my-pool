@@ -46,12 +46,12 @@ export default function AdminPortal() {
   const [autoPicks, setAutoPicks] = useState([]);
   const [autoPicksLoading, setAutoPicksLoading] = useState(false);
   const [autoPicksError, setAutoPicksError] = useState('');
+  const [removingUserId, setRemovingUserId] = useState('');
+  const [removeUserMessage, setRemoveUserMessage] = useState('');
 
   // User lock state
   const [lockMessage, setLockMessage] = useState('');
 
-  const [deleteUserData, setDeleteUserData] = useState({ username: '' });
-  
   // Entry Management State
   const [transferEntryData, setTransferEntryData] = useState({ entryId: '', fromUser: '', toUser: '' });
   const [deleteEntryData, setDeleteEntryData] = useState({ entryId: '', username: '' });
@@ -172,6 +172,31 @@ export default function AdminPortal() {
     } catch (err) {
       setUserOverviewError(err.message || 'Unable to update dues status');
       throw err;
+    }
+  };
+
+  const handleRemoveUser = async (account) => {
+    const confirmed = window.confirm(
+      `Remove ${account.email} from "${league?.name || 'this pool'}"?\n\nTheir entries, picks, pool access settings, and Squares claims will be deleted. Their past forum posts, Run My Pool account, and access to other pools will not be affected.`,
+    );
+    if (!confirmed) return;
+    setRemovingUserId(account.id);
+    setRemoveUserMessage('');
+    setUserOverviewError('');
+    try {
+      const token = localStorage.getItem('access_token');
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/admin/pools/${leagueId}/users/${account.id}`,
+        { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } },
+      );
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.detail || 'Unable to remove user from pool');
+      await fetchUserOverview();
+      setRemoveUserMessage(data.message || `${account.email} was removed from the pool.`);
+    } catch (err) {
+      setUserOverviewError(err.message || 'Unable to remove user from pool');
+    } finally {
+      setRemovingUserId('');
     }
   };
 
@@ -707,7 +732,8 @@ export default function AdminPortal() {
         User Management
       </h3>
 
-      <AdminUserOverview overview={userOverview} loading={userOverviewLoading} error={userOverviewError} onRefresh={fetchUserOverview} onChangeEmail={handleChangeUserEmail} onChangeDues={handleChangeUserDues} />
+      <AdminUserOverview overview={userOverview} loading={userOverviewLoading} error={userOverviewError} onRefresh={fetchUserOverview} onChangeEmail={handleChangeUserEmail} onChangeDues={handleChangeUserDues} onRemoveUser={handleRemoveUser} removingUserId={removingUserId} />
+      {removeUserMessage && <p role="status" className="admin-user-overview__message">{removeUserMessage}</p>}
 
       <AdminAutoPickReport week={autoPickWeek} onWeekChange={setAutoPickWeek} records={autoPicks} loading={autoPicksLoading} error={autoPicksError} />
 
@@ -777,60 +803,6 @@ export default function AdminPortal() {
               {resetPasswordMessage}
             </p>
           )}
-        </div>
-      </div>
-
-      {/* Delete User */}
-      <div style={{ marginBottom: '3rem' }}>
-        <h4 style={{ color: '#2d3748', marginBottom: '1rem' }}>Delete User</h4>
-        <div style={{ 
-          backgroundColor: '#fef2f2', 
-          padding: '1.5rem', 
-          borderRadius: '8px',
-          border: '1px solid #fecaca'
-        }}>
-          <div style={{ 
-            backgroundColor: '#fee2e2', 
-            color: '#991b1b', 
-            padding: '1rem', 
-            borderRadius: '6px', 
-            marginBottom: '1rem',
-            fontSize: '0.875rem'
-          }}>
-            ⚠️ Warning: This will permanently delete the user and all their entries. This action cannot be undone.
-          </div>
-          <div style={{ marginBottom: '1rem' }}>
-            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500', color: '#374151' }}>
-              Username
-            </label>
-            <input
-              type="text"
-              value={deleteUserData.username}
-              onChange={(e) => setDeleteUserData({...deleteUserData, username: e.target.value})}
-              placeholder="Enter username to delete"
-              style={{
-                width: '100%',
-                padding: '0.75rem',
-                border: '1px solid #d1d5db',
-                borderRadius: '6px',
-                fontSize: '1rem'
-              }}
-            />
-          </div>
-          <button
-            style={{
-              backgroundColor: '#dc2626',
-              color: 'white',
-              padding: '0.75rem 1.5rem',
-              border: 'none',
-              borderRadius: '6px',
-              cursor: 'pointer',
-              fontSize: '1rem',
-              fontWeight: '500'
-            }}
-          >
-            Delete User
-          </button>
         </div>
       </div>
 

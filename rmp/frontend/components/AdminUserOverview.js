@@ -42,7 +42,7 @@ function pickStatus(user) {
   return { label: 'Missing', tone: 'missing' };
 }
 
-export default function AdminUserOverview({ overview, loading, error, onRefresh, onChangeEmail, onChangeDues }) {
+export default function AdminUserOverview({ overview, loading, error, onRefresh, onChangeEmail, onChangeDues, onRemoveUser, removingUserId = '' }) {
   const [search, setSearch] = useState('');
   const [savingDuesFor, setSavingDuesFor] = useState('');
   const [sort, setSort] = useState({ column: '', direction: 'ascending' });
@@ -125,7 +125,17 @@ export default function AdminUserOverview({ overview, loading, error, onRefresh,
             <td data-label="Total entries">{user.total_entries}</td>
             <td data-label="Surviving">{user.surviving_entries}</td>
             <td data-label={`Week ${overview?.current_week || ''} picks`}><span className={`admin-pick-status is-${status.tone}`}>{status.label}</span><small>{user.picked_entries} / {user.surviving_entries} picked</small></td>
-            <td data-label="Actions"><button type="button" onClick={() => onChangeEmail(user)}>Change login email</button></td>
+            <td data-label="Actions">
+              <button type="button" onClick={() => onChangeEmail(user)}>Change login email</button>
+              {user.admin_role !== 'Owner' && typeof onRemoveUser === 'function' && <button
+                type="button"
+                className="admin-user-overview__remove"
+                disabled={removingUserId === user.id}
+                onClick={() => onRemoveUser(user)}
+              >
+                {removingUserId === user.id ? 'Removing…' : 'Remove from pool'}
+              </button>}
+            </td>
           </tr>;
         })}</tbody>
       </table></div>}

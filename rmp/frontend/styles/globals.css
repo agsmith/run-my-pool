@@ -1602,6 +1602,11 @@ table {
 .admin-user-overview__table tbody tr:last-child td { border-bottom:0; }
 .admin-user-overview__table td strong { color:var(--ink); }
 .admin-user-overview__table td:last-child small { display:block; margin-top:.3rem; color:#849496; font-size:.67rem; }
+.admin-user-overview__table td[data-label="Actions"] { display:flex; align-items:center; flex-wrap:wrap; gap:.45rem; }
+.broadcast-v2--admin .admin-section .admin-user-overview__table button.admin-user-overview__remove { color:#ffaaa3!important; background:transparent!important; border-color:rgba(255,129,122,.55)!important; }
+.broadcast-v2--admin .admin-section .admin-user-overview__table button.admin-user-overview__remove:hover { color:#170b0a!important; background:var(--danger)!important; border-color:var(--danger)!important; }
+.broadcast-v2--admin .admin-section .admin-user-overview__table button.admin-user-overview__remove:disabled { cursor:not-allowed; opacity:.55; }
+.admin-user-overview__message { margin:-1.25rem 0 2rem!important; padding:.7rem .8rem; color:var(--ice)!important; background:rgba(159,239,255,.06); border:1px solid rgba(159,239,255,.25); font-size:.78rem; font-weight:800; }
 .admin-user-role,.admin-pick-status { display:inline-flex; align-items:center; min-height:24px; padding:.2rem .48rem; border:1px solid #405258; color:#aebdbc; background:#172326; font-size:.62rem; font-weight:900; letter-spacing:.06em; text-transform:uppercase; }
 .admin-user-role.is-admin { color:#091012; background:var(--lime); border-color:var(--lime); }
 .admin-pick-status.is-complete { color:#091012; background:var(--lime); border-color:var(--lime); }

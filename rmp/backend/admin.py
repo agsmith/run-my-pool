@@ -44,7 +44,11 @@ def verify_admin_access(pool_id: str, current_user: models.User, db: Session) ->
             is not None
         )
     pool = db.query(models.Pool).filter(models.Pool.id == pool_id).first()
-    if pool and pool.pool_type == "squares" and entitlements.pool_plan(db, pool) == "free":
+    if (
+        pool
+        and pool.pool_type == "squares"
+        and entitlements.pool_plan(db, pool) == "free"
+    ):
         return pool.owner_id == current_user.id
     if pool and pool.owner_id == current_user.id:
         return True
@@ -467,6 +471,110 @@ def update_pool_user_dues(
         "paid": update.paid,
         "updated_at": now,
         "updated_by": current_user.id,
+    }
+
+
+@router.delete("/pools/{pool_id}/users/{user_id}")
+def remove_user_from_pool(
+    pool_id: str,
+    user_id: str,
+    db: Session = Depends(deps.get_db),
+    current_user: models.User = Depends(deps.get_current_user),
+):
+    """Remove a participant's pool data without deleting their platform account."""
+    if not verify_admin_access(pool_id, current_user, db):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    pool = db.query(models.Pool).filter(models.Pool.id == pool_id).first()
+    if not pool:
+        raise HTTPException(status_code=404, detail="Pool not found")
+    user = require_pool_participant_by_id(db, pool_id, user_id)
+    if user.id == pool.owner_id:
+        raise HTTPException(
+            status_code=400,
+            detail="The pool owner cannot be removed. Transfer ownership first.",
+        )
+    target_is_admin = (
+        db.query(models.PoolAdmin)
+        .filter(
+            models.PoolAdmin.pool_id == pool_id,
+            models.PoolAdmin.user_id == user.id,
+        )
+        .first()
+        is not None
+    )
+    if (
+        target_is_admin
+        and current_user.id != pool.owner_id
+        and not is_platform_super_admin(current_user)
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail="Only the pool owner can remove a pool administrator",
+        )
+
+    entry_ids = [
+        entry_id
+        for (entry_id,) in db.query(models.Entry.id)
+        .filter(models.Entry.pool_id == pool_id, models.Entry.user_id == user.id)
+        .all()
+    ]
+    deleted_picks = 0
+    if entry_ids:
+        deleted_picks = (
+            db.query(models.Pick)
+            .filter(models.Pick.entry_id.in_(entry_ids))
+            .delete(synchronize_session=False)
+        )
+    deleted_entries = (
+        db.query(models.Entry)
+        .filter(models.Entry.pool_id == pool_id, models.Entry.user_id == user.id)
+        .delete(synchronize_session=False)
+    )
+    deleted_claims = (
+        db.query(models.SquareClaim)
+        .filter(
+            models.SquareClaim.pool_id == pool_id,
+            models.SquareClaim.user_id == user.id,
+        )
+        .delete(synchronize_session=False)
+    )
+    db.query(models.PoolUserLock).filter(
+        models.PoolUserLock.pool_id == pool_id,
+        models.PoolUserLock.user_id == user.id,
+    ).delete(synchronize_session=False)
+    db.query(models.PoolAdmin).filter(
+        models.PoolAdmin.pool_id == pool_id,
+        models.PoolAdmin.user_id == user.id,
+    ).delete(synchronize_session=False)
+    db.query(models.PoolMember).filter(
+        models.PoolMember.pool_id == pool_id,
+        models.PoolMember.user_id == user.id,
+    ).delete(synchronize_session=False)
+    db.commit()
+
+    log_admin_action(
+        db=db,
+        action="POOL_USER_REMOVED",
+        admin_user_id=current_user.id,
+        details=f"Removed {user.email} from pool {pool.name}",
+        target_entity_type="user",
+        target_entity_id=user.id,
+        additional_data={
+            "pool_id": pool_id,
+            "pool_name": pool.name,
+            "user_id": user.id,
+            "user_email": user.email,
+            "deleted_entries": deleted_entries,
+            "deleted_picks": deleted_picks,
+            "deleted_square_claims": deleted_claims,
+            "account_deleted": False,
+        },
+    )
+    return {
+        "ok": True,
+        "message": f"{user.email} was removed from {pool.name}.",
+        "user_id": user.id,
+        "pool_id": pool_id,
     }
 
 

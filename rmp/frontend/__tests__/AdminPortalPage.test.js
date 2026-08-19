@@ -12,8 +12,16 @@ jest.mock('next/router', () => ({
 }));
 jest.mock('../components/ProtectedRoute', () => ({ children }) => children);
 jest.mock('../context/AuthContext', () => ({ useAuth: () => ({ user: mockUser }) }));
-jest.mock('../components/AdminUserOverview', () => function MockOverview({ overview }) {
-  return <div data-testid="user-overview">{overview ? `${overview.total_users} pool users` : 'No overview'}</div>;
+jest.mock('../components/AdminUserOverview', () => function MockOverview({ overview, onRemoveUser, removingUserId }) {
+  return <div data-testid="user-overview">
+    {overview ? `${overview.total_users} pool users` : 'No overview'}
+    {(overview?.users || []).filter((account) => account.admin_role !== 'Owner').map((account) => <button
+      key={account.id}
+      type="button"
+      disabled={removingUserId === account.id}
+      onClick={() => onRemoveUser(account)}
+    >Remove {account.email} from pool</button>)}
+  </div>;
 });
 jest.mock('../components/AdminAccessControl', () => function MockAccess() {
   return <div>Admin access control</div>;
@@ -181,6 +189,58 @@ describe('commissioner portal', () => {
 
     expect(fetch.mock.calls.some(([, options]) => options?.method === 'DELETE')).toBe(false);
     expect(mockPush).not.toHaveBeenCalled();
+  });
+
+  test('confirms pool-scoped user removal and refreshes the user overview', async () => {
+    const confirm = jest.spyOn(window, 'confirm').mockReturnValue(true);
+    let overviewLoads = 0;
+    installApi({
+      'GET /admin/pools/pool-1/users-overview': () => {
+        overviewLoads += 1;
+        return response(overviewLoads === 1 ? {
+          total_users: 2,
+          users: [
+            { id: 'owner-1', email: 'owner@example.com', admin_role: 'Owner' },
+            { id: 'member-1', email: 'member@example.com', admin_role: 'Member' },
+          ],
+        } : { total_users: 1, users: [{ id: 'owner-1', email: 'owner@example.com', admin_role: 'Owner' }] });
+      },
+      'DELETE /admin/pools/pool-1/users/member-1': () => response({
+        ok: true,
+        message: 'member@example.com was removed from Office Survivor.',
+      }),
+    });
+    const user = userEvent.setup();
+    render(<AdminPortal />);
+    await screen.findByRole('heading', { name: 'Office Survivor' });
+    await user.click(screen.getByRole('button', { name: /user management/i }));
+    await user.click(await screen.findByRole('button', { name: 'Remove member@example.com from pool' }));
+
+    expect(confirm).toHaveBeenCalledWith(expect.stringContaining('Run My Pool account, and access to other pools will not be affected.'));
+    expect(fetch).toHaveBeenCalledWith('/admin/pools/pool-1/users/member-1', {
+      method: 'DELETE',
+      headers: { Authorization: 'Bearer token' },
+    });
+    expect(await screen.findByText('1 pool users')).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('member@example.com was removed');
+    expect(overviewLoads).toBe(2);
+  });
+
+  test('does not remove a pool user when confirmation is cancelled', async () => {
+    jest.spyOn(window, 'confirm').mockReturnValue(false);
+    installApi({
+      'GET /admin/pools/pool-1/users-overview': () => response({
+        total_users: 2,
+        users: [{ id: 'member-1', email: 'member@example.com', admin_role: 'Member' }],
+      }),
+    });
+    const user = userEvent.setup();
+    render(<AdminPortal />);
+    await screen.findByRole('heading', { name: 'Office Survivor' });
+    await user.click(screen.getByRole('button', { name: /user management/i }));
+    await user.click(await screen.findByRole('button', { name: 'Remove member@example.com from pool' }));
+
+    expect(fetch.mock.calls.some(([url, options]) => String(url).endsWith('/users/member-1') && options?.method === 'DELETE')).toBe(false);
   });
 
   test('validates entry lookup and pick correction before calling the API', async () => {

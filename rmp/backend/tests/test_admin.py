@@ -15,7 +15,6 @@ import pytest
 
 from admin import verify_admin_access
 
-
 # ---------------------------------------------------------------------------
 # Auth helpers
 # ---------------------------------------------------------------------------
@@ -69,9 +68,11 @@ def _add_pool_member(db_session, pool_id, email):
     import models as m
 
     user = db_session.query(m.User).filter(m.User.email == email).one()
-    if not db_session.query(m.PoolMember).filter_by(
-        pool_id=pool_id, user_id=user.id
-    ).first():
+    if (
+        not db_session.query(m.PoolMember)
+        .filter_by(pool_id=pool_id, user_id=user.id)
+        .first()
+    ):
         db_session.add(
             m.PoolMember(
                 pool_id=pool_id,
@@ -110,20 +111,52 @@ def _create_pick(db_session, entry_id, week, team, locked=False):
 class TestAdminEndpoints:
     """Integration tests for the admin router."""
 
-    def test_pool_user_overview_reports_entries_admin_and_week_completion(self, client, db_session):
+    def test_pool_user_overview_reports_entries_admin_and_week_completion(
+        self, client, db_session
+    ):
         import models as m
 
         owner_token = _register_and_login(client, "overview.owner@example.com")
         _register_and_login(client, "overview.member@example.com")
         _register_and_login(client, "overview.outsider@example.com")
         pool_id = _create_pool(client, _authed(owner_token))
-        owner = db_session.query(m.User).filter(m.User.email == "overview.owner@example.com").one()
-        member = db_session.query(m.User).filter(m.User.email == "overview.member@example.com").one()
-        db_session.add(m.PoolMember(pool_id=pool_id, user_id=member.id, joined_at=datetime.utcnow()))
+        owner = (
+            db_session.query(m.User)
+            .filter(m.User.email == "overview.owner@example.com")
+            .one()
+        )
+        member = (
+            db_session.query(m.User)
+            .filter(m.User.email == "overview.member@example.com")
+            .one()
+        )
+        db_session.add(
+            m.PoolMember(
+                pool_id=pool_id, user_id=member.id, joined_at=datetime.utcnow()
+            )
+        )
         db_session.add(m.PoolAdmin(pool_id=pool_id, user_id=member.id))
-        owner_entry = m.Entry(id=str(uuid.uuid4()), pool_id=pool_id, user_id=owner.id, name="Owner", alive=True)
-        alive_entry = m.Entry(id=str(uuid.uuid4()), pool_id=pool_id, user_id=member.id, name="Alive", alive=True)
-        eliminated_entry = m.Entry(id=str(uuid.uuid4()), pool_id=pool_id, user_id=member.id, name="Out", alive=False)
+        owner_entry = m.Entry(
+            id=str(uuid.uuid4()),
+            pool_id=pool_id,
+            user_id=owner.id,
+            name="Owner",
+            alive=True,
+        )
+        alive_entry = m.Entry(
+            id=str(uuid.uuid4()),
+            pool_id=pool_id,
+            user_id=member.id,
+            name="Alive",
+            alive=True,
+        )
+        eliminated_entry = m.Entry(
+            id=str(uuid.uuid4()),
+            pool_id=pool_id,
+            user_id=member.id,
+            name="Out",
+            alive=False,
+        )
         db_session.add_all([owner_entry, alive_entry, eliminated_entry])
         db_session.commit()
         _create_pick(db_session, alive_entry.id, 4, "BUF")
@@ -138,7 +171,10 @@ class TestAdminEndpoints:
         assert payload["current_week"] == 4
         assert payload["total_users"] == 2
         users = {user["email"]: user for user in payload["users"]}
-        assert set(users) == {"overview.owner@example.com", "overview.member@example.com"}
+        assert set(users) == {
+            "overview.owner@example.com",
+            "overview.member@example.com",
+        }
         assert users["overview.owner@example.com"] == {
             "id": owner.id,
             "email": owner.email,
@@ -154,9 +190,139 @@ class TestAdminEndpoints:
         assert users["overview.member@example.com"]["total_entries"] == 2
         assert users["overview.member@example.com"]["surviving_entries"] == 1
         assert users["overview.member@example.com"]["picked_entries"] == 1
-        assert users["overview.member@example.com"]["all_surviving_entries_picked"] is True
+        assert (
+            users["overview.member@example.com"]["all_surviving_entries_picked"] is True
+        )
         assert users["overview.member@example.com"]["admin_role"] == "Pool admin"
         assert "team" not in users["overview.member@example.com"]
+
+    def test_remove_user_from_pool_deletes_only_pool_scoped_participation(
+        self, client, db_session
+    ):
+        import models as m
+
+        owner_token = _register_and_login(client, "remove.owner@example.com")
+        member_token = _register_and_login(client, "remove.member@example.com")
+        pool_id = _create_pool(client, _authed(owner_token))
+        other_pool_id = _create_pool(client, _authed(owner_token))
+        member_id = _add_pool_member(db_session, pool_id, "remove.member@example.com")
+        _add_pool_member(db_session, other_pool_id, "remove.member@example.com")
+        entry_id = _create_entry(client, _authed(member_token), pool_id, "Remove Me")
+        _create_pick(db_session, entry_id, 1, "BUF")
+        db_session.add(m.PoolAdmin(pool_id=pool_id, user_id=member_id))
+        db_session.add(
+            m.PoolUserLock(
+                pool_id=pool_id,
+                user_id=member_id,
+                locked_at=datetime.now(timezone.utc).replace(tzinfo=None),
+            )
+        )
+        db_session.commit()
+
+        response = client.delete(
+            f"/admin/pools/{pool_id}/users/{member_id}",
+            headers=_authed(owner_token),
+        )
+
+        assert response.status_code == 200, response.text
+        assert (
+            db_session.query(m.User).filter_by(id=member_id).one_or_none() is not None
+        )
+        assert (
+            db_session.query(m.PoolMember)
+            .filter_by(pool_id=pool_id, user_id=member_id)
+            .one_or_none()
+            is None
+        )
+        assert (
+            db_session.query(m.PoolAdmin)
+            .filter_by(pool_id=pool_id, user_id=member_id)
+            .one_or_none()
+            is None
+        )
+        assert (
+            db_session.query(m.PoolUserLock)
+            .filter_by(pool_id=pool_id, user_id=member_id)
+            .one_or_none()
+            is None
+        )
+        assert (
+            db_session.query(m.Entry)
+            .filter_by(pool_id=pool_id, user_id=member_id)
+            .one_or_none()
+            is None
+        )
+        assert (
+            db_session.query(m.Pick).filter_by(entry_id=entry_id).one_or_none() is None
+        )
+        assert (
+            db_session.query(m.PoolMember)
+            .filter_by(pool_id=other_pool_id, user_id=member_id)
+            .one_or_none()
+            is not None
+        )
+        audit = (
+            db_session.query(m.AuditLog)
+            .filter_by(action="ADMIN_POOL_USER_REMOVED")
+            .order_by(m.AuditLog.created_at.desc())
+            .first()
+        )
+        assert audit is not None
+        assert pool_id in audit.details
+        assert "remove.member@example.com" in audit.details
+
+    def test_remove_user_from_pool_rejects_pool_owner(self, client, db_session):
+        import models as m
+
+        owner_token = _register_and_login(client, "remove.protected.owner@example.com")
+        pool_id = _create_pool(client, _authed(owner_token))
+        owner = (
+            db_session.query(m.User)
+            .filter_by(email="remove.protected.owner@example.com")
+            .one()
+        )
+
+        response = client.delete(
+            f"/admin/pools/{pool_id}/users/{owner.id}",
+            headers=_authed(owner_token),
+        )
+
+        assert response.status_code == 400
+        assert "Transfer ownership first" in response.json()["detail"]
+
+    def test_delegated_admin_cannot_remove_another_pool_admin(self, client, db_session):
+        import models as m
+
+        owner_token = _register_and_login(client, "remove.admin.owner@example.com")
+        delegated_token = _register_and_login(client, "remove.admin.actor@example.com")
+        _register_and_login(client, "remove.admin.target@example.com")
+        pool_id = _create_pool(client, _authed(owner_token))
+        actor_id = _add_pool_member(
+            db_session, pool_id, "remove.admin.actor@example.com"
+        )
+        target_id = _add_pool_member(
+            db_session, pool_id, "remove.admin.target@example.com"
+        )
+        db_session.add_all(
+            [
+                m.PoolAdmin(pool_id=pool_id, user_id=actor_id),
+                m.PoolAdmin(pool_id=pool_id, user_id=target_id),
+            ]
+        )
+        db_session.commit()
+
+        response = client.delete(
+            f"/admin/pools/{pool_id}/users/{target_id}",
+            headers=_authed(delegated_token),
+        )
+
+        assert response.status_code == 403
+        assert (
+            db_session.query(m.PoolAdmin)
+            .filter_by(pool_id=pool_id, user_id=target_id)
+            .one_or_none()
+            is not None
+        )
 
     def test_pool_admin_can_mark_dues_paid_and_unpaid_with_audit(
         self, client, db_session
@@ -194,9 +360,11 @@ class TestAdminEndpoints:
         )
         assert unpaid.status_code == 200
         assert unpaid.json()["paid"] is False
-        audit_rows = db_session.query(m.AuditLog).filter(
-            m.AuditLog.action == "ADMIN_POOL_DUES_STATUS_CHANGED"
-        ).all()
+        audit_rows = (
+            db_session.query(m.AuditLog)
+            .filter(m.AuditLog.action == "ADMIN_POOL_DUES_STATUS_CHANGED")
+            .all()
+        )
         assert len(audit_rows) == 2
         changes = [json.loads(row.details)["additional_data"] for row in audit_rows]
         assert [(change["previous_paid"], change["paid"]) for change in changes] == [
@@ -212,11 +380,16 @@ class TestAdminEndpoints:
         outsider_token = _register_and_login(client, "dues.guard.outsider@example.com")
         _register_and_login(client, "dues.guard.member@example.com")
         pool_id = _create_pool(client, _authed(owner_token))
-        member_id = _add_pool_member(db_session, pool_id, "dues.guard.member@example.com")
+        member_id = _add_pool_member(
+            db_session, pool_id, "dues.guard.member@example.com"
+        )
         import models as m
-        outsider = db_session.query(m.User).filter(
-            m.User.email == "dues.guard.outsider@example.com"
-        ).one()
+
+        outsider = (
+            db_session.query(m.User)
+            .filter(m.User.email == "dues.guard.outsider@example.com")
+            .one()
+        )
 
         forbidden = client.put(
             f"/admin/pools/{pool_id}/users/{member_id}/dues",
@@ -233,7 +406,9 @@ class TestAdminEndpoints:
 
     def test_pool_user_overview_rejects_non_admin_and_invalid_week(self, client):
         owner_token = _register_and_login(client, "overview.guard.owner@example.com")
-        outsider_token = _register_and_login(client, "overview.guard.outsider@example.com")
+        outsider_token = _register_and_login(
+            client, "overview.guard.outsider@example.com"
+        )
         pool_id = _create_pool(client, _authed(owner_token))
 
         forbidden = client.get(
@@ -248,19 +423,35 @@ class TestAdminEndpoints:
         assert forbidden.status_code == 403
         assert invalid_week.status_code == 400
 
-    def test_owner_grants_and_revokes_league_admin_idempotently(self, client, db_session):
+    def test_owner_grants_and_revokes_league_admin_idempotently(
+        self, client, db_session
+    ):
         import models as m
 
         owner_token = _register_and_login(client, "grant.owner@example.com")
         member_token = _register_and_login(client, "grant.member@example.com")
         _register_and_login(client, "grant.other@example.com")
         pool_id = _create_pool(client, _authed(owner_token))
-        member = db_session.query(m.User).filter(m.User.email == "grant.member@example.com").one()
-        other = db_session.query(m.User).filter(m.User.email == "grant.other@example.com").one()
-        db_session.add_all([
-            m.PoolMember(pool_id=pool_id, user_id=member.id, joined_at=datetime.utcnow()),
-            m.PoolMember(pool_id=pool_id, user_id=other.id, joined_at=datetime.utcnow()),
-        ])
+        member = (
+            db_session.query(m.User)
+            .filter(m.User.email == "grant.member@example.com")
+            .one()
+        )
+        other = (
+            db_session.query(m.User)
+            .filter(m.User.email == "grant.other@example.com")
+            .one()
+        )
+        db_session.add_all(
+            [
+                m.PoolMember(
+                    pool_id=pool_id, user_id=member.id, joined_at=datetime.utcnow()
+                ),
+                m.PoolMember(
+                    pool_id=pool_id, user_id=other.id, joined_at=datetime.utcnow()
+                ),
+            ]
+        )
         db_session.commit()
 
         granted = client.put(
@@ -284,7 +475,12 @@ class TestAdminEndpoints:
         assert granted.json()["is_admin"] is True
         assert repeated_grant.json()["changed"] is False
         assert delegated_grant.status_code == 403
-        assert client.get(f"/pools/{pool_id}/is-admin", headers=_authed(member_token)).json()["has_admin_access"] is True
+        assert (
+            client.get(
+                f"/pools/{pool_id}/is-admin", headers=_authed(member_token)
+            ).json()["has_admin_access"]
+            is True
+        )
 
         revoked = client.delete(
             f"/admin/pools/{pool_id}/admins?email=grant.member%40example.com",
@@ -299,12 +495,19 @@ class TestAdminEndpoints:
         assert revoked.json()["changed"] is True
         assert revoked.json()["is_admin"] is False
         assert repeated_revoke.json()["changed"] is False
-        assert client.get(f"/pools/{pool_id}/is-admin", headers=_authed(member_token)).json()["has_admin_access"] is False
+        assert (
+            client.get(
+                f"/pools/{pool_id}/is-admin", headers=_authed(member_token)
+            ).json()["has_admin_access"]
+            is False
+        )
         actions = {log.action for log in db_session.query(m.AuditLog).all()}
         assert "ADMIN_GRANT_LEAGUE_ADMIN" in actions
         assert "ADMIN_REVOKE_LEAGUE_ADMIN" in actions
 
-    def test_grant_requires_existing_participant_and_owner_cannot_be_revoked(self, client):
+    def test_grant_requires_existing_participant_and_owner_cannot_be_revoked(
+        self, client
+    ):
         owner_email = "grant.guard.owner@example.com"
         owner_token = _register_and_login(client, owner_email)
         _register_and_login(client, "grant.guard.outsider@example.com")
@@ -325,15 +528,29 @@ class TestAdminEndpoints:
         assert revoke_owner.status_code == 400
         assert "owner access cannot be revoked" in revoke_owner.json()["detail"]
 
-    def test_owner_transfers_ownership_and_remains_league_admin(self, client, db_session):
+    def test_owner_transfers_ownership_and_remains_league_admin(
+        self, client, db_session
+    ):
         import models as m
 
         old_owner_token = _register_and_login(client, "transfer.owner@example.com")
         new_owner_token = _register_and_login(client, "transfer.new@example.com")
         pool_id = _create_pool(client, _authed(old_owner_token))
-        old_owner = db_session.query(m.User).filter(m.User.email == "transfer.owner@example.com").one()
-        new_owner = db_session.query(m.User).filter(m.User.email == "transfer.new@example.com").one()
-        db_session.add(m.PoolMember(pool_id=pool_id, user_id=new_owner.id, joined_at=datetime.utcnow()))
+        old_owner = (
+            db_session.query(m.User)
+            .filter(m.User.email == "transfer.owner@example.com")
+            .one()
+        )
+        new_owner = (
+            db_session.query(m.User)
+            .filter(m.User.email == "transfer.new@example.com")
+            .one()
+        )
+        db_session.add(
+            m.PoolMember(
+                pool_id=pool_id, user_id=new_owner.id, joined_at=datetime.utcnow()
+            )
+        )
         db_session.commit()
 
         response = client.put(
@@ -352,8 +569,12 @@ class TestAdminEndpoints:
         }
         db_session.expire_all()
         assert db_session.get(m.Pool, pool_id).owner_id == new_owner.id
-        old_status = client.get(f"/pools/{pool_id}/is-admin", headers=_authed(old_owner_token)).json()
-        new_status = client.get(f"/pools/{pool_id}/is-admin", headers=_authed(new_owner_token)).json()
+        old_status = client.get(
+            f"/pools/{pool_id}/is-admin", headers=_authed(old_owner_token)
+        ).json()
+        new_status = client.get(
+            f"/pools/{pool_id}/is-admin", headers=_authed(new_owner_token)
+        ).json()
         assert old_status == {
             "pool_id": pool_id,
             "is_owner": False,
@@ -412,13 +633,15 @@ class TestAdminEndpoints:
             headers=headers,
         )
         assert response.status_code == 200, response.text
-        assert response.json() == [{
-            "id": entry_id,
-            "name": "Alpha Entry",
-            "user_id": response.json()[0]["user_id"],
-            "owner_email": "search.owner@example.com",
-            "locked": False,
-        }]
+        assert response.json() == [
+            {
+                "id": entry_id,
+                "name": "Alpha Entry",
+                "user_id": response.json()[0]["user_id"],
+                "owner_email": "search.owner@example.com",
+                "locked": False,
+            }
+        ]
 
     def test_admin_corrects_pick_by_entry_and_week(self, client, db_session):
         owner_token = _register_and_login(client, "correct.owner@example.com")
@@ -444,7 +667,9 @@ class TestAdminEndpoints:
         entry_id = _create_entry(client, headers, pool_id, "Delete With Picks")
         pick = _create_pick(db_session, entry_id, 2, "BUF")
 
-        response = client.delete(f"/admin/pools/{pool_id}/entries/{entry_id}", headers=headers)
+        response = client.delete(
+            f"/admin/pools/{pool_id}/entries/{entry_id}", headers=headers
+        )
         assert response.status_code == 200, response.text
         assert db_session.query(m.Entry).filter(m.Entry.id == entry_id).first() is None
         assert db_session.query(m.Pick).filter(m.Pick.id == pick.id).first() is None
@@ -458,7 +683,11 @@ class TestAdminEndpoints:
 
         locked = client.put(
             f"/admin/pools/{pool_id}/user-lock",
-            json={"email": "email.lock.target@example.com", "locked": True, "reason": "Unpaid"},
+            json={
+                "email": "email.lock.target@example.com",
+                "locked": True,
+                "reason": "Unpaid",
+            },
             headers=headers,
         )
         assert locked.status_code == 200, locked.text
@@ -709,10 +938,13 @@ class TestLockWeek:
                 "created_at": report.json()[0]["created_at"],
             }
         ]
-        assert client.get(
-            f"/admin/pools/{pool_id}/auto-picks?week=1",
-            headers=_authed(token_b),
-        ).status_code == 403
+        assert (
+            client.get(
+                f"/admin/pools/{pool_id}/auto-picks?week=1",
+                headers=_authed(token_b),
+            ).status_code
+            == 403
+        )
 
         # Entry B should now have a pick for week 1 equal to "NE"
         pick_b = (
@@ -955,7 +1187,9 @@ class TestCSVExport:
     def test_csv_neutralizes_spreadsheet_formulas(self, client, db_session):
         token = _register_and_login(client, email="csv_formula@example.com")
         pool_id = _create_pool(client, _authed(token))
-        _create_entry(client, _authed(token), pool_id, name="=HYPERLINK(\"https://evil.invalid\")")
+        _create_entry(
+            client, _authed(token), pool_id, name='=HYPERLINK("https://evil.invalid")'
+        )
 
         resp = client.get(
             f"/admin/pools/{pool_id}/export/entries.csv",
@@ -976,6 +1210,7 @@ class TestUserLock:
 
     def _get_user_id(self, db_session, email):
         import models as m
+
         user = db_session.query(m.User).filter(m.User.email == email).first()
         assert user is not None
         return user.id
@@ -1006,8 +1241,16 @@ class TestUserLock:
         target_id = self._get_user_id(db_session, "lock_dup_target@example.com")
         _add_pool_member(db_session, pool_id, "lock_dup_target@example.com")
 
-        client.post(f"/admin/pools/{pool_id}/users/{target_id}/lock", json={}, headers=_authed(token))
-        resp = client.post(f"/admin/pools/{pool_id}/users/{target_id}/lock", json={}, headers=_authed(token))
+        client.post(
+            f"/admin/pools/{pool_id}/users/{target_id}/lock",
+            json={},
+            headers=_authed(token),
+        )
+        resp = client.post(
+            f"/admin/pools/{pool_id}/users/{target_id}/lock",
+            json={},
+            headers=_authed(token),
+        )
         assert resp.status_code == 409
 
     def test_unlock_removes_row_200(self, client, db_session):
@@ -1018,8 +1261,14 @@ class TestUserLock:
         target_id = self._get_user_id(db_session, "unlock_target@example.com")
         _add_pool_member(db_session, pool_id, "unlock_target@example.com")
 
-        client.post(f"/admin/pools/{pool_id}/users/{target_id}/lock", json={}, headers=_authed(token))
-        resp = client.delete(f"/admin/pools/{pool_id}/users/{target_id}/lock", headers=_authed(token))
+        client.post(
+            f"/admin/pools/{pool_id}/users/{target_id}/lock",
+            json={},
+            headers=_authed(token),
+        )
+        resp = client.delete(
+            f"/admin/pools/{pool_id}/users/{target_id}/lock", headers=_authed(token)
+        )
         assert resp.status_code == 200
 
     def test_unlock_when_not_locked_returns_404(self, client, db_session):
@@ -1030,7 +1279,9 @@ class TestUserLock:
         target_id = self._get_user_id(db_session, "unlock_noop_target@example.com")
         _add_pool_member(db_session, pool_id, "unlock_noop_target@example.com")
 
-        resp = client.delete(f"/admin/pools/{pool_id}/users/{target_id}/lock", headers=_authed(token))
+        resp = client.delete(
+            f"/admin/pools/{pool_id}/users/{target_id}/lock", headers=_authed(token)
+        )
         assert resp.status_code == 404
 
     def test_non_admin_cannot_lock_user(self, client, db_session):
@@ -1082,6 +1333,7 @@ class TestUserLockEnforcement:
 
     def _get_user_id(self, db_session, email):
         import models as m
+
         user = db_session.query(m.User).filter(m.User.email == email).first()
         return user.id
 
@@ -1211,13 +1463,17 @@ class TestUserLockEnforcement:
             json={"pool_id": pool_b, "name": "Pool B Entry"},
             headers=_authed(user_token),
         )
-        assert resp.status_code == 200, f"Expected 200 in unlocked pool, got {resp.status_code}: {resp.text}"
+        assert (
+            resp.status_code == 200
+        ), f"Expected 200 in unlocked pool, got {resp.status_code}: {resp.text}"
 
     def test_admin_can_transfer_locked_users_entry(self, client, db_session):
         """Admin transfer works even when the entry owner is locked in the pool."""
         admin_token = _register_and_login(client, email="enf_xfr_admin@example.com")
         user_token = _register_and_login(client, email="enf_xfr_user@example.com")
-        new_owner_token = _register_and_login(client, email="enf_xfr_newowner@example.com")
+        new_owner_token = _register_and_login(
+            client, email="enf_xfr_newowner@example.com"
+        )
         pool_id = _create_pool(client, _authed(admin_token))
 
         entry_resp = client.post(
