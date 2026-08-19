@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 import hashlib
 from fastapi import Cookie, Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -8,11 +8,10 @@ from jwt import InvalidTokenError
 from database import SessionLocal
 import models
 import os
+from auth_session import PERSISTENT_SESSION_TTL
 
 SECRET_KEY = os.environ["SECRET_KEY"]
 ALGORITHM = "HS256"
-PERSISTENT_SESSION_TTL = timedelta(days=400)
-
 security = HTTPBearer(auto_error=False)
 
 def get_db():

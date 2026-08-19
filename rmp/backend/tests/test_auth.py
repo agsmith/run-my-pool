@@ -1,6 +1,8 @@
 import pytest
+from datetime import datetime, timedelta, timezone
 from unittest.mock import Mock, patch
 import auth
+import models
 from auth import SECRET_KEY
 
 
@@ -213,10 +215,25 @@ class TestAuthEndpoints:
         assert "rmp_persistent_session=" in cookie
         assert "httponly" in cookie
         assert "samesite=lax" in cookie
+        assert "max-age=15552000" in cookie
         assert client.get("/auth/me").status_code == 200
 
+    def test_persistent_session_is_stored_with_a_180_day_rolling_expiry(
+        self, client, test_user_data, db_session
+    ):
+        client.post("/auth/register", json=test_user_data)
+        before_login = datetime.now(timezone.utc).replace(tzinfo=None)
+        login = client.post("/auth/login", json=test_user_data)
+
+        assert login.status_code == 200
+        session = db_session.query(models.PersistentSession).one()
+        assert before_login + timedelta(days=180) <= session.expires_at
+        assert session.expires_at <= (
+            datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(days=180)
+        )
+
     def test_persistent_session_authenticates_after_access_token_expires(
-        self, client, test_user_data
+        self, client, test_user_data, db_session
     ):
         client.post("/auth/register", json=test_user_data)
         client.post(
@@ -227,12 +244,36 @@ class TestAuthEndpoints:
             {"sub": test_user_data["email"]}, expires_delta=timedelta(seconds=-1)
         )
         client.cookies.set("rmp_access_token", expired)
+        session = db_session.query(models.PersistentSession).one()
+        session.expires_at = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(days=1)
+        db_session.commit()
 
         response = client.get("/auth/me")
 
         assert response.status_code == 200
         assert response.json()["email"] == test_user_data["email"]
         assert "rmp_persistent_session=" in response.headers["set-cookie"].lower()
+        db_session.refresh(session)
+        assert session.expires_at >= (
+            datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(days=179)
+        )
+
+    def test_expired_persistent_session_cannot_restore_an_expired_access_token(
+        self, client, test_user_data, db_session
+    ):
+        client.post("/auth/register", json=test_user_data)
+        client.post("/auth/login", json=test_user_data)
+        session = db_session.query(models.PersistentSession).one()
+        session.expires_at = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(seconds=1)
+        db_session.commit()
+        client.cookies.set(
+            "rmp_access_token",
+            auth.create_access_token(
+                {"sub": test_user_data["email"]}, expires_delta=timedelta(seconds=-1)
+            ),
+        )
+
+        assert client.get("/auth/me").status_code == 401
 
     def test_logout_clears_cookie_session(self, client, test_user_data):
         client.post("/auth/register", json=test_user_data)
@@ -298,7 +339,6 @@ class TestAuthEndpoints:
 # Module-level token helpers (used by new test classes below)
 # ---------------------------------------------------------------------------
 
-from datetime import timedelta
 from auth import create_access_token  # SECRET_KEY already imported at top
 
 

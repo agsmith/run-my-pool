@@ -2,6 +2,18 @@ import { createContext, useContext, useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 
 const AuthContext = createContext();
+const SESSION_MARKER = 'session_expires_at';
+const SESSION_TTL_MS = 180 * 24 * 60 * 60 * 1000;
+
+const rememberSession = () => {
+  localStorage.setItem(SESSION_MARKER, String(Date.now() + SESSION_TTL_MS));
+};
+
+const forgetSession = () => {
+  localStorage.removeItem('access_token');
+  localStorage.removeItem('user');
+  localStorage.removeItem(SESSION_MARKER);
+};
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
@@ -13,14 +25,19 @@ export function AuthProvider({ children }) {
     let cancelled = false;
     const restoreSession = async () => {
       const cachedUser = localStorage.getItem('user');
-      if (!cachedUser) {
-        localStorage.removeItem('access_token');
+      const markerExpiresAt = Number(localStorage.getItem(SESSION_MARKER));
+      const hasUnexpiredMarker = Number.isFinite(markerExpiresAt) && markerExpiresAt > Date.now();
+      // cachedUser supports sessions created before the marker was introduced.
+      if (!cachedUser && !hasUnexpiredMarker) {
+        forgetSession();
         if (!cancelled) setLoading(false);
         return;
       }
       try {
         // The real credential is an HttpOnly cookie. The non-sensitive marker
-        // keeps legacy request helpers from persisting the bearer token.
+        // keeps legacy request helpers from persisting the bearer token. When
+        // the marker indicates a remembered session, ask the backend to restore
+        // the cookie even if cached user metadata is missing.
         localStorage.removeItem('access_token');
         const response = await fetch(process.env.NEXT_PUBLIC_API_URL + '/auth/me', {
           credentials: 'include',
@@ -32,13 +49,13 @@ export function AuthProvider({ children }) {
           setUser(userData);
           localStorage.setItem('access_token', 'cookie');
           localStorage.setItem('user', JSON.stringify(userData));
+          rememberSession();
         }
       } catch {
         if (!cancelled) {
           setToken(null);
           setUser(null);
-          localStorage.removeItem('access_token');
-          localStorage.removeItem('user');
+          forgetSession();
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -75,6 +92,7 @@ export function AuthProvider({ children }) {
       const accessToken = 'cookie';
       setToken(accessToken);
       localStorage.setItem('access_token', accessToken);
+      rememberSession();
       
       // Fetch full user info
       const userRes = await fetch(process.env.NEXT_PUBLIC_API_URL + '/auth/me', {
@@ -112,8 +130,7 @@ export function AuthProvider({ children }) {
     } finally {
       setUser(null);
       setToken(null);
-      localStorage.removeItem('access_token');
-      localStorage.removeItem('user');
+      forgetSession();
       router.push('/login');
     }
   };

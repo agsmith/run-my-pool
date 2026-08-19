@@ -17,6 +17,7 @@ import logging
 from audit_utils import log_create_operation, log_authentication_event, log_update_operation
 from app_logging import log_event
 from email_service import send_email_verification_email, send_password_reset_email
+from auth_session import PERSISTENT_SESSION_TTL
 
 logger = logging.getLogger("runmypool.auth")
 
@@ -25,7 +26,6 @@ ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24
 ACCESS_TOKEN_COOKIE = "rmp_access_token"
 PERSISTENT_SESSION_COOKIE = "rmp_persistent_session"
-PERSISTENT_SESSION_TTL = timedelta(days=400)
 LOGIN_ATTEMPT_LIMIT = 5
 LOGIN_ATTEMPT_WINDOW = timedelta(minutes=15)
 EMAIL_VERIFICATION_TTL = timedelta(hours=24)

@@ -90,6 +90,27 @@ describe('AuthProvider', () => {
     expect(screen.getByTestId('token')).toHaveTextContent('null')
   })
 
+  test('restores a valid cookie session when cached user metadata is missing', async () => {
+    localStorage.setItem('session_expires_at', String(Date.now() + 180 * 24 * 60 * 60 * 1000))
+    fetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ id: '1', email: 'pwa@example.com' }),
+    })
+
+    renderWithAuth()
+
+    await waitFor(() => {
+      expect(screen.getByTestId('user')).toHaveTextContent('pwa@example.com')
+    })
+    expect(fetch).toHaveBeenCalledWith(
+      expect.stringContaining('/auth/me'),
+      expect.objectContaining({ credentials: 'include' }),
+    )
+    expect(localStorage.getItem('access_token')).toBe('cookie')
+    expect(localStorage.getItem('user')).toBe(JSON.stringify({ id: '1', email: 'pwa@example.com' }))
+    expect(Number(localStorage.getItem('session_expires_at'))).toBeGreaterThan(Date.now())
+  })
+
   test('rehydrates a valid cookie session without restoring a bearer token', async () => {
     localStorage.setItem('access_token', 'test-token')
     localStorage.setItem('user', JSON.stringify({ id: '1', email: 'a@b.com' }))
@@ -148,6 +169,7 @@ describe('login function', () => {
     expect(fetch).toHaveBeenCalledTimes(2)
     expect(fetch.mock.calls[0][0]).toContain('/auth/login')
     expect(fetch.mock.calls[1][0]).toContain('/auth/me')
+    expect(Number(localStorage.getItem('session_expires_at'))).toBeGreaterThan(Date.now())
   })
 
   test('stores user info from /auth/me in localStorage', async () => {
