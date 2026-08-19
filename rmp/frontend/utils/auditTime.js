@@ -1,4 +1,4 @@
-const AUDIT_TIME_ZONE = 'America/New_York';
+const AUDIT_TIME_ZONE = 'UTC';
 
 const auditTimeFormatter = new Intl.DateTimeFormat('en-US', {
   timeZone: AUDIT_TIME_ZONE,

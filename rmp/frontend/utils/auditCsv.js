@@ -13,7 +13,7 @@ const parseDetails = (details) => {
 };
 
 export function buildAuditCsv(logs) {
-  const columns = ['Timestamp (Eastern Time)', 'Action', 'Username', 'User ID', 'Description', 'Entry', 'Week', 'Old Team', 'New Team', 'Details'];
+  const columns = ['Timestamp (UTC)', 'Action', 'Username', 'User ID', 'Description', 'Entry', 'Week', 'Old Team', 'New Team', 'Details'];
   const rows = logs.map((log) => {
     const details = parseDetails(log.details);
     const data = details.additional_data || {};

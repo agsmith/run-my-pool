@@ -14,8 +14,8 @@ describe('audit CSV export', () => {
       }),
     }]);
 
-    expect(csv).toContain('"Timestamp (Eastern Time)","Action","Username","User ID"');
-    expect(csv).toContain('"Sep 1, 2026, 8:00:00 AM EDT"');
+    expect(csv).toContain('"Timestamp (UTC)","Action","Username","User ID"');
+    expect(csv).toContain('"Sep 1, 2026, 12:00:00 PM UTC"');
     expect(csv).toContain('"UPDATE_PICK"');
     expect(csv).toContain('"member@example.com"');
     expect(csv).toContain('"Entry 1","2","BUF","MIA"');
