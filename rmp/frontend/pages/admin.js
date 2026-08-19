@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import SuperAdminRoute from '../components/SuperAdminRoute';
 import { useAuth } from '../context/AuthContext';
 import { downloadAuditCsv } from '../utils/auditCsv';
+import { formatAuditTimestamp } from '../utils/auditTime';
 
 const roleLabel = (role) => ({ SUPER_ADMIN: 'Platform admin', POOL_ADMIN: 'Pool admin', USER: 'Member' }[role] || role);
 const apiUrl = (path) => `${process.env.NEXT_PUBLIC_API_URL}${path}`;
@@ -108,7 +109,7 @@ function AdminTable({ tab, records, currentUser, updateAccount }) {
   if (!records.length) return <div className="platform-admin-state">No records match that search.</div>;
   if (tab === 'pools') return <div className="platform-admin-table-wrap"><table className="platform-admin-table"><thead><tr><th>Pool</th><th>Visibility</th><th>Owner</th><th>Members</th><th>Entries</th><th>Actions</th></tr></thead><tbody>{records.map((pool) => <tr key={pool.id}><td><strong>{pool.name}</strong></td><td>{pool.is_private ? 'Private' : 'Public'}</td><td>{pool.owner_email || '—'}</td><td>{pool.member_count}</td><td>{pool.entry_count}</td><td><Link href={`/admin/league/${pool.id}`}>Manage pool</Link></td></tr>)}</tbody></table></div>;
   if (tab === 'entries') return <div className="platform-admin-table-wrap"><table className="platform-admin-table"><thead><tr><th>Entry</th><th>User</th><th>Pool</th><th>Status</th><th>Created</th></tr></thead><tbody>{records.map((entry) => <tr key={entry.id}><td><strong>{entry.name}</strong></td><td>{entry.user_email || '—'}</td><td><Link href={`/admin/league/${entry.pool_id}`}>{entry.pool_name || entry.pool_id}</Link></td><td>{entry.alive ? 'Alive' : 'Eliminated'}</td><td>{entry.created_at ? new Date(entry.created_at).toLocaleDateString() : '—'}</td></tr>)}</tbody></table></div>;
-  if (tab === 'audit') return <div className="platform-admin-table-wrap"><table className="platform-admin-table"><thead><tr><th>When</th><th>Action</th><th>User</th><th>Details</th></tr></thead><tbody>{records.map((log) => <tr key={log.id}><td>{new Date(log.created_at).toLocaleString()}</td><td><strong>{log.action}</strong></td><td>{log.username || log.user_id || 'System'}</td><td>{log.details}</td></tr>)}</tbody></table></div>;
+  if (tab === 'audit') return <div className="platform-admin-table-wrap"><table className="platform-admin-table"><thead><tr><th>When (Eastern Time)</th><th>Action</th><th>User</th><th>Details</th></tr></thead><tbody>{records.map((log) => <tr key={log.id}><td>{formatAuditTimestamp(log.created_at)}</td><td><strong>{log.action}</strong></td><td>{log.username || log.user_id || 'System'}</td><td>{log.details}</td></tr>)}</tbody></table></div>;
   const visible = records;
   if (!visible.length) return <div className="platform-admin-state">No records match that search.</div>;
   return <div className="platform-admin-table-wrap"><table className="platform-admin-table"><thead><tr><th>User</th><th>Role</th><th>Status</th><th>Pools</th><th>Joined</th><th>Actions</th></tr></thead><tbody>{visible.map((account) => {

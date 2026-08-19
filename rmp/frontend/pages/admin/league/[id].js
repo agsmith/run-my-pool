@@ -12,6 +12,7 @@ import LeaguePasswordViewer from '../../../components/LeaguePasswordViewer';
 import OwnerPoolReports from '../../../components/OwnerPoolReports';
 import { getAuditUsername } from '../../../utils/auditDisplay';
 import { downloadAuditCsv } from '../../../utils/auditCsv';
+import { formatAuditTimestamp } from '../../../utils/auditTime';
 
 export default function AdminPortal() {
   const [activeSection, setActiveSection] = useState('league-management');
@@ -1484,7 +1485,7 @@ export default function AdminPortal() {
                       {log.action || 'Unknown Action'}
                     </div>
                     <div style={{ fontSize: '0.875rem', color: '#6b7280' }}>
-                      {log.created_at ? new Date(log.created_at).toLocaleString() : 'Unknown Time'}
+                      {formatAuditTimestamp(log.created_at)}
                     </div>
                   </div>
                   <div style={{ fontSize: '0.875rem', color: '#4b5563', marginBottom: '0.25rem' }}>

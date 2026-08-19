@@ -1,4 +1,5 @@
 import { getAuditUsername } from './auditDisplay';
+import { formatAuditTimestamp } from './auditTime';
 
 const csvCell = (value) => {
   let text = value == null ? '' : String(value);
@@ -12,14 +13,14 @@ const parseDetails = (details) => {
 };
 
 export function buildAuditCsv(logs) {
-  const columns = ['Timestamp', 'Action', 'Username', 'User ID', 'Description', 'Entry', 'Week', 'Old Team', 'New Team', 'Details'];
+  const columns = ['Timestamp (Eastern Time)', 'Action', 'Username', 'User ID', 'Description', 'Entry', 'Week', 'Old Team', 'New Team', 'Details'];
   const rows = logs.map((log) => {
     const details = parseDetails(log.details);
     const data = details.additional_data || {};
     const context = data.changes?.context || data;
     const teamChange = data.changes?.team || {};
     return [
-      log.created_at || '',
+      formatAuditTimestamp(log.created_at, ''),
       log.action || '',
       getAuditUsername(log, details),
       log.user_id || '',
