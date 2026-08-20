@@ -6,21 +6,25 @@ export const SPORTZBALLZ_ADS = [
     campaign: 'prognostication',
     src: '/ads/sportzballz/prognostication.jpg',
     alt: "SportzBallz — Artificially Intelligent Athletic Competition Prognostication. See today's picks.",
+    destination: 'https://sportzballz.io/',
   },
   {
     campaign: 'bragging-rights',
     src: '/ads/sportzballz/bragging-rights.jpg',
     alt: 'SportzBallz — AI picks. Human bragging rights. Get the picks.',
+    destination: 'https://sportzballz.io/',
   },
   {
     campaign: 'next-pick',
     src: '/ads/sportzballz/next-pick.jpg',
     alt: 'SportzBallz — Stuck on your next pick? Let SportzBallz overthink it.',
+    destination: 'https://sportzballz.io/',
   },
   {
     campaign: 'daily-sportz-page',
     src: '/ads/sportzballz/daily-sportz-page.jpg',
     alt: 'The Daily Sportz Page — daily MLB scores, stories, and stats from SportzBallz.',
+    destination: 'https://sportzballz.io/sportzpage',
   },
 ];
 
@@ -47,7 +51,7 @@ export default function SportzBallzAd() {
   }, [startingIndex]);
 
   const activeAd = SPORTZBALLZ_ADS[activeIndex];
-  const href = `https://sportzballz.io/?utm_source=runmypool.net&utm_medium=banner&utm_campaign=cross-promotion&utm_content=${activeAd.campaign}`;
+  const href = `${activeAd.destination}?utm_source=runmypool.net&utm_medium=banner&utm_campaign=cross-promotion&utm_content=${activeAd.campaign}`;
 
   return (
     <aside className="sportzballz-ad" aria-label="Advertisement from SportzBallz">

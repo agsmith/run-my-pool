@@ -14,6 +14,10 @@ describe('SportzBallzAd', () => {
       'next-pick',
       'daily-sportz-page',
     ]);
+    expect(SPORTZBALLZ_ADS.find((ad) => ad.campaign === 'daily-sportz-page')).toMatchObject({
+      destination: 'https://sportzballz.io/sportzpage',
+      src: '/ads/sportzballz/daily-sportz-page.jpg',
+    });
   });
 
   test('selects a stable starting creative for each route', () => {
@@ -26,6 +30,7 @@ describe('SportzBallzAd', () => {
     render(<SportzBallzAd />);
 
     const link = screen.getByRole('link');
+    expect(link).toHaveAttribute('href', expect.stringMatching(/^https:\/\/sportzballz\.io\/sportzpage\?/));
     expect(link).toHaveAttribute('href', expect.stringContaining('utm_source=runmypool.net'));
     expect(link).toHaveAttribute('href', expect.stringContaining('utm_content='));
     expect(link).toHaveAttribute('target', '_blank');
