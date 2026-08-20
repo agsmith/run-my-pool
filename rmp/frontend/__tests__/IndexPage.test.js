@@ -88,13 +88,16 @@ describe('IndexPage', () => {
     })
   })
 
-  test('explains both supported pool formats before signup', () => {
+  test('explains all supported pool formats before signup', () => {
     render(<IndexPage />)
 
     expect(screen.getByRole('heading', { name: /last entry standing/i })).toBeInTheDocument()
     expect(screen.getByText(/one pick per surviving entry/i)).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: /most wins takes it/i })).toBeInTheDocument()
     expect(screen.getByText(/one point for every winner/i)).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /own the board/i })).toBeInTheDocument()
+    expect(screen.getByText(/100 numbered squares/i)).toBeInTheDocument()
+    expect(screen.getByText('Quarter, halftime, and final winners')).toBeInTheDocument()
   })
 
   test('answers essential pre-purchase questions and links to support', () => {

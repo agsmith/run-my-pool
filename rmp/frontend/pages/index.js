@@ -25,7 +25,7 @@ const howSteps = [
     number: '01',
     eyebrow: 'COMMISSIONER SETUP',
     title: 'BUILD YOUR POOL',
-    copy: "Choose Survivor, Pick 'Em, or single-game Squares, name the pool, and make it public or password-protected.",
+    copy: "Choose Survivor, Pick 'Em, or Squares, name the pool, and make it public or password-protected.",
     details: ['Set weekly lock day, time, and timezone', 'Choose entry limits, rules, and autopick behavior'],
   },
   {
@@ -90,7 +90,7 @@ export default function Home() {
     <div className="rmp-landing">
       <Seo
         title="Run My Pool"
-        description="Run NFL Survivor or Pick 'Em pools with automated picks, standings, deadlines, commissioner controls, and mobile access."
+        description="Run NFL Survivor, Pick 'Em, or Squares pools with automated results, standings, deadlines, commissioner controls, and mobile access."
         structuredData={{
           '@context': 'https://schema.org',
           '@graph': [
@@ -100,7 +100,7 @@ export default function Home() {
               applicationCategory: 'SportsApplication',
               operatingSystem: 'Web',
               url: 'https://runmypool.net',
-              description: "NFL Survivor and Pick 'Em pool management software for commissioners and players.",
+              description: "NFL Survivor, Pick 'Em, and Squares pool management software for commissioners and players.",
               offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
             },
             {
@@ -212,7 +212,7 @@ export default function Home() {
 
         <section className="rmp-pool-types" id="pool-types">
           <div className="rmp-shell">
-            <p className="rmp-eyebrow"><span /> TWO WAYS TO PLAY</p>
+            <p className="rmp-eyebrow"><span /> THREE WAYS TO PLAY</p>
             <h2>YOUR CREW.<br /><em>YOUR FORMAT.</em></h2>
             <div className="rmp-format-grid">
               <article>
@@ -226,6 +226,12 @@ export default function Home() {
                 <h3>MOST WINS TAKES IT</h3>
                 <p>Pick the winner of every game each week with no point spreads. Every correct pick earns one point.</p>
                 <ul><li>Every NFL matchup each week</li><li>One point for every winner</li><li>Season-long standings</li></ul>
+              </article>
+              <article>
+                <span>03 · SQUARES</span>
+                <h3>OWN THE BOARD</h3>
+                <p>Fill a 10×10 board for one game or a collection of games. Score digits are randomized when the board locks.</p>
+                <ul><li>100 numbered squares</li><li>Member claims or commissioner entry</li><li>Quarter, halftime, and final winners</li></ul>
               </article>
             </div>
             <Link href={createPoolHref} className="rmp-button rmp-primary">Compare packages and start <span>→</span></Link>
