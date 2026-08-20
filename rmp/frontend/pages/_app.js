@@ -4,6 +4,15 @@ import Head from 'next/head'
 import { useRouter } from 'next/router'
 import NavBar from '../components/NavBar'
 import Seo from '../components/Seo'
+import SportzBallzAd from '../components/SportzBallzAd'
+
+export function shouldShowSportzBallzAd(pathname = '') {
+  return pathname === '/dashboard'
+    || pathname === '/leagues'
+    || pathname === '/message-board'
+    || pathname.startsWith('/pool/')
+    || pathname.startsWith('/league/')
+}
 
 export default function MyApp({ Component, pageProps }) {
   const router = useRouter()
@@ -24,6 +33,7 @@ export default function MyApp({ Component, pageProps }) {
 
   const experience = getExperience(router.pathname)
   const showProductNav = !isMarketingPage && !['auth', 'utility'].includes(experience)
+  const showSportzBallzAd = shouldShowSportzBallzAd(router.pathname)
   const publicSeo = {
     '/': {
       title: 'Run My Pool',
@@ -81,6 +91,7 @@ export default function MyApp({ Component, pageProps }) {
           data-route={router.pathname}
         >
           {showProductNav && <NavBar />}
+          {showSportzBallzAd && <SportzBallzAd />}
           <Component {...pageProps} />
         </div>
       </AuthProvider>

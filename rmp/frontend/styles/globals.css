@@ -1921,3 +1921,23 @@ table {
 .verification-resend-form label { display: grid; gap: .5rem; color: #d8e1df; font-size: .76rem; font-weight: 850; letter-spacing: .07em; text-transform: uppercase; }
 .verification-resend-form input { box-sizing: border-box; width: 100%; padding: .75rem 1rem; border: 2px solid #e5e7eb; border-radius: 8px; background: #fafafa; font: inherit; }
 .auth-link-button { display: block; margin-top: 1.25rem; padding: .875rem 1rem; text-align: center; text-decoration: none; }
+
+.sportzballz-ad { box-sizing: border-box; width: min(100% - 2rem, 1050px); margin: 1rem auto 0; text-align: center; }
+.sportzballz-ad__label { display: block; margin: 0 0 .3rem; color: #849693; font-size: .61rem; font-weight: 850; letter-spacing: .12em; text-transform: uppercase; }
+.sportzballz-ad__link { display: block; overflow: hidden; border: 1px solid #3c5a65; border-radius: 10px; background: #0879dd; box-shadow: 0 12px 30px rgba(0,0,0,.32); line-height: 0; transition: border-color .2s ease, box-shadow .2s ease, transform .2s ease; }
+.sportzballz-ad__link:hover, .sportzballz-ad__link:focus-visible { border-color: #d7ff3f; box-shadow: 0 14px 34px rgba(0,0,0,.42), 0 0 0 2px rgba(215,255,63,.22); transform: translateY(-1px); outline: none; }
+.sportzballz-ad__image { display: block; width: 100%; height: auto; }
+.sportzballz-ad__controls { display: flex; justify-content: center; gap: .42rem; min-height: 24px; padding-top: .42rem; }
+.sportzballz-ad__controls button { width: 8px; height: 8px; margin: 0; padding: 0; border: 1px solid #71827f; border-radius: 50%; background: #243331; cursor: pointer; }
+.sportzballz-ad__controls button.is-active { border-color: #d7ff3f; background: #d7ff3f; }
+@media (max-width: 640px) {
+  .sportzballz-ad { width: min(100% - 1rem, 1050px); margin-top: .65rem; }
+  .sportzballz-ad__link { border-radius: 7px; }
+  .sportzballz-ad__label { font-size: .55rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sportzballz-ad__link { transition: none; }
+}
+@media print {
+  .sportzballz-ad { display: none!important; }
+}
