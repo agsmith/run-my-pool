@@ -7,6 +7,15 @@ jest.mock('next/router', () => ({
 }));
 
 describe('SportzBallzAd', () => {
+  test('includes all four approved SportzBallz campaigns', () => {
+    expect(SPORTZBALLZ_ADS.map((ad) => ad.campaign)).toEqual([
+      'prognostication',
+      'bragging-rights',
+      'next-pick',
+      'daily-sportz-page',
+    ]);
+  });
+
   test('selects a stable starting creative for each route', () => {
     expect(sportzBallzAdIndex('/dashboard')).toBe(sportzBallzAdIndex('/dashboard'));
     expect(sportzBallzAdIndex('/dashboard')).toBeGreaterThanOrEqual(0);

@@ -17,6 +17,11 @@ export const SPORTZBALLZ_ADS = [
     src: '/ads/sportzballz/next-pick.jpg',
     alt: 'SportzBallz — Stuck on your next pick? Let SportzBallz overthink it.',
   },
+  {
+    campaign: 'daily-sportz-page',
+    src: '/ads/sportzballz/daily-sportz-page.jpg',
+    alt: 'The Daily Sportz Page — daily MLB scores, stories, and stats from SportzBallz.',
+  },
 ];
 
 export function sportzBallzAdIndex(pathname = '') {
