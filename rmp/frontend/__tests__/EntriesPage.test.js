@@ -266,6 +266,16 @@ describe('player entries page', () => {
     );
   });
 
+  test('uses a compact edit icon without a visible Rename label', async () => {
+    installApi({ entries: [{ id: 'entry-1', name: 'Original Name', alive: true }] });
+    render(<LeagueEntries />);
+
+    const editButton = await screen.findByRole('button', { name: 'Rename Original Name' });
+    expect(editButton).toHaveClass('entries-name-edit');
+    expect(editButton.querySelector('svg')).toBeInTheDocument();
+    expect(editButton).not.toHaveTextContent(/rename/i);
+  });
+
   test('deletes the explicitly selected entry regardless of creation or display order', async () => {
     const user = userEvent.setup();
     installApi({

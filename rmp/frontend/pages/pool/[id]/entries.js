@@ -1455,7 +1455,9 @@ export default function LeagueEntries() {
                             aria-label={`Rename ${entry.name}`}
                             title="Rename entry"
                           >
-                            Rename
+                            <svg aria-hidden="true" viewBox="0 0 24 24" focusable="false">
+                              <path d="M4 16.5V20h3.5L18.2 9.3l-3.5-3.5L4 16.5Zm16.7-9.7a1 1 0 0 0 0-1.4l-2.1-2.1a1 1 0 0 0-1.4 0l-1.6 1.6 3.5 3.5 1.6-1.6Z" />
+                            </svg>
                           </button>
                         </div>
                       )}
