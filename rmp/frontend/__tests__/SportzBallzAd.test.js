@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import SportzBallzAd, { SPORTZBALLZ_ADS, sportzBallzAdIndex } from '../components/SportzBallzAd';
 
 jest.mock('next/router', () => ({
@@ -22,16 +22,8 @@ describe('SportzBallzAd', () => {
     expect(link).toHaveAttribute('target', '_blank');
     expect(link).toHaveAttribute('rel', expect.stringContaining('sponsored'));
     expect(screen.getByRole('img')).toHaveAttribute('src', expect.stringMatching(/^\/ads\/sportzballz\/.+\.jpg$/));
-  });
-
-  test('lets visitors select any of the three creatives', () => {
-    render(<SportzBallzAd />);
-
-    const thirdControl = screen.getByRole('button', { name: 'Show SportzBallz advertisement 3' });
-    fireEvent.click(thirdControl);
-
-    expect(thirdControl).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByRole('img')).toHaveAttribute('src', SPORTZBALLZ_ADS[2].src);
-    expect(screen.getByRole('link')).toHaveAttribute('data-campaign', SPORTZBALLZ_ADS[2].campaign);
+    expect(screen.getByRole('img')).toHaveAttribute('width', '1456');
+    expect(screen.getByRole('img')).toHaveAttribute('height', '308');
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
   });
 });

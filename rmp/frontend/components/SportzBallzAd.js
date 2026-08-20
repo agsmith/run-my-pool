@@ -54,20 +54,8 @@ export default function SportzBallzAd() {
         rel="sponsored noopener noreferrer"
         data-campaign={activeAd.campaign}
       >
-        <img className="sportzballz-ad__image" src={activeAd.src} alt={activeAd.alt} />
+        <img className="sportzballz-ad__image" src={activeAd.src} alt={activeAd.alt} width="1456" height="308" />
       </a>
-      <div className="sportzballz-ad__controls" aria-label="Choose SportzBallz advertisement">
-        {SPORTZBALLZ_ADS.map((ad, index) => (
-          <button
-            type="button"
-            key={ad.campaign}
-            className={index === activeIndex ? 'is-active' : ''}
-            onClick={() => setActiveIndex(index)}
-            aria-label={`Show SportzBallz advertisement ${index + 1}`}
-            aria-pressed={index === activeIndex}
-          />
-        ))}
-      </div>
     </aside>
   );
 }
