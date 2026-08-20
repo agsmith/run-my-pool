@@ -143,6 +143,7 @@ export default function Home() {
               <p className="rmp-hero-intro">Run a Survivor, Pick &apos;Em, or Squares pool your crew talks about all week. Set it up in minutes, automate the busywork, and follow the action from kickoff to the final whistle.</p>
               <div className="rmp-hero-actions">
                 <Link href={createPoolHref} className="rmp-button rmp-primary">Get Started Free <span>→</span></Link>
+                <Link href="/pricing" className="rmp-button rmp-secondary rmp-pricing-button">View Pricing</Link>
                 <a href="#how" className="rmp-button rmp-secondary"><i>▶</i> See how it works</a>
               </div>
               <div className="rmp-proof">

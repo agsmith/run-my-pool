@@ -67,6 +67,12 @@ describe('IndexPage', () => {
     expect(link).toHaveAttribute('href', '/pricing')
   })
 
+  test('puts a dedicated pricing link in the hero on desktop and mobile', () => {
+    render(<IndexPage />)
+
+    expect(screen.getByRole('link', { name: 'View Pricing' })).toHaveAttribute('href', '/pricing')
+  })
+
   test('explains the complete commissioner and member workflow', () => {
     render(<IndexPage />)
 
