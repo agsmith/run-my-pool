@@ -1928,6 +1928,11 @@ table {
 .sportzballz-ad__link { display: block; overflow: hidden; border: 1px solid #3c5a65; border-radius: 10px; background: #0879dd; box-shadow: 0 12px 30px rgba(0,0,0,.32); line-height: 0; transition: border-color .2s ease, box-shadow .2s ease, transform .2s ease; }
 .sportzballz-ad__link:hover, .sportzballz-ad__link:focus-visible { border-color: #d7ff3f; box-shadow: 0 14px 34px rgba(0,0,0,.42), 0 0 0 2px rgba(215,255,63,.22); transform: translateY(-1px); outline: none; }
 .sportzballz-ad__image { display: block; width: 100%; height: auto; }
+.site-disclaimer { box-sizing:border-box; display:flex; align-items:center; justify-content:center; flex-wrap:wrap; gap:.65rem 1.1rem; width:100%; margin-top:auto; padding:.8rem 1rem; color:#71817e; background:#050708; border-top:1px solid #202b2d; text-align:center; font-size:.64rem; font-weight:700; letter-spacing:.08em; text-transform:uppercase; }
+.site-disclaimer a { display:inline-flex; align-items:center; gap:.35rem; color:#9fefff; text-decoration:none; }
+.site-disclaimer a:hover { color:#d7ff3f; }
+.site-disclaimer a:focus-visible { outline:2px solid #d7ff3f; outline-offset:3px; }
+.site-disclaimer svg { width:15px; height:15px; fill:currentColor; }
 @media (max-width: 640px) {
   .sportzballz-ad { width: min(100% - 1rem, 1050px); margin-top: .65rem; }
   .sportzballz-ad__link { border-radius: 7px; }
@@ -1937,5 +1942,5 @@ table {
   .sportzballz-ad__link { transition: none; }
 }
 @media print {
-  .sportzballz-ad { display: none!important; }
+  .sportzballz-ad, .site-disclaimer { display: none!important; }
 }

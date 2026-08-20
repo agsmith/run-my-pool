@@ -5,6 +5,7 @@ import { useRouter } from 'next/router'
 import NavBar from '../components/NavBar'
 import Seo from '../components/Seo'
 import SportzBallzAd from '../components/SportzBallzAd'
+import SiteDisclaimer from '../components/SiteDisclaimer'
 
 export function shouldShowSportzBallzAd(pathname = '') {
   return pathname === '/dashboard'
@@ -93,6 +94,7 @@ export default function MyApp({ Component, pageProps }) {
           {showProductNav && <NavBar />}
           {showSportzBallzAd && <SportzBallzAd />}
           <Component {...pageProps} />
+          <SiteDisclaimer />
         </div>
       </AuthProvider>
     </>
