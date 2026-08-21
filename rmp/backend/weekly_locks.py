@@ -79,7 +79,11 @@ def lock_pool_week(
                     target_entity_type="entry", target_entity_id=entry.id,
                     additional_data={"pool_id": pool.id, "week": week})
             continue
+        candidate_team = db.query(models.Team).filter(
+            models.Team.abbrv == candidate
+        ).first()
         pick = models.Pick(id=str(uuid.uuid4()), entry_id=entry.id, week=week, team=candidate,
+                           team_id=candidate_team.id if candidate_team else None,
                            locked=True, created_at=now, updated_at=now)
         db.add(pick)
         db.flush()

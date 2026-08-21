@@ -1028,6 +1028,7 @@ class TestPoolJoining:
             created_at=datetime.utcnow(),
         ))
         db_session.commit()
+        entry_id = entry.id
 
         response = client.delete(f"/pools/{pool['id']}/membership", headers=member)
 
@@ -1036,7 +1037,7 @@ class TestPoolJoining:
         assert db_session.query(models.PoolMember).filter_by(
             pool_id=pool["id"], user_id=user.id
         ).first() is None
-        assert db_session.query(models.Entry).filter_by(id=entry.id).first() is None
+        assert db_session.query(models.Entry).filter_by(id=entry_id).first() is None
         assert db_session.query(models.Entry).filter_by(
             id="owner-entry-that-remains"
         ).one()
@@ -1220,6 +1221,14 @@ class TestParseLockTime:
         from datetime import datetime
 
         result = _parse_lock_time("2025-09-07T17:00:00Z")
+        assert result == datetime(2025, 9, 7, 17, 0, 0)
+
+    def test_parse_lock_time_iso_with_offset_normalizes_to_utc(self):
+        """_parse_lock_time accepts offsets and stores their UTC instant."""
+        from pools import _parse_lock_time
+        from datetime import datetime
+
+        result = _parse_lock_time("2025-09-07T13:00:00-04:00")
         assert result == datetime(2025, 9, 7, 17, 0, 0)
 
     def test_parse_lock_time_space_separated(self):

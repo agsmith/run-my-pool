@@ -137,19 +137,20 @@ def _has_admin_access(db: Session, pool: models.Pool, user_id: str) -> bool:
 def _parse_lock_time(time_str: str):
     """Parse a lock_time string in ISO or 'YYYY-MM-DD HH:MM:SS' format.
 
-    Handles ISO 8601 (with T separator and optional Z), space-separated,
-    and two- or three-component time parts. Returns a naive datetime.
+    Handles ISO 8601 offsets and Z, plus legacy space-separated values.
+    Aware values are normalized to the naive UTC representation used by the
+    database; legacy naive values remain unchanged.
     """
-    time_str = time_str.strip()
-    if "T" in time_str:
-        time_str = time_str.replace("Z", "")
-        date_part, time_part = time_str.split("T")
-        if "." in time_part:
-            time_part = time_part.split(".")[0]
-        time_str = f"{date_part} {time_part}"
-    if len(time_str.split(" ")[1].split(":")) == 2:
-        time_str += ":00"
-    return datetime.strptime(time_str, "%Y-%m-%d %H:%M:%S")
+    value = time_str.strip()
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise ValueError(
+            "Lock time must be a valid ISO 8601 date and time"
+        ) from exc
+    if parsed.tzinfo is not None:
+        parsed = parsed.astimezone(timezone.utc).replace(tzinfo=None)
+    return parsed
 
 
 def _parse_time_of_day(value: str) -> time:

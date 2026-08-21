@@ -649,6 +649,8 @@ class TestLockWeek:
             updated_at=datetime.utcnow(),
         )
         db_session.add(entry2)
+        kansas_city = Team(id=9_902, name="Kansas City Chiefs", abbrv="KC")
+        db_session.add(kansas_city)
         db_session.flush()
         # entry2 has a pick for week 2 — this populates the popularity map
         self._insert_pick(db_session, entry2.id, week=2, team="KC", locked=False)
@@ -671,6 +673,7 @@ class TestLockWeek:
         )
         assert auto_pick is not None
         assert auto_pick.locked is True
+        assert auto_pick.team_id == kansas_city.id
 
     def test_lock_week_uses_frozen_spread_for_default_pick(
         self, client, db_session, monkeypatch
