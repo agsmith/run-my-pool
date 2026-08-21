@@ -37,7 +37,7 @@ PLAN_DETAILS = {
         "price_env": "STRIPE_PRICE_PRO",
         "price_cents": 7900,
         "included_entries": 150,
-        "max_pools": 1,
+        "max_pools": 3,
         "rank": 2,
     },
     "club": {

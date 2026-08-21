@@ -53,10 +53,12 @@ describe('PricingPage', () => {
     expect(screen.getByText('1 full Squares board per season')).toBeInTheDocument();
     expect(screen.getByText('Online player invitations and joining')).toBeInTheDocument();
     expect(screen.getByText('All 100 self-service reservations')).toBeInTheDocument();
-    expect(screen.getByText('Full 100-block Squares board')).toBeInTheDocument();
-    expect(screen.getByText('Admin assignment of any numbered block')).toBeInTheDocument();
-    expect(screen.getByText('Fixed-dollar or per-reserved-block pots')).toBeInTheDocument();
+    expect(screen.getByText('Up to 3 active pools')).toBeInTheDocument();
+    expect(screen.getAllByText('Any mix of Squares, Pick ’Em, or Survivor')).toHaveLength(4);
+    expect(screen.getByText('Up to 150 total entries across your pools')).toBeInTheDocument();
     expect(screen.getByText(/one owner-managed 100-block Squares board/i)).toBeInTheDocument();
+    expect(screen.queryByText(/weekend support/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/fixed-dollar|per-reserved-block pot/i)).not.toBeInTheDocument();
   });
 
   test('makes the software-only payment model explicit', () => {
@@ -165,6 +167,20 @@ describe('PricingPage', () => {
     expect(clubCard).toHaveTextContent('$129');
     expect(clubCard).toHaveTextContent('per season');
     expect(clubCard).toHaveTextContent('$25 per additional 100 entries');
+  });
+
+  test('presents a consistent pool allowance upgrade path', () => {
+    render(<PricingPage />);
+    const commishCard = screen.getByRole('heading', { name: 'Commish' }).closest('article');
+    const proCard = screen.getByRole('heading', { name: 'Pro' }).closest('article');
+    const clubCard = screen.getByRole('heading', { name: 'Club' }).closest('article');
+    const unlimitedCard = screen.getByRole('heading', { name: 'Club Unlimited' }).closest('article');
+
+    expect(commishCard).toHaveTextContent('1 active pool');
+    expect(proCard).toHaveTextContent('Up to 3 active pools');
+    expect(clubCard).toHaveTextContent('Up to 5 active pools');
+    expect(unlimitedCard).toHaveTextContent('Unlimited active pools');
+    expect(screen.getByText(/Move from Commish to Pro to Club/i)).toBeInTheDocument();
   });
 
   test('makes unlimited the clear choice for large pools', () => {

@@ -9,7 +9,7 @@ import models
 PLAN_CAPACITY = {
     "squares-plus": (100, 1, False),
     "commissioner": (50, 1, False),
-    "pro": (150, 1, False),
+    "pro": (150, 3, False),
     "club": (500, 5, False),
     "club-unlimited": (None, None, True),
 }

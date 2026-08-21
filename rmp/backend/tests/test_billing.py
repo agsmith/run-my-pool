@@ -189,7 +189,7 @@ class TestCommissionerBilling:
                     plan="pro",
                     status="active",
                     included_entries=150,
-                    max_pools=1,
+                    max_pools=3,
                     unlimited_entries=False,
                     source_order_id=order.id,
                     activated_at=datetime(2026, 8, 1),
@@ -314,7 +314,7 @@ class TestCommissionerBilling:
             plan="pro",
             status="active",
             included_entries=150,
-            max_pools=1,
+            max_pools=3,
             unlimited_entries=False,
             source_order_id=order.id,
             activated_at=datetime(2026, 8, 1),
@@ -383,7 +383,7 @@ class TestCommissionerBilling:
         assert "supports one Squares board" in pickem.json()["detail"]
         assert db_session.query(models.Pool).filter_by(owner_id=user.id).count() == 0
 
-    def test_paid_plan_pool_limit_is_enforced_server_side(self, client, db_session):
+    def test_commish_pool_limit_is_enforced_server_side(self, client, db_session):
         token = _register_and_login(client, "one-pool-plan@example.com")
         user = (
             db_session.query(models.User)
@@ -432,6 +432,76 @@ class TestCommissionerBilling:
         assert "allows 1 active pool" in second.json()["detail"]
         assert overview.status_code == 200
         assert overview.json()["used_pools"] == 1
+        assert overview.json()["available_pool_slots"] == 0
+        assert overview.json()["can_create_pool"] is False
+
+    def test_pro_allows_three_mixed_format_pools(self, client, db_session):
+        token = _register_and_login(client, "three-pool-plan@example.com")
+        user = (
+            db_session.query(models.User)
+            .filter_by(email="three-pool-plan@example.com")
+            .one()
+        )
+        now = datetime(2026, 8, 1)
+        order = models.BillingOrder(
+            id="three-pool-order",
+            user_id=user.id,
+            season=2026,
+            plan="pro",
+            status="paid",
+            created_at=now,
+            updated_at=now,
+        )
+        entitlement = models.CommissionerEntitlement(
+            id="three-pool-entitlement",
+            user_id=user.id,
+            season=2026,
+            plan="pro",
+            status="active",
+            included_entries=150,
+            max_pools=3,
+            unlimited_entries=False,
+            source_order_id=order.id,
+            activated_at=now,
+            updated_at=now,
+        )
+        db_session.add_all([order, entitlement])
+        db_session.commit()
+
+        responses = [
+            client.post(
+                "/pools/create",
+                json={"name": "Pro Survivor One", "pool_type": "survivor"},
+                headers=_headers(token),
+            ),
+            client.post(
+                "/pools/create",
+                json={"name": "Pro Pick Em", "pool_type": "pickem"},
+                headers=_headers(token),
+            ),
+            client.post(
+                "/pools/create",
+                json={"name": "Pro Survivor Two", "pool_type": "survivor"},
+                headers=_headers(token),
+            ),
+        ]
+        blocked = client.post(
+            "/pools/create",
+            json={"name": "Pro Pool Four", "pool_type": "pickem"},
+            headers=_headers(token),
+        )
+        overview = client.get(
+            "/billing/overview?season=2026", headers=_headers(token)
+        )
+
+        assert [response.status_code for response in responses] == [200, 200, 200]
+        assert {response.json()["pool_type"] for response in responses} == {
+            "survivor",
+            "pickem",
+        }
+        assert blocked.status_code == 409
+        assert "allows 3 active pool" in blocked.json()["detail"]
+        assert overview.json()["used_pools"] == 3
         assert overview.json()["available_pool_slots"] == 0
         assert overview.json()["can_create_pool"] is False
 
