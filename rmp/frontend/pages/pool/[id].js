@@ -41,6 +41,9 @@ export default function PoolDetail() {
   const [successMessage, setSuccessMessage] = useState('');
   const [showLaunchChecklist, setShowLaunchChecklist] = useState(false);
   const [showMemberWelcome, setShowMemberWelcome] = useState(false);
+  const [showLeaveConfirmation, setShowLeaveConfirmation] = useState(false);
+  const [leavingPool, setLeavingPool] = useState(false);
+  const [seasonLocked, setSeasonLocked] = useState(false);
   const trackedLaunch = useRef(false);
   const trackedMemberWelcome = useRef(false);
   const trackedWeeklyAction = useRef(false);
@@ -69,7 +72,9 @@ export default function PoolDetail() {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (!response.ok) throw new Error('Failed to load pool details');
-        setPool(await response.json());
+        const poolData = await response.json();
+        setPool(poolData);
+        setSeasonLocked(Boolean(poolData.lock_time && new Date(poolData.lock_time).getTime() <= Date.now()));
         try {
           const summaryResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/pools/${id}/activity-summary`, {
             headers: { Authorization: `Bearer ${token}` },
@@ -123,10 +128,31 @@ export default function PoolDetail() {
     if (!response.ok) throw new Error(data.detail || 'Unable to send the invitation.');
   };
 
+  const leavePool = async () => {
+    setLeavingPool(true);
+    setError('');
+    try {
+      const token = localStorage.getItem('access_token');
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/pools/${id}/membership`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.detail || 'Unable to leave the pool.');
+      router.push(`/dashboard?message=${encodeURIComponent(data.message || `You left ${pool.name}`)}`);
+    } catch (err) {
+      setError(err.message || 'Unable to leave the pool.');
+      setShowLeaveConfirmation(false);
+    } finally {
+      setLeavingPool(false);
+    }
+  };
+
   const isOwner = pool?.owner_id === user?.id;
   const isAdmin = Boolean(adminStatus?.is_admin);
-  const hasAdminAccess = isOwner || isAdmin;
+  const hasAdminAccess = isOwner || isAdmin || Boolean(adminStatus?.has_admin_access);
   const userRole = isOwner ? 'Commissioner' : isAdmin ? 'Admin' : 'Player';
+  const mayLeavePool = adminStatus !== null && !hasAdminAccess;
   const picksHref = pool?.pool_type === 'pickem' ? `/pool/${id}/pickem` : pool?.pool_type === 'squares' ? `/pool/${id}/squares` : `/pool/${id}/entries`;
 
   useEffect(() => {
@@ -222,6 +248,17 @@ export default function PoolDetail() {
 
               <footer className="pool-home-footer">
                 <button onClick={() => router.push('/dashboard')}>Back to Dashboard</button>
+                {mayLeavePool && (
+                  <button
+                    className="pool-home-leave"
+                    type="button"
+                    disabled={seasonLocked}
+                    title={seasonLocked ? 'This pool is locked for the season. Members can no longer leave.' : undefined}
+                    onClick={() => setShowLeaveConfirmation(true)}
+                  >
+                    {seasonLocked ? 'Pool Locked · Cannot Leave' : 'Leave Pool'}
+                  </button>
+                )}
                 {hasAdminAccess && (
                   <div>
                     {isOwner && <button onClick={() => setShowLaunchChecklist(true)}>Launch Checklist</button>}
@@ -230,6 +267,21 @@ export default function PoolDetail() {
                   </div>
                 )}
               </footer>
+              {showLeaveConfirmation && (
+                <div className="pool-leave-overlay" role="presentation" onMouseDown={(event) => {
+                  if (event.target === event.currentTarget && !leavingPool) setShowLeaveConfirmation(false);
+                }}>
+                  <section className="pool-leave-dialog" role="dialog" aria-modal="true" aria-labelledby="leave-pool-title" aria-describedby="leave-pool-warning">
+                    <span>Membership action</span>
+                    <h2 id="leave-pool-title">Leave {pool.name}?</h2>
+                    <p id="leave-pool-warning"><strong>Warning:</strong> Leaving this pool will permanently delete all of your entries and picks in this pool. Any Squares reservations you made will also be released. This cannot be undone.</p>
+                    <div>
+                      <button type="button" disabled={leavingPool} onClick={() => setShowLeaveConfirmation(false)}>Cancel</button>
+                      <button type="button" className="pool-leave-dialog__confirm" disabled={leavingPool} onClick={leavePool}>{leavingPool ? 'Leaving…' : 'Leave Pool'}</button>
+                    </div>
+                  </section>
+                </div>
+              )}
             </>
           ) : (
             <div className="pool-home-state">Pool not found.</div>

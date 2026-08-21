@@ -984,6 +984,121 @@ class TestPoolJoining:
         assert second.status_code == 200
         assert second.json()["message"] == "Already joined"
 
+    def test_member_can_leave_before_lock_and_entries_are_deleted(
+        self, client, db_session
+    ):
+        owner = _register(client, "leave.owner@example.com")
+        pool = client.post(
+            "/pools/create", json={"name": "Leave Before Lock"}, headers=owner
+        ).json()
+        member = _register(client, "leave.member@example.com")
+        assert client.post(
+            f"/pools/{pool['id']}/join", json={}, headers=member
+        ).status_code == 200
+        user = db_session.query(models.User).filter_by(
+            email="leave.member@example.com"
+        ).one()
+        owner_user = db_session.query(models.User).filter_by(
+            email="leave.owner@example.com"
+        ).one()
+        entry = models.Entry(
+            id="leave-entry",
+            user_id=user.id,
+            pool_id=pool["id"],
+            name="Leaving Entry",
+            alive=True,
+            created_at=datetime.utcnow(),
+        )
+        db_session.add(entry)
+        db_session.add(models.Entry(
+            id="owner-entry-that-remains",
+            user_id=owner_user.id,
+            pool_id=pool["id"],
+            name="Owner Entry",
+            alive=True,
+            created_at=datetime.utcnow(),
+        ))
+        db_session.flush()
+        db_session.add(models.Pick(
+            id="leave-pick",
+            entry_id=entry.id,
+            week=1,
+            team="BUF",
+            locked=False,
+            created_at=datetime.utcnow(),
+        ))
+        db_session.commit()
+
+        response = client.delete(f"/pools/{pool['id']}/membership", headers=member)
+
+        assert response.status_code == 200
+        assert response.json()["deleted_entries"] == 1
+        assert db_session.query(models.PoolMember).filter_by(
+            pool_id=pool["id"], user_id=user.id
+        ).first() is None
+        assert db_session.query(models.Entry).filter_by(id=entry.id).first() is None
+        assert db_session.query(models.Entry).filter_by(
+            id="owner-entry-that-remains"
+        ).one()
+        assert db_session.query(models.Pick).filter_by(id="leave-pick").first() is None
+        audit = db_session.query(models.AuditLog).filter_by(
+            action="LEAVE_POOL", user_id=user.id
+        ).one()
+        assert pool["id"] in audit.details
+        assert '"deleted_entries": 1' in audit.details
+
+    def test_owner_and_admin_cannot_leave_pool(self, client, db_session):
+        owner = _register(client, "leave.roles.owner@example.com")
+        pool = client.post(
+            "/pools/create", json={"name": "Protected Roles"}, headers=owner
+        ).json()
+        admin = _register(client, "leave.roles.admin@example.com")
+        client.post(f"/pools/{pool['id']}/join", json={}, headers=admin)
+        admin_user = db_session.query(models.User).filter_by(
+            email="leave.roles.admin@example.com"
+        ).one()
+        db_session.add(models.PoolAdmin(pool_id=pool["id"], user_id=admin_user.id))
+        db_session.commit()
+
+        owner_response = client.delete(
+            f"/pools/{pool['id']}/membership", headers=owner
+        )
+        admin_response = client.delete(
+            f"/pools/{pool['id']}/membership", headers=admin
+        )
+
+        assert owner_response.status_code == 403
+        assert owner_response.json()["detail"] == "Pool owners cannot leave their pool"
+        assert admin_response.status_code == 403
+        assert admin_response.json()["detail"] == "Pool admins cannot leave their pool"
+        assert db_session.query(models.PoolMember).filter_by(
+            pool_id=pool["id"], user_id=admin_user.id
+        ).one()
+
+    def test_member_cannot_leave_after_season_lock(self, client, db_session):
+        owner = _register(client, "leave.lock.owner@example.com")
+        pool = client.post(
+            "/pools/create", json={"name": "Locked Membership"}, headers=owner
+        ).json()
+        member = _register(client, "leave.lock.member@example.com")
+        client.post(f"/pools/{pool['id']}/join", json={}, headers=member)
+        pool_record = db_session.query(models.Pool).filter_by(id=pool["id"]).one()
+        pool_record.lock_time = datetime.utcnow() - timedelta(minutes=1)
+        db_session.commit()
+
+        response = client.delete(f"/pools/{pool['id']}/membership", headers=member)
+
+        assert response.status_code == 423
+        assert response.json()["detail"] == (
+            "The pool is locked for the season. Members can no longer leave."
+        )
+        member_user = db_session.query(models.User).filter_by(
+            email="leave.lock.member@example.com"
+        ).one()
+        assert db_session.query(models.PoolMember).filter_by(
+            pool_id=pool["id"], user_id=member_user.id
+        ).one()
+
     def test_private_pool_password_cannot_be_bypassed_by_creating_entry(self, client):
         owner = _register(client, "private.entry.owner@example.com")
         pool = client.post(

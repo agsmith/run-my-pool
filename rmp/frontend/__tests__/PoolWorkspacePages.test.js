@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import PoolDetail from '../pages/pool/[id]';
 import MatchupsPage from '../pages/pool/[id]/matchups';
@@ -131,6 +131,52 @@ describe('pool workspace pages', () => {
         .querySelector('button'),
     );
     expect(mockPush).toHaveBeenCalledWith('/pool/pool-1/entries/create');
+  });
+
+  test('warns an ordinary member before leaving and deletes their membership', async () => {
+    global.fetch = jest.fn((url, options = {}) => {
+      if (String(url).endsWith('/is-admin')) return response({ is_owner: false, is_admin: false, has_admin_access: false });
+      if (String(url).endsWith('/activity-summary')) return response(activitySummary);
+      if (String(url).endsWith('/membership') && options.method === 'DELETE') return response({ message: 'You left Office Survivor', deleted_entries: 2 });
+      return response({ ...pool, owner_id: 'owner-2', lock_time: '2026-09-01T12:00:00Z' });
+    });
+    jest.spyOn(Date, 'now').mockReturnValue(new Date('2026-08-20T12:00:00Z').getTime());
+    const user = userEvent.setup();
+    render(<PoolDetail />);
+
+    await user.click(await screen.findByRole('button', { name: 'Leave Pool' }));
+    const dialog = screen.getByRole('dialog', { name: 'Leave Office Survivor?' });
+    expect(within(dialog).getByText(/permanently delete all of your entries and picks/i)).toBeInTheDocument();
+    expect(within(dialog).getByText(/Squares reservations.*released/i)).toBeInTheDocument();
+    await user.click(within(dialog).getByRole('button', { name: 'Leave Pool' }));
+
+    await waitFor(() => expect(global.fetch).toHaveBeenCalledWith('/pools/pool-1/membership', {
+      method: 'DELETE', headers: { Authorization: 'Bearer token' },
+    }));
+    expect(mockPush).toHaveBeenCalledWith('/dashboard?message=You%20left%20Office%20Survivor');
+  });
+
+  test('does not let admins leave and disables leaving after the season lock', async () => {
+    global.fetch = jest.fn((url) => {
+      if (String(url).endsWith('/is-admin')) return response({ is_owner: false, is_admin: true, has_admin_access: true });
+      if (String(url).endsWith('/activity-summary')) return response(activitySummary);
+      return response({ ...pool, owner_id: 'owner-2' });
+    });
+    const { unmount } = render(<PoolDetail />);
+    expect(await screen.findByText('Admin')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Leave Pool' })).not.toBeInTheDocument();
+    unmount();
+
+    global.fetch = jest.fn((url) => {
+      if (String(url).endsWith('/is-admin')) return response({ is_owner: false, is_admin: false, has_admin_access: false });
+      if (String(url).endsWith('/activity-summary')) return response(activitySummary);
+      return response({ ...pool, owner_id: 'owner-2', lock_time: '2026-08-01T12:00:00Z' });
+    });
+    jest.spyOn(Date, 'now').mockReturnValue(new Date('2026-08-20T12:00:00Z').getTime());
+    render(<PoolDetail />);
+    const lockedButton = await screen.findByRole('button', { name: 'Pool Locked · Cannot Leave' });
+    expect(lockedButton).toBeDisabled();
+    expect(lockedButton).toHaveAttribute('title', 'This pool is locked for the season. Members can no longer leave.');
   });
 
   test('renders official, live, and pending matchup lines and changes week', async () => {

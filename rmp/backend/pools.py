@@ -793,6 +793,108 @@ def join_pool(
     return {"message": "Pool joined successfully", "pool_id": pool_id}
 
 
+@router.delete("/{pool_id}/membership")
+def leave_pool(
+    pool_id: str,
+    db: Session = Depends(deps.get_db),
+    current_user: models.User = Depends(deps.get_current_user),
+):
+    """Let an ordinary member leave before the season lock."""
+    pool = (
+        db.query(models.Pool)
+        .filter(models.Pool.id == pool_id)
+        .with_for_update()
+        .first()
+    )
+    if not pool:
+        raise HTTPException(status_code=404, detail="Pool not found")
+    if pool.owner_id == current_user.id:
+        raise HTTPException(
+            status_code=403, detail="Pool owners cannot leave their pool"
+        )
+    if is_platform_super_admin(current_user) or db.query(models.PoolAdmin).filter(
+        models.PoolAdmin.pool_id == pool_id,
+        models.PoolAdmin.user_id == current_user.id,
+    ).first():
+        raise HTTPException(
+            status_code=403, detail="Pool admins cannot leave their pool"
+        )
+
+    membership = db.query(models.PoolMember).filter(
+        models.PoolMember.pool_id == pool_id,
+        models.PoolMember.user_id == current_user.id,
+    ).first()
+    if not membership:
+        raise HTTPException(
+            status_code=404, detail="You are not a member of this pool"
+        )
+
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    if pool.lock_time is not None and pool.lock_time <= now:
+        raise HTTPException(
+            status_code=423,
+            detail="The pool is locked for the season. Members can no longer leave.",
+        )
+
+    entry_ids = [
+        entry_id
+        for (entry_id,) in db.query(models.Entry.id).filter(
+            models.Entry.pool_id == pool_id,
+            models.Entry.user_id == current_user.id,
+        ).all()
+    ]
+    deleted_picks = 0
+    if entry_ids:
+        deleted_picks = db.query(models.Pick).filter(
+            models.Pick.entry_id.in_(entry_ids)
+        ).delete(synchronize_session=False)
+    deleted_entries = db.query(models.Entry).filter(
+        models.Entry.pool_id == pool_id,
+        models.Entry.user_id == current_user.id,
+    ).delete(synchronize_session=False)
+    deleted_square_claims = db.query(models.SquareClaim).filter(
+        models.SquareClaim.pool_id == pool_id,
+        models.SquareClaim.user_id == current_user.id,
+    ).delete(synchronize_session=False)
+    db.query(models.PoolUserLock).filter(
+        models.PoolUserLock.pool_id == pool_id,
+        models.PoolUserLock.user_id == current_user.id,
+    ).delete(synchronize_session=False)
+    db.delete(membership)
+    db.commit()
+
+    create_audit_log(
+        db=db,
+        action="LEAVE_POOL",
+        details=f"Member left pool {pool.id}",
+        user_id=current_user.id,
+        entity_type="pool_membership",
+        entity_id=f"{pool_id}:{current_user.id}",
+        additional_data={
+            "pool_id": pool_id,
+            "pool_name": pool.name,
+            "deleted_entries": deleted_entries,
+            "deleted_picks": deleted_picks,
+            "deleted_square_claims": deleted_square_claims,
+        },
+    )
+    log_event(
+        logger,
+        logging.INFO,
+        "pool_left",
+        pool_id=pool_id,
+        user_id=current_user.id,
+        deleted_entries=deleted_entries,
+        deleted_picks=deleted_picks,
+        deleted_square_claims=deleted_square_claims,
+    )
+    return {
+        "message": f"You left {pool.name}",
+        "pool_id": pool_id,
+        "deleted_entries": deleted_entries,
+    }
+
+
 @router.get("/{pool_id}/join-password")
 def get_pool_join_password(
     pool_id: str,

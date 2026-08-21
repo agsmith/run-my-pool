@@ -1250,6 +1250,19 @@ table {
 .pool-home-footer button:hover { color:#091012!important; background:var(--ice)!important; filter:none; }
 .pool-home-footer .pool-home-delete { color:var(--danger)!important; border-color:rgba(255,129,122,.48)!important; }
 .pool-home-footer .pool-home-delete:hover { color:#091012!important; background:var(--danger)!important; }
+.pool-home-footer .pool-home-leave { margin-left:auto; color:var(--danger)!important; border-color:rgba(255,129,122,.48)!important; }
+.pool-home-footer .pool-home-leave:hover:not(:disabled) { color:#091012!important; background:var(--danger)!important; }
+.pool-home-footer .pool-home-leave:disabled { cursor:not-allowed; color:#829094!important; border-color:#3a5055!important; opacity:.7; }
+.pool-leave-overlay { position:fixed; z-index:1200; inset:0; display:grid; place-items:center; padding:1rem; background:rgba(2,8,10,.82); backdrop-filter:blur(5px); }
+.pool-leave-dialog { width:min(100%,540px); padding:1.5rem; color:var(--ink); background:#10191c; border:1px solid rgba(255,129,122,.55); border-top:4px solid var(--danger); box-shadow:0 24px 80px rgba(0,0,0,.55); }
+.pool-leave-dialog > span { color:var(--danger); font-size:.68rem; font-weight:900; letter-spacing:.14em; text-transform:uppercase; }
+.pool-leave-dialog h2 { margin:.45rem 0 .75rem; color:#fff; }
+.pool-leave-dialog p { margin:0; color:#c8d3d4; line-height:1.65; }
+.pool-leave-dialog p strong { color:#fff; }
+.pool-leave-dialog > div { display:flex; justify-content:flex-end; gap:.65rem; margin-top:1.25rem; }
+.pool-leave-dialog button { min-height:44px; padding:.7rem 1rem; color:var(--ice); background:#172326; border:1px solid #3a5055; font-size:.72rem; font-weight:900; letter-spacing:.06em; text-transform:uppercase; }
+.pool-leave-dialog .pool-leave-dialog__confirm { color:#170b0a; background:var(--danger); border-color:var(--danger); }
+.pool-leave-dialog button:disabled { cursor:wait; opacity:.65; }
 .pool-home-notice,.pool-home-state { margin:0 0 1rem; padding:1rem; background:#10191c; border:1px solid #314449; }
 .pool-home-notice--success { color:var(--lime); border-color:rgba(215,255,63,.35); }
 .pool-home-notice--error,.pool-home-state--error { color:var(--danger); border-color:rgba(255,129,122,.4); }
@@ -1312,6 +1325,8 @@ table {
   .pool-home-details dl > div:nth-last-child(2) { border-bottom:1px solid #2f4246; }
   .pool-home-footer { align-items:stretch; flex-direction:column; }
   .pool-home-footer > div { display:grid; }
+  .pool-home-footer .pool-home-leave { margin-left:0; }
+  .pool-leave-dialog > div { display:grid; }
   .weekly-action { grid-template-columns:1fr; align-items:stretch; }
   .weekly-action__button { width:100%; }
   .weekly-action--error { grid-template-columns:1fr; }
