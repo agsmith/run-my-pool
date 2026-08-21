@@ -57,14 +57,14 @@ variable "jwt_secret_arn" {
 variable "stripe_secret_key_secret_arn" {
   description = "ARN of the Secrets Manager secret holding the Stripe secret API key"
   type        = string
-  default     = "arn:aws:secretsmanager:us-east-1:739444271939:secret:runmypool/stripe-secret-key-oPB9tc"
+  default     = "arn:aws:secretsmanager:us-east-1:739444271939:secret:runmypool/stripe-live-secret-key-RHRbB5"
   nullable    = true
 }
 
 variable "stripe_webhook_secret_arn" {
   description = "ARN of the Secrets Manager secret holding the Stripe webhook signing secret"
   type        = string
-  default     = "arn:aws:secretsmanager:us-east-1:739444271939:secret:runmypool/stripe-webhook-signing-secret-ZH6dx7"
+  default     = "arn:aws:secretsmanager:us-east-1:739444271939:secret:runmypool/stripe-live-webhook-signing-secret-R4gAKT"
   nullable    = true
 }
 
@@ -81,31 +81,31 @@ variable "cors_origins" {
 variable "stripe_price_commissioner" {
   description = "Stripe one-time Price ID for the Commissioner seasonal plan"
   type        = string
-  default     = "price_1U5VeLHzJHWFhiJuLHP2N7MM"
+  default     = "price_1U5VOvHzJHWFhiJuXZRgMQOG"
 }
 
 variable "stripe_price_squares_plus" {
   description = "Stripe Price ID for the Squares Plus seasonal plan"
   type        = string
-  default     = "price_1U5VdjHzJHWFhiJucl0bsE1Z"
+  default     = "price_1U5VOUHzJHWFhiJuiW7WXtyc"
 }
 
 variable "stripe_price_pro" {
   description = "Stripe one-time Price ID for the Pro seasonal plan"
   type        = string
-  default     = "price_1U5VecHzJHWFhiJuAWpI0R5F"
+  default     = "price_1U5VQ9HzJHWFhiJuEOF3KYQe"
 }
 
 variable "stripe_price_club" {
   description = "Stripe one-time Price ID for the Club seasonal plan"
   type        = string
-  default     = "price_1U5VeoHzJHWFhiJuRjj1wqsL"
+  default     = "price_1U5VQXHzJHWFhiJug6zLilzx"
 }
 
 variable "stripe_price_club_unlimited" {
   description = "Stripe one-time Price ID for the Club Unlimited seasonal plan"
   type        = string
-  default     = "price_1U5Vf5HzJHWFhiJuRIxaA1aJ"
+  default     = "price_1U5VQwHzJHWFhiJu9yMmGkO1"
 }
 
 variable "stripe_automatic_tax" {
