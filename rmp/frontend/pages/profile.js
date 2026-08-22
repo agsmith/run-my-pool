@@ -30,6 +30,13 @@ function formatDate(value) {
   return Number.isNaN(date.getTime()) ? 'Pending' : date.toLocaleDateString();
 }
 
+function formatPlanYearDate(value) {
+  if (!value) return '';
+  const [year, month, day] = value.split('-').map(Number);
+  return new Intl.DateTimeFormat('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
+    .format(new Date(Date.UTC(year, month - 1, day)));
+}
+
 export default function Profile() {
   const { user, logout } = useAuth();
   const [billing, setBilling] = useState(null);
@@ -67,6 +74,7 @@ export default function Profile() {
   }, [billing]);
 
   const entitlement = billing?.entitlement;
+  const poolsCreated = billing?.pools_created ?? billing?.used_pools ?? 0;
   const currentPlanPrice = PLAN_PRICES[entitlement?.plan] || 0;
   const upgradePlans = Object.keys(PLAN_RANKS).filter(
     (plan) => PLAN_RANKS[plan] > (PLAN_RANKS[entitlement?.plan] || 0)
@@ -110,7 +118,7 @@ export default function Profile() {
 
         <section className="billing-overview" aria-labelledby="billing-overview-title">
           <div className="billing-overview__heading">
-            <div><span>{season} season</span><h2 id="billing-overview-title">Commissioner Billing</h2></div>
+            <div><span>{season} plan year</span><h2 id="billing-overview-title">Commissioner Billing</h2></div>
             <Link href="/pricing">{entitlement ? 'View upgrade options' : 'View plans'}</Link>
           </div>
 
@@ -124,8 +132,11 @@ export default function Profile() {
                 <div><span>Current plan</span><strong>{entitlement ? PLAN_LABELS[entitlement.plan] || entitlement.plan : 'Free'}</strong></div>
                 <div><span>Status</span><strong>{entitlement?.status === 'active' ? 'Active' : 'No paid plan'}</strong></div>
                 <div><span>Entry usage</span><strong>{entitlement?.unlimited_entries ? `${billing.used_entries} / Unlimited` : `${billing.used_entries} / ${entitlement?.included_entries ?? 10}`}</strong></div>
-                <div><span>Pool capacity</span><strong>{entitlement?.max_pools ?? (entitlement?.unlimited_entries ? 'Unlimited' : 1)}</strong></div>
+                <div><span>Pool creations</span><strong>{entitlement?.max_pools == null && entitlement?.unlimited_entries ? `${poolsCreated} / Unlimited` : `${poolsCreated} / ${entitlement?.max_pools ?? 1}`}</strong></div>
               </div>
+              {billing.plan_year_start && billing.plan_year_end && (
+                <p className="billing-overview__state">Plan year: {formatPlanYearDate(billing.plan_year_start)} through {formatPlanYearDate(billing.plan_year_end)}. Deleted or concluded pools still count toward the creation allowance.</p>
+              )}
 
               {hasUnusedPaidPool && (
                 <div className="billing-actions" aria-labelledby="create-purchased-pool-title">
@@ -140,7 +151,7 @@ export default function Profile() {
               {(upgradePlans.length > 0 || entitlement?.plan === 'club') && (
                 <div className="billing-actions" aria-labelledby="billing-actions-title">
                   <h3 id="billing-actions-title">Grow your plan</h3>
-                  <p>You pay only the difference for this season. Your pools, entries, and picks stay in place.</p>
+                  <p>You pay only the difference for this plan year. Your pools, entries, and picks stay in place.</p>
                   <div className="billing-actions__options">
                     {upgradePlans.map((plan) => (
                       <button
@@ -185,7 +196,7 @@ export default function Profile() {
                       </div>
                     ))}
                   </div>
-                ) : <p className="billing-overview__state">No payments for this season. Members always participate free.</p>}
+                ) : <p className="billing-overview__state">No payments for this plan year. Members always participate free.</p>}
               </div>
             </>
           )}

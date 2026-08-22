@@ -1,6 +1,6 @@
 """Server-side commissioner entitlement assignment and capacity enforcement."""
 
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
@@ -11,11 +11,81 @@ import models
 FREE_INCLUDED_ENTRIES = 10
 FREE_SQUARE_BLOCKS = 100
 COMMISSIONER_SQUARE_BLOCKS = 100
+FREE_MAX_POOLS = 1
 
 
 def current_season(now: datetime | None = None) -> int:
     current = now or datetime.now(timezone.utc)
     return current.year - (1 if current.month <= 2 else 0)
+
+
+def plan_year_bounds(season: int) -> tuple[date, date]:
+    """Return the inclusive March-through-February dates for a plan year."""
+    start = date(season, 3, 1)
+    end = date(season + 1, 3, 1) - timedelta(days=1)
+    return start, end
+
+
+def pool_creations_used(db: Session, user_id: str, season: int) -> int:
+    usage = (
+        db.query(models.PlanYearPoolUsage)
+        .filter(
+            models.PlanYearPoolUsage.user_id == user_id,
+            models.PlanYearPoolUsage.season == season,
+        )
+        .first()
+    )
+    if usage:
+        return usage.pools_created
+    return (
+        db.query(models.Pool.id)
+        .filter(
+            models.Pool.owner_id == user_id,
+            models.Pool.billing_season == season,
+        )
+        .count()
+    )
+
+
+def _reserve_pool_creation(db: Session, user_id: str, season: int, limit: int | None) -> int:
+    # The usage row does not exist before a user's first creation. Locking the
+    # stable user row serializes that first insert as well as later increments.
+    db.query(models.User.id).filter(models.User.id == user_id).with_for_update().one()
+    usage = (
+        db.query(models.PlanYearPoolUsage)
+        .filter(
+            models.PlanYearPoolUsage.user_id == user_id,
+            models.PlanYearPoolUsage.season == season,
+        )
+        .with_for_update()
+        .first()
+    )
+    if not usage:
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
+        usage = models.PlanYearPoolUsage(
+            user_id=user_id,
+            season=season,
+            pools_created=pool_creations_used(db, user_id, season),
+            created_at=now,
+            updated_at=now,
+        )
+        db.add(usage)
+        db.flush()
+    if limit is not None and usage.pools_created >= limit:
+        start, end = plan_year_bounds(season)
+        start_label = f"{start.strftime('%B')} {start.day}, {start.year}"
+        end_label = f"{end.strftime('%B')} {end.day}, {end.year}"
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                f"Your plan includes {limit} pool creation(s) for the {season} plan year "
+                f"({start_label} through {end_label}). "
+                "Deleting or concluding a pool does not restore a pool creation."
+            ),
+        )
+    usage.pools_created += 1
+    usage.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
+    return usage.pools_created
 
 
 def active_entitlement(db: Session, user_id: str, season: int):
@@ -134,29 +204,9 @@ def entitlement_for_new_pool(db: Session, owner_id: str, season: int, pool_type:
                 status_code=status.HTTP_409_CONFLICT,
                 detail="Squares Plus supports one Squares board. Upgrade to Commish to create Survivor or Pick 'Em pools.",
             )
-        used = db.query(models.Pool).filter(
-            models.Pool.billing_entitlement_id == entitlement.id
-        ).count()
-        if entitlement.max_pools is not None and used >= entitlement.max_pools:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail=f"Your {entitlement.plan} plan allows {entitlement.max_pools} active pool(s) for {season}.",
-            )
+        _reserve_pool_creation(db, owner_id, season, entitlement.max_pools)
         return entitlement
-
-    if pool_type == "squares":
-        free_boards = db.query(models.Pool.id).filter(
-            models.Pool.owner_id == owner_id,
-            models.Pool.pool_type == "squares",
-            models.Pool.billing_entitlement_id.is_(None),
-            models.Pool.billing_season == season,
-        ).count()
-        if free_boards >= 1:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="The Free plan includes one owner-managed Squares board per season. Upgrade to Squares Plus for online player joining and self-service reservations.",
-            )
-
+    _reserve_pool_creation(db, owner_id, season, FREE_MAX_POOLS)
     return None
 
 

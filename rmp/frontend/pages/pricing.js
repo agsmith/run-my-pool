@@ -12,51 +12,51 @@ const plans = [
     price: '$0',
     cadence: 'forever',
     description: 'Run a small pool or manually manage a complete Squares board.',
-    features: ['1 active pool', 'Up to 10 Survivor/Pick ’Em entries', '1 owner-managed 100-block Squares board per season', 'Owner enters externally received Squares selections', 'No online Squares player joining or invitations', 'Branded print / PDF export', 'Weekly picks and standings'],
+    features: ['1 pool per plan year', 'Up to 10 Survivor/Pick ’Em entries', '1 owner-managed 100-block Squares board per plan year', 'Owner enters externally received Squares selections', 'No online Squares player joining or invitations', 'Branded print / PDF export', 'Weekly picks and standings'],
     cta: 'Start free',
   },
   {
     name: 'Squares Plus',
     slug: 'squares-plus',
     price: '$10',
-    cadence: 'per board / season',
+    cadence: 'per plan year',
     description: 'Fill a complete game-day board without paying for commissioner tools you do not need.',
-    features: ['1 full Squares board per season', 'Online player invitations and joining', 'All 100 self-service reservations', 'Automatic digits and winners', 'Branded print / PDF export', 'Upgrade to Commish for more pool formats'],
+    features: ['1 Squares pool per plan year', 'Online player invitations and joining', 'All 100 self-service reservations', 'Automatic digits and winners', 'Branded print / PDF export', 'Upgrade to Commish for more pool formats'],
     cta: 'Choose Squares Plus',
   },
   {
     name: 'Commish',
     slug: 'commissioner',
     price: '$39',
-    cadence: 'per season',
+    cadence: 'per plan year',
     description: 'Run one complete pool with the format that fits your group.',
-    features: ['1 active pool', 'Any mix of Squares, Pick ’Em, or Survivor', 'Up to 50 total entries', 'Everything in Squares Plus', 'Automated default picks', 'Audit log and CSV exports', 'Entry transfers and corrections'],
+    features: ['1 pool per plan year', 'Choose Squares, Pick ’Em, or Survivor', 'Up to 50 total entries', 'Everything in Squares Plus', 'Automated default picks', 'Audit log and CSV exports', 'Entry transfers and corrections'],
     cta: 'Choose Commissioner',
     featured: true,
   },
   {
     name: 'Pro',
     price: '$79',
-    cadence: 'per season',
+    cadence: 'per plan year',
     description: 'Run several pools for larger groups and recurring competitions.',
-    features: ['Up to 3 active pools', 'Any mix of Squares, Pick ’Em, or Survivor', 'Up to 150 total entries across your pools', 'Everything in Commish', 'Multiple pool admins', 'Advanced pool controls', 'Reusable member history'],
+    features: ['Create up to 3 pools per plan year', 'Any mix of Squares, Pick ’Em, or Survivor', 'Up to 150 total entries across your pools', 'Everything in Commish', 'Multiple pool admins', 'Advanced pool controls', 'Reusable member history'],
     cta: 'Choose Pro',
   },
   {
     name: 'Club',
     price: '$129',
-    cadence: 'per season',
-    description: 'A season-long home for commissioners who run several pools year after year.',
-    features: ['Up to 5 active pools', 'Any mix of Squares, Pick ’Em, or Survivor', 'Up to 500 total entries across your pools', '$25 per additional 100 entries', 'Everything in Pro', 'Full historical access', 'Custom pool branding'],
+    cadence: 'per plan year',
+    description: 'A plan-year home for commissioners who run several pools year after year.',
+    features: ['Create up to 5 pools per plan year', 'Any mix of Squares, Pick ’Em, or Survivor', 'Up to 500 total entries across your pools', '$25 per additional 100 entries', 'Everything in Pro', 'Full historical access', 'Custom pool branding'],
     cta: 'Choose Club',
   },
   {
     name: 'Club Unlimited',
     slug: 'club-unlimited',
     price: '$249',
-    cadence: 'per season',
+    cadence: 'per plan year',
     description: 'The best value for large organizations that want one predictable price and room to grow.',
-    features: ['Unlimited active pools', 'Any mix of Squares, Pick ’Em, or Survivor', 'Unlimited entries', 'No usage charges', 'Everything in Club', 'Historical access for every season'],
+    features: ['Create unlimited pools per plan year', 'Any mix of Squares, Pick ’Em, or Survivor', 'Unlimited entries', 'No usage charges', 'Everything in Club', 'Historical access for every plan year'],
     cta: 'Go Unlimited',
     featured: true,
     badge: 'Best for large pools',
@@ -158,7 +158,7 @@ export default function PricingPage() {
         <section className="pricing-hero rmp-shell">
           <p className="rmp-eyebrow"><span /> SIMPLE COMMISSIONER PRICING</p>
           <h1>RUN THE POOL.<br /><em>SKIP THE BUSYWORK.</em></h1>
-          <p>Players always participate free on paid pools. Start with up to ten Survivor/Pick ’Em entries or one owner-managed 100-block Squares board, then upgrade Squares when you want online player joining and self-service reservations.</p>
+          <p>Players always participate free on paid pools. Each plan year runs March 1 through the last day of February. Pool allowances count creations during that plan year; concluding or deleting a pool does not restore one.</p>
         </section>
 
         <section className="pricing-grid rmp-shell" aria-label="Pricing plans">
@@ -227,8 +227,8 @@ export default function PricingPage() {
           <div className="pricing-faq__grid">
             <article><h3>Do players pay?</h3><p>No. Participants join, make picks, and follow standings at no software charge.</p></article>
             <article><h3>Do you hold prize money?</h3><p>No. Run My Pool provides management software and does not collect stakes or distribute winnings.</p></article>
-            <article><h3>Can I upgrade later?</h3><p>Yes. Move from Commish to Pro to Club as you add pools and entries, then choose Club Unlimited for unrestricted growth. Squares Plus can upgrade to Commish when you need additional pool formats. You pay only the difference for the current season.</p></article>
-            <article><h3>How does Free Squares work?</h3><p>Free includes one complete 100-block board per season for the owner to manage manually. Players send their selections outside Run My Pool, and the owner enters each display name and block. Squares Plus adds online invitations, player joining, and self-service reservations for $10.</p></article>
+            <article><h3>Can I upgrade later?</h3><p>Yes. Move from Commish to Pro to Club as you add pools and entries, then choose Club Unlimited for unrestricted growth. Squares Plus can upgrade to Commish when you need additional pool formats. You pay only the difference for the current plan year.</p></article>
+            <article><h3>How does Free Squares work?</h3><p>Free includes one complete 100-block board per plan year for the owner to manage manually. Players send their selections outside Run My Pool, and the owner enters each display name and block. Squares Plus adds online invitations, player joining, and self-service reservations for $10.</p></article>
             <article><h3>What happens after 500 Club entries?</h3><p>Club expands in 100-entry blocks for $25 each, or you can upgrade to Club Unlimited for the $120 difference.</p></article>
             <article><h3>When should I choose Unlimited?</h3><p>Choose Club Unlimited when you need unlimited entries or pools. You can select it initially or upgrade from Club later.</p></article>
           </div>

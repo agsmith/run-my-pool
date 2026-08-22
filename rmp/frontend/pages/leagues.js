@@ -131,7 +131,7 @@ export default function Leagues() {
             <div>
               <span>Purchase ready</span>
               <h2 id="purchased-pool-title">Create your purchased pool</h2>
-              <p>Your paid plan is saved to this account. You can leave setup and return here until all included pool slots are used.</p>
+              <p>Your paid plan is saved to this account. You can leave setup and return here until all included pool creations for the plan year are used.</p>
             </div>
             <button type="button" onClick={() => router.push('/create-pool?source=splash')}>Create pool</button>
           </section>

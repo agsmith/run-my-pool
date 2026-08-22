@@ -321,6 +321,12 @@ def create_checkout_session(
         "order_type": order_type,
         "quantity": str(order.quantity),
     }
+    plan_year_start, plan_year_end = entitlements.plan_year_bounds(request.season)
+    plan_year_message = (
+        f"Plan year: {plan_year_start.strftime('%B')} {plan_year_start.day}, "
+        f"{plan_year_start.year} through {plan_year_end.strftime('%B')} "
+        f"{plan_year_end.day}, {plan_year_end.year}."
+    )
     try:
         checkout = stripe.checkout.Session.create(
             mode="payment",
@@ -338,6 +344,7 @@ def create_checkout_session(
             automatic_tax={
                 "enabled": os.getenv("STRIPE_AUTOMATIC_TAX", "false").lower() == "true"
             },
+            custom_text={"submit": {"message": plan_year_message}},
             metadata=metadata,
             payment_intent_data={"metadata": metadata},
         )
@@ -467,29 +474,36 @@ def billing_overview(
         .all()
     )
     used_entries = 0
-    used_pools = 0
+    used_pools = entitlements.pool_creations_used(db, current_user.id, season)
     can_create_pool = True
-    available_pool_slots = None
+    available_pool_slots = max(entitlements.FREE_MAX_POOLS - used_pools, 0)
+    can_create_pool = available_pool_slots > 0
     if entitlement:
         pool_ids = db.query(models.Pool.id).filter(
             models.Pool.billing_entitlement_id == entitlement.id
         )
-        used_pools = pool_ids.count()
         if entitlement.max_pools is not None:
             available_pool_slots = max(entitlement.max_pools - used_pools, 0)
             can_create_pool = available_pool_slots > 0
+        else:
+            available_pool_slots = None
+            can_create_pool = True
         used_entries = (
             db.query(func.count(models.Entry.id))
             .filter(models.Entry.pool_id.in_(pool_ids))
             .scalar()
             or 0
         )
+    plan_year_start, plan_year_end = entitlements.plan_year_bounds(season)
     return {
         "season": season,
+        "plan_year_start": plan_year_start,
+        "plan_year_end": plan_year_end,
         "entitlement": entitlement,
         "orders": orders,
         "used_entries": used_entries,
         "used_pools": used_pools,
+        "pools_created": used_pools,
         "can_create_pool": can_create_pool,
         "available_pool_slots": available_pool_slots,
     }

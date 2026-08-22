@@ -453,7 +453,7 @@ class BillingOrder(Base):
 
 
 class CommissionerEntitlement(Base):
-    """Highest commissioner plan granted to a user for a football season."""
+    """Highest commissioner plan granted to a user for a plan year."""
 
     __tablename__ = "commissioner_entitlements"
     __table_args__ = (
@@ -477,6 +477,20 @@ class CommissionerEntitlement(Base):
 
     user = relationship("User", back_populates="commissioner_entitlements")
     pools = relationship("Pool", back_populates="billing_entitlement")
+
+
+class PlanYearPoolUsage(Base):
+    """Permanent count of pool creations; deleting a pool never restores a slot."""
+
+    __tablename__ = "plan_year_pool_usage"
+    __table_args__ = (
+        UniqueConstraint("user_id", "season", name="uq_plan_year_pool_usage_user_season"),
+    )
+    user_id = Column(String(36), ForeignKey(USERS_ID_FK), primary_key=True)
+    season = Column(Integer, primary_key=True)
+    pools_created = Column(Integer, nullable=False, default=0)
+    created_at = Column(DateTime, nullable=False)
+    updated_at = Column(DateTime, nullable=False)
 
 
 class League(Base):

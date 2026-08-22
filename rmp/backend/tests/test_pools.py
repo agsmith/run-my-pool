@@ -3,6 +3,7 @@ import logging
 from unittest.mock import Mock, patch
 from datetime import datetime, timedelta, timezone
 import models
+from tests.plan_support import grant_unlimited_pool_creations
 
 
 def _register(client, email):
@@ -11,6 +12,7 @@ def _register(client, email):
     token = client.post(
         "/auth/login", json={"email": email, "password": password}
     ).json()["access_token"]
+    grant_unlimited_pool_creations(email)
     return {"Authorization": f"Bearer {token}"}
 
 

@@ -1,6 +1,6 @@
 import enum
 import re
-from datetime import datetime, time
+from datetime import date, datetime, time
 from typing import List, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
@@ -172,10 +172,13 @@ class CommissionerEntitlementOut(BaseModel):
 
 class BillingOverviewOut(BaseModel):
     season: int
+    plan_year_start: date
+    plan_year_end: date
     entitlement: Optional[CommissionerEntitlementOut] = None
     orders: List[BillingOrderOut]
     used_entries: int = 0
     used_pools: int = 0
+    pools_created: int = 0
     can_create_pool: bool = True
     available_pool_slots: Optional[int] = None
 

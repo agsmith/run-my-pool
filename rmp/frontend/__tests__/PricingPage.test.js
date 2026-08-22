@@ -48,15 +48,14 @@ describe('PricingPage', () => {
     expect(screen.getByText('$79')).toBeInTheDocument();
     expect(screen.getByText('$129')).toBeInTheDocument();
     expect(screen.getByText('$249')).toBeInTheDocument();
-    expect(screen.getByText('1 owner-managed 100-block Squares board per season')).toBeInTheDocument();
+    expect(screen.getByText('1 owner-managed 100-block Squares board per plan year')).toBeInTheDocument();
     expect(screen.getByText('No online Squares player joining or invitations')).toBeInTheDocument();
-    expect(screen.getByText('1 full Squares board per season')).toBeInTheDocument();
+    expect(screen.getByText('1 Squares pool per plan year')).toBeInTheDocument();
     expect(screen.getByText('Online player invitations and joining')).toBeInTheDocument();
     expect(screen.getByText('All 100 self-service reservations')).toBeInTheDocument();
-    expect(screen.getByText('Up to 3 active pools')).toBeInTheDocument();
-    expect(screen.getAllByText('Any mix of Squares, Pick ’Em, or Survivor')).toHaveLength(4);
+    expect(screen.getByText('Create up to 3 pools per plan year')).toBeInTheDocument();
+    expect(screen.getAllByText('Any mix of Squares, Pick ’Em, or Survivor')).toHaveLength(3);
     expect(screen.getByText('Up to 150 total entries across your pools')).toBeInTheDocument();
-    expect(screen.getByText(/one owner-managed 100-block Squares board/i)).toBeInTheDocument();
     expect(screen.queryByText(/weekend support/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/fixed-dollar|per-reserved-block pot/i)).not.toBeInTheDocument();
   });
@@ -162,10 +161,10 @@ describe('PricingPage', () => {
   test('positions Club around multiple pools and historical access', () => {
     render(<PricingPage />);
     const clubCard = screen.getByRole('heading', { name: 'Club' }).closest('article');
-    expect(clubCard).toHaveTextContent('Up to 5 active pools');
+    expect(clubCard).toHaveTextContent('Create up to 5 pools per plan year');
     expect(clubCard).toHaveTextContent('Full historical access');
     expect(clubCard).toHaveTextContent('$129');
-    expect(clubCard).toHaveTextContent('per season');
+    expect(clubCard).toHaveTextContent('per plan year');
     expect(clubCard).toHaveTextContent('$25 per additional 100 entries');
   });
 
@@ -176,10 +175,10 @@ describe('PricingPage', () => {
     const clubCard = screen.getByRole('heading', { name: 'Club' }).closest('article');
     const unlimitedCard = screen.getByRole('heading', { name: 'Club Unlimited' }).closest('article');
 
-    expect(commishCard).toHaveTextContent('1 active pool');
-    expect(proCard).toHaveTextContent('Up to 3 active pools');
-    expect(clubCard).toHaveTextContent('Up to 5 active pools');
-    expect(unlimitedCard).toHaveTextContent('Unlimited active pools');
+    expect(commishCard).toHaveTextContent('1 pool per plan year');
+    expect(proCard).toHaveTextContent('Create up to 3 pools per plan year');
+    expect(clubCard).toHaveTextContent('Create up to 5 pools per plan year');
+    expect(unlimitedCard).toHaveTextContent('Create unlimited pools per plan year');
     expect(screen.getByText(/Move from Commish to Pro to Club/i)).toBeInTheDocument();
   });
 
@@ -188,10 +187,17 @@ describe('PricingPage', () => {
     const unlimitedCard = screen.getByRole('heading', { name: 'Club Unlimited' }).closest('article');
     expect(unlimitedCard).toHaveTextContent('$249');
     expect(unlimitedCard).toHaveTextContent('Unlimited entries');
-    expect(unlimitedCard).toHaveTextContent('Unlimited active pools');
+    expect(unlimitedCard).toHaveTextContent('Create unlimited pools per plan year');
     expect(unlimitedCard).toHaveTextContent('No usage charges');
     expect(screen.getByText(/upgrade to Club Unlimited for the \$120 difference/i)).toBeInTheDocument();
     expect(screen.getByText(/select it initially or upgrade from Club later/i)).toBeInTheDocument();
+  });
+
+  test('defines pool allowances as non-reusable March-through-February creations', () => {
+    render(<PricingPage />);
+    expect(screen.getByText(/Each plan year runs March 1 through the last day of February/i)).toBeInTheDocument();
+    expect(screen.getByText(/concluding or deleting a pool does not restore one/i)).toBeInTheDocument();
+    expect(screen.queryByText(/active pools?/i)).not.toBeInTheDocument();
   });
 
   test('links to billing and account support', () => {

@@ -14,6 +14,7 @@ from datetime import datetime, timezone
 import pytest
 
 from admin import verify_admin_access
+from tests.plan_support import grant_unlimited_pool_creations
 
 # ---------------------------------------------------------------------------
 # Auth helpers
@@ -25,6 +26,7 @@ def _register_and_login(client, email="test@example.com", password="Test1234!"):
     client.post("/auth/register", json={"email": email, "password": password})
     resp = client.post("/auth/login", json={"email": email, "password": password})
     assert resp.status_code == 200, f"Login failed: {resp.json()}"
+    grant_unlimited_pool_creations(email)
     return resp.json()["access_token"]
 
 

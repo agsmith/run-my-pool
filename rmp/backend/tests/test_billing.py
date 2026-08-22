@@ -94,6 +94,9 @@ class TestCommissionerBilling:
         assert "/checkout/success?" in captured["success_url"]
         assert captured["cancel_url"].endswith("/pricing?checkout=cancelled&plan=club")
         assert captured["metadata"]["plan"] == "club"
+        assert captured["custom_text"]["submit"]["message"] == (
+            "Plan year: March 1, 2026 through February 28, 2027."
+        )
         order = db_session.query(models.BillingOrder).one()
         assert captured["metadata"]["order_id"] == order.id
         assert order.status == "pending"
@@ -429,9 +432,12 @@ class TestCommissionerBilling:
 
         assert first.status_code == 200
         assert second.status_code == 409
-        assert "allows 1 active pool" in second.json()["detail"]
+        assert "includes 1 pool creation" in second.json()["detail"]
+        assert "March 1, 2026 through February 28, 2027" in second.json()["detail"]
+        assert "does not restore" in second.json()["detail"]
         assert overview.status_code == 200
         assert overview.json()["used_pools"] == 1
+        assert overview.json()["pools_created"] == 1
         assert overview.json()["available_pool_slots"] == 0
         assert overview.json()["can_create_pool"] is False
 
@@ -485,6 +491,9 @@ class TestCommissionerBilling:
                 headers=_headers(token),
             ),
         ]
+        deleted = client.delete(
+            f"/pools/{responses[0].json()['id']}", headers=_headers(token)
+        )
         blocked = client.post(
             "/pools/create",
             json={"name": "Pro Pool Four", "pool_type": "pickem"},
@@ -499,9 +508,12 @@ class TestCommissionerBilling:
             "survivor",
             "pickem",
         }
+        assert deleted.status_code == 200
         assert blocked.status_code == 409
-        assert "allows 3 active pool" in blocked.json()["detail"]
+        assert "includes 3 pool creation" in blocked.json()["detail"]
+        assert "does not restore" in blocked.json()["detail"]
         assert overview.json()["used_pools"] == 3
+        assert overview.json()["pools_created"] == 3
         assert overview.json()["available_pool_slots"] == 0
         assert overview.json()["can_create_pool"] is False
 
@@ -530,7 +542,7 @@ class TestCommissionerBilling:
                 plan="commissioner",
                 status="active",
                 included_entries=2,
-                max_pools=1,
+                max_pools=3,
                 unlimited_entries=False,
                 source_order_id=order.id,
                 activated_at=datetime(2026, 8, 1),
@@ -645,7 +657,7 @@ class TestCommissionerBilling:
                 plan="pro",
                 status="active",
                 included_entries=150,
-                max_pools=1,
+                max_pools=3,
                 unlimited_entries=False,
                 source_order_id=order.id,
                 activated_at=datetime(2026, 8, 12),
@@ -664,19 +676,25 @@ class TestCommissionerBilling:
         assert owner.status_code == 200
         assert owner.json()["entitlement"]["plan"] == "pro"
         assert owner.json()["used_pools"] == 0
+        assert owner.json()["pools_created"] == 0
+        assert owner.json()["plan_year_start"] == "2026-03-01"
+        assert owner.json()["plan_year_end"] == "2027-02-28"
         assert owner.json()["can_create_pool"] is True
-        assert owner.json()["available_pool_slots"] == 1
+        assert owner.json()["available_pool_slots"] == 3
         assert owner.json()["orders"][0]["amount_total"] == 7900
         assert owner.json()["orders"][0]["created_at"] is not None
         assert other.status_code == 200
         assert other.json() == {
             "season": 2026,
+            "plan_year_start": "2026-03-01",
+            "plan_year_end": "2027-02-28",
             "entitlement": None,
             "orders": [],
             "used_entries": 0,
             "used_pools": 0,
+            "pools_created": 0,
             "can_create_pool": True,
-            "available_pool_slots": None,
+            "available_pool_slots": 1,
         }
 
     def test_billing_overview_requires_authentication(self, client):

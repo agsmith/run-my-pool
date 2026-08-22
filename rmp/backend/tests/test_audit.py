@@ -18,6 +18,7 @@ from unittest.mock import patch
 
 import models
 from models import AuditLog
+from tests.plan_support import grant_unlimited_pool_creations
 
 
 # ---------------------------------------------------------------------------
@@ -28,6 +29,7 @@ from models import AuditLog
 def _reg(client, email, password="Pass1234!"):
     client.post("/auth/register", json={"email": email, "password": password})
     resp = client.post("/auth/login", json={"email": email, "password": password})
+    grant_unlimited_pool_creations(email)
     return resp.json()["access_token"]
 
 

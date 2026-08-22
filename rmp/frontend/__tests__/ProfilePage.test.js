@@ -35,8 +35,11 @@ describe('profile billing overview', () => {
   test('shows the current commissioner plan and payment history', async () => {
     global.fetch = jest.fn(() => response({
       season: 2026,
-      entitlement: { plan: 'pro', status: 'active', included_entries: 150, max_pools: 1, unlimited_entries: false },
+      entitlement: { plan: 'pro', status: 'active', included_entries: 150, max_pools: 3, unlimited_entries: false },
       used_entries: 12,
+      pools_created: 2,
+      plan_year_start: '2026-03-01',
+      plan_year_end: '2027-02-28',
       orders: [{ id: 'order-1', plan: 'pro', status: 'paid', amount_total: 7900, currency: 'usd', paid_at: '2026-08-12T12:00:00' }],
     }));
     render(<Profile />);
@@ -45,6 +48,9 @@ describe('profile billing overview', () => {
     expect(screen.getByText('$79.00')).toBeInTheDocument();
     expect(screen.getByText('Active')).toBeInTheDocument();
     expect(screen.getByText('12 / 150')).toBeInTheDocument();
+    expect(screen.getByText('2 / 3')).toBeInTheDocument();
+    expect(screen.getByText(/March 1, 2026 through February 28, 2027/i)).toBeInTheDocument();
+    expect(screen.getByText(/Deleted or concluded pools still count/i)).toBeInTheDocument();
     expect(global.fetch).toHaveBeenCalledWith('/billing/overview?season=2026', expect.objectContaining({ credentials: 'include' }));
     expect(mockTrackLifecycleEvent).toHaveBeenCalledWith('billing_overview_view', { page: 'profile' });
   });
@@ -52,11 +58,14 @@ describe('profile billing overview', () => {
   test('offers a return to setup while paid pool capacity remains unused', async () => {
     global.fetch = jest.fn(() => response({
       season: 2026,
-      entitlement: { plan: 'pro', status: 'active', included_entries: 150, max_pools: 1, unlimited_entries: false },
+      entitlement: { plan: 'pro', status: 'active', included_entries: 150, max_pools: 3, unlimited_entries: false },
       used_entries: 0,
       used_pools: 0,
+      pools_created: 0,
+      plan_year_start: '2026-03-01',
+      plan_year_end: '2027-02-28',
       can_create_pool: true,
-      available_pool_slots: 1,
+      available_pool_slots: 3,
       orders: [],
     }));
 

@@ -24,7 +24,7 @@ export const SPORTZBALLZ_ADS = [
     campaign: 'daily-sportz-page',
     src: '/ads/sportzballz/daily-sportz-page.jpg',
     alt: 'The Daily Sportz Page — daily MLB scores, stories, and stats from SportzBallz.',
-    destination: 'https://sportzballz.io/sportzpage',
+    destination: 'https://thedailysportspage.com',
   },
 ];
 

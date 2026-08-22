@@ -145,7 +145,7 @@ def test_F02_club_allows_five_pools_and_rejects_sixth(client, db_session):
         assert response.status_code == 200
     blocked = client.post("/pools/create", json={"name": "Club Pool 6"}, headers=_headers(token))
     assert blocked.status_code == 409
-    assert "allows 5 active pool" in blocked.json()["detail"]
+    assert "includes 5 pool creation" in blocked.json()["detail"]
 
 
 def test_F03_club_entry_500_succeeds_and_501_is_shared_across_pools(client, db_session):

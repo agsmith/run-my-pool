@@ -1,12 +1,15 @@
 import pytest
 from datetime import datetime, timedelta, timezone
 
+from tests.plan_support import grant_unlimited_pool_creations
+
 
 def _register_and_login(client, email="locktest@example.com", password="Test1234!"):
     """Register a user and return an auth token."""
     client.post("/auth/register", json={"email": email, "password": password})
     resp = client.post("/auth/login", json={"email": email, "password": password})
     assert resp.status_code == 200, f"Login failed: {resp.json()}"
+    grant_unlimited_pool_creations(email)
     return resp.json()["access_token"]
 
 

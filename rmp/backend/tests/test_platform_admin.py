@@ -13,6 +13,7 @@ from platform_admin import (
     require_platform_super_admin,
 )
 from fastapi import HTTPException
+from tests.plan_support import grant_unlimited_pool_creations
 
 
 # ---------------------------------------------------------------------------
@@ -27,6 +28,7 @@ def _register(client, email, password="Platform123!"):
     assert response.status_code == 200, response.text
     login = client.post("/auth/login", json={"email": email, "password": password})
     assert login.status_code == 200, login.text
+    grant_unlimited_pool_creations(email)
     return login.json()["access_token"]
 
 

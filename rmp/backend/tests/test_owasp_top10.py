@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 import models
 from auth import create_access_token
+from tests.plan_support import grant_unlimited_pool_creations
 
 
 pytestmark = [pytest.mark.security, pytest.mark.owasp]
@@ -22,6 +23,7 @@ def _register(client, email, password="Pass1234!"):
     assert response.status_code == 200, response.text
     login = client.post("/auth/login", json={"email": email, "password": password})
     assert login.status_code == 200, login.text
+    grant_unlimited_pool_creations(email)
     return login.json()["access_token"]
 
 
