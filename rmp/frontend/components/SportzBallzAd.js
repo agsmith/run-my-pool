@@ -30,7 +30,7 @@ export const SPORTZBALLZ_ADS = [
     campaign: 'daily-sports-page-classic',
     src: '/ads/sportzballz/daily-sports-page-classic.png',
     alt: 'The Daily Sports Page — scores, stories, and stats every day. Read today.',
-    destination: 'https://thedailysportspage.com',
+    destination: 'https://thedailysportspage.com/',
     width: 2114,
     height: 744,
   },
@@ -38,7 +38,7 @@ export const SPORTZBALLZ_ADS = [
     campaign: 'daily-sports-page-night',
     src: '/ads/sportzballz/daily-sports-page-night.png',
     alt: 'The Daily Sports Page — the day in sports, beautifully told. Read today.',
-    destination: 'https://thedailysportspage.com',
+    destination: 'https://thedailysportspage.com/',
     width: 2114,
     height: 744,
   },
@@ -46,7 +46,7 @@ export const SPORTZBALLZ_ADS = [
     campaign: 'daily-sports-page-edition',
     src: '/ads/sportzballz/daily-sports-page-edition.png',
     alt: "The Daily Sports Page — your daily sports edition. Open today's page.",
-    destination: 'https://thedailysportspage.com',
+    destination: 'https://thedailysportspage.com/',
     width: 2115,
     height: 744,
   },
@@ -76,6 +76,7 @@ export default function SportzBallzAd() {
 
   const activeAd = SPORTZBALLZ_ADS[activeIndex];
   const href = `${activeAd.destination}?utm_source=runmypool.net&utm_medium=banner&utm_campaign=cross-promotion&utm_content=${activeAd.campaign}`;
+  const isDailySportsPageAd = activeAd.campaign.startsWith('daily-sports-page');
 
   return (
     <aside className="sportzballz-ad" aria-label="Advertisement from SportzBallz">
@@ -83,8 +84,8 @@ export default function SportzBallzAd() {
       <a
         className="sportzballz-ad__link"
         href={href}
-        target="_blank"
-        rel="sponsored noopener noreferrer"
+        target={isDailySportsPageAd ? '_self' : '_blank'}
+        rel={isDailySportsPageAd ? 'sponsored' : 'sponsored noopener noreferrer'}
         data-campaign={activeAd.campaign}
       >
         <img
