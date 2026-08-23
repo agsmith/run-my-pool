@@ -18,6 +18,7 @@ resource "aws_db_instance" "main" {
   apply_immediately           = true
   instance_class              = "db.t4g.small"
   allocated_storage           = 20
+  max_allocated_storage       = 100
   storage_type                = "gp2"
   storage_encrypted           = true
   kms_key_id                  = data.aws_kms_alias.rds.target_key_arn

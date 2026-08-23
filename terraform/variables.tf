@@ -141,7 +141,7 @@ variable "backend_min_tasks" {
 variable "backend_max_tasks" {
   description = "Maximum backend tasks for the expected 700-user population"
   type        = number
-  default     = 4
+  default     = 3
 }
 
 variable "frontend_min_tasks" {

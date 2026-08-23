@@ -456,3 +456,20 @@ resource "aws_appautoscaling_policy" "frontend_cpu" {
     }
   }
 }
+
+resource "aws_appautoscaling_policy" "frontend_memory" {
+  name               = "runmypool-frontend-memory"
+  policy_type        = "TargetTrackingScaling"
+  resource_id        = aws_appautoscaling_target.frontend.resource_id
+  scalable_dimension = aws_appautoscaling_target.frontend.scalable_dimension
+  service_namespace  = aws_appautoscaling_target.frontend.service_namespace
+
+  target_tracking_scaling_policy_configuration {
+    target_value       = var.ecs_memory_target_percent
+    scale_in_cooldown  = 300
+    scale_out_cooldown = 60
+    predefined_metric_specification {
+      predefined_metric_type = "ECSServiceAverageMemoryUtilization"
+    }
+  }
+}
