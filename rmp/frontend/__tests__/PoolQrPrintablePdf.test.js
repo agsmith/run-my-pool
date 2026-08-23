@@ -30,10 +30,15 @@ describe('pool QR PDF generation', () => {
 
     expect(doc.internal.pageSize.getWidth()).toBeCloseTo(width, 1);
     expect(doc.internal.pageSize.getHeight()).toBeCloseTo(height, 1);
+    const pdfOutput = doc.output();
     expect(new Uint8Array(doc.output('arraybuffer')).byteLength).toBeGreaterThan(5000);
     expect(filename).toMatch(/office-survivor-qr-.+\.pdf$/);
     expect(inviteUrl).toBe('https://runmypool.net/leagues?invite=pool-1');
-    expect(doc.output()).toContain('huddle42');
+    expect(pdfOutput).toContain('huddle42');
+    if (format === 'tableTent') {
+      expect(pdfOutput.match(/\(RUN MY POOL\) Tj/g)).toHaveLength(2);
+      expect(pdfOutput).not.toMatch(/-1\.?\s+0\.?\s+0\.?\s+-1\.?/);
+    }
     if (process.env.WRITE_QR_SAMPLES === '1') {
       const outputDirectory = path.resolve('tmp/pdfs');
       fs.mkdirSync(outputDirectory, { recursive: true });

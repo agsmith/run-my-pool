@@ -125,54 +125,43 @@ function drawBusinessCard(doc, details) {
   doc.text('runmypool.net', 186, 120, { align: 'center' });
 }
 
-function drawTentPanel(doc, details, x, rotate = false) {
+function drawTentPanel(doc, details, x) {
   const { poolName, inviteUrl, qrDataUrl, logo, isPrivate, joinCode } = details;
   const centerX = x + 180;
-  const draw = () => {
-    setFill(doc, NAVY);
-    doc.rect(x, 0, 360, 504, 'F');
-    setFill(doc, CYAN);
-    doc.rect(x, 0, 360, 10, 'F');
-    setFill(doc, LIME);
-    doc.rect(x, 494, 360, 10, 'F');
-    addImageContained(doc, logo, x + 90, 35, 180, 65);
-    setText(doc, logo ? CYAN : LIME);
+  setFill(doc, NAVY);
+  doc.rect(x, 0, 360, 504, 'F');
+  setFill(doc, CYAN);
+  doc.rect(x, 0, 360, 10, 'F');
+  setFill(doc, LIME);
+  doc.rect(x, 494, 360, 10, 'F');
+  addImageContained(doc, logo, x + 90, 35, 180, 65);
+  setText(doc, logo ? CYAN : LIME);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(15);
+  doc.text('RUN MY POOL', centerX, logo ? 125 : 55, { align: 'center' });
+  setText(doc, WHITE);
+  doc.setFontSize(25);
+  doc.text(doc.splitTextToSize(poolName, 300).slice(0, 3), centerX, logo ? 165 : 100, { align: 'center' });
+  setText(doc, CYAN);
+  doc.setFontSize(15);
+  doc.text('SCAN TO JOIN', centerX, logo ? 236 : 178, { align: 'center' });
+  const qrSize = logo ? 160 : 180;
+  drawQr(doc, qrDataUrl, x + (360 - qrSize) / 2, logo ? 250 : 202, qrSize);
+  setText(doc, MUTED);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7);
+  doc.text(doc.splitTextToSize(inviteUrl, 300), centerX, logo ? 462 : 435, { align: 'center' });
+  if (isPrivate) {
+    setText(doc, LIME);
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(15);
-    doc.text('RUN MY POOL', centerX, logo ? 125 : 55, { align: 'center' });
-    setText(doc, WHITE);
-    doc.setFontSize(25);
-    doc.text(doc.splitTextToSize(poolName, 300).slice(0, 3), centerX, logo ? 165 : 100, { align: 'center' });
-    setText(doc, CYAN);
-    doc.setFontSize(15);
-    doc.text('SCAN TO JOIN', centerX, logo ? 236 : 178, { align: 'center' });
-    const qrSize = logo ? 160 : 180;
-    drawQr(doc, qrDataUrl, x + (360 - qrSize) / 2, logo ? 250 : 202, qrSize);
-    setText(doc, MUTED);
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(7);
-    doc.text(doc.splitTextToSize(inviteUrl, 300), centerX, logo ? 462 : 435, { align: 'center' });
-    if (isPrivate) {
-      setText(doc, LIME);
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(8);
-      doc.text(doc.splitTextToSize(`JOIN CODE: ${joinCode || '________________'}`, 300), centerX, logo ? 438 : 410, { align: 'center' });
-    }
-  };
-
-  if (!rotate) {
-    draw();
-    return;
+    doc.setFontSize(8);
+    doc.text(doc.splitTextToSize(`JOIN CODE: ${joinCode || '________________'}`, 300), centerX, logo ? 438 : 410, { align: 'center' });
   }
-  doc.saveGraphicsState();
-  doc.setCurrentTransformationMatrix(new doc.Matrix(-1, 0, 0, -1, 720, 504));
-  draw();
-  doc.restoreGraphicsState();
 }
 
 function drawTableTent(doc, details) {
-  drawTentPanel(doc, details, 0, false);
-  drawTentPanel(doc, details, 0, true);
+  drawTentPanel(doc, details, 0);
+  drawTentPanel(doc, details, 360);
   doc.setDrawColor(255, 255, 255);
   doc.setLineDashPattern([5, 4], 0);
   doc.line(360, 0, 360, 504);
