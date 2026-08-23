@@ -1943,6 +1943,57 @@ table {
 .sportzballz-ad__link { display: block; overflow: hidden; border: 1px solid #3c5a65; border-radius: 10px; background: #0879dd; box-shadow: 0 12px 30px rgba(0,0,0,.32); line-height: 0; transition: border-color .2s ease, box-shadow .2s ease, transform .2s ease; }
 .sportzballz-ad__link:hover, .sportzballz-ad__link:focus-visible { border-color: #d7ff3f; box-shadow: 0 14px 34px rgba(0,0,0,.42), 0 0 0 2px rgba(215,255,63,.22); transform: translateY(-1px); outline: none; }
 .sportzballz-ad__image { display: block; width: 100%; height: auto; }
+
+/* Commissioner QR printables */
+.pool-qr-printables { margin: 0 0 3rem; padding: 1.5rem; color: #d8e1df; background: linear-gradient(145deg, #081419, #0d2228); border: 1px solid #31515a; border-radius: 14px; box-shadow: 0 18px 42px rgba(0, 0, 0, .2); }
+.pool-qr-printables__heading { display: flex; justify-content: space-between; gap: 1rem; align-items: flex-start; }
+.pool-qr-printables__heading span, .pool-qr-printables__url span { display: block; margin-bottom: .25rem; color: #c6ff37; font-size: .68rem; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
+.pool-qr-printables__heading h4 { margin: 0; color: #f7fbfa; font-size: 1.35rem; }
+.pool-qr-printables__heading p { max-width: 720px; margin: .45rem 0 0; color: #9eb0b3; line-height: 1.55; }
+.pool-qr-printables__qr { display: grid; width: 58px; height: 58px; flex: none; place-items: center; color: #041218; background: repeating-conic-gradient(#041218 0 25%, #f7fbfa 0 50%) 0 / 16px 16px; border: 6px solid #f7fbfa; border-radius: 6px; font-size: 0; box-shadow: 0 0 0 2px #4adaf5; }
+.pool-qr-printables__url { margin: 1.25rem 0; padding: .9rem 1rem; overflow: hidden; background: #050d10; border: 1px solid #263d43; border-radius: 8px; }
+.pool-qr-printables__url strong { display: block; overflow-wrap: anywhere; color: #f7fbfa; font-size: .82rem; }
+.pool-qr-printables__url small { display: block; margin-top: .45rem; color: #c6ff37; }
+.pool-qr-printables__controls { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(240px, .6fr); gap: 1.25rem; }
+.pool-qr-printables fieldset { min-width: 0; margin: 0; padding: 0; border: 0; }
+.pool-qr-printables legend, .pool-qr-printables__logo > label { display: block; margin-bottom: .65rem; color: #f7fbfa; font-size: .84rem; font-weight: 800; }
+.pool-qr-printables__logo > label small { color: #9eb0b3; font-weight: 500; }
+.pool-qr-printables__formats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .65rem; }
+.pool-qr-printables__formats label { display: flex; min-width: 0; gap: .6rem; padding: .85rem; cursor: pointer; background: #0a171c; border: 1px solid #31484e; border-radius: 9px; transition: border-color .15s ease, background .15s ease; }
+.pool-qr-printables__formats label.is-selected { background: #10282f; border-color: #4adaf5; box-shadow: inset 0 0 0 1px #4adaf5; }
+.pool-qr-printables__formats input { width: 16px; height: 16px; flex: none; accent-color: #c6ff37; }
+.pool-qr-printables__formats span { min-width: 0; }
+.pool-qr-printables__formats strong, .pool-qr-printables__formats small { display: block; }
+.pool-qr-printables__formats strong { color: #f7fbfa; font-size: .77rem; line-height: 1.25; }
+.pool-qr-printables__formats small { margin-top: .35rem; color: #8fa4a7; font-size: .67rem; line-height: 1.35; }
+.pool-qr-printables__logo input[type='file'] { display: block; width: 100%; padding: .62rem; color: #d8e1df; background: #071116; border: 1px dashed #4b666d; border-radius: 8px; }
+.pool-qr-printables__logo > small { display: block; margin-top: .45rem; color: #8fa4a7; font-size: .67rem; line-height: 1.4; }
+.pool-qr-printables__logo-preview { display: grid; grid-template-columns: 48px minmax(0, 1fr) auto; gap: .6rem; align-items: center; margin-top: .7rem; padding: .5rem; background: #f7fbfa; border-radius: 8px; }
+.pool-qr-printables__logo-preview img { width: 48px; height: 38px; object-fit: contain; }
+.pool-qr-printables__logo-preview span { overflow: hidden; color: #142328; font-size: .72rem; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+.pool-qr-printables__logo-preview button { padding: .4rem .55rem; color: #7f1d1d; background: #fee2e2; border: 0; border-radius: 5px; font-size: .68rem; font-weight: 800; }
+.pool-qr-printables__join-code { margin-top: 1rem; padding: .9rem 1rem; background: #071116; border: 1px solid #31484e; border-radius: 8px; }
+.pool-qr-printables__join-code label { display: block; margin-bottom: .45rem; color: #f7fbfa; font-size: .84rem; font-weight: 800; }
+.pool-qr-printables__join-code input { width: 100%; padding: .7rem .75rem; color: #f7fbfa; background: #0c2026; border: 1px solid #4b666d; border-radius: 6px; font: inherit; }
+.pool-qr-printables__join-code input:disabled { color: #8fa4a7; opacity: .8; }
+.pool-qr-printables__join-code small { display: block; margin-top: .45rem; color: #c6ff37; font-size: .68rem; line-height: 1.4; }
+.pool-qr-printables__actions { display: flex; flex-wrap: wrap; gap: .65rem; align-items: center; margin-top: 1.25rem; }
+.pool-qr-printables__actions button { padding: .72rem 1rem; color: #041218; background: #c6ff37; border: 0; border-radius: 7px; font-weight: 900; }
+.pool-qr-printables__actions button.is-secondary { color: #f7fbfa; background: transparent; border: 1px solid #4adaf5; }
+.pool-qr-printables__actions button:disabled { cursor: wait; opacity: .6; }
+.pool-qr-printables__actions small { color: #8fa4a7; font-size: .68rem; }
+.pool-qr-printables__message { margin: .85rem 0 0; color: #c6ff37; font-size: .76rem; font-weight: 700; }
+
+@media (max-width: 900px) {
+  .pool-qr-printables__controls { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 640px) {
+  .pool-qr-printables { padding: 1rem; }
+  .pool-qr-printables__formats { grid-template-columns: 1fr; }
+  .pool-qr-printables__actions { align-items: stretch; flex-direction: column; }
+  .pool-qr-printables__actions button { width: 100%; }
+}
 .site-disclaimer { box-sizing:border-box; display:flex; align-items:center; justify-content:center; flex-wrap:wrap; gap:.65rem 1.1rem; width:100%; margin-top:auto; padding:.8rem 1rem; color:#71817e; background:#050708; border-top:1px solid #202b2d; text-align:center; font-size:.64rem; font-weight:700; letter-spacing:.08em; text-transform:uppercase; }
 .site-disclaimer a { display:inline-flex; align-items:center; gap:.35rem; color:#9fefff; text-decoration:none; }
 .site-disclaimer a:hover { color:#d7ff3f; }

@@ -72,6 +72,7 @@ function installApi(overrides = {}) {
 describe('commissioner portal', () => {
   beforeEach(() => {
     mockPush.mockReset();
+    mockUser.id = 'owner-1';
     localStorage.setItem('access_token', 'token');
     installApi();
   });
@@ -88,6 +89,7 @@ describe('commissioner portal', () => {
     expect(await screen.findByRole('heading', { name: 'Office Survivor' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Pool Management' })).toBeInTheDocument();
     expect(screen.getByText('Weekly owner reports')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'QR Join Printables' })).toBeInTheDocument();
     expect(screen.getByText('Pool lock settings')).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Create Pool' })).not.toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Modify Pool' })).not.toBeInTheDocument();
@@ -107,6 +109,14 @@ describe('commissioner portal', () => {
     await user.click(screen.getByRole('button', { name: /audit log/i }));
     expect(screen.getByRole('heading', { name: 'Audit Log' })).toBeInTheDocument();
     expect(await screen.findByText('No audit logs found')).toBeInTheDocument();
+  });
+
+  test('does not expose owner QR branding controls to a non-owner pool admin', async () => {
+    mockUser.id = 'pool-admin-1';
+    render(<AdminPortal />);
+
+    expect(await screen.findByRole('heading', { name: 'Pool Management' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'QR Join Printables' })).not.toBeInTheDocument();
   });
 
   test('uses a focused member lookup and one contextual pool-lock action', async () => {

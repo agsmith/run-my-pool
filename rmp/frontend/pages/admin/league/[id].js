@@ -10,6 +10,7 @@ import OwnershipTransferControl from '../../../components/OwnershipTransferContr
 import LeagueLockSettings from '../../../components/LeagueLockSettings';
 import LeaguePasswordViewer from '../../../components/LeaguePasswordViewer';
 import OwnerPoolReports from '../../../components/OwnerPoolReports';
+import PoolQrPrintables from '../../../components/PoolQrPrintables';
 import { getAuditUsername } from '../../../utils/auditDisplay';
 import { downloadAuditCsv } from '../../../utils/auditCsv';
 import { formatAuditTimestamp } from '../../../utils/auditTime';
@@ -583,6 +584,7 @@ export default function AdminPortal() {
       </div>
 
       {league?.owner_id === user?.id && <OwnerPoolReports poolId={leagueId} />}
+      {league?.owner_id === user?.id && <PoolQrPrintables pool={league} />}
       
       {/* View/Search Leagues */}
       <div style={{ marginBottom: '3rem' }}>
