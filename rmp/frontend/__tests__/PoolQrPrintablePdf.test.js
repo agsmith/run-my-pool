@@ -4,6 +4,10 @@ import fs from 'fs';
 import path from 'path';
 import { createPoolPrintable } from '../utils/poolQrPrintables';
 
+// jsPDF and QR generation are CPU-intensive under GitHub's shared runners.
+// Keep the assertion coverage while allowing enough time for slower CI hosts.
+jest.setTimeout(30000);
+
 describe('pool QR PDF generation', () => {
   test.each([
     ['letter', 612, 792],
