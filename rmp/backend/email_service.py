@@ -188,3 +188,59 @@ def send_pool_owner_report(recipient: str, report: dict) -> str:
     message_id = response["MessageId"]
     log_event(logger, logging.INFO, "owner_pool_report_queued", message_id=message_id, pool_id=report["pool_id"])
     return message_id
+
+
+def send_member_weekly_recap(recipient: str, recap: dict) -> str:
+    """Send a completed-week recap containing only the recipient's entry details."""
+    region = os.getenv("AWS_SES_REGION", "us-east-1")
+    frontend_url = os.getenv("FRONTEND_URL", "https://runmypool.net").rstrip("/")
+    sender = os.getenv("EMAIL_FROM", "Run My Pool Accounts <accounts@runmypool.net>")
+    reply_to = os.getenv("EMAIL_REPLY_TO", "support@runmypool.net")
+    pool_name = " ".join(recap["pool_name"].split())
+    safe_name = html.escape(pool_name)
+    pool_url = f"{frontend_url}/pool/{recap['pool_id']}"
+    preference_url = f"{pool_url}#weekly-recap"
+    entry_lines = [
+        f"{item['entry_name']}: {item['pick'] or 'No pick'} — {item['result'].title()}"
+        for item in recap["entries"]
+    ] or ["No entries"]
+    text_body = (
+        f"{pool_name} — Week {recap['week']} recap\n\n"
+        + "\n".join(entry_lines)
+        + f"\n\nYour week: {recap['wins']} correct, {recap['losses']} incorrect, {recap['pending']} pending/no result"
+        + f"\nYour entries remaining: {recap['remaining_entries']}/{recap['total_entries']}"
+        + f"\nPool entries remaining: {recap['pool_remaining_entries']}/{recap['pool_total_entries']}"
+        + f"\n\nOpen pool: {pool_url}\nManage or turn off weekly recaps: {preference_url}"
+    )
+    rows = "".join(
+        "<tr>"
+        f"<td style='padding:8px;border-bottom:1px solid #314449'>{html.escape(item['entry_name'])}</td>"
+        f"<td style='padding:8px;border-bottom:1px solid #314449'>{html.escape(item['pick'] or 'No pick')}</td>"
+        f"<td style='padding:8px;border-bottom:1px solid #314449'>{html.escape(item['result'].title())}</td>"
+        "</tr>"
+        for item in recap["entries"]
+    ) or "<tr><td colspan='3' style='padding:8px'>No entries</td></tr>"
+    html_body = (
+        '<div style="background:#071113;color:#e8efed;padding:28px;font-family:Arial,sans-serif">'
+        '<div style="color:#d7ff3f;font-size:12px;font-weight:700;letter-spacing:2px">YOUR WEEKLY RECAP</div>'
+        f'<h1 style="margin:8px 0">{safe_name} · Week {recap["week"]}</h1>'
+        '<table style="width:100%;border-collapse:collapse"><thead><tr><th align="left">Entry</th><th align="left">Pick</th><th align="left">Result</th></tr></thead>'
+        f"<tbody>{rows}</tbody></table>"
+        f'<p><strong>{recap["wins"]}</strong> correct · <strong>{recap["losses"]}</strong> incorrect · <strong>{recap["pending"]}</strong> pending/no result</p>'
+        f'<p><strong>{recap["remaining_entries"]}/{recap["total_entries"]}</strong> of your entries remain · '
+        f'<strong>{recap["pool_remaining_entries"]}/{recap["pool_total_entries"]}</strong> remain pool-wide</p>'
+        f'<p><a href="{html.escape(pool_url, quote=True)}" style="display:inline-block;background:#d7ff3f;color:#071113;padding:12px 18px;text-decoration:none;font-weight:700">Open your pool</a></p>'
+        f'<p style="color:#9dafb2;font-size:12px">You opted into weekly member recaps. <a style="color:#9dafb2" href="{html.escape(preference_url, quote=True)}">Manage or turn off recaps</a>.</p></div>'
+    )
+    response = boto3.client("sesv2", region_name=region).send_email(
+        FromEmailAddress=sender,
+        Destination={"ToAddresses": [recipient]},
+        ReplyToAddresses=[reply_to],
+        Content={"Simple": {
+            "Subject": {"Data": f"{pool_name}: your Week {recap['week']} recap", "Charset": "UTF-8"},
+            "Body": {"Text": {"Data": text_body, "Charset": "UTF-8"}, "Html": {"Data": html_body, "Charset": "UTF-8"}},
+        }},
+    )
+    message_id = response["MessageId"]
+    log_event(logger, logging.INFO, "member_weekly_recap_queued", message_id=message_id, pool_id=recap["pool_id"], week=recap["week"])
+    return message_id

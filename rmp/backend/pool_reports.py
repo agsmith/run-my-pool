@@ -2,6 +2,7 @@
 
 import logging
 import sys
+import uuid
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -14,7 +15,7 @@ import schemas
 from app_logging import log_event
 from audit_utils import create_audit_log
 from database import SessionLocal, engine
-from email_service import send_pool_owner_report
+from email_service import send_member_weekly_recap, send_pool_owner_report
 from schedule import current_season_week
 from services.job_lock import advisory_job_lock
 
@@ -35,6 +36,21 @@ def _require_owner(db: Session, pool_id: str, user: models.User) -> models.Pool:
     if pool.owner_id != user.id:
         raise HTTPException(status_code=403, detail="Only the pool owner can manage pool reports")
     return pool
+
+
+def _require_member(db: Session, pool_id: str, user: models.User) -> tuple[models.Pool, models.PoolMember]:
+    pool = db.get(models.Pool, pool_id)
+    if pool is None:
+        raise HTTPException(status_code=404, detail="Pool not found")
+    membership = db.query(models.PoolMember).filter(
+        models.PoolMember.pool_id == pool_id,
+        models.PoolMember.user_id == user.id,
+    ).first()
+    if membership is None:
+        raise HTTPException(status_code=403, detail="Pool membership required")
+    if pool.pool_type == "squares":
+        raise HTTPException(status_code=400, detail="Weekly recaps are available for Survivor and Pick 'Em pools")
+    return pool, membership
 
 
 def build_owner_report(db: Session, pool: models.Pool) -> dict:
@@ -129,6 +145,133 @@ def preview_report(pool_id: str, db: Session = Depends(deps.get_db), current_use
     return build_owner_report(db, _require_owner(db, pool_id, current_user))
 
 
+@router.get("/{pool_id}/member-recap-preference", response_model=schemas.MemberRecapPreferenceOut)
+def get_member_recap_preference(pool_id: str, db: Session = Depends(deps.get_db), current_user: models.User = Depends(deps.get_current_user)):
+    pool, membership = _require_member(db, pool_id, current_user)
+    return {"pool_id": pool.id, "enabled": membership.weekly_recap_enabled}
+
+
+@router.put("/{pool_id}/member-recap-preference", response_model=schemas.MemberRecapPreferenceOut)
+def set_member_recap_preference(pool_id: str, update: schemas.MemberRecapPreferenceUpdate, db: Session = Depends(deps.get_db), current_user: models.User = Depends(deps.get_current_user)):
+    pool, membership = _require_member(db, pool_id, current_user)
+    changed = membership.weekly_recap_enabled != update.enabled
+    membership.weekly_recap_enabled = update.enabled
+    db.commit()
+    if changed:
+        create_audit_log(
+            db, "MEMBER_WEEKLY_RECAP_PREFERENCE_UPDATED",
+            f"{'Enabled' if update.enabled else 'Disabled'} weekly member recaps for {pool.name}",
+            user_id=current_user.id, entity_type="pool", entity_id=pool.id,
+            additional_data={"pool_id": pool.id, "enabled": update.enabled},
+        )
+    return {"pool_id": pool.id, "enabled": membership.weekly_recap_enabled}
+
+
+def latest_completed_week(db: Session) -> tuple[int, int] | None:
+    """Return the newest season/week whose entire scheduled slate is final."""
+    candidates = db.query(models.Schedule.season, models.Schedule.week_num).distinct().order_by(
+        models.Schedule.season.desc(), models.Schedule.week_num.desc()
+    ).all()
+    for season, week in candidates:
+        statuses = [status for (status,) in db.query(models.Schedule.status).filter(
+            models.Schedule.season == season, models.Schedule.week_num == week
+        ).all()]
+        if statuses and all((status or "").lower() == "final" for status in statuses):
+            return season, week
+    return None
+
+
+def build_member_recap(db: Session, pool: models.Pool, user: models.User, season: int, week: int) -> dict:
+    entries = db.query(models.Entry).filter(
+        models.Entry.pool_id == pool.id, models.Entry.user_id == user.id
+    ).order_by(models.Entry.name.asc()).all()
+    entry_ids = [entry.id for entry in entries]
+    picks = db.query(models.Pick).filter(
+        models.Pick.entry_id.in_(entry_ids), models.Pick.week == week
+    ).all() if entry_ids else []
+    picks_by_entry: dict[str, list[models.Pick]] = {}
+    for pick in picks:
+        picks_by_entry.setdefault(pick.entry_id, []).append(pick)
+    entry_rows = []
+    for entry in entries:
+        entry_picks = picks_by_entry.get(entry.id, [])
+        if pool.pool_type == "pickem":
+            pick_label = ", ".join(pick.team for pick in entry_picks) or None
+            wins = sum(1 for pick in entry_picks if pick.result == "win")
+            losses = sum(1 for pick in entry_picks if pick.result == "loss")
+            result = f"{wins} correct, {losses} incorrect" if entry_picks else "no pick"
+        else:
+            pick = entry_picks[0] if entry_picks else None
+            pick_label = pick.team if pick else None
+            result = (pick.result or "pending") if pick else "no pick"
+        entry_rows.append({"entry_name": entry.name, "pick": pick_label, "result": result})
+    pool_entries = db.query(models.Entry).filter(models.Entry.pool_id == pool.id).all()
+    return {
+        "pool_id": pool.id, "pool_name": pool.name, "pool_type": pool.pool_type,
+        "season": season, "week": week, "entries": entry_rows,
+        "wins": sum(1 for pick in picks if pick.result == "win"),
+        "losses": sum(1 for pick in picks if pick.result == "loss"),
+        "pending": sum(1 for pick in picks if pick.result not in {"win", "loss"}) + sum(1 for entry in entries if not picks_by_entry.get(entry.id)),
+        "remaining_entries": sum(1 for entry in entries if entry.alive),
+        "total_entries": len(entries),
+        "pool_remaining_entries": sum(1 for entry in pool_entries if entry.alive),
+        "pool_total_entries": len(pool_entries),
+    }
+
+
+def deliver_member_recaps(db: Session, now: datetime | None = None) -> tuple[int, int]:
+    completed = latest_completed_week(db)
+    if completed is None:
+        return 0, 0
+    season, week = completed
+    memberships = db.query(models.PoolMember).join(
+        models.Pool, models.Pool.id == models.PoolMember.pool_id
+    ).filter(
+        models.PoolMember.weekly_recap_enabled.is_(True),
+        models.Pool.pool_type.in_(["survivor", "pickem"]),
+        models.Pool.billing_season == season,
+    ).all()
+    sent = failed = 0
+    attempted_at = now or _utcnow()
+    for membership in memberships:
+        user = db.get(models.User, membership.user_id)
+        pool = db.get(models.Pool, membership.pool_id)
+        if user is None or pool is None or not user.is_active:
+            continue
+        delivery = db.query(models.MemberRecapDelivery).filter_by(
+            pool_id=pool.id, user_id=user.id, season=season, week_num=week
+        ).first()
+        if delivery and delivery.status == "sent":
+            continue
+        if delivery is None:
+            delivery = models.MemberRecapDelivery(
+                id=str(uuid.uuid4()), pool_id=pool.id, user_id=user.id,
+                season=season, week_num=week, status="pending", attempted_at=attempted_at,
+            )
+            db.add(delivery)
+        else:
+            delivery.status = "pending"
+            delivery.attempted_at = attempted_at
+            delivery.error = None
+        db.commit()
+        try:
+            message_id = send_member_weekly_recap(user.email, build_member_recap(db, pool, user, season, week))
+            delivery.status = "sent"
+            delivery.message_id = message_id
+            delivery.sent_at = attempted_at
+            db.commit()
+            sent += 1
+        except Exception as exc:
+            db.rollback()
+            delivery = db.get(models.MemberRecapDelivery, delivery.id)
+            delivery.status = "failed"
+            delivery.error = str(exc)[:255]
+            db.commit()
+            failed += 1
+            logger.exception("member_weekly_recap_failed", extra={"event": "member_weekly_recap_failed", "pool_id": pool.id, "user_id": user.id, "week": week})
+    return sent, failed
+
+
 def deliver_due_reports(db: Session, now: datetime | None = None) -> tuple[int, int]:
     current = now or _utcnow()
     cutoff = current - timedelta(days=6)
@@ -162,9 +305,10 @@ def main() -> int:
             if not acquired:
                 log_event(logger, logging.INFO, "owner_pool_reports_lock_skipped")
                 return 0
-            sent, failed = deliver_due_reports(db)
-        log_event(logger, logging.INFO, "owner_pool_reports_completed", sent=sent, failed=failed)
-        return 1 if failed else 0
+            owner_sent, owner_failed = deliver_due_reports(db)
+            member_sent, member_failed = deliver_member_recaps(db)
+        log_event(logger, logging.INFO, "weekly_pool_reports_completed", owner_sent=owner_sent, owner_failed=owner_failed, member_sent=member_sent, member_failed=member_failed)
+        return 1 if owner_failed or member_failed else 0
     finally:
         db.close()
 

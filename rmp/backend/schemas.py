@@ -405,6 +405,16 @@ class OwnerPoolReportOut(BaseModel):
     popular_locked_picks: List[dict] = Field(default_factory=list)
 
 
+class MemberRecapPreferenceUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    enabled: bool
+
+
+class MemberRecapPreferenceOut(BaseModel):
+    pool_id: str
+    enabled: bool
+
+
 class PoolMemberDirectoryUser(BaseModel):
     id: str
     display_name: str

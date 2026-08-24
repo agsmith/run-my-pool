@@ -6,6 +6,7 @@ import { PoolWorkspaceNav, WorkspaceHeader } from '../../components/ProductWorks
 import PoolLaunchChecklist from '../../components/PoolLaunchChecklist';
 import MemberPoolWelcome from '../../components/MemberPoolWelcome';
 import WeeklyActionCenter from '../../components/WeeklyActionCenter';
+import MemberWeeklyRecap from '../../components/MemberWeeklyRecap';
 import { trackLifecycleEvent } from '../../lib/lifecycleAnalytics';
 
 const DAYS_OF_WEEK = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
@@ -44,6 +45,7 @@ export default function PoolDetail() {
   const [showLeaveConfirmation, setShowLeaveConfirmation] = useState(false);
   const [leavingPool, setLeavingPool] = useState(false);
   const [seasonLocked, setSeasonLocked] = useState(false);
+  const [memberRecapEnabled, setMemberRecapEnabled] = useState(null);
   const trackedLaunch = useRef(false);
   const trackedMemberWelcome = useRef(false);
   const trackedWeeklyAction = useRef(false);
@@ -91,6 +93,16 @@ export default function PoolDetail() {
           if (adminResponse.ok) setAdminStatus(await adminResponse.json());
         } catch {
           setAdminStatus(null);
+        }
+        if (poolData.pool_type !== 'squares') {
+          try {
+            const recapResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/pools/${id}/member-recap-preference`, {
+              headers: { Authorization: `Bearer ${token}` },
+            });
+            if (recapResponse.ok) setMemberRecapEnabled((await recapResponse.json()).enabled);
+          } catch {
+            setMemberRecapEnabled(null);
+          }
         }
       } catch (err) {
         setError(err.message || 'Failed to load pool details');
@@ -245,6 +257,14 @@ export default function PoolDetail() {
                   <div><dt>Season format</dt><dd>{pool.pool_type === 'pickem' ? 'Season-long Pick ’Em · one point per win' : pool.pool_type === 'squares' ? 'Multi-game 10×10 Squares' : 'Weekly survivor'}</dd></div>
                 </dl>
               </section>
+
+              {memberRecapEnabled !== null && (
+                <MemberWeeklyRecap
+                  poolId={id}
+                  enabled={memberRecapEnabled}
+                  onChange={setMemberRecapEnabled}
+                />
+              )}
 
               <footer className="pool-home-footer">
                 <button onClick={() => router.push('/dashboard')}>Back to Dashboard</button>

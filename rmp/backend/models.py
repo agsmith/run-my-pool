@@ -264,9 +264,32 @@ class PoolMember(Base):
     dues_paid = Column(Boolean, nullable=False, default=False, server_default="0")
     dues_updated_at = Column(DateTime, nullable=True)
     dues_updated_by = Column(String(36), ForeignKey(USERS_ID_FK), nullable=True)
+    weekly_recap_enabled = Column(Boolean, nullable=False, default=False, server_default="0")
 
     pool = relationship("Pool", back_populates="members")
     user = relationship("User", foreign_keys=[user_id])
+
+
+class MemberRecapDelivery(Base):
+    """One delivery attempt per member, pool, season, and completed week."""
+
+    __tablename__ = "member_recap_deliveries"
+    __table_args__ = (
+        UniqueConstraint(
+            "pool_id", "user_id", "season", "week_num",
+            name="uq_member_recap_delivery_pool_user_week",
+        ),
+    )
+    id = Column(String(36), primary_key=True)
+    pool_id = Column(String(36), ForeignKey(POOLS_ID_FK, ondelete="CASCADE"), nullable=False, index=True)
+    user_id = Column(String(36), ForeignKey(USERS_ID_FK, ondelete="CASCADE"), nullable=False, index=True)
+    season = Column(Integer, nullable=False)
+    week_num = Column(Integer, nullable=False)
+    status = Column(String(20), nullable=False, default="pending")
+    message_id = Column(String(255), nullable=True)
+    attempted_at = Column(DateTime, nullable=False)
+    sent_at = Column(DateTime, nullable=True)
+    error = Column(String(255), nullable=True)
 
 
 class PoolUserLock(Base):

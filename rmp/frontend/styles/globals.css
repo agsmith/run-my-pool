@@ -1244,6 +1244,14 @@ table {
 .pool-home-details dl > div:nth-last-child(-n+2) { border-bottom:0; }
 .pool-home-details dt { color:#78898b; font-size:.62rem; font-weight:900; letter-spacing:.11em; text-transform:uppercase; }
 .pool-home-details dd { margin:.32rem 0 0; color:#e2eae8; font-size:.86rem; font-weight:750; }
+.member-weekly-recap { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:1.25rem; margin-top:1rem; padding:1.25rem; background:linear-gradient(145deg,#142124,#0e1719); border:1px solid #314449; }
+.member-weekly-recap > div > span { color:var(--ice); font-size:.65rem; font-weight:900; letter-spacing:.14em; text-transform:uppercase; }
+.member-weekly-recap h2 { margin:.35rem 0; font-family:Impact,'Arial Narrow',sans-serif; font-size:1.65rem; font-style:italic; font-weight:400; text-transform:uppercase; }
+.member-weekly-recap p { margin:.25rem 0; color:#dce6e4; }
+.member-weekly-recap small { color:#91a2a5; }
+.member-weekly-recap label { display:flex; align-items:center; gap:.6rem; min-height:44px; padding:.65rem .85rem; color:#071113; background:var(--ice); font-size:.72rem; font-weight:900; text-transform:uppercase; cursor:pointer; }
+.member-weekly-recap label input { width:18px; height:18px; accent-color:#071113; }
+.member-weekly-recap .member-weekly-recap__error { grid-column:1/-1; color:var(--danger); }
 .pool-home-footer { display:flex; justify-content:space-between; gap:1rem; margin-top:1rem; padding-top:1rem; border-top:1px solid #314449; }
 .pool-home-footer > div { display:flex; gap:.5rem; }
 .pool-home-footer button { min-height:42px; padding:.65rem .9rem; color:var(--ice)!important; background:#10191c!important; border:1px solid #3a5055!important; border-radius:0!important; font-size:.7rem; text-transform:uppercase; }
@@ -1320,6 +1328,8 @@ table {
   .pool-home-actions button { border-right:0!important; border-bottom:1px solid #314449!important; }
   .pool-home-actions button:last-child { border-bottom:0!important; }
   .pool-home-details { grid-template-columns:1fr; }
+  .member-weekly-recap { grid-template-columns:1fr; }
+  .member-weekly-recap label { justify-content:center; }
   .pool-home-details dl { grid-template-columns:1fr; }
   .pool-home-details dl > div { border-right:0; }
   .pool-home-details dl > div:nth-last-child(2) { border-bottom:1px solid #2f4246; }

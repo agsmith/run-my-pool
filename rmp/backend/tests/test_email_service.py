@@ -4,6 +4,7 @@ from email_service import (
     send_email_verification_email,
     send_password_reset_email,
     send_pool_invitation_email,
+    send_member_weekly_recap,
     send_pool_owner_report,
 )
 
@@ -91,3 +92,28 @@ def test_owner_report_uses_ses_and_escapes_pool_content(mock_client, monkeypatch
     assert "<script>" not in html_body
     assert "Office &lt;script&gt;alert(1)&lt;/script&gt;" in html_body
     assert "BUF (6)" in html_body
+
+
+@patch("email_service.boto3.client")
+def test_member_recap_escapes_names_and_includes_opt_out_path(mock_client, monkeypatch):
+    ses = Mock()
+    ses.send_email.return_value = {"MessageId": "member-recap-123"}
+    mock_client.return_value = ses
+    monkeypatch.setenv("FRONTEND_URL", "https://runmypool.net")
+
+    message_id = send_member_weekly_recap("member@example.com", {
+        "pool_id": "pool-1", "pool_name": "Office <Pool>", "week": 4,
+        "entries": [{"entry_name": "Fast <script>", "pick": "BUF", "result": "win"}],
+        "wins": 1, "losses": 0, "pending": 0,
+        "remaining_entries": 1, "total_entries": 1,
+        "pool_remaining_entries": 12, "pool_total_entries": 15,
+    })
+
+    assert message_id == "member-recap-123"
+    request = ses.send_email.call_args.kwargs
+    assert request["Destination"] == {"ToAddresses": ["member@example.com"]}
+    html_body = request["Content"]["Simple"]["Body"]["Html"]["Data"]
+    text_body = request["Content"]["Simple"]["Body"]["Text"]["Data"]
+    assert "<script>" not in html_body
+    assert "Fast &lt;script&gt;" in html_body
+    assert "pool/pool-1#weekly-recap" in text_body
