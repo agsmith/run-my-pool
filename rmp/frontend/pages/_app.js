@@ -6,6 +6,7 @@ import NavBar from '../components/NavBar'
 import Seo from '../components/Seo'
 import SportzBallzAd from '../components/SportzBallzAd'
 import SiteDisclaimer from '../components/SiteDisclaimer'
+import TrafficAnalytics from '../components/TrafficAnalytics'
 
 export function shouldShowSportzBallzAd(pathname = '') {
   return pathname === '/dashboard'
@@ -86,6 +87,7 @@ export default function MyApp({ Component, pageProps }) {
           path: router.asPath?.split('?')[0] || router.pathname,
         })}
       />
+      <TrafficAnalytics />
       <AuthProvider>
         <div
           className={isMarketingPage ? '' : `broadcast-v2 broadcast-v2--${experience}`}

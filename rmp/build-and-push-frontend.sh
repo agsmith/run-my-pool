@@ -63,7 +63,10 @@ if [ ! -f "./frontend/Dockerfile" ]; then
     exit 1
 fi
 
-docker build -t $FRONTEND_REPO:latest ./frontend
+docker build \
+    --build-arg NEXT_PUBLIC_CLOUDFLARE_WEB_ANALYTICS_TOKEN="${NEXT_PUBLIC_CLOUDFLARE_WEB_ANALYTICS_TOKEN:-}" \
+    -t $FRONTEND_REPO:latest \
+    ./frontend
 
 # Tag the image
 echo "Tagging frontend image..."

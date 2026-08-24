@@ -16,13 +16,13 @@ const nextConfig = {
     const contentSecurityPolicy = [
       "default-src 'self'",
       "base-uri 'self'",
-      "connect-src 'self' https://runmypool.net",
+      "connect-src 'self' https://runmypool.net https://cloudflareinsights.com",
       "font-src 'self' data:",
       "form-action 'self'",
       "frame-ancestors 'none'",
       "img-src 'self' data: https:",
       "object-src 'none'",
-      `script-src 'self' 'unsafe-inline'${development ? " 'unsafe-eval'" : ''}`,
+      `script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com${development ? " 'unsafe-eval'" : ''}`,
       "style-src 'self' 'unsafe-inline'",
       ...(development ? [] : ["upgrade-insecure-requests"]),
     ].join('; ')
