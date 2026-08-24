@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 
 from sqlalchemy import (
     Boolean,
+    CheckConstraint,
     Column,
     DateTime,
     Enum,
@@ -70,11 +71,18 @@ class User(Base):
 
 class Pool(Base):
     __tablename__ = "pools"
-    __table_args__ = (UniqueConstraint("name", name="uq_pools_name"),)
+    __table_args__ = (
+        UniqueConstraint("name", name="uq_pools_name"),
+        CheckConstraint(
+            "survivor_mulligans >= 0 AND survivor_mulligans <= 3",
+            name="ck_pools_survivor_mulligans_range",
+        ),
+    )
     id = Column(String(36), primary_key=True, index=True)
     name = Column(String(255), nullable=False)
     description = Column(Text)
     pool_type = Column(String(20), nullable=False, default="survivor")
+    survivor_mulligans = Column(Integer, nullable=False, default=0, server_default="0")
     pickem_games_per_week = Column(Integer, nullable=True)
     squares_game_id = Column(Integer, ForeignKey("schedule.game_id"), nullable=True)
     lock_time = Column(DateTime)

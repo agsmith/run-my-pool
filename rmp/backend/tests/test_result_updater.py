@@ -8,7 +8,12 @@ import models
 import result_updater
 from services.job_lock import advisory_job_lock
 from services.nfl_results import NflGameResult, ResultProviderError, parse_scoreboard
-from services.scoring import ScoringDiscrepancy, apply_final_results
+from services.scoring import (
+    ScoringDiscrepancy,
+    _allowed_survivor_losses,
+    _reconcile_survivor_entries,
+    apply_final_results,
+)
 
 
 def _scoreboard_event(*, status="STATUS_FINAL", home_score="24", away_score="17"):
@@ -164,6 +169,110 @@ def test_apply_results_scores_both_pool_types_by_exact_game(db_session):
     assert pickem_entry.alive is True
     assert db_session.get(models.Pick, "pickem-home").result == "win"
     assert db_session.get(models.Pick, "pickem-other-game").result is None
+
+
+def test_survivor_mulligan_keeps_entry_alive_after_first_loss(db_session):
+    _, survivor_entry, _ = _seed_scoring(db_session)
+    survivor_entry.pool.survivor_mulligans = 1
+    db_session.commit()
+
+    summary = apply_final_results(db_session, [_result()])
+    db_session.commit()
+
+    assert db_session.get(models.Pick, "survivor-pick").result == "loss"
+    assert survivor_entry.alive is True
+    assert summary.entries_changed == 0
+
+
+def test_survivor_entry_is_eliminated_when_losses_exceed_mulligans(db_session):
+    _, survivor_entry, _ = _seed_scoring(db_session)
+    survivor_entry.pool.survivor_mulligans = 1
+    db_session.add(models.Pick(
+        id="survivor-prior-loss",
+        entry_id=survivor_entry.id,
+        week=0,
+        team="NYG",
+        result="loss",
+    ))
+    db_session.commit()
+
+    summary = apply_final_results(db_session, [_result()])
+    db_session.commit()
+
+    assert survivor_entry.alive is False
+    assert summary.entries_changed == 1
+
+
+def test_duplicate_loss_rows_in_one_week_only_consume_one_mulligan(db_session):
+    _, survivor_entry, _ = _seed_scoring(db_session)
+    survivor_entry.pool.survivor_mulligans = 1
+    db_session.add_all([
+        models.Pick(
+            id="survivor-duplicate-loss-a",
+            entry_id=survivor_entry.id,
+            week=0,
+            team="NYG",
+            result="loss",
+        ),
+        models.Pick(
+            id="survivor-duplicate-loss-b",
+            entry_id=survivor_entry.id,
+            week=0,
+            team="NYJ",
+            result="loss",
+        ),
+    ])
+    db_session.commit()
+
+    # Dallas wins week 1, so the duplicated historical week remains the entry's
+    # only distinct losing week and consumes exactly one mulligan.
+    summary = apply_final_results(db_session, [_result(home_score=17, away_score=24)])
+    db_session.commit()
+
+    assert survivor_entry.alive is True
+    assert summary.entries_changed == 0
+
+
+def test_reconciler_ignores_non_survivor_entries(db_session):
+    _, _, pickem_entry = _seed_scoring(db_session)
+    pickem_entry.alive = False
+    db_session.commit()
+
+    assert _reconcile_survivor_entries(db_session, {pickem_entry.id}) == 0
+    assert pickem_entry.alive is False
+
+
+@pytest.mark.parametrize(
+    ("stored_value", "expected"),
+    [(-100, 0), (0, 0), (2, 2), (100, 3)],
+)
+def test_mulligan_allowance_fails_safe_for_corrupted_values(stored_value, expected):
+    pool = models.Pool(survivor_mulligans=stored_value)
+    assert _allowed_survivor_losses(pool) == expected
+
+
+def test_score_correction_restores_mulligan_entry_below_loss_limit(db_session):
+    _, survivor_entry, _ = _seed_scoring(db_session)
+    survivor_entry.pool.survivor_mulligans = 1
+    db_session.add(models.Pick(
+        id="survivor-correction-prior-loss",
+        entry_id=survivor_entry.id,
+        week=0,
+        team="NYG",
+        result="loss",
+    ))
+    db_session.commit()
+
+    apply_final_results(db_session, [_result()])
+    db_session.commit()
+    assert survivor_entry.alive is False
+
+    summary = apply_final_results(db_session, [_result(home_score=17, away_score=24)])
+    db_session.commit()
+
+    assert db_session.get(models.Pick, "survivor-pick").result == "win"
+    assert survivor_entry.alive is True
+    assert summary.entries_changed == 1
 
 
 def test_identical_rerun_is_idempotent(db_session):

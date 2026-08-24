@@ -13,9 +13,11 @@ from contextlib import contextmanager
 from datetime import datetime, timezone
 from unittest.mock import patch
 
-from sqlalchemy import select
+from sqlalchemy import func
 
 from sqlalchemy.orm import Session
+
+from services.scoring import _allowed_survivor_losses
 
 import models
 from services.nfl_results import NflGameResult
@@ -65,17 +67,28 @@ def simulate_game_result(db: Session, game_id: int, winner_team_id: int) -> None
 
 
 def _eliminate_losing_entries(db: Session) -> None:
-    """Eliminate survivor entries with losses; Pick 'Em entries always continue."""
-    loss_entry_ids = select(models.Pick.entry_id).where(models.Pick.result == "loss")
-    (
+    """Reconcile Survivor entries against each pool's allowed mulligans."""
+    entries = (
         db.query(models.Entry)
-        .filter(
-            models.Entry.id.in_(loss_entry_ids),
-            models.Entry.alive == True,  # noqa: E712
-            models.Entry.pool.has(models.Pool.pool_type == "survivor"),
-        )
-        .update({"alive": False}, synchronize_session="fetch")
+        .join(models.Pool, models.Pool.id == models.Entry.pool_id)
+        .filter(models.Pool.pool_type == "survivor")
+        .all()
     )
+    if not entries:
+        return
+    loss_counts = dict(
+        db.query(models.Pick.entry_id, func.count(func.distinct(models.Pick.week)))
+        .filter(
+            models.Pick.entry_id.in_([entry.id for entry in entries]),
+            models.Pick.result == "loss",
+        )
+        .group_by(models.Pick.entry_id)
+        .all()
+    )
+    for entry in entries:
+        entry.alive = loss_counts.get(entry.id, 0) <= _allowed_survivor_losses(
+            entry.pool
+        )
 
 
 def simulate_week_results(

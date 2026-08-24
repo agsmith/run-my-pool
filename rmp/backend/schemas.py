@@ -259,6 +259,7 @@ class PoolBase(BaseModel):
     name: str
     description: Optional[str] = None
     pool_type: str = "survivor"
+    survivor_mulligans: int = Field(default=0, ge=0, le=3)
     pickem_games_per_week: Optional[int] = Field(default=None, ge=1, le=16)
     squares_game_id: Optional[int] = None
     squares_game_ids: Optional[List[int]] = None
@@ -347,6 +348,7 @@ class PoolOut(BaseModel):
     name: str
     description: Optional[str] = None
     pool_type: str = "survivor"
+    survivor_mulligans: int = 0
     pickem_games_per_week: Optional[int] = None
     squares_game_id: Optional[int] = None
     squares_game_ids: Optional[List[int]] = None

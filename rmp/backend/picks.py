@@ -119,20 +119,32 @@ def _get_effective_lock_time(db: Session, pool: Pool, team_abbrev: str, week: in
 
 
 def _validate_survivor_team(db: Session, pool: Pool, team: Team | None, week: int) -> None:
-    """Reject fabricated/unscheduled Survivor teams when recurring locks apply."""
-    if not (
-        pool.lock_day_of_week is not None
-        and pool.lock_time_of_day is not None
-        and pool.lock_timezone
-    ):
+    """Reject fabricated or unscheduled Survivor teams for every lock configuration."""
+    games = current_season_games(db, week)
+    # Legacy pools and isolated environments can predate schedule ingestion.
+    # Preserve that workflow only while no slate exists; once any current slate
+    # is loaded, every selection must resolve to a team playing that week.
+    if not games:
+        if (
+            pool.lock_day_of_week is not None
+            and pool.lock_time_of_day is not None
+            and pool.lock_timezone
+        ):
+            detail = (
+                "Selected team is not recognized"
+                if team is None
+                else "Selected team is not scheduled for this week"
+            )
+            raise HTTPException(status_code=400, detail=detail)
         return
     if team is None:
         raise HTTPException(status_code=400, detail="Selected team is not recognized")
-    scheduled = db.query(Schedule.game_id).filter(
-        Schedule.week_num == week,
-        or_(Schedule.home_team_id == team.id, Schedule.away_team_id == team.id),
-    ).first()
-    if not scheduled:
+    scheduled_team_ids = {
+        team_id
+        for game in games
+        for team_id in (game.home_team_id, game.away_team_id)
+    }
+    if team.id not in scheduled_team_ids:
         raise HTTPException(status_code=400, detail="Selected team is not scheduled for this week")
 
 
@@ -170,6 +182,9 @@ async def create_pick(
     entry = (
         db.query(Entry)
         .filter(Entry.id == pick.entry_id, Entry.user_id == current_user.id)
+        # Serialize writes for one entry. This closes the check-then-insert race
+        # that could otherwise create multiple Survivor rows for the same week.
+        .with_for_update()
         .first()
     )
     if not entry:
@@ -200,7 +215,7 @@ async def create_pick(
     selected_team = db.query(Team).filter(Team.abbrv == pick.team).first()
     if pickem:
         game, selected_team = _pickem_game_and_team(db, pick)
-    elif pool:
+    elif pool and pool.pool_type == "survivor":
         _validate_survivor_team(db, pool, selected_team, pick.week)
 
     # Survivor has one selection per week; Pick 'Em has one per scheduled game.
@@ -481,6 +496,7 @@ async def update_pick(
         db.query(Pick)
         .join(Entry)
         .filter(Pick.id == pick_id, Entry.user_id == current_user.id)
+        .with_for_update()
         .first()
     )
 
@@ -529,6 +545,10 @@ async def update_pick(
             raise HTTPException(status_code=400, detail="Selected team is not playing in this game")
         pick.team_id = team.id
     elif pick_update.team and pick_update.team != pick.team:
+        team = db.query(Team).filter(Team.abbrv == pick_update.team).first()
+        if pool and pool.pool_type == "survivor":
+            _validate_survivor_team(db, pool, team, pick.week)
+            pick.team_id = team.id if team else None
         team_already_used = (
             db.query(Pick)
             .filter(

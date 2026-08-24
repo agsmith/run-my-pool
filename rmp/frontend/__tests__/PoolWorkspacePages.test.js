@@ -76,6 +76,19 @@ describe('pool workspace pages', () => {
     expect(mockPush).toHaveBeenCalledWith('/dashboard?message=Pool deleted successfully');
   });
 
+  test('shows the configured Survivor second chances on Pool Home', async () => {
+    global.fetch = jest.fn((url) => {
+      if (String(url).endsWith('/is-admin')) return response({ is_owner: false, is_admin: false, has_admin_access: false });
+      if (String(url).endsWith('/activity-summary')) return response(activitySummary);
+      return response({ ...pool, pool_type: 'survivor', survivor_mulligans: 1 });
+    });
+
+    render(<PoolDetail />);
+
+    expect(await screen.findByText('Second chances')).toBeInTheDocument();
+    expect(screen.getByText('1 mulligan per entry')).toBeInTheDocument();
+  });
+
   test('shows the launch checklist to the owner immediately after creation', async () => {
     mockRouter.query = { id: 'pool-1', launched: '1' };
     global.fetch = jest.fn((url, options = {}) => {

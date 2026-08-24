@@ -69,6 +69,37 @@ def _create_pick(client, headers, entry_id, week=1, team="NE"):
 class TestPickEndpoints:
     """Integration tests for pick CRUD endpoints."""
 
+    @pytest.fixture(autouse=True)
+    def survivor_schedule(self, db_session, request):
+        """Give generic Survivor CRUD tests a real, current-season slate."""
+        if "pickem" in request.node.name:
+            return
+        teams = [
+            models.Team(id=9801, name="New England Patriots", abbrv="NE"),
+            models.Team(id=9802, name="Green Bay Packers", abbrv="GB"),
+            models.Team(id=9803, name="Kansas City Chiefs", abbrv="KC"),
+            models.Team(id=9804, name="Miami Dolphins", abbrv="MIA"),
+        ]
+        db_session.add_all(teams)
+        for week in range(1, 19):
+            db_session.add(models.Schedule(
+                game_id=980000 + week,
+                season=2026,
+                week_num=week,
+                home_team_id=9801,
+                away_team_id=9802,
+                start_time=datetime(2026, 9, 1, 17),
+            ))
+        db_session.add(models.Schedule(
+            game_id=980100,
+            season=2026,
+            week_num=1,
+            home_team_id=9803,
+            away_team_id=9804,
+            start_time=datetime(2026, 9, 1, 20),
+        ))
+        db_session.commit()
+
     # -----------------------------------------------------------------------
     # POST /picks/create
     # -----------------------------------------------------------------------
@@ -91,6 +122,17 @@ class TestPickEndpoints:
         assert "id" in data
         assert "created_at" in data
         assert "updated_at" in data
+
+    def test_survivor_rejects_fabricated_team_even_without_pool_lock(self, client):
+        token = _register_and_login(client, email="picks_fake_team@example.com")
+        headers = _authed(token)
+        pool_id = _create_pool(client, headers)
+        entry_id = _create_entry(client, headers, pool_id)
+
+        response = _create_pick(client, headers, entry_id, week=1, team="FAKE")
+
+        assert response.status_code == 400
+        assert response.json()["detail"] == "Selected team is not recognized"
 
     def test_pickem_requires_one_valid_selection_per_game(self, client, db_session):
         token = _register_and_login(client, email="pickem.picks@example.com")
@@ -385,6 +427,23 @@ class TestPickEndpoints:
         data = resp.json()
         assert data["team"] == "KC"
         assert data["id"] == pick_id
+
+    def test_survivor_update_rejects_fabricated_team(self, client, db_session):
+        token = _register_and_login(client, email="picks_update_fake@example.com")
+        headers = _authed(token)
+        pool_id = _create_pool(client, headers)
+        entry_id = _create_entry(client, headers, pool_id)
+        created = _create_pick(client, headers, entry_id, week=1, team="NE")
+
+        response = client.put(
+            f"/picks/{created.json()['id']}",
+            json={"team": "FAKE"},
+            headers=headers,
+        )
+
+        assert response.status_code == 400
+        db_session.expire_all()
+        assert db_session.get(models.Pick, created.json()["id"]).team == "NE"
 
     def test_update_locked_pick_rejected(self, client, db_session):
         """Updating a locked pick returns 400."""

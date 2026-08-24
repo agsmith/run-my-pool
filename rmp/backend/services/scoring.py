@@ -17,6 +17,14 @@ class ScoringDiscrepancy(RuntimeError):
     """A provider result cannot safely be reconciled with local data."""
 
 
+MAX_SURVIVOR_MULLIGANS = 3
+
+
+def _allowed_survivor_losses(pool: models.Pool) -> int:
+    """Return a fail-safe allowance even if legacy or corrupted data bypasses validation."""
+    return min(MAX_SURVIVOR_MULLIGANS, max(0, pool.survivor_mulligans or 0))
+
+
 @dataclass
 class ScoringSummary:
     final_games: int = 0
@@ -92,15 +100,26 @@ def _reconcile_survivor_entries(db: Session, entry_ids: set[str]) -> int:
     if not entry_ids:
         return 0
     loss_counts = dict(
-        db.query(models.Pick.entry_id, func.count(models.Pick.id))
+        db.query(models.Pick.entry_id, func.count(func.distinct(models.Pick.week)))
+        .join(models.Entry, models.Entry.id == models.Pick.entry_id)
+        .join(models.Pool, models.Pool.id == models.Entry.pool_id)
         .filter(models.Pick.entry_id.in_(entry_ids), models.Pick.result == "loss")
+        .filter(models.Pool.pool_type == "survivor")
         .group_by(models.Pick.entry_id)
         .all()
     )
     changed = 0
-    entries = db.query(models.Entry).filter(models.Entry.id.in_(entry_ids)).all()
+    entries = (
+        db.query(models.Entry)
+        .options(joinedload(models.Entry.pool))
+        .join(models.Pool, models.Pool.id == models.Entry.pool_id)
+        .filter(models.Entry.id.in_(entry_ids))
+        .filter(models.Pool.pool_type == "survivor")
+        .all()
+    )
     for entry in entries:
-        should_be_alive = loss_counts.get(entry.id, 0) == 0
+        allowed_losses = _allowed_survivor_losses(entry.pool)
+        should_be_alive = loss_counts.get(entry.id, 0) <= allowed_losses
         if entry.alive != should_be_alive:
             entry.alive = should_be_alive
             changed += 1

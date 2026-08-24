@@ -43,6 +43,46 @@ class TestPoolEndpoints:
         assert response.json()["pool_type"] == "pickem"
         assert response.json()["pickem_games_per_week"] is None
 
+    def test_create_survivor_pool_with_mulligan(self, client):
+        headers = _register(client, "mulligan.owner@example.com")
+        response = client.post(
+            "/pools/create",
+            json={
+                "name": "Second Chance Survivor",
+                "pool_type": "survivor",
+                "survivor_mulligans": 1,
+            },
+            headers=headers,
+        )
+        assert response.status_code == 200
+        assert response.json()["survivor_mulligans"] == 1
+
+    def test_rejects_mulligans_for_non_survivor_pool(self, client):
+        pool_type = "pickem"
+        headers = _register(client, "mulligan.pickem@example.com")
+        payload = {
+            "name": f"Invalid {pool_type} Mulligan",
+            "pool_type": pool_type,
+            "survivor_mulligans": 1,
+        }
+        response = client.post("/pools/create", json=payload, headers=headers)
+        assert response.status_code == 400
+        assert "Mulligans are only available for Survivor pools" in response.json()["detail"]
+
+    @pytest.mark.parametrize("mulligans", [-1, 4])
+    def test_rejects_survivor_mulligans_outside_supported_range(self, client, mulligans):
+        headers = _register(client, f"mulligan.{mulligans}@example.com")
+        response = client.post(
+            "/pools/create",
+            json={
+                "name": f"Invalid Mulligan Count {mulligans}",
+                "pool_type": "survivor",
+                "survivor_mulligans": mulligans,
+            },
+            headers=headers,
+        )
+        assert response.status_code == 422
+
     def test_create_pickem_pool_with_fixed_weekly_game_count(self, client):
         headers = _register(client, "pickem.five@example.com")
         response = client.post(

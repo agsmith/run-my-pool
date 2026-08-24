@@ -222,6 +222,12 @@ def create_pool(
         elif selected_square_game_ids:
             raise HTTPException(status_code=400, detail="Only Squares pools may select Squares games")
 
+        if pool.pool_type != "survivor" and pool.survivor_mulligans:
+            raise HTTPException(
+                status_code=400,
+                detail="Mulligans are only available for Survivor pools",
+            )
+
         billing_season = entitlements.current_season()
         entitlement = entitlements.entitlement_for_new_pool(
             db, current_user.id, billing_season, pool.pool_type
@@ -231,6 +237,9 @@ def create_pool(
             name=pool_name,
             description=pool.description,
             pool_type=pool.pool_type,
+            survivor_mulligans=(
+                pool.survivor_mulligans if pool.pool_type == "survivor" else 0
+            ),
             pickem_games_per_week=(
                 pool.pickem_games_per_week if pool.pool_type == "pickem" else None
             ),
@@ -289,6 +298,7 @@ def create_pool(
                 "name": pool_name,
                 "description": pool.description,
                 "pool_type": pool.pool_type,
+                "survivor_mulligans": db_pool.survivor_mulligans,
                 "is_private": pool.is_private,
                 "owner_email": current_user.email,
             },

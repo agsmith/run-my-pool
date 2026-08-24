@@ -19,6 +19,7 @@ export default function CreatePool() {
   const router = useRouter();
   const [form, setForm] = useState({
     name: '', description: '', pool_type: 'survivor',
+    survivor_mulligans: 0,
     pickem_games_per_week: 'all',
     squares_game_ids: [],
     lock_day_of_week: 6, lock_time_of_day: '13:00', lock_timezone: 'America/New_York',
@@ -93,6 +94,7 @@ export default function CreatePool() {
           name: form.name.trim(),
           description: form.description.trim() || null,
           pool_type: form.pool_type,
+          survivor_mulligans: form.pool_type === 'survivor' ? Number(form.survivor_mulligans) : 0,
           pickem_games_per_week: form.pool_type === 'pickem' && form.pickem_games_per_week !== 'all'
             ? Number(form.pickem_games_per_week)
             : null,
@@ -123,6 +125,7 @@ export default function CreatePool() {
 
   const isPickEm = form.pool_type === 'pickem';
   const isSquares = form.pool_type === 'squares';
+  const isSurvivor = form.pool_type === 'survivor';
   const squaresOnly = entitlementPlan === 'squares-plus';
   const toggleSquaresGame = (gameId) => setForm((current) => ({
     ...current,
@@ -169,6 +172,21 @@ export default function CreatePool() {
         </div>
       </fieldset>
 
+      {isSurvivor && <section className="create-pool-section">
+        <h2>2. Second chances</h2>
+        <p className="create-pool-help">Choose how many losing weeks each entry may survive. A mulligan is automatically consumed when that entry makes a losing pick.</p>
+        <label className="create-pool-field">
+          <span>Mulligans per entry</span>
+          <select aria-label="Mulligans per entry" value={form.survivor_mulligans} onChange={(event) => update('survivor_mulligans', event.target.value)}>
+            <option value="0">None — classic Survivor</option>
+            <option value="1">1 second chance</option>
+            <option value="2">2 second chances</option>
+            <option value="3">3 second chances</option>
+          </select>
+          <small>{Number(form.survivor_mulligans) === 0 ? 'The first losing pick eliminates the entry.' : `The entry is eliminated after its ${Number(form.survivor_mulligans) + 1}${Number(form.survivor_mulligans) === 1 ? 'nd' : Number(form.survivor_mulligans) === 2 ? 'rd' : 'th'} losing pick.`}</small>
+        </label>
+      </section>}
+
       {isPickEm && <section className="create-pool-section">
         <h2>2. Pick ’Em slate</h2>
         <p className="create-pool-help">Choose how many games each entry needs to pick every week. Members may select any games from that week&apos;s schedule.</p>
@@ -200,7 +218,7 @@ export default function CreatePool() {
       </section>}
 
       <section className="create-pool-section">
-        <h2>{isPickEm || isSquares ? '3' : '2'}. Pool details</h2>
+        <h2>{isPickEm || isSquares || isSurvivor ? '3' : '2'}. Pool details</h2>
         <label className="create-pool-field">
           <span>Pool name <b>*</b></span>
           <input type="text" value={form.name} onChange={(event) => update('name', event.target.value)} required maxLength={255} placeholder="Enter pool name" autoFocus />
@@ -212,7 +230,7 @@ export default function CreatePool() {
       </section>
 
       {!isSquares && <section className="create-pool-section">
-        <h2>{isPickEm ? '4' : '3'}. Weekly pick deadline</h2>
+        <h2>4. Weekly pick deadline</h2>
         <p className="create-pool-help">All selections lock at this time each week. Games that start earlier lock individually at kickoff.</p>
         <div className="create-pool-deadline-grid">
           <label className="create-pool-field"><span>Day</span><select aria-label="Lock day" value={form.lock_day_of_week} onChange={(event) => update('lock_day_of_week', event.target.value)}>{DAYS.map((day, index) => <option key={day} value={index}>{day}</option>)}</select></label>
@@ -223,7 +241,7 @@ export default function CreatePool() {
       </section>}
 
       <section className="create-pool-section">
-        <h2>{isPickEm ? '5' : isSquares ? '4' : '4'}. Player access</h2>
+        <h2>{isSquares ? '4' : '5'}. Player access</h2>
         <div className="create-pool-access-grid">
           <label className={!form.is_private ? 'is-selected' : ''}><input type="radio" name="visibility" checked={!form.is_private} onChange={() => update('is_private', false)} /><strong>Public</strong><small>Anyone can find and join this pool.</small></label>
           <label className={form.is_private ? 'is-selected' : ''}><input type="radio" name="visibility" checked={form.is_private} onChange={() => update('is_private', true)} /><strong>Private</strong><small>Visible in the directory, but a join code is required.</small></label>
