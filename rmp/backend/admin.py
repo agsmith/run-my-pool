@@ -22,6 +22,7 @@ import entitlements
 from audit_utils import log_admin_action
 from odds_service import freeze_week_lines
 from schedule import current_season_games, current_season_week
+from services.scoring import _reconcile_picks, _reconcile_survivor_entries
 from weekly_locks import lock_pool_week
 from platform_admin import is_bootstrap_super_admin, is_platform_super_admin
 
@@ -75,6 +76,70 @@ def require_pool_owner(
             status_code=403, detail="Only the pool owner can manage administrators"
         )
     return pool
+
+
+def _validated_pick_correction_team(
+    db: Session,
+    pool: models.Pool,
+    pick: models.Pick,
+    requested_team: str,
+) -> tuple[str, Optional[models.Team], Optional[models.Schedule]]:
+    """Resolve an admin correction to the canonical team used by scoring."""
+    abbreviation = requested_team.strip().upper()
+    team = db.query(models.Team).filter(models.Team.abbrv == abbreviation).first()
+
+    if pool.pool_type == "pickem":
+        game = db.query(models.Schedule).filter(
+            models.Schedule.game_id == pick.game_id,
+            models.Schedule.week_num == pick.week,
+        ).first()
+        if not game or not team or team.id not in {
+            game.home_team_id,
+            game.away_team_id,
+        }:
+            raise HTTPException(
+                status_code=400,
+                detail="Selected team is not playing in this game",
+            )
+        return abbreviation, team, game
+
+    games = current_season_games(db, pick.week)
+    game = next(
+        (
+            game
+            for game in games
+            if team is not None
+            and team.id in {game.home_team_id, game.away_team_id}
+        ),
+        None,
+    )
+    if games and game is None:
+        detail = (
+            "Selected team is not recognized"
+            if team is None
+            else "Selected team is not scheduled for this week"
+        )
+        raise HTTPException(status_code=400, detail=detail)
+    return abbreviation, team, game
+
+
+def _reconcile_corrected_pick(
+    db: Session,
+    pool: models.Pool,
+    entry: models.Entry,
+    pick: models.Pick,
+    game: Optional[models.Schedule],
+) -> None:
+    """Clear stale scoring and immediately rescore a completed corrected game."""
+    if pool.pool_type != "survivor":
+        return
+    pick.result = None
+    db.flush()
+    affected_entries = {entry.id}
+    if game is not None and (game.status or "").lower() == "final":
+        _, scored_entries = _reconcile_picks(db, game, game.winning_team_id)
+        affected_entries.update(scored_entries)
+    _reconcile_survivor_entries(db, affected_entries)
 
 
 def find_user_by_email(email: str, db: Session) -> models.User:
@@ -961,6 +1026,7 @@ def admin_update_pick(
         db.query(models.Pick)
         .join(models.Entry)
         .filter(models.Pick.id == pick_id, models.Entry.pool_id == pool_id)
+        .with_for_update()
         .first()
     )
     if not pick:
@@ -968,12 +1034,18 @@ def admin_update_pick(
             status_code=status.HTTP_404_NOT_FOUND, detail="Pick not found in this pool"
         )
 
+    pool = db.query(models.Pool).filter(models.Pool.id == pool_id).one()
+    entry = pick.entry
+    corrected_team, team, game = _validated_pick_correction_team(
+        db, pool, pick, pick_update.team
+    )
+
     # Enforce team uniqueness across other weeks for this entry
     conflict = (
         db.query(models.Pick)
         .filter(
             models.Pick.entry_id == pick.entry_id,
-            models.Pick.team == pick_update.team,
+            models.Pick.team == corrected_team,
             models.Pick.id != pick_id,
         )
         .first()
@@ -981,13 +1053,16 @@ def admin_update_pick(
     if conflict:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Team {pick_update.team} already used by this entry in week {conflict.week}",
+            detail=f"Team {corrected_team} already used by this entry in week {conflict.week}",
         )
 
     old_team = pick.team
-    pick.team = pick_update.team
+    old_team_id = pick.team_id
+    pick.team = corrected_team
+    pick.team_id = team.id if team else None
     pick.locked = True
     pick.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
+    _reconcile_corrected_pick(db, pool, entry, pick, game)
     db.commit()
     db.refresh(pick)
 
@@ -995,7 +1070,7 @@ def admin_update_pick(
         db=db,
         action="PICK_EDIT",
         admin_user_id=current_user.id,
-        details=f"Changed pick from {old_team} to {pick_update.team} for entry {pick.entry_id} week {pick.week}",
+        details=f"Changed pick from {old_team} to {corrected_team} for entry {pick.entry_id} week {pick.week}",
         target_entity_type="pick",
         target_entity_id=pick_id,
         additional_data={
@@ -1003,7 +1078,10 @@ def admin_update_pick(
             "entry_id": pick.entry_id,
             "week": pick.week,
             "old_team": old_team,
-            "new_team": pick_update.team,
+            "old_team_id": old_team_id,
+            "new_team": corrected_team,
+            "new_team_id": pick.team_id,
+            "survivor_objective": pool.survivor_objective,
             "admin_email": current_user.email,
         },
     )
@@ -1039,12 +1117,14 @@ def correct_entry_pick(
     )
     if not entry:
         raise HTTPException(status_code=404, detail="Entry not found in this pool")
+    pool = db.query(models.Pool).filter(models.Pool.id == pool_id).one()
     pick = (
         db.query(models.Pick)
         .filter(
             models.Pick.entry_id == entry_id,
             models.Pick.week == week,
         )
+        .with_for_update()
         .first()
     )
     if not pick:
@@ -1052,11 +1132,15 @@ def correct_entry_pick(
             status_code=404, detail="No pick exists for this entry and week"
         )
 
+    corrected_team, team, game = _validated_pick_correction_team(
+        db, pool, pick, correction.team
+    )
+
     conflict = (
         db.query(models.Pick)
         .filter(
             models.Pick.entry_id == entry_id,
-            models.Pick.team == correction.team.upper(),
+            models.Pick.team == corrected_team,
             models.Pick.id != pick.id,
         )
         .first()
@@ -1064,13 +1148,16 @@ def correct_entry_pick(
     if conflict:
         raise HTTPException(
             status_code=400,
-            detail=f"Team {correction.team.upper()} already used in week {conflict.week}",
+            detail=f"Team {corrected_team} already used in week {conflict.week}",
         )
 
     old_team = pick.team
-    pick.team = correction.team.upper()
+    old_team_id = pick.team_id
+    pick.team = corrected_team
+    pick.team_id = team.id if team else None
     pick.locked = True
     pick.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
+    _reconcile_corrected_pick(db, pool, entry, pick, game)
     db.commit()
     db.refresh(pick)
     log_admin_action(
@@ -1086,7 +1173,10 @@ def correct_entry_pick(
             "entry_name": entry.name,
             "week": week,
             "old_team": old_team,
+            "old_team_id": old_team_id,
             "new_team": pick.team,
+            "new_team_id": pick.team_id,
+            "survivor_objective": pool.survivor_objective,
             "reason": correction.reason,
             "admin_email": current_user.email,
         },

@@ -227,6 +227,11 @@ def create_pool(
                 status_code=400,
                 detail="Mulligans are only available for Survivor pools",
             )
+        if pool.pool_type != "survivor" and pool.survivor_objective != "win":
+            raise HTTPException(
+                status_code=400,
+                detail="The lose objective is only available for Survivor pools",
+            )
 
         billing_season = entitlements.current_season()
         entitlement = entitlements.entitlement_for_new_pool(
@@ -237,6 +242,9 @@ def create_pool(
             name=pool_name,
             description=pool.description,
             pool_type=pool.pool_type,
+            survivor_objective=(
+                pool.survivor_objective if pool.pool_type == "survivor" else "win"
+            ),
             survivor_mulligans=(
                 pool.survivor_mulligans if pool.pool_type == "survivor" else 0
             ),
@@ -298,6 +306,7 @@ def create_pool(
                 "name": pool_name,
                 "description": pool.description,
                 "pool_type": pool.pool_type,
+                "survivor_objective": db_pool.survivor_objective,
                 "survivor_mulligans": db_pool.survivor_mulligans,
                 "is_private": pool.is_private,
                 "owner_email": current_user.email,

@@ -77,11 +77,16 @@ class Pool(Base):
             "survivor_mulligans >= 0 AND survivor_mulligans <= 3",
             name="ck_pools_survivor_mulligans_range",
         ),
+        CheckConstraint(
+            "survivor_objective IN ('win', 'lose')",
+            name="ck_pools_survivor_objective",
+        ),
     )
     id = Column(String(36), primary_key=True, index=True)
     name = Column(String(255), nullable=False)
     description = Column(Text)
     pool_type = Column(String(20), nullable=False, default="survivor")
+    survivor_objective = Column(String(8), nullable=False, default="win", server_default="win")
     survivor_mulligans = Column(Integer, nullable=False, default=0, server_default="0")
     pickem_games_per_week = Column(Integer, nullable=True)
     squares_game_id = Column(Integer, ForeignKey("schedule.game_id"), nullable=True)

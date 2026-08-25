@@ -184,6 +184,75 @@ def test_survivor_mulligan_keeps_entry_alive_after_first_loss(db_session):
     assert summary.entries_changed == 0
 
 
+def test_losers_survivor_survives_when_selected_team_loses(db_session):
+    _, survivor_entry, _ = _seed_scoring(db_session)
+    survivor_entry.pool.survivor_objective = "lose"
+    db_session.commit()
+
+    summary = apply_final_results(db_session, [_result()])
+    db_session.commit()
+
+    assert db_session.get(models.Pick, "survivor-pick").result == "win"
+    assert survivor_entry.alive is True
+    assert summary.entries_changed == 0
+
+
+def test_losers_survivor_is_eliminated_when_selected_team_wins(db_session):
+    _, survivor_entry, _ = _seed_scoring(db_session)
+    survivor_entry.pool.survivor_objective = "lose"
+    db_session.commit()
+
+    summary = apply_final_results(db_session, [_result(home_score=17, away_score=24)])
+    db_session.commit()
+
+    assert db_session.get(models.Pick, "survivor-pick").result == "loss"
+    assert survivor_entry.alive is False
+    assert summary.entries_changed == 1
+
+
+def test_losers_survivor_tie_does_not_count_as_selected_team_losing(db_session):
+    _, survivor_entry, _ = _seed_scoring(db_session)
+    survivor_entry.pool.survivor_objective = "lose"
+    db_session.commit()
+
+    summary = apply_final_results(db_session, [_result(home_score=20, away_score=20)])
+    db_session.commit()
+
+    assert db_session.get(models.Pick, "survivor-pick").result == "loss"
+    assert survivor_entry.alive is False
+    assert summary.entries_changed == 1
+
+
+def test_losers_survivor_mulligan_survives_selected_team_win(db_session):
+    _, survivor_entry, _ = _seed_scoring(db_session)
+    survivor_entry.pool.survivor_objective = "lose"
+    survivor_entry.pool.survivor_mulligans = 1
+    db_session.commit()
+
+    summary = apply_final_results(db_session, [_result(home_score=17, away_score=24)])
+    db_session.commit()
+
+    assert db_session.get(models.Pick, "survivor-pick").result == "loss"
+    assert survivor_entry.alive is True
+    assert summary.entries_changed == 0
+
+
+def test_losers_survivor_score_correction_restores_entry(db_session):
+    _, survivor_entry, _ = _seed_scoring(db_session)
+    survivor_entry.pool.survivor_objective = "lose"
+    db_session.commit()
+
+    apply_final_results(db_session, [_result(home_score=17, away_score=24)])
+    db_session.commit()
+    assert survivor_entry.alive is False
+
+    summary = apply_final_results(db_session, [_result()])
+    db_session.commit()
+
+    assert survivor_entry.alive is True
+    assert summary.entries_changed == 1
+
+
 def test_survivor_entry_is_eliminated_when_losses_exceed_mulligans(db_session):
     _, survivor_entry, _ = _seed_scoring(db_session)
     survivor_entry.pool.survivor_mulligans = 1

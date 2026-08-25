@@ -57,6 +57,47 @@ class TestPoolEndpoints:
         assert response.status_code == 200
         assert response.json()["survivor_mulligans"] == 1
 
+    def test_create_losers_survivor_pool(self, client):
+        headers = _register(client, "losers.owner@example.com")
+        response = client.post(
+            "/pools/create",
+            json={
+                "name": "Pick a Loser",
+                "pool_type": "survivor",
+                "survivor_objective": "lose",
+            },
+            headers=headers,
+        )
+        assert response.status_code == 200
+        assert response.json()["survivor_objective"] == "lose"
+
+    def test_rejects_loser_objective_for_non_survivor_pool(self, client):
+        headers = _register(client, "losers.pickem@example.com")
+        response = client.post(
+            "/pools/create",
+            json={
+                "name": "Invalid Losers Pickem",
+                "pool_type": "pickem",
+                "survivor_objective": "lose",
+            },
+            headers=headers,
+        )
+        assert response.status_code == 400
+        assert "only available for Survivor" in response.json()["detail"]
+
+    def test_rejects_unknown_survivor_objective(self, client):
+        headers = _register(client, "losers.invalid@example.com")
+        response = client.post(
+            "/pools/create",
+            json={
+                "name": "Invalid Survivor Objective",
+                "pool_type": "survivor",
+                "survivor_objective": "tie",
+            },
+            headers=headers,
+        )
+        assert response.status_code == 422
+
     def test_rejects_mulligans_for_non_survivor_pool(self, client):
         pool_type = "pickem"
         headers = _register(client, "mulligan.pickem@example.com")

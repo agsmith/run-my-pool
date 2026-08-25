@@ -183,7 +183,7 @@ describe('CreatePool', () => {
     expect(createCall).toBeDefined();
     expect(JSON.parse(createCall[1].body)).toEqual(expect.objectContaining({
       pool_type: 'survivor', lock_day_of_week: 3, lock_timezone: 'America/Chicago',
-      survivor_mulligans: 0, is_private: true, join_password: 'huddle42',
+      survivor_objective: 'win', survivor_mulligans: 0, is_private: true, join_password: 'huddle42',
     }));
   });
 
@@ -196,15 +196,33 @@ describe('CreatePool', () => {
 
     const mulligans = screen.getByRole('combobox', { name: /mulligans per entry/i });
     expect(mulligans).toHaveValue('0');
-    expect(screen.getByText(/first losing pick eliminates/i)).toBeInTheDocument();
+    expect(screen.getByText(/first unsuccessful selection eliminates/i)).toBeInTheDocument();
     await user.selectOptions(mulligans, '1');
-    expect(screen.getByText(/eliminated after its 2nd losing pick/i)).toBeInTheDocument();
+    expect(screen.getByText(/eliminated after its 2nd unsuccessful selection/i)).toBeInTheDocument();
     await user.type(screen.getByPlaceholderText(/enter pool name/i), 'Second Chance Survivor');
     await user.click(screen.getByRole('button', { name: /create survivor pool/i }));
 
     const createCall = findCreatePoolCall();
     expect(JSON.parse(createCall[1].body)).toEqual(expect.objectContaining({
       pool_type: 'survivor', survivor_mulligans: 1,
+    }));
+  });
+
+  test('lets a Survivor commissioner create a pick-a-loser pool', async () => {
+    const user = userEvent.setup();
+    fetch
+      .mockResolvedValueOnce(billingOverviewResponse())
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ id: 'losers-pool' }) });
+    render(<CreatePool />);
+
+    await user.click(screen.getByRole('radio', { name: /pick a loser/i }));
+    expect(screen.getByText(/tie does not count as a loss/i)).toBeInTheDocument();
+    await user.type(screen.getByPlaceholderText(/enter pool name/i), 'Losers Survivor');
+    await user.click(screen.getByRole('button', { name: /create survivor pool/i }));
+
+    const createCall = findCreatePoolCall();
+    expect(JSON.parse(createCall[1].body)).toEqual(expect.objectContaining({
+      pool_type: 'survivor', survivor_objective: 'lose',
     }));
   });
 

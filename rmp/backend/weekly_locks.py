@@ -33,6 +33,14 @@ def lock_pool_week(
 ):
     """Idempotently freeze a week and create locked defaults for missing picks."""
     now = now or datetime.now(timezone.utc).replace(tzinfo=None)
+    # Every API container runs the lock sweep. Serialize one pool's work so
+    # overlapping workers cannot both observe a missing Survivor pick and
+    # create duplicate defaults (MySQL permits duplicate NULL game_id values).
+    locked_pool = db.query(models.Pool).filter(
+        models.Pool.id == pool.id
+    ).with_for_update().one_or_none()
+    if locked_pool is not None:
+        pool = locked_pool
     games = games_provider(db, week)
     if pool.pool_type == "pickem":
         entry_ids = [row[0] for row in db.query(models.Entry.id).filter(models.Entry.pool_id == pool.id)]
@@ -44,11 +52,38 @@ def lock_pool_week(
         db.commit()
         return 0
     frozen_lines = line_freezer(db, pool.id, week, games, captured_at=now)
-    line_ranked_teams = [
-        line.favorite_team.abbrv
-        for line in sorted(frozen_lines, key=lambda item: (-(item.spread or 0), item.favorite_team_id or 0))
-        if line.favorite_team is not None
-    ]
+    ranked_lines = sorted(
+        frozen_lines,
+        key=lambda item: (-(item.spread or 0), item.favorite_team_id or 0),
+    )
+    line_ranked_teams = []
+    for line in ranked_lines:
+        candidate_team = line.favorite_team
+        if getattr(pool, "survivor_objective", "win") == "lose":
+            candidate_team = None
+            favorite_team_id = getattr(line, "favorite_team_id", None)
+            game = next(
+                (
+                    game
+                    for game in games
+                    if getattr(game, "game_id", None) == getattr(line, "game_id", None)
+                ),
+                getattr(line, "game", None),
+            )
+            if game is not None and favorite_team_id in {
+                game.home_team_id,
+                game.away_team_id,
+            }:
+                underdog_id = (
+                    game.away_team_id
+                    if favorite_team_id == game.home_team_id
+                    else game.home_team_id
+                )
+                candidate_team = db.query(models.Team).filter(
+                    models.Team.id == underdog_id
+                ).first()
+        if candidate_team is not None:
+            line_ranked_teams.append(candidate_team.abbrv)
     alive_entries = db.query(models.Entry).filter(
         models.Entry.pool_id == pool.id, models.Entry.alive == True  # noqa: E712
     ).all()
@@ -66,18 +101,41 @@ def lock_pool_week(
     for pick in existing:
         popularity[pick.team] = popularity.get(pick.team, 0) + 1
     popular_teams = [team for team, _ in sorted(popularity.items(), key=lambda item: (-item[1], item[0]))]
+    losers_survivor = getattr(pool, "survivor_objective", "win") == "lose"
+    fallback_teams = popular_teams
+    if losers_survivor:
+        scheduled_teams = []
+        for game in sorted(
+            games,
+            key=lambda item: (
+                getattr(item, "start_time", datetime.min),
+                getattr(item, "game_id", 0),
+            ),
+        ):
+            for team_id in (
+                getattr(game, "away_team_id", None),
+                getattr(game, "home_team_id", None),
+            ):
+                team = db.query(models.Team).filter(models.Team.id == team_id).first()
+                if team is not None and team.abbrv not in scheduled_teams:
+                    scheduled_teams.append(team.abbrv)
+        fallback_teams = scheduled_teams
     created = 0
     for entry in alive_entries:
         if entry.id in existing_entry_ids:
             continue
         used = {pick.team for pick in db.query(models.Pick).filter(models.Pick.entry_id == entry.id)}
-        candidate = next((team for team in line_ranked_teams + popular_teams if team not in used), None)
+        candidate = next(
+            (team for team in line_ranked_teams + fallback_teams if team not in used),
+            None,
+        )
         if candidate is None:
             if log_skipped_defaults:
                 log_admin_action(db=db, action="AUTO_PICK_SKIPPED", admin_user_id=actor_id,
                     details=f"No available team for entry {entry.id} in week {week}",
                     target_entity_type="entry", target_entity_id=entry.id,
-                    additional_data={"pool_id": pool.id, "week": week})
+                    additional_data={"pool_id": pool.id, "week": week,
+                                     "survivor_objective": pool.survivor_objective})
             continue
         candidate_team = db.query(models.Team).filter(
             models.Team.abbrv == candidate
@@ -94,7 +152,8 @@ def lock_pool_week(
             additional_data={"pool_id": pool.id, "entry_id": entry.id, "week": week,
                              "entry_name": entry.name, "user_id": entry.user_id,
                              "user_email": entry_owner.email if entry_owner else None,
-                             "team": candidate, "reason": "no_pick_at_lock"})
+                             "team": candidate, "reason": "no_pick_at_lock",
+                             "survivor_objective": pool.survivor_objective})
         created += 1
     db.commit()
     return created

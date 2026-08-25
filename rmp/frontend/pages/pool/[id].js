@@ -254,7 +254,7 @@ export default function PoolDetail() {
                   <div><dt>Access</dt><dd>{pool.is_private ? 'Private · Password required' : 'Public · Open joining'}</dd></div>
                   <div><dt>Pick lock</dt><dd>{formatPickLock(pool)}</dd></div>
                   <div><dt>Your role</dt><dd>{userRole}</dd></div>
-                  <div><dt>Season format</dt><dd>{pool.pool_type === 'pickem' ? 'Season-long Pick ’Em · one point per win' : pool.pool_type === 'squares' ? 'Multi-game 10×10 Squares' : 'Weekly survivor'}</dd></div>
+                  <div><dt>Season format</dt><dd>{pool.pool_type === 'pickem' ? 'Season-long Pick ’Em · one point per win' : pool.pool_type === 'squares' ? 'Multi-game 10×10 Squares' : pool.survivor_objective === 'lose' ? 'Losers Survivor · pick a team to lose' : 'Weekly Survivor · pick a winner'}</dd></div>
                   {pool.pool_type === 'survivor' && <div><dt>Second chances</dt><dd>{pool.survivor_mulligans ? `${pool.survivor_mulligans} mulligan${pool.survivor_mulligans === 1 ? '' : 's'} per entry` : 'None · classic Survivor'}</dd></div>}
                 </dl>
               </section>

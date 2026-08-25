@@ -484,6 +484,86 @@ class TestLockPoolWeekSurvivor:
         assert pick.team == "KC"  # highest spread
         assert any(c["action"] == "AUTO_PICK" for c in audit_calls)
 
+    def test_losers_survivor_auto_picks_largest_underdog(self, db_session, monkeypatch):
+        owner, pool = self._survivor_pool(db_session)
+        pool.survivor_objective = "lose"
+        entry = _entry(db_session, pool_id=pool.id, user_id=owner.id, alive=True)
+        favorite = models.Team(id=9701, name="Favorite", abbrv="FAV")
+        underdog = models.Team(id=9702, name="Underdog", abbrv="DOG")
+        game = models.Schedule(
+            game_id=97001,
+            season=2026,
+            week_num=1,
+            home_team_id=favorite.id,
+            away_team_id=underdog.id,
+            start_time=datetime(2026, 9, 7, 17),
+        )
+        db_session.add_all([favorite, underdog, game])
+        db_session.commit()
+        monkeypatch.setattr(weekly_locks, "log_admin_action", lambda **kw: None)
+        line = SimpleNamespace(
+            game_id=game.game_id,
+            game=game,
+            favorite_team=favorite,
+            favorite_team_id=favorite.id,
+            spread=14.0,
+        )
+
+        created = weekly_locks.lock_pool_week(
+            db_session,
+            pool,
+            1,
+            owner.id,
+            games_provider=lambda db, week: [game],
+            line_freezer=lambda *a, **kw: [line],
+        )
+
+        assert created == 1
+        pick = db_session.query(models.Pick).filter_by(entry_id=entry.id, week=1).one()
+        assert pick.team == "DOG"
+
+    def test_losers_auto_pick_fallback_cannot_be_biased_by_member_picks(
+        self, db_session, monkeypatch
+    ):
+        owner, pool = self._survivor_pool(db_session)
+        pool.survivor_objective = "lose"
+        target = _entry(db_session, pool_id=pool.id, user_id=owner.id, alive=True)
+        manipulator = _entry(db_session, pool_id=pool.id, user_id=owner.id, alive=True)
+        favorite = models.Team(id=9711, name="Popular Favorite", abbrv="FAV")
+        underdog = models.Team(id=9712, name="Schedule Underdog", abbrv="DOG")
+        game = models.Schedule(
+            game_id=97101,
+            season=2026,
+            week_num=1,
+            home_team_id=favorite.id,
+            away_team_id=underdog.id,
+            start_time=datetime(2026, 9, 7, 17),
+        )
+        db_session.add_all([favorite, underdog, game])
+        db_session.flush()
+        _pick(
+            db_session,
+            entry_id=manipulator.id,
+            week=1,
+            team="FAV",
+            locked=True,
+        )
+        db_session.commit()
+        monkeypatch.setattr(weekly_locks, "log_admin_action", lambda **kw: None)
+
+        created = weekly_locks.lock_pool_week(
+            db_session,
+            pool,
+            1,
+            owner.id,
+            games_provider=lambda db, week: [game],
+            line_freezer=lambda *a, **kw: [],
+        )
+
+        assert created == 1
+        pick = db_session.query(models.Pick).filter_by(entry_id=target.id, week=1).one()
+        assert pick.team == "DOG"
+
     def test_uc2c_2_falls_back_to_popularity_ranked(self, db_session, monkeypatch):
         """UC-2c.2: no line-ranked team available -> falls back to popularity-ranked team."""
         owner, pool = self._survivor_pool(db_session)

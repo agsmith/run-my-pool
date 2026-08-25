@@ -85,9 +85,13 @@ def _reconcile_picks(
     affected_survivor_entries: set[str] = set()
     for pick in picks:
         # A final tie awards no Pick 'Em point and eliminates either Survivor pick.
-        expected = (
-            "win" if winner_id is not None and pick.team_id == winner_id else "loss"
-        )
+        survived = winner_id is not None and pick.team_id == winner_id
+        if (
+            pick.entry.pool.pool_type == "survivor"
+            and pick.entry.pool.survivor_objective == "lose"
+        ):
+            survived = winner_id is not None and pick.team_id != winner_id
+        expected = "win" if survived else "loss"
         if pick.result != expected:
             pick.result = expected
             changed += 1

@@ -259,6 +259,7 @@ class PoolBase(BaseModel):
     name: str
     description: Optional[str] = None
     pool_type: str = "survivor"
+    survivor_objective: str = "win"
     survivor_mulligans: int = Field(default=0, ge=0, le=3)
     pickem_games_per_week: Optional[int] = Field(default=None, ge=1, le=16)
     squares_game_id: Optional[int] = None
@@ -276,6 +277,14 @@ class PoolBase(BaseModel):
         normalized = (value or "survivor").strip().lower()
         if normalized not in {"survivor", "pickem", "squares"}:
             raise ValueError("Pool type must be survivor, pickem, or squares")
+        return normalized
+
+    @field_validator("survivor_objective")
+    @classmethod
+    def validate_survivor_objective(cls, value: str) -> str:
+        normalized = (value or "win").strip().lower()
+        if normalized not in {"win", "lose"}:
+            raise ValueError("Survivor objective must be win or lose")
         return normalized
 
 
@@ -348,6 +357,7 @@ class PoolOut(BaseModel):
     name: str
     description: Optional[str] = None
     pool_type: str = "survivor"
+    survivor_objective: str = "win"
     survivor_mulligans: int = 0
     pickem_games_per_week: Optional[int] = None
     squares_game_id: Optional[int] = None
@@ -492,11 +502,11 @@ class EntryTransfer(BaseModel):
 
 
 class AdminPickUpdate(BaseModel):
-    team: str  # Team abbreviation, e.g. "NE", "KC"
+    team: str = Field(min_length=2, max_length=5, pattern=r"^[A-Za-z]+$")
 
 
 class AdminPickCorrection(BaseModel):
-    team: str
+    team: str = Field(min_length=2, max_length=5, pattern=r"^[A-Za-z]+$")
     reason: Optional[str] = None
 
 
@@ -516,7 +526,7 @@ class EntryOut(BaseModel):
 
 class PickBase(BaseModel):
     week: int = Field(ge=1, le=18)
-    team: str
+    team: str = Field(min_length=1, max_length=255)
     game_id: Optional[int] = None
 
 
@@ -527,7 +537,11 @@ class PickCreate(PickBase):
 class PickUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    team: Optional[str] = None
+    team: Optional[str] = Field(
+        default=None,
+        min_length=1,
+        max_length=255,
+    )
 
 
 class PickOut(PickBase):

@@ -89,6 +89,18 @@ describe('pool workspace pages', () => {
     expect(screen.getByText('1 mulligan per entry')).toBeInTheDocument();
   });
 
+  test('identifies a Losers Survivor pool on Pool Home', async () => {
+    global.fetch = jest.fn((url) => {
+      if (String(url).endsWith('/is-admin')) return response({ is_owner: false, is_admin: false, has_admin_access: false });
+      if (String(url).endsWith('/activity-summary')) return response(activitySummary);
+      return response({ ...pool, pool_type: 'survivor', survivor_objective: 'lose', survivor_mulligans: 0 });
+    });
+
+    render(<PoolDetail />);
+
+    expect(await screen.findByText('Losers Survivor · pick a team to lose')).toBeInTheDocument();
+  });
+
   test('shows the launch checklist to the owner immediately after creation', async () => {
     mockRouter.query = { id: 'pool-1', launched: '1' };
     global.fetch = jest.fn((url, options = {}) => {

@@ -19,6 +19,7 @@ export default function CreatePool() {
   const router = useRouter();
   const [form, setForm] = useState({
     name: '', description: '', pool_type: 'survivor',
+    survivor_objective: 'win',
     survivor_mulligans: 0,
     pickem_games_per_week: 'all',
     squares_game_ids: [],
@@ -94,6 +95,7 @@ export default function CreatePool() {
           name: form.name.trim(),
           description: form.description.trim() || null,
           pool_type: form.pool_type,
+          survivor_objective: form.pool_type === 'survivor' ? form.survivor_objective : 'win',
           survivor_mulligans: form.pool_type === 'survivor' ? Number(form.survivor_mulligans) : 0,
           pickem_games_per_week: form.pool_type === 'pickem' && form.pickem_games_per_week !== 'all'
             ? Number(form.pickem_games_per_week)
@@ -155,7 +157,7 @@ export default function CreatePool() {
             <input type="radio" name="pool_type" value="survivor" checked={form.pool_type === 'survivor'} onChange={() => selectType('survivor')} />
             <span className="create-pool-format-title">Survivor <b>Classic</b></span>
             <strong>One team per week</strong>
-            <small>A correct pick survives. A losing pick eliminates the entry. Teams cannot be reused.</small>
+            <small>Pick teams to win or switch to Losers Survivor and pick teams to lose. Teams cannot be reused.</small>
           </label>}
           <label className={isSquares ? 'is-selected' : ''}>
             <input type="radio" name="pool_type" value="squares" checked={isSquares} onChange={() => selectType('squares')} />
@@ -173,8 +175,14 @@ export default function CreatePool() {
       </fieldset>
 
       {isSurvivor && <section className="create-pool-section">
-        <h2>2. Second chances</h2>
-        <p className="create-pool-help">Choose how many losing weeks each entry may survive. A mulligan is automatically consumed when that entry makes a losing pick.</p>
+        <h2>2. Survivor objective</h2>
+        <p className="create-pool-help">Choose whether entries survive by selecting a winner or by selecting a team that loses.</p>
+        <div className="create-pool-access-grid" role="radiogroup" aria-label="Survivor objective">
+          <label className={form.survivor_objective === 'win' ? 'is-selected' : ''}><input type="radio" name="survivor_objective" value="win" checked={form.survivor_objective === 'win'} onChange={() => update('survivor_objective', 'win')} /><strong>Pick a winner</strong><small>The selected team must win for the entry to survive.</small></label>
+          <label className={form.survivor_objective === 'lose' ? 'is-selected' : ''}><input type="radio" name="survivor_objective" value="lose" checked={form.survivor_objective === 'lose'} onChange={() => update('survivor_objective', 'lose')} /><strong>Pick a loser</strong><small>The selected team must lose for the entry to survive. A tie does not count as a loss.</small></label>
+        </div>
+        <h3>Second chances</h3>
+        <p className="create-pool-help">Choose how many unsuccessful selections each entry may survive. A mulligan is automatically consumed when the selected team does not meet the pool objective.</p>
         <label className="create-pool-field">
           <span>Mulligans per entry</span>
           <select aria-label="Mulligans per entry" value={form.survivor_mulligans} onChange={(event) => update('survivor_mulligans', event.target.value)}>
@@ -183,7 +191,7 @@ export default function CreatePool() {
             <option value="2">2 second chances</option>
             <option value="3">3 second chances</option>
           </select>
-          <small>{Number(form.survivor_mulligans) === 0 ? 'The first losing pick eliminates the entry.' : `The entry is eliminated after its ${Number(form.survivor_mulligans) + 1}${Number(form.survivor_mulligans) === 1 ? 'nd' : Number(form.survivor_mulligans) === 2 ? 'rd' : 'th'} losing pick.`}</small>
+          <small>{Number(form.survivor_mulligans) === 0 ? 'The first unsuccessful selection eliminates the entry.' : `The entry is eliminated after its ${Number(form.survivor_mulligans) + 1}${Number(form.survivor_mulligans) === 1 ? 'nd' : Number(form.survivor_mulligans) === 2 ? 'rd' : 'th'} unsuccessful selection.`}</small>
         </label>
       </section>}
 

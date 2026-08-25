@@ -1045,6 +1045,93 @@ class TestAdminPickEdit:
         assert resp.status_code == 200, f"Patch failed: {resp.json()}"
         assert resp.json()["team"] == "KC"
 
+    def test_losers_correction_updates_scoring_identity_and_alive_state(
+        self, client, db_session
+    ):
+        """A displayed correction cannot retain the previous team's scoring ID."""
+        import models as m
+
+        token = _register_and_login(client, email="loserpickadmin@example.com")
+        headers = _authed(token)
+        pool_id = _create_pool(client, headers)
+        entry_id = _create_entry(client, headers, pool_id)
+        pool = db_session.query(m.Pool).filter_by(id=pool_id).one()
+        entry = db_session.query(m.Entry).filter_by(id=entry_id).one()
+        pool.survivor_objective = "lose"
+        entry.alive = False
+        favorite = m.Team(id=9811, name="Correction Favorite", abbrv="FAV")
+        underdog = m.Team(id=9812, name="Correction Underdog", abbrv="DOG")
+        game = m.Schedule(
+            game_id=98101,
+            season=2026,
+            week_num=1,
+            home_team_id=favorite.id,
+            away_team_id=underdog.id,
+            start_time=datetime(2026, 9, 13, 17),
+            status="final",
+            home_score=24,
+            away_score=17,
+            winning_team_id=favorite.id,
+        )
+        db_session.add_all([favorite, underdog, game])
+        db_session.flush()
+        pick = _create_pick(
+            db_session, entry_id, week=1, team="FAV", locked=True
+        )
+        pick.team_id = favorite.id
+        pick.result = "loss"
+        db_session.commit()
+
+        resp = client.patch(
+            f"/admin/pools/{pool_id}/picks/{pick.id}",
+            json={"team": "dog"},
+            headers=headers,
+        )
+
+        assert resp.status_code == 200, resp.text
+        db_session.expire_all()
+        corrected = db_session.query(m.Pick).filter_by(id=pick.id).one()
+        corrected_entry = db_session.query(m.Entry).filter_by(id=entry_id).one()
+        assert corrected.team == "DOG"
+        assert corrected.team_id == underdog.id
+        assert corrected.result == "win"
+        assert corrected_entry.alive is True
+
+    def test_admin_pick_correction_rejects_unscheduled_team(
+        self, client, db_session
+    ):
+        import models as m
+
+        token = _register_and_login(client, email="loserinvalidadmin@example.com")
+        headers = _authed(token)
+        pool_id = _create_pool(client, headers)
+        entry_id = _create_entry(client, headers, pool_id)
+        scheduled = m.Team(id=9821, name="Scheduled", abbrv="SCH")
+        opponent = m.Team(id=9822, name="Opponent", abbrv="OPP")
+        unscheduled = m.Team(id=9823, name="Unscheduled", abbrv="BAD")
+        game = m.Schedule(
+            game_id=98201,
+            season=2026,
+            week_num=1,
+            home_team_id=scheduled.id,
+            away_team_id=opponent.id,
+            start_time=datetime(2026, 9, 13, 17),
+        )
+        db_session.add_all([scheduled, opponent, unscheduled, game])
+        db_session.flush()
+        pick = _create_pick(db_session, entry_id, week=1, team="SCH", locked=True)
+        pick.team_id = scheduled.id
+        db_session.commit()
+
+        resp = client.patch(
+            f"/admin/pools/{pool_id}/picks/{pick.id}",
+            json={"team": "BAD"},
+            headers=headers,
+        )
+
+        assert resp.status_code == 400
+        assert "not scheduled" in resp.json()["detail"]
+
     def test_admin_update_pick_team_conflict(self, client, db_session):
         """Admin cannot change a pick's team to one already used by the entry in another week."""
         token = _register_and_login(client, email="pickconflict@example.com")
