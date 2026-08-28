@@ -14,6 +14,7 @@ import { useAuth } from '../context/AuthContext'
 // Router mock
 // ---------------------------------------------------------------------------
 const mockReplace = jest.fn()
+let mockAsPath = '/'
 
 jest.mock('next/router', () => ({
   useRouter: () => ({
@@ -21,11 +22,13 @@ jest.mock('next/router', () => ({
     replace: mockReplace,
     query: {},
     pathname: '/',
+    asPath: mockAsPath,
   }),
 }))
 
 beforeEach(() => {
   mockReplace.mockClear()
+  mockAsPath = '/'
 })
 
 // ---------------------------------------------------------------------------
@@ -67,6 +70,19 @@ describe('ProtectedRoute', () => {
 
     await waitFor(() => {
       expect(mockReplace).toHaveBeenCalledWith('/login')
+    })
+  })
+
+  test('preserves a pool invitation when authentication is required', async () => {
+    mockAsPath = '/leagues?invite=pool-1'
+    useAuth.mockReturnValue({ user: null, loading: false })
+
+    render(<ProtectedRoute><div>Protected Content</div></ProtectedRoute>)
+
+    await waitFor(() => {
+      expect(mockReplace).toHaveBeenCalledWith(
+        `/login?next=${encodeURIComponent('/leagues?invite=pool-1')}`,
+      )
     })
   })
 

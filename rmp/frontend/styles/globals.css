@@ -1955,6 +1955,20 @@ table {
 .sportzballz-ad__image { display: block; width: 100%; height: auto; }
 
 /* Commissioner QR printables */
+.pool-invitation-page { min-height: 100vh; display: grid; place-items: center; padding: 1.25rem; color: #d8e1df; background: radial-gradient(circle at top, #13323a 0, #071317 48%, #020709 100%); }
+.pool-invitation-card { width: min(100%, 580px); padding: clamp(1.5rem, 5vw, 3rem); text-align: center; background: linear-gradient(145deg, rgba(13, 34, 40, .98), rgba(5, 14, 17, .98)); border: 1px solid #31515a; border-radius: 18px; box-shadow: 0 24px 70px rgba(0, 0, 0, .45); }
+.pool-invitation-card__logo { width: min(260px, 75%); height: auto; margin: 0 auto 2rem; }
+.pool-invitation-card__eyebrow { display: block; color: #c6ff37; font-size: .72rem; font-weight: 900; letter-spacing: .18em; text-transform: uppercase; }
+.pool-invitation-card h1 { margin: .55rem 0 1rem; color: #f7fbfa; font-size: clamp(2rem, 8vw, 3.5rem); line-height: 1.05; overflow-wrap: anywhere; }
+.pool-invitation-card p { margin: 1rem auto; color: #b4c4c6; line-height: 1.65; }
+.pool-invitation-card__badges { display: flex; justify-content: center; gap: .5rem; }
+.pool-invitation-card__badges span { padding: .35rem .65rem; color: #4adaf5; background: #071116; border: 1px solid #31515a; border-radius: 999px; font-size: .72rem; font-weight: 800; text-transform: uppercase; }
+.pool-invitation-card .pool-invitation-card__note { color: #c6ff37; font-size: .85rem; }
+.pool-invitation-card button { display: block; width: 100%; margin: 1.5rem 0 1rem; padding: .9rem 1rem; color: #041218; background: #c6ff37; border: 0; border-radius: 8px; cursor: pointer; font: inherit; font-weight: 900; }
+.pool-invitation-card button:disabled { cursor: wait; opacity: .65; }
+.pool-invitation-card a { color: #4adaf5; font-weight: 800; }
+.pool-invitation-card__state, .pool-invitation-card__error { min-height: 5rem; display: grid; place-items: center; }
+.pool-invitation-card .pool-invitation-card__error { color: #ff9c9c; }
 .pool-qr-printables { margin: 0 0 3rem; padding: 1.5rem; color: #d8e1df; background: linear-gradient(145deg, #081419, #0d2228); border: 1px solid #31515a; border-radius: 14px; box-shadow: 0 18px 42px rgba(0, 0, 0, .2); }
 .pool-qr-printables__heading { display: flex; justify-content: space-between; gap: 1rem; align-items: flex-start; }
 .pool-qr-printables__heading span, .pool-qr-printables__url span { display: block; margin-bottom: .25rem; color: #c6ff37; font-size: .68rem; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }

@@ -9,7 +9,7 @@ export default function PoolQrPrintables({ pool }) {
   const [message, setMessage] = useState('');
   const [busyAction, setBusyAction] = useState('');
   const inviteUrl = useMemo(() => (
-    typeof window === 'undefined' ? '' : `${window.location.origin}/leagues?invite=${encodeURIComponent(pool.id)}`
+    typeof window === 'undefined' ? '' : `${window.location.origin}/join/${encodeURIComponent(pool.id)}`
   ), [pool.id]);
 
   useEffect(() => {

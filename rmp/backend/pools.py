@@ -457,9 +457,13 @@ def list_pools(
 def get_pool_invite(
     pool_id: str,
     db: Session = Depends(deps.get_db),
-    current_user: models.User = Depends(deps.get_current_user),
 ):
-    """Resolve a shared pool UUID without adding private pools to discovery."""
+    """Resolve a shared pool UUID for the public invitation landing page.
+
+    The deliberately narrow response model exposes only information already
+    intended for a printed invitation. Membership, entries, picks, owner data,
+    and the private-pool join code remain protected.
+    """
     pool = db.query(models.Pool).filter(models.Pool.id == pool_id).first()
     if not pool:
         raise HTTPException(status_code=404, detail="Pool invitation not found")

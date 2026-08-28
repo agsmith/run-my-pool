@@ -8,7 +8,12 @@ export default function ProtectedRoute({ children }) {
 
   useEffect(() => {
     if (!loading && !user) {
-      router.replace('/login');
+      const requestedPath = typeof router.asPath === 'string' && router.asPath.startsWith('/') && !router.asPath.startsWith('//')
+        ? router.asPath
+        : '';
+      router.replace(requestedPath && requestedPath !== '/' && requestedPath !== '/login'
+        ? `/login?next=${encodeURIComponent(requestedPath)}`
+        : '/login');
     }
   }, [user, loading, router]);
 

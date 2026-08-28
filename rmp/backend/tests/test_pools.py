@@ -1008,7 +1008,7 @@ class TestPoolJoining:
         assert missing.json()["detail"] == "Invalid pool password"
         assert wrong.json()["detail"] == "Invalid pool password"
 
-    def test_private_pool_invite_resolves_for_authenticated_outsider(self, client):
+    def test_private_pool_invite_resolves_without_auth_and_exposes_only_safe_metadata(self, client):
         owner = _register(client, "invite.owner@example.com")
         pool = client.post(
             "/pools/create",
@@ -1024,7 +1024,8 @@ class TestPoolJoining:
         directory = client.get("/pools/", headers=outsider).json()
         assert pool["id"] in {item["id"] for item in directory}
 
-        invite = client.get(f"/pools/invite/{pool['id']}", headers=outsider)
+        client.cookies.clear()
+        invite = client.get(f"/pools/invite/{pool['id']}")
         assert invite.status_code == 200
         assert invite.json() == {
             "id": pool["id"],
@@ -1035,11 +1036,10 @@ class TestPoolJoining:
         }
         assert "owner_id" not in invite.json()
 
-    def test_pool_invite_requires_auth_and_rejects_unknown_id(self, client):
-        headers = _register(client, "invite.lookup@example.com")
+    def test_pool_invite_rejects_unknown_id_without_auth(self, client):
+        _register(client, "invite.lookup@example.com")
         client.cookies.clear()
-        assert client.get("/pools/invite/not-a-pool").status_code in (401, 403)
-        missing = client.get("/pools/invite/not-a-pool", headers=headers)
+        missing = client.get("/pools/invite/not-a-pool")
         assert missing.status_code == 404
         assert missing.json()["detail"] == "Pool invitation not found"
 

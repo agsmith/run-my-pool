@@ -33,7 +33,7 @@ describe('pool QR PDF generation', () => {
     const pdfOutput = doc.output();
     expect(new Uint8Array(doc.output('arraybuffer')).byteLength).toBeGreaterThan(5000);
     expect(filename).toMatch(/office-survivor-qr-.+\.pdf$/);
-    expect(inviteUrl).toBe('https://runmypool.net/leagues?invite=pool-1');
+    expect(inviteUrl).toBe('https://runmypool.net/join/pool-1');
     expect(pdfOutput).toContain('huddle42');
     if (format === 'tableTent') {
       expect(pdfOutput.match(/\(RUN MY POOL\) Tj/g)).toHaveLength(2);

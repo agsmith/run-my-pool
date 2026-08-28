@@ -35,7 +35,7 @@ describe('PoolQrPrintables', () => {
   test('shows the pool invite destination, current join code, and all print sizes', async () => {
     render(<PoolQrPrintables pool={pool} />);
 
-    expect(screen.getByText('http://localhost/leagues?invite=pool-1')).toBeInTheDocument();
+    expect(screen.getByText('http://localhost/join/pool-1')).toBeInTheDocument();
     expect(screen.getByText(/not embedded in the QR itself/i)).toBeInTheDocument();
     await waitFor(() => expect(screen.getByLabelText(/join code on printable/i)).toHaveValue('huddle42'));
     expect(fetch).toHaveBeenCalledWith('/pools/pool-1/join-password', expect.objectContaining({
