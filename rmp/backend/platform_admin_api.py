@@ -1,5 +1,7 @@
 """Platform-wide administration endpoints protected as one RBAC boundary."""
 
+from datetime import datetime, timedelta, timezone
+
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
@@ -39,6 +41,46 @@ def overview(db: Session = Depends(deps.get_db)):
         "private_pools": db.query(models.Pool).filter(models.Pool.is_private.is_(True)).count(),
         "entries": db.query(models.Entry).count(),
         "audit_events": db.query(models.AuditLog).count(),
+    }
+
+
+@router.get("/metrics")
+def metrics(db: Session = Depends(deps.get_db)):
+    """Return platform growth totals and rolling 24-hour deltas."""
+    window_start = (
+        datetime.now(timezone.utc) - timedelta(hours=24)
+    ).replace(tzinfo=None)
+    memberships = db.query(models.PoolMember)
+    return {
+        "window_hours": 24,
+        "window_started_at": window_start,
+        "pools": {
+            "total": db.query(models.Pool).count(),
+            "new": db.query(models.Pool)
+            .filter(models.Pool.created_at >= window_start)
+            .count(),
+        },
+        "memberships": {
+            "total": memberships.count(),
+            "new": memberships.filter(
+                models.PoolMember.joined_at >= window_start
+            ).count(),
+            "unique_members": db.query(
+                func.count(func.distinct(models.PoolMember.user_id))
+            ).scalar() or 0,
+        },
+        "entries": {
+            "total": db.query(models.Entry).count(),
+            "new": db.query(models.Entry)
+            .filter(models.Entry.created_at >= window_start)
+            .count(),
+        },
+        "users": {
+            "total": db.query(models.User).count(),
+            "new": db.query(models.User)
+            .filter(models.User.created_at >= window_start)
+            .count(),
+        },
     }
 
 
