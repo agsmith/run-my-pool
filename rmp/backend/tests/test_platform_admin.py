@@ -1,7 +1,7 @@
 """RBAC and global visibility tests for the platform administration boundary."""
 
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
@@ -487,6 +487,49 @@ class TestPlatformAdminListAllPools:
             "/platform-admin/pools?limit=501", headers=_headers(admin_token)
         )
         assert resp.status_code == 422
+
+
+class TestPlatformAdminMetrics:
+    def test_requires_super_admin(self, client):
+        assert client.get("/platform-admin/metrics").status_code == 401
+
+    def test_returns_totals_and_24_hour_deltas(self, client, db_session):
+        owner_token = _register(client, "owner.metrics@example.com")
+        admin_token = _register(client, "sa.metrics@example.com")
+        _set_role(db_session, "sa.metrics@example.com", models.UserRole.SUPER_ADMIN)
+        pool = _create_pool(client, owner_token, name="Metrics Pool")
+        _create_entry(client, owner_token, pool["id"], name="Metrics Entry")
+
+        response = client.get("/platform-admin/metrics", headers=_headers(admin_token))
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload["window_hours"] == 24
+        assert payload["pools"]["total"] >= 1
+        assert payload["pools"]["new"] >= 1
+        assert payload["memberships"]["total"] >= 1
+        assert payload["memberships"]["new"] >= 1
+        assert payload["memberships"]["unique_members"] >= 1
+        assert payload["entries"]["total"] >= 1
+        assert payload["entries"]["new"] >= 1
+        assert payload["users"]["total"] >= 2
+        assert payload["users"]["new"] >= 2
+
+    def test_excludes_old_records_from_delta(self, client, db_session):
+        owner_token = _register(client, "owner.oldmetrics@example.com")
+        admin_token = _register(client, "sa.oldmetrics@example.com")
+        _set_role(db_session, "sa.oldmetrics@example.com", models.UserRole.SUPER_ADMIN)
+        pool = _create_pool(client, owner_token, name="Old Metrics Pool")
+        entry = _create_entry(client, owner_token, pool["id"], name="Old Metrics Entry")
+        old = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=25)
+        db_session.query(models.Pool).filter_by(id=pool["id"]).update({"created_at": old})
+        db_session.query(models.PoolMember).filter_by(pool_id=pool["id"]).update({"joined_at": old})
+        db_session.query(models.Entry).filter_by(id=entry["id"]).update({"created_at": old})
+        db_session.commit()
+
+        payload = client.get("/platform-admin/metrics", headers=_headers(admin_token)).json()
+        assert payload["pools"]["new"] == 0
+        assert payload["memberships"]["new"] == 0
+        assert payload["entries"]["new"] == 0
 
 
 # ---------------------------------------------------------------------------
