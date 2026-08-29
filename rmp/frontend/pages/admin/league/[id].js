@@ -27,6 +27,10 @@ export default function AdminPortal() {
   // League Management State
   const [leagues, setLeagues] = useState([]);
   const [leagueSearch, setLeagueSearch] = useState('');
+  const [poolName, setPoolName] = useState('');
+  const [poolNameMessage, setPoolNameMessage] = useState('');
+  const [poolNameSuggestions, setPoolNameSuggestions] = useState([]);
+  const [savingPoolName, setSavingPoolName] = useState(false);
   const [accessSettings, setAccessSettings] = useState({ is_private: false, join_password: '' });
   const [accessMessage, setAccessMessage] = useState('');
   const [savingAccess, setSavingAccess] = useState(false);
@@ -260,6 +264,7 @@ export default function AdminPortal() {
       if (res.ok) {
         const data = await res.json();
         setLeague(data);
+        setPoolName(data.name || '');
         setAccessSettings({ is_private: data.is_private, join_password: '' });
       } else {
         setError('Failed to load pool details');
@@ -343,6 +348,48 @@ export default function AdminPortal() {
       setAccessMessage(err.message || 'Unable to update pool access');
     } finally {
       setSavingAccess(false);
+    }
+  };
+
+  const handleRenamePool = async (event) => {
+    event.preventDefault();
+    const nextName = poolName.trim();
+    setPoolNameMessage('');
+    setPoolNameSuggestions([]);
+    if (!nextName) {
+      setPoolNameMessage('Pool name is required.');
+      return;
+    }
+    if (nextName === league?.name) {
+      setPoolNameMessage('Enter a different name before saving.');
+      return;
+    }
+    setSavingPoolName(true);
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/pools/${leagueId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('access_token')}`,
+        },
+        body: JSON.stringify({ name: nextName }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        if (data.detail?.code === 'league_name_taken') {
+          setPoolNameSuggestions(data.detail.suggestions || []);
+          throw new Error(data.detail.message || 'That pool name is already in use.');
+        }
+        throw new Error(typeof data.detail === 'string' ? data.detail : 'Unable to rename pool.');
+      }
+      setLeague(data);
+      setPoolName(data.name);
+      setLeagues((current) => current.map((pool) => pool.id === data.id ? data : pool));
+      setPoolNameMessage(`Pool renamed to ${data.name}.`);
+    } catch (err) {
+      setPoolNameMessage(err.message || 'Unable to rename pool.');
+    } finally {
+      setSavingPoolName(false);
     }
   };
 
@@ -524,6 +571,43 @@ export default function AdminPortal() {
       <h3 style={{ color: '#1a202c', marginTop: 0, marginBottom: '2rem' }}>
         Pool Management
       </h3>
+
+      <form className="admin-pool-name-panel" onSubmit={handleRenamePool}>
+        <div>
+          <span>Pool identity</span>
+          <h4>Pool Name</h4>
+          <p>Commissioners can change the name players see throughout Run My Pool.</p>
+        </div>
+        <label htmlFor="admin-pool-name">Pool name</label>
+        <div className="admin-pool-name-panel__controls">
+          <input
+            id="admin-pool-name"
+            type="text"
+            value={poolName}
+            maxLength={255}
+            onChange={(event) => {
+              setPoolName(event.target.value);
+              setPoolNameMessage('');
+              setPoolNameSuggestions([]);
+            }}
+            required
+          />
+          <button type="submit" disabled={savingPoolName || !poolName.trim() || poolName.trim() === league?.name}>
+            {savingPoolName ? 'Saving…' : 'Rename pool'}
+          </button>
+        </div>
+        {poolNameSuggestions.length > 0 && (
+          <div className="admin-pool-name-panel__suggestions" aria-label="Available pool name suggestions">
+            <small>Available names:</small>
+            {poolNameSuggestions.map((suggestion) => (
+              <button type="button" key={suggestion} onClick={() => { setPoolName(suggestion); setPoolNameMessage(''); setPoolNameSuggestions([]); }}>
+                {suggestion}
+              </button>
+            ))}
+          </div>
+        )}
+        {poolNameMessage && <span className="admin-pool-name-panel__message" role="status">{poolNameMessage}</span>}
+      </form>
 
       <div className="admin-access-panel">
         <div>

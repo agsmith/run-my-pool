@@ -133,15 +133,15 @@ export default function PoolQrPrintables({ pool }) {
           </div>
         </fieldset>
 
-        <div className="pool-qr-printables__logo">
+        {format !== 'qrOnly' && <div className="pool-qr-printables__logo">
           <label htmlFor="pool-print-logo">2. Add a logo <small>Optional</small></label>
           <input id="pool-print-logo" type="file" accept="image/png,image/jpeg,image/webp" onChange={chooseLogo} />
           <small>PNG, JPG, or WebP up to 5 MB. The image stays in this browser and is not uploaded to Run My Pool.</small>
           {logo && <div className="pool-qr-printables__logo-preview"><img src={logo.dataUrl} alt="Uploaded printable logo preview" /><span>{logo.name}</span><button type="button" onClick={() => { setLogo(null); setMessage('Logo removed.'); }}>Remove</button></div>}
-        </div>
+        </div>}
       </div>
 
-      <div className="pool-qr-printables__join-code">
+      {format !== 'qrOnly' ? <div className="pool-qr-printables__join-code">
         <label htmlFor="pool-print-join-code">3. Join code on printable</label>
         <input
           id="pool-print-join-code"
@@ -156,7 +156,10 @@ export default function PoolQrPrintables({ pool }) {
           placeholder="Enter the pool join code"
         />
         <small>{joinCodeMessage} Anyone holding a printed copy can read this code.</small>
-      </div>
+      </div> : <div className="pool-qr-printables__join-code">
+        <strong>QR-only privacy note</strong>
+        <small>This PDF contains only the QR code. If this is a private pool, provide the join code separately.</small>
+      </div>}
 
       <div className="pool-qr-printables__actions">
         <button type="button" onClick={download} disabled={Boolean(busyAction)}>{busyAction === 'download' ? 'Creating PDF...' : 'Download PDF'}</button>

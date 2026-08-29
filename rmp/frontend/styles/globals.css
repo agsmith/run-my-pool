@@ -1509,7 +1509,18 @@ table {
 }
 .broadcast-v2--admin .admin-section code { color:var(--ice)!important; background:#091012!important; }
 .admin-entry-feedback { margin:0 0 1rem; padding:.8rem 1rem; color:var(--ice); background:rgba(159,239,255,.07); border:1px solid rgba(159,239,255,.32); font-size:.82rem; font-weight:750; }
-.admin-access-panel { display:grid; gap:1rem; margin:0 0 2rem; padding:1.2rem; background:linear-gradient(145deg,#162226,#10191c); border:1px solid #314449; border-top:3px solid var(--lime); }
+.admin-pool-name-panel,.admin-access-panel { display:grid; gap:1rem; margin:0 0 2rem; padding:1.2rem; background:linear-gradient(145deg,#162226,#10191c); border:1px solid #314449; border-top:3px solid var(--lime); }
+.admin-pool-name-panel > div:first-child > span { color:var(--ice); font-size:.65rem; font-weight:900; letter-spacing:.14em; text-transform:uppercase; }
+.broadcast-v2--admin .admin-pool-name-panel h4 { margin:.35rem 0 .35rem; font-family:Impact,'Arial Narrow',sans-serif; font-size:1.55rem; font-style:italic; font-weight:400; text-transform:uppercase; }
+.admin-pool-name-panel p { margin:0!important; }
+.admin-pool-name-panel > label { color:#e8efed; font-size:.82rem; font-weight:800; text-transform:uppercase; }
+.admin-pool-name-panel__controls { display:flex; gap:.65rem; padding:0!important; }
+.admin-pool-name-panel__controls input { min-width:0; flex:1; }
+.broadcast-v2--admin .admin-pool-name-panel__controls button { flex:0 0 auto; color:#091012!important; background:var(--lime)!important; border:1px solid var(--lime)!important; border-radius:0!important; }
+.admin-pool-name-panel__suggestions { display:flex; flex-wrap:wrap; gap:.5rem; align-items:center; padding:0!important; }
+.admin-pool-name-panel__suggestions small { color:var(--muted); }
+.broadcast-v2--admin .admin-pool-name-panel__suggestions button { padding:.45rem .65rem!important; color:var(--ice)!important; background:transparent!important; border:1px solid var(--ice)!important; }
+.admin-pool-name-panel__message { color:var(--ice); font-size:.8rem; font-weight:700; }
 .admin-access-panel > div:first-child > span { color:var(--ice); font-size:.65rem; font-weight:900; letter-spacing:.14em; text-transform:uppercase; }
 .broadcast-v2--admin .admin-access-panel h4 { margin:.35rem 0 .35rem; font-family:Impact,'Arial Narrow',sans-serif; font-size:1.55rem; font-style:italic; font-weight:400; text-transform:uppercase; }
 .admin-access-panel p { margin:0!important; }
@@ -1529,6 +1540,7 @@ table {
 .broadcast-v2--admin .admin-access-panel__footer button { color:#091012!important; background:var(--lime)!important; border:1px solid var(--lime)!important; border-radius:0!important; }
 .admin-access-panel__footer span { color:var(--ice); font-size:.8rem; font-weight:700; }
 @media (max-width:600px) { .admin-access-panel__options { grid-template-columns:1fr; } }
+@media (max-width:600px) { .admin-pool-name-panel__controls { align-items:stretch; flex-direction:column; } }
 .owner-pool-reports { display:grid; gap:1rem; margin:0 0 2rem; padding:1.2rem; background:linear-gradient(145deg,#162226,#10191c); border:1px solid #314449; border-top:3px solid var(--ice); }
 .owner-pool-reports__heading > span { color:var(--ice); font-size:.65rem; font-weight:900; letter-spacing:.14em; text-transform:uppercase; }
 .broadcast-v2--admin .owner-pool-reports h4 { margin:.35rem 0; color:#e8efed; font-family:Impact,'Arial Narrow',sans-serif; font-size:1.55rem; font-style:italic; font-weight:400; text-transform:uppercase; }

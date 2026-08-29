@@ -13,6 +13,7 @@ describe('pool QR PDF generation', () => {
     ['letter', 612, 792],
     ['businessCard', 252, 144],
     ['tableTent', 720, 504],
+    ['qrOnly', 612, 792],
   ])('creates a valid %s PDF at its intended physical size', async (format, width, height) => {
     const logoPath = path.resolve('public/brand/run-my-pool-wordmark.png');
     const logo = process.env.WRITE_QR_SAMPLES === '1' && format === 'letter'
@@ -34,7 +35,16 @@ describe('pool QR PDF generation', () => {
     expect(new Uint8Array(doc.output('arraybuffer')).byteLength).toBeGreaterThan(5000);
     expect(filename).toMatch(/office-survivor-qr-.+\.pdf$/);
     expect(inviteUrl).toBe('https://runmypool.net/join/pool-1');
-    expect(pdfOutput).toContain('huddle42');
+    if (format === 'qrOnly') {
+      expect(filename).toBe('office-survivor-qr-only.pdf');
+      expect(pdfOutput).not.toContain('huddle42');
+      expect(pdfOutput).not.toContain('Office Survivor');
+      expect(pdfOutput).not.toContain('RUN MY POOL');
+      expect(pdfOutput).not.toContain('SCAN TO JOIN');
+      expect(pdfOutput).not.toContain('runmypool.net');
+    } else {
+      expect(pdfOutput).toContain('huddle42');
+    }
     if (format === 'tableTent') {
       expect(pdfOutput.match(/\(RUN MY POOL\) Tj/g)).toHaveLength(2);
       expect(pdfOutput).not.toMatch(/-1\.?\s+0\.?\s+0\.?\s+-1\.?/);

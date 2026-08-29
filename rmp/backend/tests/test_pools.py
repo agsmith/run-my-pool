@@ -803,6 +803,47 @@ class TestPoolAdminOperations:
         response = client.get("/pools/some-id/is-admin")
         assert response.status_code in (401, 403)
 
+    def test_commissioner_can_rename_pool_and_creates_audit_event(self, client, db_session):
+        owner = _register(client, "rename.admin.owner@example.com")
+        pool = client.post(
+            "/pools/create", json={"name": "Original Commissioner Pool"}, headers=owner
+        ).json()
+        commissioner = _register(client, "rename.commissioner@example.com")
+        commissioner_user = db_session.query(models.User).filter_by(
+            email="rename.commissioner@example.com"
+        ).one()
+        db_session.add(models.PoolAdmin(pool_id=pool["id"], user_id=commissioner_user.id))
+        db_session.commit()
+
+        response = client.patch(
+            f"/pools/{pool['id']}",
+            json={"name": "Renamed Commissioner Pool"},
+            headers=commissioner,
+        )
+
+        assert response.status_code == 200, response.text
+        assert response.json()["name"] == "Renamed Commissioner Pool"
+        audit = db_session.query(models.AuditLog).filter_by(
+            action="UPDATE_POOL", user_id=commissioner_user.id
+        ).one()
+        assert '"previous_name": "Original Commissioner Pool"' in audit.details
+        assert '"name": "Renamed Commissioner Pool"' in audit.details
+
+    def test_member_cannot_rename_pool(self, client):
+        owner = _register(client, "rename.member.owner@example.com")
+        pool = client.post(
+            "/pools/create", json={"name": "Owner Controlled Pool"}, headers=owner
+        ).json()
+        member = _register(client, "rename.regular.member@example.com")
+        client.post(f"/pools/{pool['id']}/join", json={}, headers=member)
+
+        response = client.patch(
+            f"/pools/{pool['id']}", json={"name": "Unauthorized Rename"}, headers=member
+        )
+
+        assert response.status_code == 403
+        assert response.json()["detail"] == "Only pool admins can update the pool"
+
 
 class TestPoolJoining:
     def test_join_rejected_after_league_lock_time(self, client):

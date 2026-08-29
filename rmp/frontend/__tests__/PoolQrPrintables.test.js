@@ -11,6 +11,7 @@ jest.mock('../utils/poolQrPrintables', () => ({
     letter: { label: '8.5 x 11 flyer', description: 'Full page' },
     businessCard: { label: 'Business card (3.5 x 2)', description: 'Pocket size' },
     tableTent: { label: 'Restaurant table tent (5 x 7)', description: 'Two sided' },
+    qrOnly: { label: 'QR code only (8.5 x 11)', description: 'No branding' },
   },
   createPoolPrintable: jest.fn(),
   loadPrintableLogo: jest.fn(),
@@ -45,6 +46,24 @@ describe('PoolQrPrintables', () => {
     expect(screen.getByRole('radio', { name: /8.5 x 11 flyer/i })).toBeChecked();
     expect(screen.getByRole('radio', { name: /business card/i })).toBeInTheDocument();
     expect(screen.getByRole('radio', { name: /restaurant table tent/i })).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: /qr code only/i })).toBeInTheDocument();
+  });
+
+  test('creates a QR-only PDF without offering printable branding or a printed join code', async () => {
+    const user = userEvent.setup();
+    render(<PoolQrPrintables pool={pool} />);
+
+    await user.click(screen.getByRole('radio', { name: /qr code only/i }));
+
+    expect(screen.queryByLabelText(/add a logo/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/join code on printable/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/provide the join code separately/i)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Download PDF' }));
+    await waitFor(() => expect(createPoolPrintable).toHaveBeenCalledWith(expect.objectContaining({
+      format: 'qrOnly',
+      poolId: 'pool-1',
+      origin: 'http://localhost',
+    })));
   });
 
   test('downloads the selected PDF using a browser-local uploaded logo', async () => {

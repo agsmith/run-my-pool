@@ -169,6 +169,52 @@ describe('commissioner portal', () => {
     expect(screen.getByLabelText('Join password')).toHaveValue('');
   });
 
+  test('allows a commissioner to rename the current pool', async () => {
+    installApi({
+      'PATCH /pools/pool-1': (url, options) => {
+        expect(JSON.parse(options.body)).toEqual({ name: 'Sunday Survivors' });
+        return response({ ...league, name: 'Sunday Survivors' });
+      },
+    });
+    const user = userEvent.setup();
+    render(<AdminPortal />);
+    await screen.findByRole('heading', { name: 'Pool Management' });
+
+    const nameInput = screen.getByLabelText('Pool name');
+    expect(nameInput).toHaveValue('Office Survivor');
+    await user.clear(nameInput);
+    await user.type(nameInput, '  Sunday Survivors  ');
+    await user.click(screen.getByRole('button', { name: 'Rename pool' }));
+
+    expect(await screen.findByText('Pool renamed to Sunday Survivors.')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Sunday Survivors' })).toBeInTheDocument();
+    expect(nameInput).toHaveValue('Sunday Survivors');
+  });
+
+  test('shows selectable unique-name suggestions when a rename conflicts', async () => {
+    installApi({
+      'PATCH /pools/pool-1': () => response({
+        detail: {
+          code: 'league_name_taken',
+          message: 'That pool name is already in use.',
+          suggestions: ['Champions 2026', 'Champions Survivor', 'Champions League'],
+        },
+      }, false),
+    });
+    const user = userEvent.setup();
+    render(<AdminPortal />);
+    await screen.findByRole('heading', { name: 'Pool Management' });
+
+    const nameInput = screen.getByLabelText('Pool name');
+    await user.clear(nameInput);
+    await user.type(nameInput, 'Champions');
+    await user.click(screen.getByRole('button', { name: 'Rename pool' }));
+
+    expect(await screen.findByText('That pool name is already in use.')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Champions 2026' }));
+    expect(nameInput).toHaveValue('Champions 2026');
+  });
+
   test('deletes only the current pool after owner confirmation', async () => {
     const confirm = jest.spyOn(window, 'confirm').mockReturnValue(true);
     installApi({

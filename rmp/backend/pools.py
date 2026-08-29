@@ -56,11 +56,11 @@ def _normalize_pool_name(name: str) -> str:
     """Store a clean display name and reject names with no visible characters."""
     normalized = (name or "").strip()
     if not normalized:
-        raise HTTPException(status_code=400, detail="League name is required")
+        raise HTTPException(status_code=400, detail="Pool name is required")
     if len(normalized) > MAX_POOL_NAME_LENGTH:
         raise HTTPException(
             status_code=400,
-            detail=f"League name must be {MAX_POOL_NAME_LENGTH} characters or fewer",
+            detail=f"Pool name must be {MAX_POOL_NAME_LENGTH} characters or fewer",
         )
     return normalized
 
@@ -99,7 +99,7 @@ def _raise_name_conflict(db: Session, requested_name: str) -> None:
         status_code=status.HTTP_409_CONFLICT,
         detail={
             "code": "league_name_taken",
-            "message": "That league name is already in use. Choose a unique name.",
+            "message": "That pool name is already in use. Choose a unique name.",
             "suggestions": _suggest_pool_names(db, requested_name),
         },
     )
@@ -658,7 +658,7 @@ def update_pool(
     db: Session = Depends(deps.get_db),
     current_user: models.User = Depends(deps.get_current_user),
 ):
-    """Update a pool (only by the pool owner)."""
+    """Update a pool as its owner, commissioner, or a platform administrator."""
     try:
         pool = db.query(models.Pool).filter(models.Pool.id == pool_id).first()
 
@@ -669,6 +669,8 @@ def update_pool(
             raise HTTPException(
                 status_code=403, detail="Only pool admins can update the pool"
             )
+
+        previous_name = pool.name
 
         # Update fields if provided
         if pool_update.name is not None:
@@ -725,13 +727,15 @@ def update_pool(
             _raise_name_conflict(db, pool.name)
         db.refresh(pool)
 
+        name_changed = pool_update.name is not None and previous_name != pool.name
         log_update_operation(
             db=db,
-            entity_type="pool_access",
+            entity_type="pool" if name_changed else "pool_access",
             entity_id=pool.id,
             user_id=current_user.id,
             changes={
                 "pool_id": pool.id,
+                **({"previous_name": previous_name, "name": pool.name} if name_changed else {}),
                 "is_private": pool.is_private,
                 "join_password_changed": pool_update.join_password is not None,
                 "username": current_user.email,

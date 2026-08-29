@@ -11,6 +11,10 @@ export const PRINT_FORMATS = {
     label: 'Restaurant table tent (5 x 7)',
     description: 'Two-sided 5 x 7 tent with a center fold line.',
   },
+  qrOnly: {
+    label: 'QR code only (8.5 x 11)',
+    description: 'A large centered QR code with no text, logo, join code, URL, or branding.',
+  },
 };
 
 const NAVY = [4, 18, 24];
@@ -168,6 +172,14 @@ function drawTableTent(doc, details) {
   doc.setLineDashPattern([], 0);
 }
 
+function drawQrOnly(doc, { qrDataUrl }) {
+  // Intentionally add only the QR bitmap. jsPDF supplies the blank white
+  // letter page; no pool identity, instructions, join code, or branding is
+  // included in this format.
+  const size = 540;
+  doc.addImage(qrDataUrl, 'PNG', (612 - size) / 2, (792 - size) / 2, size, size);
+}
+
 export async function createPoolPrintable({ format, poolName, poolId, isPrivate, joinCode, logo, origin }) {
   if (!PRINT_FORMATS[format]) throw new Error('Choose a supported print size.');
   const inviteUrl = `${origin.replace(/\/$/, '')}/join/${encodeURIComponent(poolId)}`;
@@ -181,7 +193,7 @@ export async function createPoolPrintable({ format, poolName, poolId, isPrivate,
     color: { dark: '#041218', light: '#f7fbfa' },
   });
 
-  const options = format === 'letter'
+  const options = format === 'letter' || format === 'qrOnly'
     ? { orientation: 'portrait', unit: 'pt', format: 'letter' }
     : format === 'businessCard'
       ? { orientation: 'landscape', unit: 'pt', format: [252, 144] }
@@ -192,8 +204,12 @@ export async function createPoolPrintable({ format, poolName, poolId, isPrivate,
   if (format === 'letter') drawLetter(doc, details);
   if (format === 'businessCard') drawBusinessCard(doc, details);
   if (format === 'tableTent') drawTableTent(doc, details);
+  if (format === 'qrOnly') drawQrOnly(doc, details);
 
-  doc.setProperties({
+  doc.setProperties(format === 'qrOnly' ? {
+    title: 'QR code',
+    subject: 'QR code',
+  } : {
     title: `${poolName} QR join printable`,
     subject: `Join ${poolName} on Run My Pool`,
     author: 'Run My Pool',
@@ -201,7 +217,7 @@ export async function createPoolPrintable({ format, poolName, poolId, isPrivate,
   });
   return {
     doc,
-    filename: `${safeFilePart(poolName)}-qr-${format === 'businessCard' ? 'business-card' : format === 'tableTent' ? 'table-tent' : 'letter'}.pdf`,
+    filename: `${safeFilePart(poolName)}-qr-${format === 'businessCard' ? 'business-card' : format === 'tableTent' ? 'table-tent' : format === 'qrOnly' ? 'only' : 'letter'}.pdf`,
     inviteUrl,
   };
 }
