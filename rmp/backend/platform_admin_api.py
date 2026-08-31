@@ -1,6 +1,6 @@
 """Platform-wide administration endpoints protected as one RBAC boundary."""
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, or_
@@ -175,6 +175,46 @@ def admin_resend_email_verification(
         additional_data={"message_id": message_id},
     )
     return {"message": "Verification email sent."}
+
+
+@router.get("/metrics")
+def metrics(db: Session = Depends(deps.get_db)):
+    """Return platform growth totals and rolling 24-hour deltas."""
+    window_start = (
+        datetime.now(timezone.utc) - timedelta(hours=24)
+    ).replace(tzinfo=None)
+    memberships = db.query(models.PoolMember)
+    return {
+        "window_hours": 24,
+        "window_started_at": window_start,
+        "pools": {
+            "total": db.query(models.Pool).count(),
+            "new": db.query(models.Pool)
+            .filter(models.Pool.created_at >= window_start)
+            .count(),
+        },
+        "memberships": {
+            "total": memberships.count(),
+            "new": memberships.filter(
+                models.PoolMember.joined_at >= window_start
+            ).count(),
+            "unique_members": db.query(
+                func.count(func.distinct(models.PoolMember.user_id))
+            ).scalar() or 0,
+        },
+        "entries": {
+            "total": db.query(models.Entry).count(),
+            "new": db.query(models.Entry)
+            .filter(models.Entry.created_at >= window_start)
+            .count(),
+        },
+        "users": {
+            "total": db.query(models.User).count(),
+            "new": db.query(models.User)
+            .filter(models.User.created_at >= window_start)
+            .count(),
+        },
+    }
 
 
 @router.get("/pools")
