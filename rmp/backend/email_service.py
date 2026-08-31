@@ -50,6 +50,43 @@ def send_email_verification_email(recipient: str, token: str) -> str:
     return message_id
 
 
+def send_email_verification_reminder(recipient: str, token: str) -> str:
+    """Send the one-time follow-up issued after an account remains unverified."""
+    region = os.getenv("AWS_SES_REGION", "us-east-1")
+    frontend_url = os.getenv("FRONTEND_URL", "https://runmypool.net").rstrip("/")
+    sender = os.getenv("EMAIL_FROM", "Run My Pool Accounts <accounts@runmypool.net>")
+    reply_to = os.getenv("EMAIL_REPLY_TO", "support@runmypool.net")
+    verification_url = f"{frontend_url}/verify-email?{urlencode({'token': token})}"
+    safe_url = html.escape(verification_url, quote=True)
+
+    response = boto3.client("sesv2", region_name=region).send_email(
+        FromEmailAddress=sender,
+        Destination={"ToAddresses": [recipient]},
+        ReplyToAddresses=[reply_to],
+        Content={"Simple": {
+            "Subject": {"Data": "Reminder: verify your Run My Pool email", "Charset": "UTF-8"},
+            "Body": {
+                "Text": {"Data": (
+                    "Your Run My Pool account is still waiting for email verification.\n\n"
+                    f"Verify your email: {verification_url}\n\n"
+                    "This new link expires in 24 hours and can only be used once. "
+                    "If you did not create this account, you can ignore this email."
+                ), "Charset": "UTF-8"},
+                "Html": {"Data": (
+                    "<h1>Your account is waiting</h1>"
+                    "<p>Verify your email to finish activating your Run My Pool account.</p>"
+                    f'<p><a href="{safe_url}">Verify your email</a></p>'
+                    "<p>This new link expires in 24 hours and can only be used once.</p>"
+                    "<p>If you did not create this account, you can ignore this email.</p>"
+                ), "Charset": "UTF-8"},
+            },
+        }},
+    )
+    message_id = response["MessageId"]
+    log_event(logger, logging.INFO, "email_verification_reminder_queued", message_id=message_id)
+    return message_id
+
+
 def send_password_reset_email(recipient: str, token: str) -> str:
     """Send a one-hour password-reset link without logging the bearer token."""
     region = os.getenv("AWS_SES_REGION", "us-east-1")

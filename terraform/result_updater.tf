@@ -143,7 +143,7 @@ resource "aws_ecs_task_definition" "result_updater" {
         { name = "IMAGE_REVISION", value = var.backend_image_tag },
         { name = "PYTHONDONTWRITEBYTECODE", value = "1" },
         { name = "AWS_SES_REGION", value = var.aws_region },
-        { name = "EMAIL_FROM", value = "Run My Pool Reports <accounts@runmypool.net>" },
+        { name = "EMAIL_FROM", value = "Run My Pool <accounts@runmypool.net>" },
         { name = "EMAIL_REPLY_TO", value = "support@runmypool.net" },
         { name = "FRONTEND_URL", value = "https://runmypool.net" },
       ]
@@ -285,11 +285,18 @@ resource "aws_sfn_state_machine" "result_updater" {
     States = {
       SelectJob = {
         Type = "Choice"
-        Choices = [{
-          Variable     = "$.job"
-          StringEquals = "owner_reports"
-          Next         = "RunOwnerReports"
-        }]
+        Choices = [
+          {
+            Variable     = "$.job"
+            StringEquals = "owner_reports"
+            Next         = "RunOwnerReports"
+          },
+          {
+            Variable     = "$.job"
+            StringEquals = "email_verification_reminders"
+            Next         = "RunEmailVerificationReminders"
+          }
+        ]
         Default = "RunUpdater"
       }
       RunUpdater = {
@@ -333,6 +340,41 @@ resource "aws_sfn_state_machine" "result_updater" {
             ContainerOverrides = [{
               Name    = "result-updater"
               Command = ["python", "-m", "pool_reports"]
+            }]
+          }
+          NetworkConfiguration = {
+            AwsvpcConfiguration = {
+              Subnets        = [aws_subnet.public_a.id, aws_subnet.public_b.id]
+              SecurityGroups = [aws_security_group.result_updater.id]
+              AssignPublicIp = "ENABLED"
+            }
+          }
+        }
+        Retry = [{
+          ErrorEquals     = ["States.TaskFailed", "States.Timeout", "AmazonECS.Unknown"]
+          IntervalSeconds = 30
+          MaxAttempts     = 3
+          BackoffRate     = 2
+        }]
+        Catch = [{
+          ErrorEquals = ["States.ALL"]
+          ResultPath  = "$.failure"
+          Next        = "NotifyFailure"
+        }]
+        End = true
+      }
+      RunEmailVerificationReminders = {
+        Type           = "Task"
+        Resource       = "arn:aws:states:::ecs:runTask.sync"
+        TimeoutSeconds = 300
+        Parameters = {
+          Cluster        = aws_ecs_cluster.main.arn
+          TaskDefinition = local.result_updater_family
+          LaunchType     = "FARGATE"
+          Overrides = {
+            ContainerOverrides = [{
+              Name    = "result-updater"
+              Command = ["python", "-m", "email_verification_reminders"]
             }]
           }
           NetworkConfiguration = {
@@ -489,6 +531,27 @@ resource "aws_scheduler_schedule" "owner_pool_reports" {
     arn      = aws_sfn_state_machine.result_updater.arn
     role_arn = aws_iam_role.result_updater_scheduler.arn
     input    = jsonencode({ job = "owner_reports" })
+
+    retry_policy {
+      maximum_event_age_in_seconds = 3600
+      maximum_retry_attempts       = 3
+    }
+    dead_letter_config { arn = aws_sqs_queue.result_updater_dlq.arn }
+  }
+}
+
+resource "aws_scheduler_schedule" "email_verification_reminders" {
+  name                         = "runmypool-email-verification-reminders"
+  state                        = var.email_verification_reminders_schedule_enabled ? "ENABLED" : "DISABLED"
+  schedule_expression          = "cron(15 * ? * * *)"
+  schedule_expression_timezone = "America/New_York"
+
+  flexible_time_window { mode = "OFF" }
+
+  target {
+    arn      = aws_sfn_state_machine.result_updater.arn
+    role_arn = aws_iam_role.result_updater_scheduler.arn
+    input    = jsonencode({ job = "email_verification_reminders" })
 
     retry_policy {
       maximum_event_age_in_seconds = 3600

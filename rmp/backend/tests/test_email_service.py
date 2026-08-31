@@ -2,6 +2,7 @@ from unittest.mock import Mock, patch
 
 from email_service import (
     send_email_verification_email,
+    send_email_verification_reminder,
     send_password_reset_email,
     send_pool_invitation_email,
     send_member_weekly_recap,
@@ -23,6 +24,28 @@ def test_email_verification_uses_ses_and_safe_single_use_link(mock_client, monke
     assert request["Destination"] == {"ToAddresses": ["member@example.com"]}
     text = request["Content"]["Simple"]["Body"]["Text"]["Data"]
     assert "verify-email?token=token%2Bwith%2Fsymbols%3D" in text
+    assert "expires in 24 hours" in text
+
+
+@patch("email_service.boto3.client")
+def test_email_verification_reminder_uses_fresh_safe_link(mock_client, monkeypatch):
+    ses = Mock()
+    ses.send_email.return_value = {"MessageId": "reminder-123"}
+    mock_client.return_value = ses
+    monkeypatch.setenv("FRONTEND_URL", "https://runmypool.net")
+
+    message_id = send_email_verification_reminder(
+        "waiting@example.com", "fresh+token="
+    )
+
+    assert message_id == "reminder-123"
+    request = ses.send_email.call_args.kwargs
+    assert request["Destination"] == {"ToAddresses": ["waiting@example.com"]}
+    assert request["Content"]["Simple"]["Subject"]["Data"] == (
+        "Reminder: verify your Run My Pool email"
+    )
+    text = request["Content"]["Simple"]["Body"]["Text"]["Data"]
+    assert "verify-email?token=fresh%2Btoken%3D" in text
     assert "expires in 24 hours" in text
 
 

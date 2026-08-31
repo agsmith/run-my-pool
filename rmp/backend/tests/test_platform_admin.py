@@ -1,7 +1,7 @@
 """RBAC and global visibility tests for the platform administration boundary."""
 
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
@@ -234,6 +234,7 @@ def test_every_platform_endpoint_rejects_non_super_admins(client, db_session):
     token = _register(client, "ordinary@platform.example.com")
     endpoints = (
         "/platform-admin/overview",
+        "/platform-admin/unverified-users",
         "/platform-admin/pools",
         "/platform-admin/entries",
     )
@@ -2095,3 +2096,111 @@ class TestExportPoolEntriesCSV:
         ]  # skip header
         emails = [line.split(",")[0] for line in lines]
         assert emails == sorted(emails)
+
+
+class TestUnverifiedAccounts:
+    def test_super_admin_can_list_token_age_and_reminder_status(
+        self, client, db_session
+    ):
+        admin_token = _register(client, "sa.unverified@example.com")
+        _set_role(
+            db_session, "sa.unverified@example.com", models.UserRole.SUPER_ADMIN
+        )
+        _register(client, "waiting.unverified@example.com")
+        user = db_session.query(models.User).filter_by(
+            email="waiting.unverified@example.com"
+        ).one()
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
+        user.email_verified = False
+        user.created_at = now - timedelta(hours=30)
+        db_session.add(models.EmailVerificationToken(
+            token_digest="expired-unverified-token",
+            user_id=user.id,
+            created_at=now - timedelta(hours=30),
+            expires_at=now - timedelta(hours=6),
+        ))
+        db_session.commit()
+
+        response = client.get(
+            "/platform-admin/unverified-users?search=waiting",
+            headers=_headers(admin_token),
+        )
+
+        assert response.status_code == 200, response.text
+        body = response.json()
+        assert body["total"] == 1
+        assert body["users"][0]["email"] == "waiting.unverified@example.com"
+        assert body["users"][0]["token_status"] == "expired"
+        assert body["users"][0]["automatic_reminder_due"] is True
+        assert body["users"][0]["account_age_seconds"] >= 29 * 60 * 60
+
+    def test_regular_user_cannot_list_or_resend(self, client, db_session):
+        token = _register(client, "member.unverified-admin@example.com")
+        user_id = db_session.query(models.User).filter_by(
+            email="member.unverified-admin@example.com"
+        ).one().id
+        assert client.get(
+            "/platform-admin/unverified-users", headers=_headers(token)
+        ).status_code == 403
+        assert client.post(
+            f"/platform-admin/unverified-users/{user_id}/resend-verification",
+            headers=_headers(token),
+        ).status_code == 403
+
+    def test_super_admin_resend_is_rate_limited(self, client, db_session):
+        admin_token = _register(client, "sa.rate-unverified@example.com")
+        _set_role(
+            db_session, "sa.rate-unverified@example.com", models.UserRole.SUPER_ADMIN
+        )
+        _register(client, "waiting.rate-unverified@example.com")
+        user = db_session.query(models.User).filter_by(
+            email="waiting.rate-unverified@example.com"
+        ).one()
+        user.email_verified = False
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
+        db_session.add(models.EmailVerificationToken(
+            token_digest="recent-unverified-token",
+            user_id=user.id,
+            created_at=now,
+            expires_at=now + timedelta(hours=24),
+        ))
+        db_session.commit()
+
+        response = client.post(
+            f"/platform-admin/unverified-users/{user.id}/resend-verification",
+            headers=_headers(admin_token),
+        )
+        assert response.status_code == 429
+        assert int(response.headers["retry-after"]) >= 1
+
+    def test_super_admin_can_resend_and_action_is_audited(
+        self, client, db_session, monkeypatch
+    ):
+        admin_token = _register(client, "sa.resend-unverified@example.com")
+        _set_role(
+            db_session, "sa.resend-unverified@example.com", models.UserRole.SUPER_ADMIN
+        )
+        _register(client, "waiting.resend-unverified@example.com")
+        user = db_session.query(models.User).filter_by(
+            email="waiting.resend-unverified@example.com"
+        ).one()
+        user.email_verified = False
+        db_session.commit()
+        deliveries = []
+        monkeypatch.setattr(
+            "platform_admin_api._issue_email_verification",
+            lambda db, target: deliveries.append(target.email) or "ses-message-1",
+        )
+
+        response = client.post(
+            f"/platform-admin/unverified-users/{user.id}/resend-verification",
+            headers=_headers(admin_token),
+        )
+
+        assert response.status_code == 200, response.text
+        assert deliveries == ["waiting.resend-unverified@example.com"]
+        audit = db_session.query(models.AuditLog).filter_by(
+            action="ADMIN_RESEND_EMAIL_VERIFICATION"
+        ).one()
+        assert audit.user_id is not None
+        assert "ses-message-1" in audit.details

@@ -127,6 +127,24 @@ class AdminUserDashboardOut(BaseModel):
     users: List[AdminUserOut]
 
 
+class UnverifiedAccountOut(BaseModel):
+    id: str
+    email: EmailStr
+    is_active: bool
+    created_at: Optional[datetime] = None
+    account_age_seconds: int
+    token_created_at: Optional[datetime] = None
+    token_expires_at: Optional[datetime] = None
+    token_age_seconds: Optional[int] = None
+    token_status: Literal["valid", "expired", "missing"]
+    automatic_reminder_due: bool
+
+
+class UnverifiedAccountDashboardOut(BaseModel):
+    total: int
+    users: List[UnverifiedAccountOut]
+
+
 class CheckoutSessionCreate(BaseModel):
     plan: Optional[str] = None
     season: int = Field(ge=2020, le=2100)

@@ -198,6 +198,12 @@ variable "owner_pool_reports_schedule_enabled" {
   default     = true
 }
 
+variable "email_verification_reminders_schedule_enabled" {
+  description = "Send one automatic verification reminder after an account remains unverified for 24 hours"
+  type        = bool
+  default     = true
+}
+
 variable "result_updater_alert_email" {
   description = "Email address that receives result updater failure notifications"
   type        = string

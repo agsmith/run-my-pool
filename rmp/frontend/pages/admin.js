@@ -7,6 +7,15 @@ import { formatAuditTimestamp } from '../utils/auditTime';
 
 const roleLabel = (role) => ({ SUPER_ADMIN: 'Platform admin', POOL_ADMIN: 'Pool admin', USER: 'Member' }[role] || role);
 const apiUrl = (path) => `${process.env.NEXT_PUBLIC_API_URL}${path}`;
+const formatAge = (seconds) => {
+  if (typeof seconds !== 'number') return '—';
+  if (seconds < 60) return 'Less than a minute';
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ${minutes % 60}m`;
+  return `${Math.floor(hours / 24)}d ${hours % 24}h`;
+};
 
 export default function Admin() {
   const { user } = useAuth();
@@ -18,6 +27,7 @@ export default function Admin() {
   const [unassignedOnly, setUnassignedOnly] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
 
   const request = useCallback(async (path, options = {}) => {
     const token = localStorage.getItem('access_token');
@@ -43,6 +53,11 @@ export default function Admin() {
         if (activeTab === 'users' && onlyUnassigned) params.set('unassigned_only', 'true');
         const [nextOverview, users] = await Promise.all([overviewPromise, request(`/users/admin-dashboard?${params}`)]);
         setOverview(nextOverview); setSummary(users); setRecords(users.users || []);
+      } else if (activeTab === 'unverified') {
+        const params = new URLSearchParams({ limit: '500' });
+        if (query.trim()) params.set('search', query.trim());
+        const [nextOverview, dashboard] = await Promise.all([overviewPromise, request(`/platform-admin/unverified-users?${params}`)]);
+        setOverview(nextOverview); setSummary(dashboard); setRecords(dashboard.users || []);
       } else {
         const params = new URLSearchParams({ limit: '500' });
         if (query.trim()) params.set('search', query.trim());
@@ -61,7 +76,10 @@ export default function Admin() {
 
   const updateAccount = async (account, action) => {
     let path; let method = 'PATCH';
-    if (action === 'email') {
+    if (action === 'resend-verification') {
+      if (!window.confirm(`Send a fresh verification email to ${account.email}?`)) return;
+      path = `/platform-admin/unverified-users/${account.id}/resend-verification`; method = 'POST';
+    } else if (action === 'email') {
       const email = window.prompt('Enter the new login email address', account.email)?.trim().toLowerCase();
       if (!email || email === account.email) return;
       path = `/users/${account.id}/email?email=${encodeURIComponent(email)}`;
@@ -77,26 +95,32 @@ export default function Admin() {
       if (!window.confirm(`${active ? 'Reactivate' : 'Deactivate'} ${account.email}?`)) return;
       path = `/users/${account.id}/status?active=${active}`;
     }
-    try { setError(''); await request(path, { method }); await load(tab, search, unassignedOnly); }
+    try {
+      setError(''); setNotice('');
+      await request(path, { method });
+      if (action === 'resend-verification') setNotice(`Verification email sent to ${account.email}.`);
+      await load(tab, search, unassignedOnly);
+    }
     catch (err) { setError(err.message); }
   };
 
-  const title = { users: unassignedOnly ? 'USERS WITHOUT A POOL' : 'ALL USERS', pools: 'ALL POOLS', entries: 'ALL ENTRIES', audit: 'AUDIT LOG', 'super-admins': 'SUPER ADMIN ACCESS' }[tab];
+  const title = { users: unassignedOnly ? 'USERS WITHOUT A POOL' : 'ALL USERS', unverified: 'UNVERIFIED ACCOUNTS', pools: 'ALL POOLS', entries: 'ALL ENTRIES', audit: 'AUDIT LOG', 'super-admins': 'SUPER ADMIN ACCESS' }[tab];
   const stats = [
-    ['Users', overview?.users], ['Pools', overview?.pools], ['Entries', overview?.entries], ['Audit events', overview?.audit_events],
+    ['Users', overview?.users], ['Unverified', overview?.unverified_users], ['Pools', overview?.pools], ['Entries', overview?.entries], ['Audit events', overview?.audit_events],
   ];
 
   return <SuperAdminRoute><main className="platform-admin-page">
     <header className="platform-admin-hero"><p>Platform operations</p><h1>PLATFORM ADMIN</h1><span>Signed in as {user?.email}</span></header>
     {error && <div className="workspace-alert workspace-alert--error" role="alert">{error}</div>}
+    {notice && <div className="workspace-alert workspace-alert--success" role="status">{notice}</div>}
     <section className="platform-admin-stats" aria-label="Platform totals">{stats.map(([label, value]) => <article key={label}><span>{label}</span><strong>{typeof value === 'number' ? value : '—'}</strong></article>)}</section>
     <nav className="platform-admin-tabs" aria-label="Platform administration">
-      {[['users', 'Users'], ['pools', 'Pools'], ['entries', 'Entries'], ['audit', 'Audit Log'], ['super-admins', 'Super Admin Access']].map(([key, label]) =>
+      {[['users', 'Users'], ['unverified', 'Unverified Accounts'], ['pools', 'Pools'], ['entries', 'Entries'], ['audit', 'Audit Log'], ['super-admins', 'Super Admin Access']].map(([key, label]) =>
         <button key={key} type="button" className={tab === key ? 'is-active' : ''} onClick={() => changeTab(key)}>{label}</button>)}
     </nav>
     <section className="platform-admin-directory">
       <div className="platform-admin-directory__head"><div><p>Global administration</p><h2>{title}</h2></div>
-        <form onSubmit={submitSearch} role="search"><label htmlFor="platform-search">Search {tab === 'users' || tab === 'super-admins' ? 'by email' : tab}</label><div><input id="platform-search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search…" /><button type="submit">Search</button></div></form>
+        <form onSubmit={submitSearch} role="search"><label htmlFor="platform-search">Search {tab === 'users' || tab === 'super-admins' || tab === 'unverified' ? 'by email' : tab}</label><div><input id="platform-search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search…" /><button type="submit">Search</button></div></form>
       </div>
       {tab === 'users' && <div className="platform-admin-filters"><button type="button" className={!unassignedOnly ? 'is-active' : ''} onClick={() => setUnassignedOnly(false)}>All users</button><button type="button" className={unassignedOnly ? 'is-active' : ''} onClick={() => setUnassignedOnly(true)}>Not in a pool ({summary?.unassigned ?? 0})</button></div>}
       {tab === 'audit' && <div className="platform-admin-filters"><button type="button" onClick={() => downloadAuditCsv(records, `platform-audit-${new Date().toISOString().slice(0, 10)}.csv`)}>Export CSV</button></div>}
@@ -107,6 +131,7 @@ export default function Admin() {
 
 function AdminTable({ tab, records, currentUser, updateAccount }) {
   if (!records.length) return <div className="platform-admin-state">No records match that search.</div>;
+  if (tab === 'unverified') return <div className="platform-admin-table-wrap"><table className="platform-admin-table"><thead><tr><th>Account</th><th>Account age</th><th>Verification link</th><th>Token age</th><th>Actions</th></tr></thead><tbody>{records.map((account) => <tr key={account.id}><td><strong>{account.email}</strong><br /><small>Created {account.created_at ? new Date(account.created_at).toLocaleString() : '—'}</small></td><td>{formatAge(account.account_age_seconds)}</td><td><span className={`platform-admin-status ${account.token_status === 'valid' ? 'is-active' : 'is-locked'}`}>{account.token_status === 'valid' ? 'Valid' : account.token_status === 'expired' ? 'Expired' : 'No token'}</span>{account.automatic_reminder_due && <><br /><small>Automatic reminder due</small></>}</td><td>{formatAge(account.token_age_seconds)}{account.token_expires_at && <><br /><small>Expires {new Date(account.token_expires_at).toLocaleString()}</small></>}</td><td><div className="platform-admin-actions"><button type="button" disabled={!account.is_active} onClick={() => updateAccount(account, 'resend-verification')}>Resend verification</button></div></td></tr>)}</tbody></table></div>;
   if (tab === 'pools') return <div className="platform-admin-table-wrap"><table className="platform-admin-table"><thead><tr><th>Pool</th><th>Visibility</th><th>Owner</th><th>Members</th><th>Entries</th><th>Actions</th></tr></thead><tbody>{records.map((pool) => <tr key={pool.id}><td><strong>{pool.name}</strong></td><td>{pool.is_private ? 'Private' : 'Public'}</td><td>{pool.owner_email || '—'}</td><td>{pool.member_count}</td><td>{pool.entry_count}</td><td><Link href={`/admin/league/${pool.id}`}>Manage pool</Link></td></tr>)}</tbody></table></div>;
   if (tab === 'entries') return <div className="platform-admin-table-wrap"><table className="platform-admin-table"><thead><tr><th>Entry</th><th>User</th><th>Pool</th><th>Status</th><th>Created</th></tr></thead><tbody>{records.map((entry) => <tr key={entry.id}><td><strong>{entry.name}</strong></td><td>{entry.user_email || '—'}</td><td><Link href={`/admin/league/${entry.pool_id}`}>{entry.pool_name || entry.pool_id}</Link></td><td>{entry.alive ? 'Alive' : 'Eliminated'}</td><td>{entry.created_at ? new Date(entry.created_at).toLocaleDateString() : '—'}</td></tr>)}</tbody></table></div>;
   if (tab === 'audit') return <div className="platform-admin-table-wrap"><table className="platform-admin-table"><thead><tr><th>When (UTC)</th><th>Action</th><th>User</th><th>Details</th></tr></thead><tbody>{records.map((log) => <tr key={log.id}><td>{formatAuditTimestamp(log.created_at)}</td><td><strong>{log.action}</strong></td><td>{log.username || log.user_id || 'System'}</td><td>{log.details}</td></tr>)}</tbody></table></div>;

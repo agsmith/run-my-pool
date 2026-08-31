@@ -109,4 +109,37 @@ describe('platform admin dashboard', () => {
       expect.objectContaining({ method: 'PATCH' }),
     );
   });
+
+  test('shows unverified account token age and resends verification', async () => {
+    const unverified = {
+      total: 1,
+      users: [{
+        id: 'waiting-1', email: 'waiting@example.com', is_active: true,
+        created_at: '2026-08-29T12:00:00Z', account_age_seconds: 108000,
+        token_created_at: '2026-08-29T12:00:00Z', token_expires_at: '2026-08-30T12:00:00Z',
+        token_age_seconds: 108000, token_status: 'expired', automatic_reminder_due: true,
+      }],
+    };
+    global.fetch = jest.fn().mockImplementation(async (url) => ({
+      ok: true,
+      json: async () => url.startsWith('/platform-admin/unverified-users?') ? unverified : summary,
+    }));
+    jest.spyOn(window, 'confirm').mockReturnValue(true);
+    const user = userEvent.setup();
+    render(<Admin />);
+    await screen.findByText('active@example.com');
+
+    await user.click(screen.getByRole('button', { name: 'Unverified Accounts' }));
+    expect(await screen.findByText('waiting@example.com')).toBeInTheDocument();
+    expect(screen.getByText('Expired')).toBeInTheDocument();
+    expect(screen.getByText('Automatic reminder due')).toBeInTheDocument();
+    expect(screen.getAllByText('1d 6h').length).toBeGreaterThanOrEqual(1);
+
+    await user.click(screen.getByRole('button', { name: 'Resend verification' }));
+    expect(fetch).toHaveBeenCalledWith(
+      '/platform-admin/unverified-users/waiting-1/resend-verification',
+      expect.objectContaining({ method: 'POST' }),
+    );
+    expect(await screen.findByText('Verification email sent to waiting@example.com.')).toBeInTheDocument();
+  });
 });

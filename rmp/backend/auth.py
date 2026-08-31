@@ -40,13 +40,18 @@ def _email_verification_required() -> bool:
     return os.getenv("REQUIRE_EMAIL_VERIFICATION", "1").strip().lower() not in {"0", "false", "no"}
 
 
-def _issue_email_verification(db: Session, user: models.User) -> None:
+def _create_email_verification_token(
+    db: Session, user: models.User
+) -> tuple[str, str, datetime]:
     raw_token = secrets.token_urlsafe(32)
     token_digest = hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
     now = datetime.now(timezone.utc).replace(tzinfo=None)
+    # Keep expired tokens as a minimal delivery ledger. The reminder worker uses
+    # that history to send at most one automatic follow-up per account.
     db.query(models.EmailVerificationToken).filter(
         models.EmailVerificationToken.user_id == user.id,
         models.EmailVerificationToken.used_at.is_(None),
+        models.EmailVerificationToken.expires_at > now,
     ).delete(synchronize_session=False)
     db.add(models.EmailVerificationToken(
         token_digest=token_digest,
@@ -55,7 +60,12 @@ def _issue_email_verification(db: Session, user: models.User) -> None:
         expires_at=now + EMAIL_VERIFICATION_TTL,
     ))
     db.commit()
-    send_email_verification_email(user.email, raw_token)
+    return raw_token, token_digest, now
+
+
+def _issue_email_verification(db: Session, user: models.User) -> str:
+    raw_token, _, _ = _create_email_verification_token(db, user)
+    return send_email_verification_email(user.email, raw_token)
 
 def verify_password(plain_password, hashed_password):
     return pwd_context.verify(plain_password, hashed_password)
