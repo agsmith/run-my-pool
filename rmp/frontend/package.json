@@ -37,6 +37,7 @@
     "serwist": "9.5.12"
   },
   "overrides": {
-    "fast-uri": "3.1.5"
+    "fast-uri": "3.1.5",
+    "browserslist": "4.28.8"
   }
 }

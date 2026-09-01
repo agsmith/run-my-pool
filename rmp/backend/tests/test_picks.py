@@ -8,7 +8,7 @@ the db_session fixture — no HTTP-level lock endpoint exists.
 
 import pytest
 import models
-from datetime import datetime
+from datetime import datetime, timedelta
 
 
 # ---------------------------------------------------------------------------
@@ -74,6 +74,8 @@ class TestPickEndpoints:
         """Give generic Survivor CRUD tests a real, current-season slate."""
         if "pickem" in request.node.name:
             return
+        kickoff = datetime(datetime.utcnow().year + 1, 9, 1, 17)
+        season = kickoff.year
         teams = [
             models.Team(id=9801, name="New England Patriots", abbrv="NE"),
             models.Team(id=9802, name="Green Bay Packers", abbrv="GB"),
@@ -84,19 +86,19 @@ class TestPickEndpoints:
         for week in range(1, 19):
             db_session.add(models.Schedule(
                 game_id=980000 + week,
-                season=2026,
+                season=season,
                 week_num=week,
                 home_team_id=9801,
                 away_team_id=9802,
-                start_time=datetime(2026, 9, 1, 17),
+                start_time=kickoff,
             ))
         db_session.add(models.Schedule(
             game_id=980100,
-            season=2026,
+            season=season,
             week_num=1,
             home_team_id=9803,
             away_team_id=9804,
-            start_time=datetime(2026, 9, 1, 20),
+            start_time=kickoff + timedelta(hours=3),
         ))
         db_session.commit()
 
@@ -149,7 +151,7 @@ class TestPickEndpoints:
         db_session.flush()
         game = models.Schedule(
             game_id=99101, week_num=3, home_team_id=ne.id, away_team_id=gb.id,
-            start_time=datetime(2026, 9, 20, 17),
+            start_time=datetime(datetime.utcnow().year + 1, 9, 20, 17),
         )
         db_session.add(game)
         db_session.commit()
@@ -281,9 +283,10 @@ class TestPickEndpoints:
         ]
         db_session.add_all(teams)
         db_session.flush()
+        kickoff = datetime(datetime.utcnow().year + 1, 9, 20, 17)
         db_session.add_all([
-            models.Schedule(game_id=99201, week_num=4, home_team_id=9922, away_team_id=9921, start_time=datetime(2026, 9, 20, 17)),
-            models.Schedule(game_id=99202, week_num=4, home_team_id=9924, away_team_id=9923, start_time=datetime(2026, 9, 20, 20)),
+            models.Schedule(game_id=99201, week_num=4, home_team_id=9922, away_team_id=9921, start_time=kickoff),
+            models.Schedule(game_id=99202, week_num=4, home_team_id=9924, away_team_id=9923, start_time=kickoff + timedelta(hours=3)),
         ])
         db_session.commit()
 
