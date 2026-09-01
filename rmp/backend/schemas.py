@@ -716,3 +716,13 @@ class LeagueOut(BaseModel):
 
     class Config:
         orm_mode = True
+
+
+class SurvivorPlanUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    team: str = Field(min_length=2, max_length=10, pattern=r"^[A-Za-z0-9]+$")
+
+    @field_validator("team")
+    @classmethod
+    def normalize_team(cls, value: str) -> str:
+        return value.upper()

@@ -15,6 +15,7 @@ import platform_admin_api
 import lifecycle_analytics
 import squares
 import pool_reports
+import survivor_planner
 
 router = APIRouter()
 router.include_router(auth.router)
@@ -33,3 +34,4 @@ router.include_router(platform_admin_api.router)
 router.include_router(lifecycle_analytics.router)
 router.include_router(squares.router)
 router.include_router(pool_reports.router)
+router.include_router(survivor_planner.router)

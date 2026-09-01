@@ -183,6 +183,9 @@ class Entry(Base):
     user = relationship("User", back_populates="entries")
     pool = relationship("Pool", back_populates="entries")
     picks = relationship("Pick", back_populates="entry")
+    survivor_plans = relationship(
+        "SurvivorEntryPlan", back_populates="entry", cascade="all, delete-orphan"
+    )
 
 
 class Pick(Base):
@@ -206,6 +209,26 @@ class Pick(Base):
     entry = relationship("Entry", back_populates="picks")
     team_obj = relationship("Team", back_populates="picks")
     game = relationship("Schedule", foreign_keys=[game_id])
+
+
+class SurvivorEntryPlan(Base):
+    """A private, non-official future Survivor selection."""
+
+    __tablename__ = "survivor_entry_plans"
+    __table_args__ = (
+        UniqueConstraint("entry_id", "week_num", name="uq_survivor_entry_plans_entry_week"),
+        UniqueConstraint("entry_id", "team_id", name="uq_survivor_entry_plans_entry_team"),
+        CheckConstraint("week_num >= 1 AND week_num <= 18", name="ck_survivor_entry_plans_week"),
+    )
+    id = Column(String(36), primary_key=True)
+    entry_id = Column(String(36), ForeignKey(ENTRIES_ID_FK, ondelete="CASCADE"), nullable=False, index=True)
+    week_num = Column(Integer, nullable=False)
+    team_id = Column(Integer, ForeignKey(TEAMS_ID_FK), nullable=False)
+    created_at = Column(DateTime, nullable=False)
+    updated_at = Column(DateTime, nullable=False)
+
+    entry = relationship("Entry", back_populates="survivor_plans")
+    team = relationship("Team")
 
 
 class AuditLog(Base):

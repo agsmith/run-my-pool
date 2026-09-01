@@ -1916,6 +1916,45 @@ table {
   .squares-reservations li span { color: #17312b!important; }
   .squares-results { margin-top: .2in; }
 }
+
+/* Private Survivor season planner */
+.planner-main { max-width: 1500px; }
+.planner-controls { display:flex; justify-content:space-between; align-items:end; gap:1rem; margin:1rem 0; padding:1rem; color:#b9c8c8; background:#081419; border:1px solid #31515a; border-radius:10px; }
+.planner-controls label { display:grid; gap:.4rem; color:#f7fbfa; font-weight:800; }
+.planner-controls select { min-width:240px; padding:.65rem; color:#f7fbfa; background:#0c2026; border:1px solid #4b666d; border-radius:6px; }
+.planner-path { display:grid; grid-template-columns:repeat(18,minmax(62px,1fr)); gap:.35rem; margin:1rem 0; overflow-x:auto; padding-bottom:.4rem; }
+.planner-path button { min-width:62px; padding:.55rem .3rem; color:#9eb0b3; background:#071116; border:1px solid #263d43; border-radius:7px; }
+.planner-path button.is-active { border-color:#4adaf5; box-shadow:inset 0 0 0 1px #4adaf5; }
+.planner-path small,.planner-path strong,.planner-path span { display:block; }
+.planner-path strong { margin:.2rem 0; color:#f7fbfa; }
+.planner-path span { font-size:.58rem; }
+.planner-official { display:flex; justify-content:space-between; gap:1rem; align-items:center; margin:1rem 0; padding:1rem; background:#10282f; border:1px solid #4adaf5; border-radius:10px; }
+.planner-official strong,.planner-official span { display:block; color:#f7fbfa; }
+.planner-official span { margin-top:.25rem; color:#9eb0b3; font-size:.8rem; }
+.planner-official button { padding:.7rem 1rem; color:#041218; background:#c6ff37; border:0; border-radius:7px; font-weight:900; }
+.planner-grid-wrap { max-width:100%; overflow:auto; border:1px solid #31515a; border-radius:10px; }
+.planner-grid { width:100%; min-width:1320px; border-collapse:collapse; color:#d8e1df; background:#071116; }
+.planner-grid th { position:sticky; left:0; z-index:1; padding:.5rem; background:#0d2228; }
+.planner-grid thead th { top:0; z-index:2; }
+.planner-grid td { min-width:68px; padding:.18rem; border:1px solid #1d3035; }
+.planner-grid td button { width:100%; min-height:42px; padding:.25rem; color:#b9c8c8; background:#0a171c; border:1px solid transparent; border-radius:5px; font-size:.68rem; }
+.planner-grid td button:not(:disabled):hover { border-color:#4adaf5; }
+.planner-grid td button.is-planned,.planner-team.is-planned { color:#061014; background:#c6ff37; }
+.planner-grid td button.is-official,.planner-team.is-official { color:#061014; background:#4adaf5; }
+.planner-grid td button:disabled { opacity:.45; }
+.planner-grid td button.is-official:disabled,.planner-grid td button.is-planned:disabled { opacity:1; }
+.planner-mobile { display:none; }
+.planner-note,.planner-empty { margin:1rem 0; padding:1rem; color:#9eb0b3; background:#081419; border:1px solid #263d43; border-radius:9px; line-height:1.55; }
+.planner-empty a { color:#c6ff37; font-weight:800; }
+@media (max-width:720px) {
+  .planner-controls,.planner-official { align-items:stretch; flex-direction:column; }
+  .planner-controls select { width:100%; min-width:0; }
+  .planner-grid-wrap { display:none; }
+  .planner-mobile { display:grid; gap:.55rem; }
+  .planner-mobile h2 { color:#f7fbfa; }
+  .planner-team { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:.2rem 1rem; width:100%; padding:.8rem; color:#d8e1df; background:#0a171c; border:1px solid #31515a; border-radius:8px; text-align:left; }
+  .planner-team small { grid-column:1/-1; color:inherit; opacity:.75; }
+}
 .create-pool-format-grid label, .create-pool-access-grid label { display: grid; gap: .4rem; padding: 1.2rem; border: 1px solid #3a5751; border-radius: 12px; cursor: pointer; background: #0b1a17; }
 .create-pool-format-grid label.is-selected, .create-pool-access-grid label.is-selected { border-color: #d7ff3f; box-shadow: 0 0 0 1px #d7ff3f; }
 .create-pool-format-grid input, .create-pool-access-grid input { accent-color: #d7ff3f; justify-self: start; }
