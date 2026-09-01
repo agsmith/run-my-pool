@@ -608,25 +608,18 @@ export default function LeagueEntries() {
     return (
       <button
         key={week}
+        className={`entries-pick-button${hasTeam ? ' entries-pick-button--team' : ''}`}
         onClick={() => isEntryAlive && !isWeekLocked ? handlePickClick(entry, week) : null}
         disabled={!isEntryAlive || isWeekLocked}
         style={{
-          width: '36px',
-          height: '36px',
-          borderRadius: '50%',
           border: `${borderWidth} solid ${borderColor}`,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
           cursor: cursor,
           backgroundColor: backgroundColor,
           color: textColor,
           fontWeight: 500,
-          fontSize: hasTeam ? '10px' : '12px',
           transition: 'all 0.2s ease',
           margin: '2px auto',
           position: 'relative',
-          overflow: 'hidden',
           opacity: opacity
         }}
         title={pick?.result
@@ -638,12 +631,15 @@ export default function LeagueEntries() {
             : (pick?.result ? `${pick.team} - ${pick.result}` : '')}
       >
         {hasTeam ? (
-          <img
-            src={`/nfl/${NFL_TEAMS[pick.team]?.logo}`}
-            alt={`${pick.team} logo`}
-            title={pick.team}
-            className="entries-team-logo entries-team-logo--pick"
-          />
+          <span className="entries-pick-team">
+            <img
+              src={`/nfl/${NFL_TEAMS[pick.team]?.logo}`}
+              alt={`${pick.team} logo`}
+              title={pick.team}
+              className="entries-team-logo entries-team-logo--pick"
+            />
+            <span className="entries-pick-team__abbr">{pick.team}</span>
+          </span>
         ) : (
           week
         )}

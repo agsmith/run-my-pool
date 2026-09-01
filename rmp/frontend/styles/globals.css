@@ -617,11 +617,15 @@ table {
   height:clamp(28px,2.5vw,34px);
 }
 .entries-team-logo--pick {
-  width:clamp(25px,2.2vw,29px);
-  height:clamp(25px,2.2vw,29px);
+  width:34px;
+  height:34px;
   display:block;
-  margin:auto;
+  margin:0;
 }
+.entries-pick-button { display:flex; align-items:center; justify-content:center; width:40px; height:40px; padding:0; overflow:visible; border-radius:50%; font-size:12px; }
+.entries-pick-button--team { width:72px; height:46px; padding:4px 7px; border-radius:10px; }
+.entries-pick-team { display:flex; align-items:center; justify-content:center; gap:5px; min-width:0; }
+.entries-pick-team__abbr { color:currentColor; font-size:11px; font-weight:900; letter-spacing:.02em; line-height:1; }
 .pool-card__team-code { color:#e6edeb!important; }
 .pool-card__pick-count { color:#091012!important; background:var(--lime)!important; border-radius:999px!important; }
 @media (max-width:600px) {
@@ -707,6 +711,7 @@ table {
 .broadcast-v2--entries .entries-name-edit:focus-visible { outline:2px solid var(--lime); outline-offset:2px; }
 .broadcast-v2--entries .entries-name-editor input { color:var(--ink)!important; background:#0b1315!important; border-color:var(--ice)!important; border-radius:0!important; }
 .broadcast-v2--entries .entries-season-table__week > button { color:var(--ice)!important; background:#0b1315!important; border-color:#40555a!important; }
+.broadcast-v2--entries .entries-season-table__week { min-width:82px!important; }
 .broadcast-v2--entries .entries-breakdown { color:var(--ink)!important; background:#10191c!important; border-color:#314449!important; }
 .broadcast-v2--entries .entries-breakdown__row > div { background:#26363a!important; }
 .broadcast-v2--entries .entries-breakdown__row > div > div { background:var(--lime)!important; }
@@ -1948,7 +1953,7 @@ table {
 .planner-grid td button span,.planner-grid td button small { display:block; }
 .planner-grid td button small { margin-top:.18rem; color:inherit; font-size:.58rem; font-weight:900; }
 .planner-grid td button:not(:disabled):hover { border-color:#4adaf5; }
-.planner-grid td button.is-planned,.planner-team.is-planned { color:#061014; background:#c6ff37; text-shadow:none; }
+.planner-grid td button.is-planned,.planner-team.is-planned { color:#160b2e; background:#c4b5fd; border-color:#8b5cf6; text-shadow:none; }
 .planner-grid td button.is-official,.planner-team.is-official { color:#061014; background:#4adaf5; text-shadow:none; }
 .planner-grid td button:disabled { cursor:not-allowed; opacity:.32; filter:grayscale(1); }
 .planner-grid td button.is-official:disabled,.planner-grid td button.is-planned:disabled { opacity:1; }
@@ -1969,7 +1974,8 @@ table {
   .planner-team > b { color:#c6ff37; font-size:.72rem; }
   .planner-team:disabled { cursor:not-allowed; opacity:.38; filter:grayscale(1); }
   .planner-team.is-planned:disabled,.planner-team.is-official:disabled { opacity:1; filter:none; }
-  .planner-team.is-planned > b,.planner-team.is-official > b { color:#061014; }
+  .planner-team.is-planned > b { color:#3b0764; }
+  .planner-team.is-official > b { color:#061014; }
   .planner-team.is-planned .planner-team-label span,.planner-team.is-official .planner-team-label span { color:#17312b; }
   .planner-team-label span { overflow:hidden; color:#9eb0b3; font-size:.68rem; text-overflow:ellipsis; white-space:nowrap; }
   .planner-team small { grid-column:1/-1; color:inherit; opacity:.75; }

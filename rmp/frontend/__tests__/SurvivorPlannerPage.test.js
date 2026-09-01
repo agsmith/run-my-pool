@@ -72,4 +72,17 @@ describe('Survivor season planner', () => {
     expect(buffalo).toHaveClass('has-spread');
     expect(screen.getByText(/Plans are private and never count as picks/)).toHaveClass('planner-note--prominent');
   });
+
+  test('uses distinct favorite, underdog, and planned-pick colors', async () => {
+    const planned = { ...base, entries: [{ ...base.entries[0], plans: [{ id: 'plan-1', week: 1, team: 'BUF', team_id: 1 }] }] };
+    global.fetch = jest.fn((url) => url.includes('/schedule/') ? response(matchups) : response(planned));
+    render(<SurvivorPlannerPage />);
+
+    const buffalo = (await screen.findAllByRole('button', { name: /Buffalo Bills, week 1, planned.*point spread -7/ }))[0];
+    const miami = screen.getAllByRole('button', { name: /Miami Dolphins, week 1.*point spread \+7/ })[0];
+    expect(buffalo.style.getPropertyValue('--planner-heat')).toContain('22, 163, 74');
+    expect(miami.style.getPropertyValue('--planner-heat')).toContain('220, 38, 38');
+    expect(buffalo).toHaveClass('is-planned');
+    expect(screen.getByText(/violet marks planned picks/i)).toBeInTheDocument();
+  });
 });

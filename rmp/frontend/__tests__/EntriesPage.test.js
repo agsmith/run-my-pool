@@ -244,6 +244,9 @@ describe('player entries page', () => {
     expect(logo).toHaveAttribute('src', '/nfl/wsh.svg');
     expect(logo).toHaveAttribute('title', 'WSH');
     expect(logo).toHaveClass('entries-team-logo', 'entries-team-logo--pick');
+    const pickButton = logo.closest('button');
+    expect(pickButton).toHaveClass('entries-pick-button--team');
+    expect(within(pickButton).getByText('WSH')).toHaveClass('entries-pick-team__abbr');
   });
 
   test('canceling a rename does not save the edited name', async () => {
