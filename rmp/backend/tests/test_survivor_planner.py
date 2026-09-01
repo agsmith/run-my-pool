@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from models import Entry, Pick, Pool, PoolGameLine, PoolMember, Schedule, SurvivorEntryPlan, Team, User
+from models import Entry, Pick, Pool, PoolMember, Schedule, SurvivorEntryPlan, Team, User
 
 
 def _register(client, email):
@@ -116,55 +116,3 @@ def test_current_plan_requires_explicit_promotion_through_official_pick_rules(cl
     assert saved.status_code == 200
     early = client.post("/survivor-planner/entries/member-entry/weeks/2/make-official", headers=headers)
     assert early.status_code == 400
-
-
-def test_week_odds_are_member_scoped_and_prefer_frozen_pool_lines(client, db_session, monkeypatch):
-    member_token = _register(client, "planner-odds@example.com")
-    _register(client, "planner-odds-owner@example.com")
-    outsider_token = _register(client, "planner-odds-out@example.com")
-    users = {user.email: user for user in db_session.query(User).all()}
-    _seed(db_session, users["planner-odds-owner@example.com"].id, users["planner-odds@example.com"].id, users["planner-odds-out@example.com"].id)
-    db_session.add(PoolGameLine(
-        pool_id="planner-pool", game_id=9901, week_num=1, favorite_team_id=901,
-        spread=6.5, details="BUF -6.5", provider="Test Book", captured_at=datetime.utcnow(),
-    ))
-    db_session.commit()
-    requested_games = []
-    monkeypatch.setattr("survivor_planner.fetch_week_lines", lambda games: requested_games.extend(games) or {})
-
-    response = client.get(
-        "/survivor-planner/pools/planner-pool/weeks/1/odds",
-        headers={"Authorization": f"Bearer {member_token}"},
-    )
-    assert response.status_code == 200
-    assert requested_games == []  # A locked pool line never gets replaced by a live quote.
-    line = response.json()["games"][0]
-    assert line["official_line"]["favorite_team_id"] == 901
-    assert line["official_line"]["spread"] == 6.5
-    assert line["live_line"] is None
-
-    monkeypatch.setattr("survivor_planner.fetch_week_lines", lambda games: {
-        9902: {
-            "game_id": 9902, "favorite_team_id": 903, "spread": 3.0,
-            "details": "KC -3", "provider": "Live Book", "updated_at": datetime.utcnow(),
-        }
-    })
-    live_response = client.get(
-        "/survivor-planner/pools/planner-pool/weeks/2/odds",
-        headers={"Authorization": f"Bearer {member_token}"},
-    )
-    assert live_response.status_code == 200
-    assert live_response.json()["games"][0]["live_line"]["favorite_team_id"] == 903
-    assert live_response.json()["games"][0]["live_line"]["spread"] == 3.0
-
-    forbidden = client.get(
-        "/survivor-planner/pools/planner-pool/weeks/1/odds",
-        headers={"Authorization": f"Bearer {outsider_token}"},
-    )
-    assert forbidden.status_code == 403
-
-    invalid_week = client.get(
-        "/survivor-planner/pools/planner-pool/weeks/19/odds",
-        headers={"Authorization": f"Bearer {member_token}"},
-    )
-    assert invalid_week.status_code == 422

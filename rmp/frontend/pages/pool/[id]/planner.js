@@ -30,15 +30,15 @@ export default function SurvivorPlannerPage() {
   useEffect(() => {
     if (!id || !data || oddsStatus[week]) return;
     setOddsStatus((current) => ({ ...current, [week]: 'loading' }));
-    fetch(`${apiUrl()}/survivor-planner/pools/${id}/weeks/${week}/odds`, { headers: { Authorization: `Bearer ${localStorage.getItem('access_token')}` } })
+    fetch(`${apiUrl()}/schedule/week/${week}/matchups?pool_id=${id}`)
       .then(async (response) => {
         if (!response.ok) throw new Error((await response.json().catch(() => ({}))).detail || 'Odds are temporarily unavailable.');
         return response.json();
       })
-      .then((odds) => {
+      .then((matchups) => {
         setData((current) => ({ ...current, weeks: current.weeks.map((item) => item.week !== week ? item : {
           ...item,
-          games: item.games.map((game) => ({ ...game, ...(odds.games.find((line) => line.game_id === game.game_id) || {}) })),
+          games: item.games.map((game) => ({ ...game, ...(matchups.find((matchup) => matchup.game_id === game.game_id) || {}) })),
         }) }));
         setOddsStatus((current) => ({ ...current, [week]: 'loaded' }));
       })
