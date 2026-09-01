@@ -1936,20 +1936,20 @@ table {
 .planner-grid-wrap { max-width:100%; overflow:auto; border:1px solid #31515a; border-radius:10px; }
 .planner-grid-heading { display:flex; flex-wrap:wrap; align-items:baseline; gap:.35rem 1rem; margin:1rem 0 .55rem; color:#f7fbfa; }
 .planner-grid-heading span { color:#9eb0b3; font-size:.75rem; }
-.planner-odds-status { color:#4adaf5; font-size:.68rem; }
+.planner-line-status { color:#4adaf5; font-size:.68rem; }
 .planner-grid { width:100%; min-width:1320px; border-collapse:collapse; color:#d8e1df; background:#071116; }
 .planner-grid th { position:sticky; left:0; z-index:1; padding:.5rem; background:#0d2228; }
 .planner-grid thead th { top:0; z-index:2; }
 .planner-grid thead th button { padding:.3rem .4rem; color:#b9c8c8; background:transparent; border:1px solid transparent; border-radius:5px; font-weight:800; }
 .planner-grid thead th button.is-active { color:#061014; background:#4adaf5; }
 .planner-grid td { min-width:68px; padding:.18rem; border:1px solid #1d3035; }
-.planner-grid td button { width:100%; min-height:42px; padding:.25rem; color:#b9c8c8; background:#0a171c; border:1px solid transparent; border-radius:5px; font-size:.68rem; }
-.planner-grid td button.has-odds { background:linear-gradient(var(--planner-heat),var(--planner-heat)),#0a171c; }
+.planner-grid td button { width:100%; min-height:42px; padding:.25rem; color:#eef6f4; background:#0a171c; border:1px solid transparent; border-radius:5px; font-size:.68rem; text-shadow:0 1px 2px rgba(0,0,0,.9); }
+.planner-grid td button.has-spread { background:linear-gradient(var(--planner-heat),var(--planner-heat)),#0a171c; }
 .planner-grid td button span,.planner-grid td button small { display:block; }
 .planner-grid td button small { margin-top:.18rem; color:inherit; font-size:.58rem; font-weight:900; }
 .planner-grid td button:not(:disabled):hover { border-color:#4adaf5; }
-.planner-grid td button.is-planned,.planner-team.is-planned { color:#061014; background:#c6ff37; }
-.planner-grid td button.is-official,.planner-team.is-official { color:#061014; background:#4adaf5; }
+.planner-grid td button.is-planned,.planner-team.is-planned { color:#061014; background:#c6ff37; text-shadow:none; }
+.planner-grid td button.is-official,.planner-team.is-official { color:#061014; background:#4adaf5; text-shadow:none; }
 .planner-grid td button:disabled { cursor:not-allowed; opacity:.32; filter:grayscale(1); }
 .planner-grid td button.is-official:disabled,.planner-grid td button.is-planned:disabled { opacity:1; }
 .planner-team-label { display:flex; align-items:center; gap:.42rem; }
@@ -1965,10 +1965,12 @@ table {
   .planner-mobile { display:grid; gap:.55rem; }
   .planner-week-heading { display:flex; justify-content:space-between; align-items:baseline; gap:1rem; }
   .planner-mobile h2 { color:#f7fbfa; }
-  .planner-team { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:.25rem 1rem; width:100%; padding:.8rem; color:#d8e1df; background:linear-gradient(var(--planner-heat,transparent),var(--planner-heat,transparent)),#0a171c; border:1px solid #31515a; border-radius:8px; text-align:left; }
+  .planner-team { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:.25rem 1rem; width:100%; padding:.8rem; color:#f4f9f8; background:linear-gradient(var(--planner-heat,transparent),var(--planner-heat,transparent)),#0a171c; border:1px solid #526b71; border-radius:8px; text-align:left; text-shadow:0 1px 2px rgba(0,0,0,.9); }
   .planner-team > b { color:#c6ff37; font-size:.72rem; }
   .planner-team:disabled { cursor:not-allowed; opacity:.38; filter:grayscale(1); }
   .planner-team.is-planned:disabled,.planner-team.is-official:disabled { opacity:1; filter:none; }
+  .planner-team.is-planned > b,.planner-team.is-official > b { color:#061014; }
+  .planner-team.is-planned .planner-team-label span,.planner-team.is-official .planner-team-label span { color:#17312b; }
   .planner-team-label span { overflow:hidden; color:#9eb0b3; font-size:.68rem; text-overflow:ellipsis; white-space:nowrap; }
   .planner-team small { grid-column:1/-1; color:inherit; opacity:.75; }
 }

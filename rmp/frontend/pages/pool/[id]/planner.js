@@ -15,24 +15,25 @@ export default function SurvivorPlannerPage() {
   const [week, setWeek] = useState(1);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState('');
-  const [oddsStatus, setOddsStatus] = useState({});
+  const [lineStatus, setLineStatus] = useState({});
 
   const load = async () => {
     const response = await fetch(`${apiUrl()}/survivor-planner/pools/${id}`, { headers: { Authorization: `Bearer ${localStorage.getItem('access_token')}` } });
     if (!response.ok) throw new Error((await response.json().catch(() => ({}))).detail || 'Unable to load the season planner.');
     const body = await response.json();
     setData(body);
+    setLineStatus({});
     setEntryId((current) => current && body.entries.some((entry) => entry.id === current) ? current : body.entries[0]?.id || '');
     setWeek((current) => current === 1 ? body.current_week : current);
   };
 
   useEffect(() => { if (id) load().catch((reason) => setError(reason.message)); }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
-    if (!id || !data || oddsStatus[week]) return;
-    setOddsStatus((current) => ({ ...current, [week]: 'loading' }));
+    if (!id || !data || lineStatus[week]) return;
+    setLineStatus((current) => ({ ...current, [week]: 'loading' }));
     fetch(`${apiUrl()}/schedule/week/${week}/matchups?pool_id=${id}`)
       .then(async (response) => {
-        if (!response.ok) throw new Error((await response.json().catch(() => ({}))).detail || 'Odds are temporarily unavailable.');
+        if (!response.ok) throw new Error((await response.json().catch(() => ({}))).detail || 'Point spreads are temporarily unavailable.');
         return response.json();
       })
       .then((matchups) => {
@@ -40,10 +41,10 @@ export default function SurvivorPlannerPage() {
           ...item,
           games: item.games.map((game) => ({ ...game, ...(matchups.find((matchup) => matchup.game_id === game.game_id) || {}) })),
         }) }));
-        setOddsStatus((current) => ({ ...current, [week]: 'loaded' }));
+        setLineStatus((current) => ({ ...current, [week]: 'loaded' }));
       })
-      .catch(() => setOddsStatus((current) => ({ ...current, [week]: 'unavailable' })));
-  }, [id, data, week, oddsStatus]);
+      .catch(() => setLineStatus((current) => ({ ...current, [week]: 'unavailable' })));
+  }, [id, data, week, lineStatus]);
   const entry = data?.entries.find((item) => item.id === entryId);
   const teams = useMemo(() => {
     const map = new Map();
@@ -60,7 +61,7 @@ export default function SurvivorPlannerPage() {
     if (gameDifference) return gameDifference;
     const unavailableDifference = Number(teamUnavailable(a.id, week)) - Number(teamUnavailable(b.id, week));
     if (unavailableDifference) return unavailableDifference;
-    return (winProbability(gameFor(b.id, week), b.id) ?? -1) - (winProbability(gameFor(a.id, week), a.id) ?? -1) || a.abbrv.localeCompare(b.abbrv);
+    return spreadRank(gameFor(b.id, week), b.id) - spreadRank(gameFor(a.id, week), a.id) || a.abbrv.localeCompare(b.abbrv);
   }), [teams, data, entry, week]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const choose = async (team, number) => {
@@ -98,21 +99,22 @@ export default function SurvivorPlannerPage() {
       {!entry?.alive && <div className="workspace-alert">This entry has been eliminated. Its season path is read-only.</div>}
       <section className="planner-path" aria-label="Season path">{data.weeks.map(({ week: number }) => { const choice = pickFor(number) || planFor(number); return <button key={number} type="button" className={week === number ? 'is-active' : ''} onClick={() => setWeek(number)}><small>W{number}</small><strong>{choice?.team || '—'}</strong><span>{pickFor(number) ? 'Official' : planFor(number) ? 'Planned' : 'Open'}</span></button>; })}</section>
       {planFor(data.current_week) && !pickFor(data.current_week) && <div className="planner-official"><div><strong>{planFor(data.current_week).team} is planned for Week {data.current_week}</strong><span>This is not your official pick yet.</span></div><button type="button" disabled={saving === 'official'} onClick={makeOfficial}>Make official pick</button></div>}
-      <section className="planner-mobile" aria-label={`Week ${week} choices`}><div className="planner-week-heading"><h2>Week {week}</h2><OddsStatus status={oddsStatus[week]} /></div>{rankedTeams.filter((team) => gameFor(team.id, week)).map((team) => <TeamChoice key={team.id} team={team} game={gameFor(team.id, week)} selected={planFor(week)?.team_id === team.id} official={pickFor(week)?.team_id === team.id} disabled={teamUnavailable(team.id, week) || week < data.current_week || Boolean(pickFor(week)) || !entry.alive} onClick={() => choose(team, week)} />)}</section>
-      <div className="planner-grid-heading"><strong>Season win-likelihood heat map</strong><span>Select a week to load its latest available odds. Brighter cells indicate a higher spread-implied win percentage.</span><OddsStatus status={oddsStatus[week]} /></div>
-      <div className="planner-grid-wrap"><table className="planner-grid"><thead><tr><th>Team</th>{data.weeks.map(({ week: number }) => <th key={number}><button type="button" className={week === number ? 'is-active' : ''} onClick={() => setWeek(number)}>W{number}</button></th>)}</tr></thead><tbody>{rankedTeams.map((team) => <tr key={team.id}><th><span className="planner-team-label">{team.logo && <Image src={team.logo} alt="" width={26} height={26} unoptimized />}<abbr title={team.name}>{team.abbrv}</abbr></span></th>{data.weeks.map(({ week: number }) => { const game = gameFor(team.id, number); const selected = planFor(number)?.team_id === team.id; const official = pickFor(number)?.team_id === team.id; const disabled = !game || teamUnavailable(team.id, number) || number < data.current_week || Boolean(pickFor(number)) || !entry.alive; const probability = winProbability(game, team.id); return <td key={number}><button type="button" aria-label={`${team.name}, week ${number}${official ? ', official' : selected ? ', planned' : disabled && game ? ', unavailable' : ''}${probability != null ? `, ${probability}% implied win probability` : ''}`} className={`${official ? 'is-official' : selected ? 'is-planned' : ''} ${probability != null ? 'has-odds' : ''}`} style={heatStyle(probability)} disabled={disabled} onClick={() => choose(team, number)}>{game ? <><span>{opponentLabel(game, team.id)}</span><small>{probability != null ? `${probability}%` : 'Odds N/A'}</small></> : 'BYE'}</button></td>; })}</tr>)}</tbody></table></div>
+      <section className="planner-mobile" aria-label={`Week ${week} choices`}><div className="planner-week-heading"><h2>Week {week}</h2><LineStatus status={lineStatus[week]} /></div>{rankedTeams.filter((team) => gameFor(team.id, week)).map((team) => <TeamChoice key={team.id} team={team} game={gameFor(team.id, week)} selected={planFor(week)?.team_id === team.id} official={pickFor(week)?.team_id === team.id} disabled={teamUnavailable(team.id, week) || week < data.current_week || Boolean(pickFor(week)) || !entry.alive} onClick={() => choose(team, week)} />)}</section>
+      <div className="planner-grid-heading"><strong>Season point spread heat map</strong><span>Select a week to load its current point spreads. Deeper amber marks larger favorites; planned selections are lime and official picks are cyan.</span><LineStatus status={lineStatus[week]} /></div>
+      <div className="planner-grid-wrap"><table className="planner-grid"><thead><tr><th>Team</th>{data.weeks.map(({ week: number }) => <th key={number}><button type="button" className={week === number ? 'is-active' : ''} onClick={() => setWeek(number)}>W{number}</button></th>)}</tr></thead><tbody>{rankedTeams.map((team) => <tr key={team.id}><th><span className="planner-team-label">{team.logo && <Image src={team.logo} alt="" width={26} height={26} unoptimized />}<abbr title={team.name}>{team.abbrv}</abbr></span></th>{data.weeks.map(({ week: number }) => { const game = gameFor(team.id, number); const selected = planFor(number)?.team_id === team.id; const official = pickFor(number)?.team_id === team.id; const disabled = !game || teamUnavailable(team.id, number) || number < data.current_week || Boolean(pickFor(number)) || !entry.alive; const spread = teamSpread(game, team.id); return <td key={number}><button type="button" aria-label={`${team.name}, week ${number}${official ? ', official' : selected ? ', planned' : disabled && game ? ', unavailable' : ''}${spread ? `, point spread ${spread}` : ''}`} className={`${official ? 'is-official' : selected ? 'is-planned' : ''} ${spread ? 'has-spread' : ''}`} style={spreadHeatStyle(game, team.id)} disabled={disabled} onClick={() => choose(team, number)}>{game ? <><span>{opponentLabel(game, team.id)}</span><small>{lineFor(game) ? (game.official_line ? 'Official line' : 'Current line') : 'Line pending'}</small></> : 'BYE'}</button></td>; })}</tr>)}</tbody></table></div>
     </>}
   </main></div></ProtectedRoute>;
 }
 
 function lineFor(game) { return game?.official_line || game?.live_line || null; }
-function winProbability(game, teamId) {
+function spreadRank(game, teamId) {
   const line = lineFor(game);
-  if (!line || line.spread == null || line.favorite_team_id == null) return null;
-  const favoriteChance = 1 / (1 + Math.exp(-0.145 * Math.abs(Number(line.spread))));
-  return Math.round((line.favorite_team_id === teamId ? favoriteChance : 1 - favoriteChance) * 100);
+  if (!line || line.spread == null) return -1000;
+  if (line.favorite_team_id == null) return 0;
+  return (line.favorite_team_id === teamId ? 1 : -1) * Math.abs(Number(line.spread));
 }
-function heatStyle(probability) { if (probability == null) return undefined; const strength = Math.max(0.08, (probability - 35) / 90); return { '--planner-heat': `rgba(198, 255, 55, ${strength.toFixed(2)})` }; }
-function opponentLabel(game, teamId) { const opponent = game.home_team.id === teamId ? game.away_team : game.home_team; const prefix = game.home_team.id === teamId ? 'vs' : '@'; const line = lineFor(game); return `${prefix} ${opponent.abbrv}${line?.spread != null ? ` · ${line.favorite_team_id === teamId ? '-' : '+'}${Math.abs(line.spread)}` : ''}`; }
-function TeamChoice({ team, game, selected, official, disabled, onClick }) { const probability = winProbability(game, team.id); return <button type="button" className={`planner-team ${selected ? 'is-planned' : ''} ${official ? 'is-official' : ''} ${probability != null ? 'has-odds' : ''}`} style={heatStyle(probability)} disabled={disabled} onClick={onClick}><span className="planner-team-label">{team.logo && <Image src={team.logo} alt="" width={26} height={26} unoptimized />}<strong>{team.abbrv}</strong><span>{team.name}</span></span><span>{opponentLabel(game, team.id)}</span><b>{probability != null ? `${probability}% implied win` : 'Odds not available'}</b><small>{official ? 'Official pick' : selected ? 'Planned — tap to clear' : disabled ? 'Unavailable — already used or locked' : 'Tap to plan'}</small></button>; }
-function OddsStatus({ status }) { return <small className="planner-odds-status">{status === 'loading' ? 'Loading latest odds…' : status === 'unavailable' ? 'Latest odds unavailable' : status === 'loaded' ? 'Latest available odds loaded' : ''}</small>; }
+function spreadHeatStyle(game, teamId) { const rank = spreadRank(game, teamId); if (rank === -1000) return undefined; const alpha = rank > 0 ? Math.min(.72, .18 + (rank / 20) * .54) : .1; return { '--planner-heat': rank > 0 ? `rgba(255, 166, 54, ${alpha.toFixed(2)})` : 'rgba(92, 116, 124, .2)' }; }
+function teamSpread(game, teamId) { const line = lineFor(game); if (!line || line.spread == null) return ''; if (line.favorite_team_id == null) return 'PK'; return `${line.favorite_team_id === teamId ? '-' : '+'}${Math.abs(line.spread)}`; }
+function opponentLabel(game, teamId) { const opponent = game.home_team.id === teamId ? game.away_team : game.home_team; const prefix = game.home_team.id === teamId ? 'vs' : '@'; const spread = teamSpread(game, teamId); return `${prefix} ${opponent.abbrv}${spread ? ` · ${spread}` : ''}`; }
+function TeamChoice({ team, game, selected, official, disabled, onClick }) { const spread = teamSpread(game, team.id); return <button type="button" className={`planner-team ${selected ? 'is-planned' : ''} ${official ? 'is-official' : ''} ${spread ? 'has-spread' : ''}`} style={spreadHeatStyle(game, team.id)} disabled={disabled} onClick={onClick}><span className="planner-team-label">{team.logo && <Image src={team.logo} alt="" width={26} height={26} unoptimized />}<strong>{team.abbrv}</strong><span>{team.name}</span></span><span>{opponentLabel(game, team.id)}</span><b>{spread ? `Point spread ${spread}` : 'Line pending'}</b><small>{official ? 'Official pick' : selected ? 'Planned — tap to clear' : disabled ? 'Unavailable — already used or locked' : 'Tap to plan'}</small></button>; }
+function LineStatus({ status }) { return <small className="planner-line-status">{status === 'loading' ? 'Loading point spreads…' : status === 'unavailable' ? 'Point spreads unavailable' : status === 'loaded' ? 'Current point spreads loaded' : ''}</small>; }
