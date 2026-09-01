@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session, joinedload
 from admin import is_user_locked_in_pool
 from deps import get_current_user, get_db
 from models import Entry, Pick, Pool, PoolGameLine, SurvivorEntryPlan, Team
+from odds_service import fetch_week_lines
 from picks import _check_pick_lock, _validate_survivor_team, create_pick
 from pool_access import is_pool_participant
 from schedule import current_season_games, current_season_week, utc_isoformat
@@ -62,6 +63,30 @@ def _team_json(team: Team):
     return {"id": team.id, "name": team.name, "abbrv": team.abbrv, "logo": team.logo}
 
 
+def _line_json(line):
+    if not line:
+        return None
+    return {
+        "favorite_team_id": line.favorite_team_id,
+        "spread": line.spread,
+        "details": line.details,
+        "provider": line.provider,
+        "captured_at": utc_isoformat(line.captured_at),
+    }
+
+
+def _live_line_json(line):
+    if not line:
+        return None
+    return {
+        "favorite_team_id": line.get("favorite_team_id"),
+        "spread": line.get("spread"),
+        "details": line.get("details"),
+        "provider": line.get("provider"),
+        "updated_at": utc_isoformat(line.get("updated_at")),
+    }
+
+
 @router.get("/pools/{pool_id}")
 def get_planner(pool_id: str, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     pool = _pool(db, pool_id)
@@ -88,13 +113,51 @@ def get_planner(pool_id: str, db: Session = Depends(get_db), current_user=Depend
             "game_id": game.game_id, "start_time": utc_isoformat(game.start_time),
             "home_team": _team_json(game.home_team), "away_team": _team_json(game.away_team),
             "winning_team_id": game.winning_team_id,
-            "official_line": ({"favorite_team_id": line.favorite_team_id, "spread": line.spread} if line else None),
+            "official_line": _line_json(line),
         })
     return {
         "pool": {"id": pool.id, "name": pool.name, "pool_type": pool.pool_type, "survivor_objective": pool.survivor_objective},
         "current_week": current_season_week(db),
         "entries": [{"id": entry.id, "name": entry.name, "alive": entry.alive, "picks": picks_by_entry[entry.id], "plans": plans_by_entry[entry.id]} for entry in entries],
         "weeks": [{"week": week, "games": weeks[week]} for week in range(1, 19)],
+    }
+
+
+@router.get("/pools/{pool_id}/weeks/{week_num}/odds")
+def get_planner_week_odds(
+    pool_id: str,
+    week_num: int,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    """Return one week's lines without exposing another member's strategy."""
+    _pool(db, pool_id)
+    if not is_pool_participant(db, pool_id, current_user.id):
+        raise HTTPException(status_code=403, detail="Pool membership required")
+    if not 1 <= week_num <= 18:
+        raise HTTPException(status_code=422, detail="Week must be between 1 and 18")
+
+    games = current_season_games(db, week_num)
+    frozen = {
+        line.game_id: line
+        for line in db.query(PoolGameLine).filter(
+            PoolGameLine.pool_id == pool_id,
+            PoolGameLine.week_num == week_num,
+        )
+    }
+    # Frozen lines are authoritative after lock. Only ask the provider for games
+    # that do not already have a pool-specific snapshot.
+    live = fetch_week_lines([game for game in games if game.game_id not in frozen])
+    return {
+        "week": week_num,
+        "games": [
+            {
+                "game_id": game.game_id,
+                "official_line": _line_json(frozen.get(game.game_id)),
+                "live_line": _live_line_json(live.get(game.game_id)),
+            }
+            for game in games
+        ],
     }
 
 
