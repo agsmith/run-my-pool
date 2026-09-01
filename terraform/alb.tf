@@ -252,7 +252,7 @@ resource "aws_lb_listener_rule" "backend_api_4" {
 
   condition {
     path_pattern {
-      values = ["/billing/*", "/platform-admin/*", "/squares/*"]
+      values = ["/billing/*", "/platform-admin/*", "/squares/*", "/survivor-planner/*"]
     }
   }
 
