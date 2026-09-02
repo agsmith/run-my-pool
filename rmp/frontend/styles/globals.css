@@ -1956,6 +1956,7 @@ table {
 .planner-grid td button.is-planned,.planner-team.is-planned { color:#160b2e; background:#c4b5fd; border-color:#8b5cf6; text-shadow:none; }
 .planner-grid td button.is-official,.planner-team.is-official { color:#061014; background:#4adaf5; text-shadow:none; }
 .planner-grid td button:disabled { cursor:not-allowed; opacity:.32; filter:grayscale(1); }
+.planner-grid td button.is-used:disabled { opacity:.68; filter:none; border-color:rgba(255,255,255,.32); border-style:dashed; }
 .planner-grid td button.is-official:disabled,.planner-grid td button.is-planned:disabled { opacity:1; }
 .planner-team-label { display:flex; align-items:center; gap:.42rem; }
 .planner-team-label img { width:26px; height:26px; object-fit:contain; filter:drop-shadow(0 1px 2px rgba(0,0,0,.65)); }

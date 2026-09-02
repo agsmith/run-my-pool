@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import SurvivorPlannerPage from '../pages/pool/[id]/planner';
 
@@ -61,15 +61,17 @@ describe('Survivor season planner', () => {
     screen.getAllByRole('button', { name: /Buffalo Bills, week 1/ }).forEach((button) => expect(button).toBeDisabled());
   });
 
-  test('ranks available teams by point spread and greys used teams', async () => {
+  test('keeps used teams ranked by point spread while making them unselectable', async () => {
     const used = { ...base, entries: [{ ...base.entries[0], picks: [{ id: 'pick-2', week: 2, team: 'BUF', team_id: 1 }] }] };
     global.fetch = jest.fn((url) => url.includes('/schedule/') ? response(matchups) : response(used));
     render(<SurvivorPlannerPage />);
 
     expect(await screen.findByText('Point spread -7')).toBeInTheDocument();
-    const buffalo = screen.getAllByRole('button', { name: /Buffalo Bills, week 1.*unavailable.*point spread -7/ })[0];
+    const buffalo = within(screen.getByRole('table')).getByRole('button', { name: /Buffalo Bills, week 1.*unavailable.*point spread -7/ });
     expect(buffalo).toBeDisabled();
-    expect(buffalo).toHaveClass('has-spread');
+    expect(buffalo).toHaveClass('has-spread', 'is-used');
+    const weeklyChoices = within(screen.getByRole('region', { name: 'Week 1 choices' })).getAllByRole('button');
+    expect(weeklyChoices[0]).toHaveAccessibleName(/Buffalo Bills/);
     expect(screen.getByText(/Plans are private and never count as picks/)).toHaveClass('planner-note--prominent');
   });
 
