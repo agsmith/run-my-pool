@@ -87,7 +87,7 @@ def test_pool_invitation_uses_continuation_link_without_private_code(mock_client
     subject = request["Content"]["Simple"]["Subject"]["Data"]
     assert subject == "You're invited to Office Survivor on Run My Pool"
     text = request["Content"]["Simple"]["Body"]["Text"]["Data"]
-    assert "login?next=%2Fleagues%3Finvite%3Dpool-1" in text
+    assert "https://runmypool.net/join/pool-1" in text
     assert "Ask the commissioner for the join code separately" in text
     assert "huddle" not in text
 

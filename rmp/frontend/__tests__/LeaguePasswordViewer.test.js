@@ -56,7 +56,7 @@ describe('LeaguePasswordViewer', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Copy invite link' }));
 
     await waitFor(() => expect(writeText).toHaveBeenCalledWith(
-      expect.stringMatching(/\/leagues\?invite=private-pool$/),
+      'http://localhost/join/private-pool',
     ));
     expect(await screen.findByRole('status')).toHaveTextContent('Send it with the pool password');
     expect(fetch).not.toHaveBeenCalled();

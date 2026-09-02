@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { createPoolPrintable, loadPrintableLogo, PRINT_FORMATS } from '../utils/poolQrPrintables';
+import { buildPoolJoinUrl } from '../utils/poolJoinUrl';
 
 export default function PoolQrPrintables({ pool }) {
   const [format, setFormat] = useState('letter');
@@ -9,7 +10,7 @@ export default function PoolQrPrintables({ pool }) {
   const [message, setMessage] = useState('');
   const [busyAction, setBusyAction] = useState('');
   const inviteUrl = useMemo(() => (
-    typeof window === 'undefined' ? '' : `${window.location.origin}/join/${encodeURIComponent(pool.id)}`
+    buildPoolJoinUrl(pool.id, typeof window === 'undefined' ? '' : window.location.origin)
   ), [pool.id]);
 
   useEffect(() => {

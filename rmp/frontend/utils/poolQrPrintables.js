@@ -1,3 +1,5 @@
+import { buildPoolJoinUrl } from './poolJoinUrl';
+
 export const PRINT_FORMATS = {
   letter: {
     label: '8.5 x 11 flyer',
@@ -182,7 +184,7 @@ function drawQrOnly(doc, { qrDataUrl }) {
 
 export async function createPoolPrintable({ format, poolName, poolId, isPrivate, joinCode, logo, origin }) {
   if (!PRINT_FORMATS[format]) throw new Error('Choose a supported print size.');
-  const inviteUrl = `${origin.replace(/\/$/, '')}/join/${encodeURIComponent(poolId)}`;
+  const inviteUrl = buildPoolJoinUrl(poolId, origin);
   const [pdfModule, qrModule] = await Promise.all([import('jspdf'), import('qrcode')]);
   const { jsPDF } = pdfModule;
   const QRCode = qrModule.default || qrModule;

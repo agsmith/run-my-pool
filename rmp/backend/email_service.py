@@ -3,7 +3,7 @@
 import html
 import logging
 import os
-from urllib.parse import urlencode
+from urllib.parse import quote, urlencode
 
 import boto3
 
@@ -138,8 +138,7 @@ def send_pool_invitation_email(recipient: str, pool_id: str, pool_name: str, is_
     frontend_url = os.getenv("FRONTEND_URL", "https://runmypool.net").rstrip("/")
     sender = os.getenv("EMAIL_FROM", "Run My Pool Accounts <accounts@runmypool.net>")
     reply_to = os.getenv("EMAIL_REPLY_TO", "support@runmypool.net")
-    next_path = f"/leagues?{urlencode({'invite': pool_id})}"
-    invite_url = f"{frontend_url}/login?{urlencode({'next': next_path})}"
+    invite_url = f"{frontend_url}/join/{quote(str(pool_id), safe='')}"
     safe_url = html.escape(invite_url, quote=True)
     plain_name = " ".join(pool_name.split())
     safe_name = html.escape(plain_name, quote=True)

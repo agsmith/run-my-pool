@@ -23,7 +23,7 @@ describe('PoolLaunchChecklist', () => {
     expect(screen.getByText(/1 of 4 launch steps complete/i)).toBeInTheDocument();
     expect(screen.getByText(/both this link and your pool join code/i)).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: /copy invite link/i }));
-    expect(writeText).toHaveBeenCalledWith('http://localhost/leagues?invite=pool-1');
+    expect(writeText).toHaveBeenCalledWith('http://localhost/join/pool-1');
     expect(await screen.findByText(/send the pool join code separately/i)).toBeInTheDocument();
     expect(onInviteCopied).toHaveBeenCalledTimes(1);
 

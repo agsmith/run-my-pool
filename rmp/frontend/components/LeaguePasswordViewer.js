@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { buildPoolJoinUrl } from '../utils/poolJoinUrl';
 
 export default function LeaguePasswordViewer({ poolId, isPrivate, passwordChanged = 0 }) {
   const [password, setPassword] = useState('');
@@ -16,9 +17,10 @@ export default function LeaguePasswordViewer({ poolId, isPrivate, passwordChange
 
   if (!isPrivate) return null;
 
-  const inviteUrl = typeof window === 'undefined'
-    ? ''
-    : `${window.location.origin}/leagues?invite=${encodeURIComponent(poolId)}`;
+  const inviteUrl = buildPoolJoinUrl(
+    poolId,
+    typeof window === 'undefined' ? '' : window.location.origin,
+  );
 
   const copyInviteLink = async () => {
     try {

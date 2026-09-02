@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { buildPoolJoinUrl } from '../utils/poolJoinUrl';
 
 export default function PoolLaunchChecklist({ pool, onClose, onNavigate, onInviteCopied, onSendInvite }) {
   const [completed, setCompleted] = useState(() => new Set(['created']));
@@ -7,7 +8,7 @@ export default function PoolLaunchChecklist({ pool, onClose, onNavigate, onInvit
   const [emailStatus, setEmailStatus] = useState('');
   const [sendingEmail, setSendingEmail] = useState(false);
   const inviteUrl = useMemo(
-    () => (typeof window === 'undefined' ? '' : `${window.location.origin}/leagues?invite=${encodeURIComponent(pool.id)}`),
+    () => buildPoolJoinUrl(pool.id, typeof window === 'undefined' ? '' : window.location.origin),
     [pool.id],
   );
   const ownerManagedSquares = pool.pool_type === 'squares' && pool.plan === 'free';
