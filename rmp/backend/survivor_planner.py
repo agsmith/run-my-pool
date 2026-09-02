@@ -142,13 +142,56 @@ def save_plan(entry_id: str, week_num: int, payload: SurvivorPlanUpdate, db: Ses
 @router.delete("/entries/{entry_id}/weeks/{week_num}")
 def delete_plan(entry_id: str, week_num: int, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     entry = _owned_entry(db, entry_id, current_user.id)
-    _assert_mutable(db, entry, week_num)
-    plan = db.query(SurvivorEntryPlan).filter(SurvivorEntryPlan.entry_id == entry.id, SurvivorEntryPlan.week_num == week_num).first()
+    plan = db.query(SurvivorEntryPlan).options(
+        joinedload(SurvivorEntryPlan.team)
+    ).filter(
+        SurvivorEntryPlan.entry_id == entry.id,
+        SurvivorEntryPlan.week_num == week_num,
+    ).first()
     if not plan:
         raise HTTPException(status_code=404, detail="Plan not found")
+    _assert_mutable(db, entry, week_num, plan.team)
     db.delete(plan)
     db.commit()
     return {"message": "Plan removed"}
+
+
+@router.delete("/entries/{entry_id}/plans")
+def clear_plans(
+    entry_id: str,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    """Clear only the owner's mutable plans, preserving official and locked picks."""
+    entry = _owned_entry(db, entry_id, current_user.id)
+    current_week = current_season_week(db)
+    _assert_mutable(db, entry, current_week)
+    pool = db.query(Pool).filter(Pool.id == entry.pool_id).first()
+    plans = db.query(SurvivorEntryPlan).options(
+        joinedload(SurvivorEntryPlan.team)
+    ).filter(SurvivorEntryPlan.entry_id == entry.id).all()
+    cleared = 0
+    retained = 0
+    for plan in plans:
+        if plan.week_num < current_week:
+            retained += 1
+            continue
+        if plan.week_num == current_week:
+            try:
+                _check_pick_lock(db, pool, plan.team.abbrv, plan.week_num)
+            except HTTPException as exc:
+                if exc.status_code != 423:
+                    raise
+                retained += 1
+                continue
+        db.delete(plan)
+        cleared += 1
+    db.commit()
+    return {
+        "message": "Unlocked plans cleared",
+        "cleared": cleared,
+        "retained": retained,
+    }
 
 
 @router.post("/entries/{entry_id}/weeks/{week_num}/make-official")

@@ -1929,6 +1929,9 @@ table {
 .planner-controls { display:flex; justify-content:space-between; align-items:end; gap:1rem; margin:1rem 0; padding:1rem; color:#b9c8c8; background:#081419; border:1px solid #31515a; border-radius:10px; }
 .planner-controls label { display:grid; gap:.4rem; color:#f7fbfa; font-weight:800; }
 .planner-controls select { min-width:240px; padding:.65rem; color:#f7fbfa; background:#0c2026; border:1px solid #4b666d; border-radius:6px; }
+.planner-controls__actions { display:flex; align-items:center; gap:.8rem; }
+.planner-controls__actions button { padding:.55rem .85rem; color:#ffd7d7; background:#35171b; border:1px solid #b95762; border-radius:6px; font-weight:800; }
+.planner-controls__actions button:disabled { opacity:.45; cursor:not-allowed; }
 .planner-note--prominent { margin-top:.25rem; color:#e8f3f1; border-color:#4adaf5; border-left:4px solid #c6ff37; background:linear-gradient(90deg,#10282f,#081419); }
 .planner-path { display:grid; grid-template-columns:repeat(18,minmax(62px,1fr)); gap:.35rem; margin:1rem 0; overflow-x:auto; padding-bottom:.4rem; }
 .planner-path button { min-width:62px; padding:.55rem .3rem; color:#9eb0b3; background:#071116; border:1px solid #263d43; border-radius:7px; }
@@ -1969,6 +1972,7 @@ table {
 @media (max-width:720px) {
   .planner-controls,.planner-official { align-items:stretch; flex-direction:column; }
   .planner-controls select { width:100%; min-width:0; }
+  .planner-controls__actions { justify-content:space-between; }
   .planner-grid-wrap { display:none; }
   .planner-mobile { display:grid; gap:.55rem; }
   .planner-week-heading { display:flex; justify-content:space-between; align-items:baseline; gap:1rem; }

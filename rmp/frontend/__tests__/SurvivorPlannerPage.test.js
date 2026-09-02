@@ -90,4 +90,32 @@ describe('Survivor season planner', () => {
     expect(buffalo).toHaveClass('is-planned');
     expect(screen.getByText(/violet marks planned picks/i)).toBeInTheDocument();
   });
+
+  test('clears unlocked plans for only the selected entry after confirmation', async () => {
+    let state = { ...base, entries: [{ ...base.entries[0], plans: [
+      { id: 'plan-1', week: 1, team: 'BUF', team_id: 1 },
+      { id: 'plan-2', week: 2, team: 'MIA', team_id: 2 },
+    ] }] };
+    global.fetch = jest.fn((url, options = {}) => {
+      if (url.includes('/schedule/')) return response(matchups);
+      if (options.method === 'DELETE' && url.endsWith('/plans')) {
+        state = { ...state, entries: [{ ...state.entries[0], plans: [] }] };
+        return response({ message: 'Unlocked plans cleared', cleared: 2, retained: 0 });
+      }
+      return response(JSON.parse(JSON.stringify(state)));
+    });
+    jest.spyOn(window, 'confirm').mockReturnValue(true);
+    const user = userEvent.setup();
+    render(<SurvivorPlannerPage />);
+
+    await user.click(await screen.findByRole('button', { name: 'Reset' }));
+
+    expect(window.confirm).toHaveBeenCalledWith(expect.stringMatching(/My Path.*Official picks and locked selections will remain/));
+    await waitFor(() => expect(fetch).toHaveBeenCalledWith(
+      '/survivor-planner/entries/entry-1/plans',
+      expect.objectContaining({ method: 'DELETE' }),
+    ));
+    expect(await screen.findByRole('status')).toHaveTextContent('2 unlocked planned selections cleared');
+    expect(screen.getByRole('button', { name: 'Reset' })).toBeDisabled();
+  });
 });

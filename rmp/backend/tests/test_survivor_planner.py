@@ -1,6 +1,7 @@
 import uuid
 from datetime import datetime
 
+from fastapi import HTTPException
 from models import Entry, Pick, Pool, PoolMember, Schedule, SurvivorEntryPlan, Team, User
 
 
@@ -116,3 +117,62 @@ def test_current_plan_requires_explicit_promotion_through_official_pick_rules(cl
     assert saved.status_code == 200
     early = client.post("/survivor-planner/entries/member-entry/weeks/2/make-official", headers=headers)
     assert early.status_code == 400
+
+
+def test_clear_preserves_locked_and_official_picks(
+    client, db_session, monkeypatch
+):
+    member_token = _register(client, "planner-clear@example.com")
+    owner_token = _register(client, "planner-clear-owner@example.com")
+    outsider_token = _register(client, "planner-clear-out@example.com")
+    users = {user.email: user for user in db_session.query(User).all()}
+    _seed(
+        db_session,
+        users["planner-clear-owner@example.com"].id,
+        users["planner-clear@example.com"].id,
+        users["planner-clear-out@example.com"].id,
+    )
+    now = datetime.utcnow()
+    db_session.add_all([
+        SurvivorEntryPlan(
+            id="locked-plan", entry_id="member-entry", week_num=1,
+            team_id=901, created_at=now, updated_at=now,
+        ),
+        SurvivorEntryPlan(
+            id="future-plan", entry_id="member-entry", week_num=2,
+            team_id=903, created_at=now, updated_at=now,
+        ),
+        Pick(
+            id="official-pick", entry_id="member-entry", week=1,
+            team="BUF", team_id=901, locked=True,
+        ),
+    ])
+    db_session.commit()
+    monkeypatch.setattr("survivor_planner.current_season_week", lambda db: 1)
+
+    def locked(db, pool, team, week):
+        if week == 1:
+            raise HTTPException(status_code=423, detail="locked")
+
+    monkeypatch.setattr("survivor_planner._check_pick_lock", locked)
+    headers = {"Authorization": f"Bearer {member_token}"}
+
+    response = client.delete(
+        "/survivor-planner/entries/member-entry/plans", headers=headers
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "message": "Unlocked plans cleared", "cleared": 1, "retained": 1
+    }
+    assert [plan.id for plan in db_session.query(SurvivorEntryPlan).all()] == [
+        "locked-plan"
+    ]
+    assert db_session.query(Pick).filter(Pick.id == "official-pick").one()
+
+    # Pool ownership never bypasses private entry ownership.
+    response = client.delete(
+        "/survivor-planner/entries/member-entry/plans",
+        headers={"Authorization": f"Bearer {owner_token}"},
+    )
+    assert response.status_code == 404

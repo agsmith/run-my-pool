@@ -14,6 +14,7 @@ export default function SurvivorPlannerPage() {
   const [entryId, setEntryId] = useState('');
   const [week, setWeek] = useState(1);
   const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
   const [saving, setSaving] = useState('');
   const [lineStatus, setLineStatus] = useState({});
   const [, startSpreadTransition] = useTransition();
@@ -106,14 +107,27 @@ export default function SurvivorPlannerPage() {
     } catch (reason) { setError(reason.message); } finally { setSaving(''); }
   };
 
+  const clearPlans = async () => {
+    if (!entry || !window.confirm(`Reset all unlocked planned selections for ${entry.name}? Official picks and locked selections will remain.`)) return;
+    setSaving('clear'); setError(''); setMessage('');
+    try {
+      const response = await fetch(`${apiUrl()}/survivor-planner/entries/${entry.id}/plans`, { method: 'DELETE', headers: { Authorization: `Bearer ${localStorage.getItem('access_token')}` } });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body.detail || 'Unable to clear this plan.');
+      setMessage(body.cleared ? `${body.cleared} unlocked planned selection${body.cleared === 1 ? '' : 's'} cleared. Official and locked picks were not changed.` : 'No unlocked planned selections were available to clear.');
+      await load();
+    } catch (reason) { setError(reason.message); } finally { setSaving(''); }
+  };
+
   if (!router.isReady) return null;
   return <ProtectedRoute><div className="product-page planner-page"><main className="product-main planner-main">
     {data && <PoolWorkspaceNav poolId={id} poolName={data.pool.name} poolType="survivor" active="planner" />}
     <WorkspaceHeader eyebrow="Private strategy workspace" title="Survivor Season Planner" description="Map a season path without changing your official picks. Your plans are visible only to you." />
     <p className="planner-note planner-note--prominent">Plans are private and never count as picks until you explicitly make the current week official. Official picks remain governed by server-side pool and kickoff locks.</p>
     {error && <div className="workspace-alert workspace-alert--error" role="alert">{error}</div>}
+    {message && <div className="workspace-alert" role="status">{message}</div>}
     {!data ? <p>Loading planner…</p> : data.entries.length === 0 ? <div className="planner-empty">Create an entry before planning your season. <Link href={`/pool/${id}/entries/create`}>Create entry</Link></div> : <>
-      <div className="planner-controls"><label>Entry<select value={entryId} onChange={(event) => setEntryId(event.target.value)}>{data.entries.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><span>Week {data.current_week} is current</span></div>
+      <div className="planner-controls"><label>Entry<select value={entryId} onChange={(event) => { setEntryId(event.target.value); setMessage(''); }}>{data.entries.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><div className="planner-controls__actions"><span>Week {data.current_week} is current</span><button type="button" onClick={clearPlans} disabled={!entry?.plans.length || saving === 'clear'}>Reset</button></div></div>
       {!entry?.alive && <div className="workspace-alert">This entry has been eliminated. Its season path is read-only.</div>}
       <section className="planner-path" aria-label="Season path">{data.weeks.map(({ week: number }) => { const choice = pickFor(number) || planFor(number); return <button key={number} type="button" className={week === number ? 'is-active' : ''} onClick={() => setWeek(number)}><small>W{number}</small><strong>{choice?.team || '—'}</strong><span>{pickFor(number) ? 'Official' : planFor(number) ? 'Planned' : 'Open'}</span></button>; })}</section>
       {planFor(data.current_week) && !pickFor(data.current_week) && <div className="planner-official"><div><strong>{planFor(data.current_week).team} is planned for Week {data.current_week}</strong><span>This is not your official pick yet.</span></div><button type="button" disabled={saving === 'official'} onClick={makeOfficial}>Make official pick</button></div>}
