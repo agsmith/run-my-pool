@@ -1,9 +1,13 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from types import SimpleNamespace
 
 import httpx
 import models
-from odds_service import fetch_game_line, freeze_week_lines
+from odds_service import (
+    fetch_game_line,
+    freeze_week_lines,
+    get_cached_week_lines,
+)
 
 
 class FakeResponse:
@@ -74,6 +78,76 @@ def test_freeze_week_lines_persists_pool_snapshot(db_session, monkeypatch):
     assert snapshot.spread == 6.5
     assert snapshot.favorite_team_id == 81
     assert snapshot.captured_at == datetime(2026, 9, 6, 16)
+
+
+def test_week_lines_are_shared_then_refreshed(db_session, monkeypatch):
+    home = models.Team(id=83, name="Cache Home", abbrv="CHM")
+    away = models.Team(id=84, name="Cache Away", abbrv="CAW")
+    game = models.Schedule(
+        game_id=7006,
+        week_num=1,
+        home_team_id=83,
+        away_team_id=84,
+        start_time=datetime(2026, 9, 10),
+    )
+    db_session.add_all([home, away, game])
+    db_session.commit()
+    calls = []
+
+    def fetch(games):
+        calls.append([item.game_id for item in games])
+        spread = 3.5 if len(calls) == 1 else 6.0
+        return {
+            7006: {
+                "game_id": 7006,
+                "favorite_team_id": 83,
+                "spread": spread,
+                "details": f"CHM -{spread}",
+                "provider": "ESPN",
+            }
+        }
+
+    monkeypatch.setattr("odds_service.fetch_week_lines", fetch)
+    started = datetime(2026, 9, 1, 12, 0)
+
+    first = get_cached_week_lines(db_session, [game], now=started)
+    cached = get_cached_week_lines(
+        db_session, [game], now=started + timedelta(minutes=29, seconds=59)
+    )
+    refreshed = get_cached_week_lines(
+        db_session, [game], now=started + timedelta(minutes=30)
+    )
+
+    assert first[7006]["spread"] == 3.5
+    assert cached[7006]["spread"] == 3.5
+    assert refreshed[7006]["spread"] == 6.0
+    assert calls == [[7006], [7006]]
+
+
+def test_missing_line_is_negative_cached(db_session, monkeypatch):
+    home = models.Team(id=85, name="Pending Home", abbrv="PHM")
+    away = models.Team(id=86, name="Pending Away", abbrv="PAW")
+    game = models.Schedule(
+        game_id=7007,
+        week_num=1,
+        home_team_id=85,
+        away_team_id=86,
+        start_time=datetime(2026, 9, 11),
+    )
+    db_session.add_all([home, away, game])
+    db_session.commit()
+    calls = []
+    monkeypatch.setattr(
+        "odds_service.fetch_week_lines",
+        lambda games: calls.append([item.game_id for item in games]) or {},
+    )
+    started = datetime(2026, 9, 1, 12, 0)
+
+    assert get_cached_week_lines(db_session, [game], now=started) == {}
+    assert get_cached_week_lines(
+        db_session, [game], now=started + timedelta(minutes=20)
+    ) == {}
+    assert calls == [[7007]]
 
 
 # ---------------------------------------------------------------------------

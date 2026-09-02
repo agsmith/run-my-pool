@@ -1,12 +1,13 @@
 """Live NFL point-spread lookup and pool-specific lock snapshots."""
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import httpx
 import models
 
 ESPN_SUMMARY_URL = "https://site.api.espn.com/apis/site/v2/sports/football/nfl/summary"
+LIVE_LINE_CACHE_TTL = timedelta(minutes=30)
 
 
 def _utcnow():
@@ -54,6 +55,90 @@ def fetch_week_lines(games):
             if line:
                 lines[line["game_id"]] = line
     return lines
+
+
+def _cached_line(record):
+    if (
+        record.provider is None
+        and record.spread is None
+        and record.details is None
+    ):
+        return None
+    return {
+        "game_id": record.game_id,
+        "favorite_team_id": record.favorite_team_id,
+        "spread": record.spread,
+        "details": record.details,
+        "provider": record.provider,
+        "updated_at": record.fetched_at,
+    }
+
+
+def get_cached_week_lines(db, games, now=None):
+    """Return shared lines, lazily refreshing entries older than 30 minutes."""
+    if not games:
+        return {}
+    now = now or _utcnow()
+    game_by_id = {game.game_id: game for game in games}
+    cached = {
+        record.game_id: record
+        for record in db.query(models.GameLineCache).filter(
+            models.GameLineCache.game_id.in_(game_by_id)
+        ).all()
+    }
+    cutoff = now - LIVE_LINE_CACHE_TTL
+    refresh_ids = {
+        game_id
+        for game_id in game_by_id
+        if game_id not in cached or cached[game_id].fetched_at <= cutoff
+    }
+    refresh_games = [game_by_id[game_id] for game_id in refresh_ids]
+    if refresh_games:
+        # Recheck existing rows under a database lock. If another ECS task
+        # refreshed while this request was waiting, this request uses its data
+        # instead of making a duplicate provider call.
+        locked = db.query(models.GameLineCache).filter(
+            models.GameLineCache.game_id.in_(refresh_ids)
+        ).with_for_update().all()
+        cached.update({record.game_id: record for record in locked})
+        refresh_games = [
+            game_by_id[game_id]
+            for game_id in refresh_ids
+            if game_id not in cached or cached[game_id].fetched_at <= cutoff
+        ]
+        refreshed = fetch_week_lines(refresh_games)
+        for game in refresh_games:
+            line = refreshed.get(game.game_id)
+            existing = cached.get(game.game_id)
+            # Preserve the last known line during a transient provider miss,
+            # while still negative-caching games that do not have lines yet.
+            values = (
+                line
+                or (_cached_line(existing) if existing else None)
+                or {}
+            )
+            db.merge(
+                models.GameLineCache(
+                    game_id=game.game_id,
+                    favorite_team_id=values.get("favorite_team_id"),
+                    spread=values.get("spread"),
+                    details=values.get("details"),
+                    provider=values.get("provider"),
+                    fetched_at=now,
+                )
+            )
+        db.commit()
+        cached = {
+            record.game_id: record
+            for record in db.query(models.GameLineCache).filter(
+                models.GameLineCache.game_id.in_(game_by_id)
+            ).all()
+        }
+    return {
+        game_id: line
+        for game_id, record in cached.items()
+        if (line := _cached_line(record)) is not None
+    }
 
 
 def freeze_week_lines(db, pool_id, week, games, captured_at=None):

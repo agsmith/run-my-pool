@@ -130,7 +130,7 @@ class TestScheduleEndpoints:
             models.Schedule(game_id=7102, week_num=4, home_team_id=71, away_team_id=72, start_time=datetime(2026, 9, 1)),
         ])
         db_session.commit()
-        monkeypatch.setattr("schedule.fetch_week_lines", lambda games: {})
+        monkeypatch.setattr("schedule.get_cached_week_lines", lambda db, games: {})
 
         response = client.get("/schedule/week/4/matchups")
         assert response.status_code == 200
@@ -157,7 +157,7 @@ class TestScheduleEndpoints:
             ),
         ])
         db_session.commit()
-        monkeypatch.setattr("schedule.fetch_week_lines", lambda games: {
+        monkeypatch.setattr("schedule.get_cached_week_lines", lambda db, games: {
             7301: {"spread": 3.5, "details": "H73 -3.5", "provider": "ESPN"},
             7302: {"spread": 10.0, "details": "H73 -10", "provider": "ESPN"},
         })
@@ -176,7 +176,7 @@ class TestScheduleEndpoints:
             models.Schedule(game_id=8102, week_num=2, home_team_id=81, away_team_id=82, start_time=datetime(2026, 9, 13, 17, 0)),
         ])
         db_session.commit()
-        monkeypatch.setattr("schedule.fetch_week_lines", lambda games: {})
+        monkeypatch.setattr("schedule.get_cached_week_lines", lambda db, games: {})
 
         schedule_response = client.get("/schedule/week/2")
         matchup_response = client.get("/schedule/week/2/matchups")

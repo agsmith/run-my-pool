@@ -5,7 +5,7 @@ from typing import List, Optional
 from datetime import datetime
 from models import Schedule, Team, PoolGameLine
 from deps import get_db
-from odds_service import fetch_week_lines
+from odds_service import get_cached_week_lines
 
 router = APIRouter()
 
@@ -78,7 +78,7 @@ def get_week_matchups(
 ):
     """Current-season matchups with live and, when available, locked spreads."""
     games = current_season_games(db, week_num)
-    live_lines = fetch_week_lines(games)
+    live_lines = get_cached_week_lines(db, games)
     frozen = {}
     if pool_id:
         frozen = {

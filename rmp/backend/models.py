@@ -488,6 +488,25 @@ class PoolGameLine(Base):
     favorite_team = relationship("Team")
 
 
+class GameLineCache(Base):
+    """Shared live point-spread cache used by every API container."""
+
+    __tablename__ = "game_line_cache"
+    game_id = Column(
+        Integer,
+        ForeignKey("schedule.game_id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    favorite_team_id = Column(Integer, ForeignKey(TEAMS_ID_FK), nullable=True)
+    spread = Column(Float, nullable=True)
+    details = Column(String(64), nullable=True)
+    provider = Column(String(64), nullable=True)
+    fetched_at = Column(DateTime, nullable=False, index=True)
+
+    game = relationship("Schedule")
+    favorite_team = relationship("Team")
+
+
 class BillingOrder(Base):
     """A Stripe Checkout attempt and its fulfillment status."""
 
