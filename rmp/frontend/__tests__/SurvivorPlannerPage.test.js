@@ -46,6 +46,7 @@ describe('Survivor season planner', () => {
     expect(screen.getByText(/visible only to you/i)).toBeInTheDocument();
     expect(await screen.findByRole('combobox', { name: 'Entry' })).toHaveValue('entry-1');
     expect(await screen.findByText('Point spread -7')).toBeInTheDocument();
+    expect(screen.queryByText('Current line')).not.toBeInTheDocument();
     expect(fetch).toHaveBeenCalledWith('/schedule/week/1/matchups?pool_id=pool-1');
     expect(fetch).toHaveBeenCalledWith('/schedule/week/2/matchups?pool_id=pool-1');
     expect(await screen.findByText('Point spreads loaded for all 2 scheduled weeks')).toBeInTheDocument();

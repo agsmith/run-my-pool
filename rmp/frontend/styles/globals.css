@@ -2033,9 +2033,9 @@ table {
 
 .sportzballz-ad { box-sizing: border-box; width: min(100% - 2rem, 1050px); margin: 1rem auto 0; text-align: center; }
 .sportzballz-ad__label { display: block; margin: 0 0 .3rem; color: #849693; font-size: .61rem; font-weight: 850; letter-spacing: .12em; text-transform: uppercase; }
-.sportzballz-ad__link { display: block; overflow: hidden; border: 1px solid #3c5a65; border-radius: 10px; background: #0879dd; box-shadow: 0 12px 30px rgba(0,0,0,.32); line-height: 0; transition: border-color .2s ease, box-shadow .2s ease, transform .2s ease; }
+.sportzballz-ad__link { display: block; overflow: hidden; aspect-ratio: 1456 / 308; border: 1px solid #3c5a65; border-radius: 10px; background: #050708; box-shadow: 0 12px 30px rgba(0,0,0,.32); line-height: 0; transition: border-color .2s ease, box-shadow .2s ease, transform .2s ease; }
 .sportzballz-ad__link:hover, .sportzballz-ad__link:focus-visible { border-color: #d7ff3f; box-shadow: 0 14px 34px rgba(0,0,0,.42), 0 0 0 2px rgba(215,255,63,.22); transform: translateY(-1px); outline: none; }
-.sportzballz-ad__image { display: block; width: 100%; height: auto; }
+.sportzballz-ad__image { display: block; width: 100%; height: 100%; object-fit: contain; }
 
 /* Commissioner QR printables */
 .pool-invitation-page { min-height: 100vh; display: grid; place-items: center; padding: 1.25rem; color: #d8e1df; background: radial-gradient(circle at top, #13323a 0, #071317 48%, #020709 100%); }
