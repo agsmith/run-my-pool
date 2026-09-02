@@ -208,17 +208,17 @@ describe('pool workspace pages', () => {
     const games = [
       {
         game_id: 1, start_time: '2026-09-13T17:00:00Z',
-        away_team: { abbrv: 'BUF', name: 'Buffalo Bills' }, home_team: { abbrv: 'MIA', name: 'Miami Dolphins' },
-        official_line: { details: 'BUF -3', provider: 'book' }, live_line: null,
+        away_team: { id: 1, abbrv: 'BUF', name: 'Buffalo Bills' }, home_team: { id: 2, abbrv: 'MIA', name: 'Miami Dolphins' },
+        official_line: { favorite_team_id: 1, spread: 3, details: 'BUF -3', provider: 'book' }, live_line: null,
       },
       {
         game_id: 2, start_time: '2026-09-13T20:00:00Z',
-        away_team: { abbrv: 'KC', name: 'Kansas City Chiefs' }, home_team: { abbrv: 'DEN', name: 'Denver Broncos' },
-        official_line: null, live_line: { details: 'KC -2', provider: 'ESPN' },
+        away_team: { id: 3, abbrv: 'KC', name: 'Kansas City Chiefs' }, home_team: { id: 4, abbrv: 'DEN', name: 'Denver Broncos' },
+        official_line: null, live_line: { favorite_team_id: 3, spread: 2, details: 'KC -2', provider: 'ESPN' },
       },
       {
         game_id: 3, start_time: '2026-09-14T00:00:00Z',
-        away_team: { abbrv: 'NYG', name: 'New York Giants' }, home_team: { abbrv: 'DAL', name: 'Dallas Cowboys' },
+        away_team: { id: 5, abbrv: 'NYG', name: 'New York Giants' }, home_team: { id: 6, abbrv: 'DAL', name: 'Dallas Cowboys' },
         official_line: null, live_line: null,
       },
     ];
@@ -237,6 +237,9 @@ describe('pool workspace pages', () => {
     expect(screen.getByText('Official line at lock')).toBeInTheDocument();
     expect(screen.getByText('Live · ESPN')).toBeInTheDocument();
     expect(screen.getByText('Line pending')).toBeInTheDocument();
+    expect(screen.getAllByText('Projected winner')).toHaveLength(2);
+    expect(screen.getByTitle('BUF').closest('.matchup-team')).toHaveClass('matchup-team--projected');
+    expect(screen.getByTitle('MIA').closest('.matchup-team')).not.toHaveClass('matchup-team--projected');
     await user.click(screen.getByRole('button', { name: 'Next →' }));
     expect(await screen.findByText('No matchups are scheduled for this week.')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Week 2 matchups' })).toBeInTheDocument();

@@ -3,11 +3,16 @@ import { useRouter } from 'next/router';
 import ProtectedRoute from '../../../components/ProtectedRoute';
 import { PoolWorkspaceNav, WorkspaceHeader } from '../../../components/ProductWorkspace';
 
-function Team({ team }) {
-  return <div className="matchup-team">
+function Team({ team, projectedWinner = false }) {
+  return <div className={`matchup-team${projectedWinner ? ' matchup-team--projected' : ''}`}>
     <img src={`/nfl/${team.abbrv.toLowerCase()}.svg`} alt="" title={team.abbrv} />
-    <span><strong>{team.abbrv}</strong><small>{team.name}</small></span>
+    <span><strong>{team.abbrv}</strong><small>{team.name}</small>{projectedWinner && <em>Projected winner</em>}</span>
   </div>;
+}
+
+function favoriteTeamId(game) {
+  const line = game.official_line || game.live_line;
+  return line?.favorite_team_id ?? null;
 }
 
 function Line({ game }) {
@@ -66,11 +71,11 @@ export default function MatchupsPage() {
     {error && <div className="workspace-alert workspace-alert--error">{error}</div>}
     {loading ? <div className="matchup-empty">Loading live lines…</div> : games.length === 0 ?
       <div className="matchup-empty">No matchups are scheduled for this week.</div> :
-      <section className="matchup-board">{games.map((game) => <article className="matchup-card" key={game.game_id}>
+      <section className="matchup-board">{games.map((game) => { const favoriteId = favoriteTeamId(game); return <article className="matchup-card" key={game.game_id}>
         <time>{new Date(game.start_time).toLocaleString('en-US', { timeZone: 'America/New_York', timeZoneName: 'short', weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</time>
-        <div className="matchup-card__teams"><Team team={game.away_team} /><span className="matchup-at">@</span><Team team={game.home_team} /></div>
+        <div className="matchup-card__teams"><Team team={game.away_team} projectedWinner={favoriteId != null && String(favoriteId) === String(game.away_team.id)} /><span className="matchup-at">@</span><Team team={game.home_team} projectedWinner={favoriteId != null && String(favoriteId) === String(game.home_team.id)} /></div>
         <Line game={game} />
-      </article>)}</section>}
-    <p className="matchup-disclaimer">Lines are informational and may move until the pool lock. The official line is preserved at lock and used for automatic picks.</p>
+      </article>; })}</section>}
+    <p className="matchup-disclaimer">Projected winners reflect the current or official point-spread favorite, not a guaranteed result. Lines may move until the pool lock. The official line is preserved at lock and used for automatic picks.</p>
   </main></ProtectedRoute>;
 }
