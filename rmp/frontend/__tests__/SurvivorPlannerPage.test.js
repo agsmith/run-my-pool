@@ -34,7 +34,7 @@ describe('Survivor season planner', () => {
         state.entries[0].plans = [];
         return response(state.entries[0].picks[0]);
       }
-      return response(state);
+      return response(JSON.parse(JSON.stringify(state)));
     });
     const user = userEvent.setup();
     render(<SurvivorPlannerPage />);
@@ -67,11 +67,14 @@ describe('Survivor season planner', () => {
     render(<SurvivorPlannerPage />);
 
     expect(await screen.findByText('Point spread -7')).toBeInTheDocument();
-    const buffalo = within(screen.getByRole('table')).getByRole('button', { name: /Buffalo Bills, week 1.*unavailable.*point spread -7/ });
+    const buffalo = within(screen.getByRole('table')).getByRole('button', { name: /Buffalo Bills, week 1.*picked in week 2.*unavailable.*point spread -7/ });
     expect(buffalo).toBeDisabled();
     expect(buffalo).toHaveClass('has-spread', 'is-used');
+    expect(within(buffalo).getByText('Picked W2')).toBeInTheDocument();
     const weeklyChoices = within(screen.getByRole('region', { name: 'Week 1 choices' })).getAllByRole('button');
     expect(weeklyChoices[0]).toHaveAccessibleName(/Buffalo Bills/);
+    expect(within(weeklyChoices[0]).getByText('Picked Week 2 — unavailable')).toBeInTheDocument();
+    expect(fetch.mock.calls.filter(([url]) => String(url).includes('/schedule/week/1/matchups'))).toHaveLength(1);
     expect(screen.getByText(/Plans are private and never count as picks/)).toHaveClass('planner-note--prominent');
   });
 
