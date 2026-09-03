@@ -295,6 +295,21 @@ resource "aws_sfn_state_machine" "result_updater" {
             Variable     = "$.job"
             StringEquals = "email_verification_reminders"
             Next         = "RunEmailVerificationReminders"
+          },
+          {
+            Variable     = "$.job"
+            StringEquals = "season_join_reminders"
+            Next         = "RunSeasonJoinReminders"
+          },
+          {
+            Variable     = "$.job"
+            StringEquals = "season_entry_reminders"
+            Next         = "RunSeasonEntryReminders"
+          },
+          {
+            Variable     = "$.job"
+            StringEquals = "weekly_pick_reminders"
+            Next         = "RunWeeklyPickReminders"
           }
         ]
         Default = "RunUpdater"
@@ -375,6 +390,111 @@ resource "aws_sfn_state_machine" "result_updater" {
             ContainerOverrides = [{
               Name    = "result-updater"
               Command = ["python", "-m", "email_verification_reminders"]
+            }]
+          }
+          NetworkConfiguration = {
+            AwsvpcConfiguration = {
+              Subnets        = [aws_subnet.public_a.id, aws_subnet.public_b.id]
+              SecurityGroups = [aws_security_group.result_updater.id]
+              AssignPublicIp = "ENABLED"
+            }
+          }
+        }
+        Retry = [{
+          ErrorEquals     = ["States.TaskFailed", "States.Timeout", "AmazonECS.Unknown"]
+          IntervalSeconds = 30
+          MaxAttempts     = 3
+          BackoffRate     = 2
+        }]
+        Catch = [{
+          ErrorEquals = ["States.ALL"]
+          ResultPath  = "$.failure"
+          Next        = "NotifyFailure"
+        }]
+        End = true
+      }
+      RunSeasonJoinReminders = {
+        Type           = "Task"
+        Resource       = "arn:aws:states:::ecs:runTask.sync"
+        TimeoutSeconds = 300
+        Parameters = {
+          Cluster        = aws_ecs_cluster.main.arn
+          TaskDefinition = local.result_updater_family
+          LaunchType     = "FARGATE"
+          Overrides = {
+            ContainerOverrides = [{
+              Name    = "result-updater"
+              Command = ["python", "-m", "season_join_reminders"]
+            }]
+          }
+          NetworkConfiguration = {
+            AwsvpcConfiguration = {
+              Subnets        = [aws_subnet.public_a.id, aws_subnet.public_b.id]
+              SecurityGroups = [aws_security_group.result_updater.id]
+              AssignPublicIp = "ENABLED"
+            }
+          }
+        }
+        Retry = [{
+          ErrorEquals     = ["States.TaskFailed", "States.Timeout", "AmazonECS.Unknown"]
+          IntervalSeconds = 30
+          MaxAttempts     = 3
+          BackoffRate     = 2
+        }]
+        Catch = [{
+          ErrorEquals = ["States.ALL"]
+          ResultPath  = "$.failure"
+          Next        = "NotifyFailure"
+        }]
+        End = true
+      }
+      RunSeasonEntryReminders = {
+        Type           = "Task"
+        Resource       = "arn:aws:states:::ecs:runTask.sync"
+        TimeoutSeconds = 300
+        Parameters = {
+          Cluster        = aws_ecs_cluster.main.arn
+          TaskDefinition = local.result_updater_family
+          LaunchType     = "FARGATE"
+          Overrides = {
+            ContainerOverrides = [{
+              Name    = "result-updater"
+              Command = ["python", "-m", "season_entry_reminders"]
+            }]
+          }
+          NetworkConfiguration = {
+            AwsvpcConfiguration = {
+              Subnets        = [aws_subnet.public_a.id, aws_subnet.public_b.id]
+              SecurityGroups = [aws_security_group.result_updater.id]
+              AssignPublicIp = "ENABLED"
+            }
+          }
+        }
+        Retry = [{
+          ErrorEquals     = ["States.TaskFailed", "States.Timeout", "AmazonECS.Unknown"]
+          IntervalSeconds = 30
+          MaxAttempts     = 3
+          BackoffRate     = 2
+        }]
+        Catch = [{
+          ErrorEquals = ["States.ALL"]
+          ResultPath  = "$.failure"
+          Next        = "NotifyFailure"
+        }]
+        End = true
+      }
+      RunWeeklyPickReminders = {
+        Type           = "Task"
+        Resource       = "arn:aws:states:::ecs:runTask.sync"
+        TimeoutSeconds = 300
+        Parameters = {
+          Cluster        = aws_ecs_cluster.main.arn
+          TaskDefinition = local.result_updater_family
+          LaunchType     = "FARGATE"
+          Overrides = {
+            ContainerOverrides = [{
+              Name    = "result-updater"
+              Command = ["python", "-m", "weekly_pick_reminders"]
             }]
           }
           NetworkConfiguration = {
@@ -552,6 +672,69 @@ resource "aws_scheduler_schedule" "email_verification_reminders" {
     arn      = aws_sfn_state_machine.result_updater.arn
     role_arn = aws_iam_role.result_updater_scheduler.arn
     input    = jsonencode({ job = "email_verification_reminders" })
+
+    retry_policy {
+      maximum_event_age_in_seconds = 3600
+      maximum_retry_attempts       = 3
+    }
+    dead_letter_config { arn = aws_sqs_queue.result_updater_dlq.arn }
+  }
+}
+
+resource "aws_scheduler_schedule" "season_join_reminders" {
+  name                         = "runmypool-season-join-reminders"
+  state                        = var.season_join_reminders_schedule_enabled ? "ENABLED" : "DISABLED"
+  schedule_expression          = "cron(0 10 ? * * *)"
+  schedule_expression_timezone = "America/New_York"
+
+  flexible_time_window { mode = "OFF" }
+
+  target {
+    arn      = aws_sfn_state_machine.result_updater.arn
+    role_arn = aws_iam_role.result_updater_scheduler.arn
+    input    = jsonencode({ job = "season_join_reminders" })
+
+    retry_policy {
+      maximum_event_age_in_seconds = 3600
+      maximum_retry_attempts       = 3
+    }
+    dead_letter_config { arn = aws_sqs_queue.result_updater_dlq.arn }
+  }
+}
+
+resource "aws_scheduler_schedule" "season_entry_reminders" {
+  name                         = "runmypool-season-entry-reminders"
+  state                        = var.season_entry_reminders_schedule_enabled ? "ENABLED" : "DISABLED"
+  schedule_expression          = "cron(5 10 ? * * *)"
+  schedule_expression_timezone = "America/New_York"
+
+  flexible_time_window { mode = "OFF" }
+
+  target {
+    arn      = aws_sfn_state_machine.result_updater.arn
+    role_arn = aws_iam_role.result_updater_scheduler.arn
+    input    = jsonencode({ job = "season_entry_reminders" })
+
+    retry_policy {
+      maximum_event_age_in_seconds = 3600
+      maximum_retry_attempts       = 3
+    }
+    dead_letter_config { arn = aws_sqs_queue.result_updater_dlq.arn }
+  }
+}
+
+resource "aws_scheduler_schedule" "weekly_pick_reminders" {
+  name                         = "runmypool-weekly-pick-reminders"
+  state                        = var.weekly_pick_reminders_schedule_enabled ? "ENABLED" : "DISABLED"
+  schedule_expression          = "cron(0 15 ? * FRI *)"
+  schedule_expression_timezone = "America/New_York"
+
+  flexible_time_window { mode = "OFF" }
+
+  target {
+    arn      = aws_sfn_state_machine.result_updater.arn
+    role_arn = aws_iam_role.result_updater_scheduler.arn
+    input    = jsonencode({ job = "weekly_pick_reminders" })
 
     retry_policy {
       maximum_event_age_in_seconds = 3600

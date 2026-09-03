@@ -204,6 +204,24 @@ variable "email_verification_reminders_schedule_enabled" {
   default     = true
 }
 
+variable "season_join_reminders_schedule_enabled" {
+  description = "Send a one-time reminder six days before Week 1 to verified users without a pool"
+  type        = bool
+  default     = true
+}
+
+variable "season_entry_reminders_schedule_enabled" {
+  description = "Send a one-time reminder five days before Week 1 to pool members without entries"
+  type        = bool
+  default     = true
+}
+
+variable "weekly_pick_reminders_schedule_enabled" {
+  description = "Send Friday afternoon reminders to active members whose entries have no weekly pick"
+  type        = bool
+  default     = true
+}
+
 variable "result_updater_alert_email" {
   description = "Email address that receives result updater failure notifications"
   type        = string

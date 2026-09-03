@@ -328,6 +328,68 @@ class MemberRecapDelivery(Base):
     error = Column(String(255), nullable=True)
 
 
+class SeasonJoinReminderDelivery(Base):
+    """Durable one-time delivery ledger for preseason join reminders."""
+
+    __tablename__ = "season_join_reminder_deliveries"
+    __table_args__ = (
+        UniqueConstraint(
+            "user_id", "season", name="uq_season_join_reminder_user_season"
+        ),
+    )
+    id = Column(String(36), primary_key=True)
+    user_id = Column(
+        String(36), ForeignKey(USERS_ID_FK, ondelete="CASCADE"), nullable=False, index=True
+    )
+    season = Column(Integer, nullable=False)
+    status = Column(String(20), nullable=False, default="pending")
+    message_id = Column(String(255), nullable=True)
+    attempted_at = Column(DateTime, nullable=False)
+    sent_at = Column(DateTime, nullable=True)
+    error = Column(String(255), nullable=True)
+
+
+class SeasonEntryReminderDelivery(Base):
+    """Durable one-time delivery ledger for preseason entry reminders."""
+
+    __tablename__ = "season_entry_reminder_deliveries"
+    __table_args__ = (
+        UniqueConstraint(
+            "user_id", "season", name="uq_season_entry_reminder_user_season"
+        ),
+    )
+    id = Column(String(36), primary_key=True)
+    user_id = Column(
+        String(36), ForeignKey(USERS_ID_FK, ondelete="CASCADE"), nullable=False, index=True
+    )
+    season = Column(Integer, nullable=False)
+    status = Column(String(20), nullable=False, default="pending")
+    message_id = Column(String(255), nullable=True)
+    attempted_at = Column(DateTime, nullable=False)
+    sent_at = Column(DateTime, nullable=True)
+    error = Column(String(255), nullable=True)
+
+
+class WeeklyPickReminderDelivery(Base):
+    """One Friday pick reminder per user, season, and week."""
+
+    __tablename__ = "weekly_pick_reminder_deliveries"
+    __table_args__ = (
+        UniqueConstraint(
+            "user_id", "season", "week_num", name="uq_weekly_pick_reminder_user_week"
+        ),
+    )
+    id = Column(String(36), primary_key=True)
+    user_id = Column(String(36), ForeignKey(USERS_ID_FK, ondelete="CASCADE"), nullable=False, index=True)
+    season = Column(Integer, nullable=False)
+    week_num = Column(Integer, nullable=False)
+    status = Column(String(20), nullable=False, default="pending")
+    message_id = Column(String(255), nullable=True)
+    attempted_at = Column(DateTime, nullable=False)
+    sent_at = Column(DateTime, nullable=True)
+    error = Column(String(255), nullable=True)
+
+
 class PoolUserLock(Base):
     __tablename__ = "pool_user_locks"
     pool_id = Column(String(36), ForeignKey(POOLS_ID_FK), primary_key=True)

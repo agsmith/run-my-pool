@@ -87,6 +87,165 @@ def send_email_verification_reminder(recipient: str, token: str) -> str:
     return message_id
 
 
+def send_season_join_reminder(recipient: str, season: int) -> str:
+    """Invite a verified account with no pool membership to browse pools."""
+    region = os.getenv("AWS_SES_REGION", "us-east-1")
+    frontend_url = os.getenv("FRONTEND_URL", "https://runmypool.net").rstrip("/")
+    sender = os.getenv("EMAIL_FROM", "Run My Pool Accounts <accounts@runmypool.net>")
+    reply_to = os.getenv("EMAIL_REPLY_TO", "support@runmypool.net")
+    browse_url = f"{frontend_url}/leagues"
+    safe_url = html.escape(browse_url, quote=True)
+    subject = f"The {season} season starts soon — join your pool"
+    text_body = (
+        f"The {season} regular season starts in six days, and your Run My Pool account "
+        "has not joined a pool yet.\n\n"
+        f"Browse pools: {browse_url}\n\n"
+        "For a private pool, open the invitation link or QR code from your commissioner "
+        "and enter the join code when prompted. Need help? Reply to this email."
+    )
+    html_body = (
+        '<div style="background:#071113;color:#e8efed;padding:28px;font-family:Arial,sans-serif">'
+        '<div style="color:#d7ff3f;font-size:12px;font-weight:700;letter-spacing:2px">SEASON KICKOFF</div>'
+        f'<h1 style="margin:8px 0">The {season} season starts in six days</h1>'
+        '<p>Your Run My Pool account has not joined a pool yet.</p>'
+        f'<p><a href="{safe_url}" style="display:inline-block;background:#d7ff3f;color:#071113;padding:12px 18px;text-decoration:none;font-weight:700">Browse pools</a></p>'
+        '<p>Joining a private pool? Open the invitation link or QR code from your commissioner and enter the join code when prompted.</p>'
+        '<p style="color:#9dafb2;font-size:12px">Need help? Reply to this email.</p></div>'
+    )
+    response = boto3.client("sesv2", region_name=region).send_email(
+        FromEmailAddress=sender,
+        Destination={"ToAddresses": [recipient]},
+        ReplyToAddresses=[reply_to],
+        Content={"Simple": {
+            "Subject": {"Data": subject, "Charset": "UTF-8"},
+            "Body": {
+                "Text": {"Data": text_body, "Charset": "UTF-8"},
+                "Html": {"Data": html_body, "Charset": "UTF-8"},
+            },
+        }},
+    )
+    message_id = response["MessageId"]
+    log_event(
+        logger,
+        logging.INFO,
+        "season_join_reminder_queued",
+        message_id=message_id,
+        season=season,
+    )
+    return message_id
+
+
+def send_season_entry_reminder(recipient: str, season: int, pools: list[dict]) -> str:
+    """Remind a member to create an entry in joined Survivor/Pick 'Em pools."""
+    region = os.getenv("AWS_SES_REGION", "us-east-1")
+    frontend_url = os.getenv("FRONTEND_URL", "https://runmypool.net").rstrip("/")
+    sender = os.getenv("EMAIL_FROM", "Run My Pool Accounts <accounts@runmypool.net>")
+    reply_to = os.getenv("EMAIL_REPLY_TO", "support@runmypool.net")
+    subject = f"The {season} season starts soon — create your entry"
+    text_rows = []
+    html_rows = []
+    for pool in pools:
+        pool_name = " ".join(str(pool["name"]).split())
+        entry_url = f"{frontend_url}/pool/{quote(str(pool['id']), safe='')}/entries/create"
+        text_rows.append(f"{pool_name}: {entry_url}")
+        html_rows.append(
+            f'<li style="margin:12px 0"><strong>{html.escape(pool_name)}</strong><br>'
+            f'<a href="{html.escape(entry_url, quote=True)}" style="color:#d7ff3f">Create entry</a></li>'
+        )
+    text_body = (
+        f"The {season} regular season starts in five days. You joined "
+        "the following pool(s), but have not created an entry yet:\n\n"
+        + "\n".join(text_rows)
+        + "\n\nCreate an entry before your pool's registration lock. Need help? Reply to this email."
+    )
+    html_body = (
+        '<div style="background:#071113;color:#e8efed;padding:28px;font-family:Arial,sans-serif">'
+        '<div style="color:#d7ff3f;font-size:12px;font-weight:700;letter-spacing:2px">ACTION NEEDED</div>'
+        f'<h1 style="margin:8px 0">The {season} season starts in five days</h1>'
+        '<p>You joined the following pool(s), but have not created an entry yet:</p>'
+        f'<ul style="padding-left:20px">{"".join(html_rows)}</ul>'
+        '<p>Create an entry before your pool\'s registration lock.</p>'
+        '<p style="color:#9dafb2;font-size:12px">Need help? Reply to this email.</p></div>'
+    )
+    response = boto3.client("sesv2", region_name=region).send_email(
+        FromEmailAddress=sender,
+        Destination={"ToAddresses": [recipient]},
+        ReplyToAddresses=[reply_to],
+        Content={"Simple": {
+            "Subject": {"Data": subject, "Charset": "UTF-8"},
+            "Body": {
+                "Text": {"Data": text_body, "Charset": "UTF-8"},
+                "Html": {"Data": html_body, "Charset": "UTF-8"},
+            },
+        }},
+    )
+    message_id = response["MessageId"]
+    log_event(
+        logger,
+        logging.INFO,
+        "season_entry_reminder_queued",
+        message_id=message_id,
+        season=season,
+        pool_count=len(pools),
+    )
+    return message_id
+
+
+def send_weekly_pick_reminder(recipient: str, season: int, week: int, pools: list[dict]) -> str:
+    """Remind a member about their own entry-less weekly selections."""
+    region = os.getenv("AWS_SES_REGION", "us-east-1")
+    frontend_url = os.getenv("FRONTEND_URL", "https://runmypool.net").rstrip("/")
+    sender = os.getenv("EMAIL_FROM", "Run My Pool Accounts <accounts@runmypool.net>")
+    reply_to = os.getenv("EMAIL_REPLY_TO", "support@runmypool.net")
+    text_rows = []
+    html_rows = []
+    for pool in pools:
+        name = " ".join(str(pool["name"]).split())
+        path = "pickem" if pool["pool_type"] == "pickem" else "entries"
+        pick_url = f"{frontend_url}/pool/{quote(str(pool['id']), safe='')}/{path}"
+        count = int(pool["missing_entries"])
+        label = "entry" if count == 1 else "entries"
+        text_rows.append(f"{name}: {count} {label} need a Week {week} pick — {pick_url}")
+        html_rows.append(
+            f'<li style="margin:12px 0"><strong>{html.escape(name)}</strong><br>'
+            f'{count} {label} need a Week {week} pick · '
+            f'<a href="{html.escape(pick_url, quote=True)}" style="color:#d7ff3f">Make picks</a></li>'
+        )
+    subject = f"Week {week}: your picks are waiting"
+    text_body = (
+        f"Week {week} of the {season} season is underway. You still have entries without a weekly pick:\n\n"
+        + "\n".join(text_rows)
+        + "\n\nMake your picks before each pool's lock time. Need help? Reply to this email."
+    )
+    html_body = (
+        '<div style="background:#071113;color:#e8efed;padding:28px;font-family:Arial,sans-serif">'
+        '<div style="color:#d7ff3f;font-size:12px;font-weight:700;letter-spacing:2px">FRIDAY PICK REMINDER</div>'
+        f'<h1 style="margin:8px 0">Week {week}: your picks are waiting</h1>'
+        '<p>You still have entries without a weekly pick:</p>'
+        f'<ul style="padding-left:20px">{"".join(html_rows)}</ul>'
+        '<p>Make your picks before each pool\'s lock time.</p>'
+        '<p style="color:#9dafb2;font-size:12px">Need help? Reply to this email.</p></div>'
+    )
+    response = boto3.client("sesv2", region_name=region).send_email(
+        FromEmailAddress=sender,
+        Destination={"ToAddresses": [recipient]},
+        ReplyToAddresses=[reply_to],
+        Content={"Simple": {
+            "Subject": {"Data": subject, "Charset": "UTF-8"},
+            "Body": {
+                "Text": {"Data": text_body, "Charset": "UTF-8"},
+                "Html": {"Data": html_body, "Charset": "UTF-8"},
+            },
+        }},
+    )
+    message_id = response["MessageId"]
+    log_event(
+        logger, logging.INFO, "weekly_pick_reminder_queued",
+        message_id=message_id, season=season, week=week, pool_count=len(pools),
+    )
+    return message_id
+
+
 def send_password_reset_email(recipient: str, token: str) -> str:
     """Send a one-hour password-reset link without logging the bearer token."""
     region = os.getenv("AWS_SES_REGION", "us-east-1")

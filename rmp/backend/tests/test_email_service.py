@@ -5,6 +5,9 @@ from email_service import (
     send_email_verification_reminder,
     send_password_reset_email,
     send_pool_invitation_email,
+    send_season_join_reminder,
+    send_season_entry_reminder,
+    send_weekly_pick_reminder,
     send_member_weekly_recap,
     send_pool_owner_report,
 )
@@ -47,6 +50,80 @@ def test_email_verification_reminder_uses_fresh_safe_link(mock_client, monkeypat
     text = request["Content"]["Simple"]["Body"]["Text"]["Data"]
     assert "verify-email?token=fresh%2Btoken%3D" in text
     assert "expires in 24 hours" in text
+
+
+@patch("email_service.boto3.client")
+def test_season_join_reminder_uses_browse_pools_cta(mock_client, monkeypatch):
+    ses = Mock()
+    ses.send_email.return_value = {"MessageId": "join-123"}
+    mock_client.return_value = ses
+    monkeypatch.setenv("FRONTEND_URL", "https://runmypool.net/")
+
+    assert send_season_join_reminder("waiting@example.com", 2026) == "join-123"
+
+    request = ses.send_email.call_args.kwargs
+    assert request["Destination"] == {"ToAddresses": ["waiting@example.com"]}
+    assert request["ReplyToAddresses"] == ["support@runmypool.net"]
+    assert request["Content"]["Simple"]["Subject"]["Data"] == (
+        "The 2026 season starts soon — join your pool"
+    )
+    text = request["Content"]["Simple"]["Body"]["Text"]["Data"]
+    html_body = request["Content"]["Simple"]["Body"]["Html"]["Data"]
+    assert "https://runmypool.net/leagues" in text
+    assert "Browse pools" in html_body
+    assert "join code" in text
+
+
+@patch("email_service.boto3.client")
+def test_season_entry_reminder_consolidates_and_escapes_pool_links(mock_client, monkeypatch):
+    ses = Mock()
+    ses.send_email.return_value = {"MessageId": "entry-reminder-123"}
+    mock_client.return_value = ses
+    monkeypatch.setenv("FRONTEND_URL", "https://runmypool.net/")
+
+    result = send_season_entry_reminder(
+        "member@example.com",
+        2026,
+        [
+            {"id": "pool/one", "name": "Office <script>alert(1)</script>"},
+            {"id": "pool-two", "name": "Friends Pick 'Em"},
+        ],
+    )
+
+    assert result == "entry-reminder-123"
+    request = ses.send_email.call_args.kwargs
+    assert request["Destination"] == {"ToAddresses": ["member@example.com"]}
+    text = request["Content"]["Simple"]["Body"]["Text"]["Data"]
+    html_body = request["Content"]["Simple"]["Body"]["Html"]["Data"]
+    assert "pool%2Fone/entries/create" in text
+    assert "pool-two/entries/create" in text
+    assert "<script>" not in html_body
+    assert "Office &lt;script&gt;alert(1)&lt;/script&gt;" in html_body
+    assert html_body.count("Create entry") == 2
+
+
+@patch("email_service.boto3.client")
+def test_weekly_pick_reminder_escapes_content_and_routes_by_pool_type(mock_client, monkeypatch):
+    ses = Mock()
+    ses.send_email.return_value = {"MessageId": "weekly-123"}
+    mock_client.return_value = ses
+    monkeypatch.setenv("FRONTEND_URL", "https://runmypool.net/")
+
+    result = send_weekly_pick_reminder(
+        "member@example.com", 2026, 3,
+        [
+            {"id": "survivor/one", "name": "Office <script>", "pool_type": "survivor", "missing_entries": 2},
+            {"id": "pickem-two", "name": "Pick Em", "pool_type": "pickem", "missing_entries": 1},
+        ],
+    )
+    assert result == "weekly-123"
+    request = ses.send_email.call_args.kwargs
+    text = request["Content"]["Simple"]["Body"]["Text"]["Data"]
+    html_body = request["Content"]["Simple"]["Body"]["Html"]["Data"]
+    assert "survivor%2Fone/entries" in text
+    assert "pickem-two/pickem" in text
+    assert "<script>" not in html_body
+    assert "Office &lt;script&gt;" in html_body
 
 
 @patch("email_service.boto3.client")
