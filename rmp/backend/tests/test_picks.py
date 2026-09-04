@@ -298,6 +298,55 @@ class TestPickEndpoints:
         assert extra.status_code == 400
         assert "requires 1 Pick 'Em selections" in extra.json()["detail"]
 
+    def test_pickem_sunday_slate_rejects_monday_game_server_side(self, client, db_session):
+        token = _register_and_login(client, email="pickem.sunday@example.com")
+        headers = _authed(token)
+        pool = client.post("/pools/create", json={"name": "Sunday Pool", "pool_type": "pickem", "pickem_slate": "sunday"}, headers=headers).json()
+        entry_id = _create_entry(client, headers, pool["id"])
+        teams = [models.Team(id=9931, name="Buffalo", abbrv="BUF"), models.Team(id=9932, name="Miami", abbrv="MIA")]
+        db_session.add_all(teams)
+        future = datetime(2099, 9, 1)
+        monday = future + timedelta(days=(0 - future.weekday()) % 7)
+        db_session.add(models.Schedule(game_id=99301, week_num=5, home_team_id=9932, away_team_id=9931, start_time=monday.replace(hour=20, minute=15)))
+        db_session.commit()
+
+        response = client.post("/picks/create", json={"entry_id": entry_id, "week": 5, "game_id": 99301, "team": "BUF"}, headers=headers)
+
+        assert response.status_code == 400
+        assert "not included" in response.json()["detail"]
+
+    def test_sunday_monday_tiebreaker_is_private_then_ranks_closest_after_lock(self, client, db_session):
+        token = _register_and_login(client, email="pickem.tiebreak@example.com")
+        headers = _authed(token)
+        pool = client.post("/pools/create", json={"name": "Sunday Monday Pool", "pool_type": "pickem", "pickem_slate": "sunday_monday"}, headers=headers).json()
+        entry_id = _create_entry(client, headers, pool["id"], "Close Guess")
+        user = db_session.query(models.User).filter(models.User.email == "pickem.tiebreak@example.com").one()
+        second = models.Entry(id="tb-second-entry", user_id=user.id, pool_id=pool["id"], name="Far Guess", alive=True)
+        teams = [models.Team(id=9941, name="Tiebreak Away", abbrv="TBA"), models.Team(id=9942, name="Tiebreak Home", abbrv="TBH")]
+        db_session.add_all([second, *teams])
+        future = datetime(2099, 9, 1)
+        monday = future + timedelta(days=(0 - future.weekday()) % 7)
+        game = models.Schedule(game_id=99401, week_num=6, home_team_id=9942, away_team_id=9941, start_time=monday.replace(hour=20, minute=15))
+        db_session.add(game)
+        db_session.commit()
+
+        saved = client.put(f"/picks/entry/{entry_id}/tiebreaker", json={"week": 6, "predicted_total": 44}, headers=headers)
+        assert saved.status_code == 200
+        db_session.add(models.PickEmTiebreaker(id="tb-second", entry_id=second.id, week=6, predicted_total=60, created_at=datetime.utcnow(), updated_at=datetime.utcnow()))
+        db_pool = db_session.query(models.Pool).filter(models.Pool.id == pool["id"]).one()
+        db_pool.lock_time = datetime.utcnow() - timedelta(hours=4)
+        game.home_score, game.away_score = 24, 21
+        db_session.commit()
+
+        standings = client.get(f"/picks/pool/{pool['id']}/weekly-standings/6", headers=headers)
+        assert standings.status_code == 200
+        assert [row["entry_name"] for row in standings.json()] == ["Close Guess", "Far Guess"]
+        assert standings.json()[0]["actual_total"] == 45
+        assert standings.json()[0]["tiebreak_difference"] == 1
+
+        locked_update = client.put(f"/picks/entry/{entry_id}/tiebreaker", json={"week": 6, "predicted_total": 45}, headers=headers)
+        assert locked_update.status_code == 423
+
     def test_create_pick_upserts_existing_week(self, client):
         """POSTing a pick for the same entry+week replaces the existing pick's team."""
         token = _register_and_login(client, email="picks_upsert@example.com")

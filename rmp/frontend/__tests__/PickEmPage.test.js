@@ -38,6 +38,7 @@ describe('PickEmPage', () => {
       if (path === '/pools/pool-1') return response({ id: 'pool-1', name: 'Office Pick Em', pool_type: 'pickem' });
       if (path === '/entries/pool/pool-1') return response([{ id: 'entry-1', name: 'My Card' }]);
       if (path === '/picks/pool/pool-1/standings') return response([{ rank: 1, entry_id: 'entry-1', entry_name: 'My Card', user_display_name: 'me', points: 4, possible_points: 5 }]);
+      if (path === '/picks/pool/pool-1/weekly-standings/1') return response([]);
       if (path === '/schedule/week/1') return response([game]);
       if (path === '/picks/entry/entry-1') return response([]);
       if (path === '/picks/create' && options.method === 'POST') {
@@ -65,7 +66,7 @@ describe('PickEmPage', () => {
     global.fetch = jest.fn((url) => {
       const path = String(url);
       if (path === '/pools/pool-1') return response({ id: 'pool-1', pool_type: 'survivor' });
-      if (path === '/entries/pool/pool-1' || path === '/picks/pool/pool-1/standings' || path === '/schedule/week/1') return response([]);
+      if (path === '/entries/pool/pool-1' || path === '/picks/pool/pool-1/standings' || path === '/picks/pool/pool-1/weekly-standings/1' || path === '/schedule/week/1') return response([]);
       throw new Error(`Unexpected request ${path}`);
     });
 
@@ -77,7 +78,7 @@ describe('PickEmPage', () => {
     global.fetch = jest.fn((url) => {
       const path = String(url);
       if (path === '/pools/pool-1') return response({ id: 'pool-1', name: 'Office Pick Em', pool_type: 'pickem' });
-      if (path === '/entries/pool/pool-1' || path === '/picks/pool/pool-1/standings' || path === '/schedule/week/1') return response([]);
+      if (path === '/entries/pool/pool-1' || path === '/picks/pool/pool-1/standings' || path === '/picks/pool/pool-1/weekly-standings/1' || path === '/schedule/week/1') return response([]);
       throw new Error(`Unexpected request ${path}`);
     });
 
@@ -105,6 +106,7 @@ describe('PickEmPage', () => {
       if (path === '/pools/pool-1') return response({ id: 'pool-1', name: 'Five Game Pool', pool_type: 'pickem', pickem_games_per_week: 1 });
       if (path === '/entries/pool/pool-1') return response([{ id: 'entry-1', name: 'My Card' }]);
       if (path === '/picks/pool/pool-1/standings') return response([]);
+      if (path === '/picks/pool/pool-1/weekly-standings/1') return response([]);
       if (path === '/schedule/week/1') return response(games);
       if (path === '/picks/entry/entry-1') return response([{ id: 'pick-1', entry_id: 'entry-1', week: 1, game_id: 101, team: 'BUF' }]);
       if (path === '/picks/create' && options.method === 'POST') return response({ id: 'pick-1', entry_id: 'entry-1', week: 1, game_id: 101, team: 'MIA' });

@@ -4,14 +4,18 @@ from sqlalchemy import and_, case, func, or_
 from typing import List
 import uuid
 from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 
 from deps import get_db, get_current_user
-from models import Pick, Entry, Schedule, Team, Pool, User
+from models import Pick, Entry, Schedule, Team, Pool, User, PickEmTiebreaker
 from schemas import (
     LeaderboardEntryOut,
     PickBreakdownItem,
     PickCreate,
     PickEmStandingOut,
+    PickEmTiebreakerOut,
+    PickEmTiebreakerUpsert,
+    PickEmWeeklyStandingOut,
     PickOut,
     PickUpdate,
 )
@@ -45,7 +49,38 @@ def _is_pickem(pool: Pool) -> bool:
     return bool(pool and pool.pool_type == "pickem")
 
 
-def _pickem_game_and_team(db: Session, pick: PickCreate):
+def _pickem_game_is_in_slate(pool: Pool, game: Schedule) -> bool:
+    slate = getattr(pool, "pickem_slate", "all") or "all"
+    if slate == "all":
+        return True
+    kickoff = game.start_time.replace(tzinfo=timezone.utc).astimezone(ZoneInfo("America/New_York"))
+    if slate == "sunday":
+        return kickoff.weekday() == 6
+    return kickoff.weekday() in {0, 6}
+
+
+def _pickem_slate_games(db: Session, pool: Pool, week: int):
+    return [game for game in current_season_games(db, week) if _pickem_game_is_in_slate(pool, game)]
+
+
+def _pickem_week_deadline(db: Session, pool: Pool, week: int):
+    games = _pickem_slate_games(db, pool, week)
+    configured = pool_week_lock_time(pool, games)
+    if configured is not None:
+        return configured
+    kickoffs = [game.start_time for game in games if game.start_time is not None]
+    return min(kickoffs) if kickoffs else None
+
+
+def _monday_night_game(db: Session, pool: Pool, week: int):
+    monday_games = [
+        game for game in _pickem_slate_games(db, pool, week)
+        if game.start_time.replace(tzinfo=timezone.utc).astimezone(ZoneInfo("America/New_York")).weekday() == 0
+    ]
+    return max(monday_games, key=lambda game: game.start_time, default=None)
+
+
+def _pickem_game_and_team(db: Session, pool: Pool, pick: PickCreate):
     if pick.game_id is None:
         raise HTTPException(status_code=400, detail="Pick 'Em selections require a game_id")
     game = db.query(Schedule).filter(
@@ -54,6 +89,8 @@ def _pickem_game_and_team(db: Session, pick: PickCreate):
     ).first()
     if not game:
         raise HTTPException(status_code=400, detail="Game is not scheduled for this week")
+    if not _pickem_game_is_in_slate(pool, game):
+        raise HTTPException(status_code=400, detail="Game is not included in this pool's weekly slate")
     team = db.query(Team).filter(Team.abbrv == pick.team).first()
     if not team or team.id not in {game.home_team_id, game.away_team_id}:
         raise HTTPException(status_code=400, detail="Selected team is not playing in this game")
@@ -214,7 +251,7 @@ async def create_pick(
     game = None
     selected_team = db.query(Team).filter(Team.abbrv == pick.team).first()
     if pickem:
-        game, selected_team = _pickem_game_and_team(db, pick)
+        game, selected_team = _pickem_game_and_team(db, pool, pick)
     elif pool and pool.pool_type == "survivor":
         _validate_survivor_team(db, pool, selected_team, pick.week)
 
@@ -328,6 +365,131 @@ async def create_pick(
     )
 
     return db_pick
+
+
+@router.put("/picks/entry/{entry_id}/tiebreaker", response_model=PickEmTiebreakerOut)
+def upsert_pickem_tiebreaker(
+    entry_id: str,
+    payload: PickEmTiebreakerUpsert,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    entry = (
+        db.query(Entry)
+        .filter(Entry.id == entry_id, Entry.user_id == current_user.id)
+        .with_for_update()
+        .first()
+    )
+    if not entry:
+        raise HTTPException(status_code=404, detail="Entry not found or doesn't belong to you")
+    pool = db.query(Pool).filter(Pool.id == entry.pool_id).first()
+    if not _is_pickem(pool) or pool.pickem_slate != "sunday_monday":
+        raise HTTPException(status_code=400, detail="This pool does not use a Monday-night tiebreaker")
+    if is_user_locked_in_pool(db, entry.pool_id, current_user.id):
+        raise HTTPException(status_code=423, detail="Your account is locked in this pool. Contact the pool admin.")
+    monday_game = _monday_night_game(db, pool, payload.week)
+    if monday_game is None:
+        raise HTTPException(status_code=400, detail="No Monday-night game is scheduled for this week")
+    deadline = _pickem_week_deadline(db, pool, payload.week)
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    if deadline is not None and deadline <= now:
+        raise HTTPException(status_code=423, detail="The weekly tiebreaker is locked")
+
+    row = (
+        db.query(PickEmTiebreaker)
+        .filter(PickEmTiebreaker.entry_id == entry_id, PickEmTiebreaker.week == payload.week)
+        .first()
+    )
+    old_total = row.predicted_total if row else None
+    if row is None:
+        row = PickEmTiebreaker(
+            id=str(uuid.uuid4()), entry_id=entry_id, week=payload.week,
+            predicted_total=payload.predicted_total, created_at=now, updated_at=now,
+        )
+        db.add(row)
+    else:
+        row.predicted_total = payload.predicted_total
+        row.updated_at = now
+    db.commit()
+    db.refresh(row)
+    log_update_operation(
+        db=db, entity_type="pickem_tiebreaker", entity_id=row.id,
+        user_id=current_user.id,
+        changes={"old_total": old_total, "new_total": payload.predicted_total,
+                 "week": payload.week, **_pick_audit_context(entry, current_user)},
+    )
+    return {
+        "id": row.id, "entry_id": row.entry_id, "week": row.week,
+        "predicted_total": row.predicted_total, "locked": False,
+        "actual_total": None, "difference": None,
+    }
+
+
+@router.get("/picks/entry/{entry_id}/tiebreaker/{week}", response_model=PickEmTiebreakerOut | None)
+def get_pickem_tiebreaker(
+    entry_id: str, week: int, db: Session = Depends(get_db), current_user=Depends(get_current_user)
+):
+    entry = db.query(Entry).filter(Entry.id == entry_id, Entry.user_id == current_user.id).first()
+    if not entry:
+        raise HTTPException(status_code=404, detail="Entry not found or doesn't belong to you")
+    pool = db.query(Pool).filter(Pool.id == entry.pool_id).first()
+    if not _is_pickem(pool) or pool.pickem_slate != "sunday_monday":
+        raise HTTPException(status_code=400, detail="This pool does not use a Monday-night tiebreaker")
+    row = db.query(PickEmTiebreaker).filter(
+        PickEmTiebreaker.entry_id == entry_id, PickEmTiebreaker.week == week
+    ).first()
+    if row is None:
+        return None
+    deadline = _pickem_week_deadline(db, pool, week)
+    locked = bool(deadline and deadline <= datetime.now(timezone.utc).replace(tzinfo=None))
+    monday_game = _monday_night_game(db, pool, week)
+    actual = (
+        monday_game.home_score + monday_game.away_score
+        if monday_game and monday_game.home_score is not None and monday_game.away_score is not None
+        else None
+    )
+    return {"id": row.id, "entry_id": row.entry_id, "week": row.week,
+            "predicted_total": row.predicted_total, "locked": locked,
+            "actual_total": actual,
+            "difference": abs(row.predicted_total - actual) if actual is not None else None}
+
+
+@router.get("/picks/pool/{pool_id}/weekly-standings/{week}", response_model=List[PickEmWeeklyStandingOut])
+def get_pickem_weekly_standings(
+    pool_id: str, week: int, db: Session = Depends(get_db), current_user=Depends(get_current_user)
+):
+    pool = db.query(Pool).filter(Pool.id == pool_id).first()
+    if not pool:
+        raise HTTPException(status_code=404, detail="Pool not found")
+    if not is_pool_participant(db, pool_id, current_user.id):
+        raise HTTPException(status_code=403, detail="Pool membership required")
+    if not _is_pickem(pool):
+        raise HTTPException(status_code=400, detail="Standings are only available for Pick 'Em pools")
+    monday_game = _monday_night_game(db, pool, week) if pool.pickem_slate == "sunday_monday" else None
+    actual = (
+        monday_game.home_score + monday_game.away_score
+        if monday_game and monday_game.home_score is not None and monday_game.away_score is not None
+        else None
+    )
+    deadline = _pickem_week_deadline(db, pool, week)
+    revealed = bool(deadline and deadline <= datetime.now(timezone.utc).replace(tzinfo=None))
+    entries = db.query(Entry).options(selectinload(Entry.user), selectinload(Entry.picks), selectinload(Entry.pickem_tiebreakers)).filter(Entry.pool_id == pool_id).all()
+    rows = []
+    for entry in entries:
+        week_picks = [pick for pick in entry.picks if pick.week == week and (revealed or pick.result in {"win", "loss"})]
+        tb = next((item for item in entry.pickem_tiebreakers if item.week == week), None)
+        predicted = tb.predicted_total if tb and revealed else None
+        rows.append({"entry": entry, "points": sum(p.result == "win" for p in week_picks),
+                     "completed": sum(p.result in {"win", "loss"} for p in week_picks),
+                     "predicted": predicted,
+                     "difference": abs(predicted - actual) if predicted is not None and actual is not None else None})
+    rows.sort(key=lambda row: (-row["points"], row["difference"] if row["difference"] is not None else 9999,
+                               row["entry"].name.casefold(), row["entry"].id))
+    return [{"rank": index + 1, "entry_id": row["entry"].id, "entry_name": row["entry"].name,
+             "user_display_name": public_display_name(row["entry"].user), "points": row["points"],
+             "completed_picks": row["completed"], "predicted_total": row["predicted"],
+             "actual_total": actual if revealed else None, "tiebreak_difference": row["difference"]}
+            for index, row in enumerate(rows)]
 
 
 @router.get("/picks/pool/{pool_id}/standings", response_model=List[PickEmStandingOut])

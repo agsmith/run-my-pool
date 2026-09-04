@@ -1,0 +1,3 @@
+import { Tabs } from 'expo-router';
+import { colors } from '@/theme';
+export default function TabsLayout() { return <Tabs screenOptions={{ headerStyle:{backgroundColor:colors.ink},headerTintColor:colors.text,headerTitleStyle:{fontWeight:'800'},tabBarStyle:{backgroundColor:colors.panel,borderTopColor:colors.line},tabBarActiveTintColor:colors.lime,tabBarInactiveTintColor:colors.muted }}><Tabs.Screen name="index" options={{title:'My Pools',tabBarLabel:'Pools'}}/><Tabs.Screen name="browse" options={{title:'Browse Pools',tabBarLabel:'Browse'}}/><Tabs.Screen name="account" options={{title:'Account'}}/></Tabs>; }

@@ -80,6 +80,12 @@ class LoginRequest(BaseModel):
     password: str
 
 
+class MobileRefreshRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    refresh_token: str = Field(min_length=32, max_length=256)
+
+
 class ForgotPasswordRequest(BaseModel):
     email: EmailStr
 
@@ -280,6 +286,7 @@ class PoolBase(BaseModel):
     survivor_objective: str = "win"
     survivor_mulligans: int = Field(default=0, ge=0, le=3)
     pickem_games_per_week: Optional[int] = Field(default=None, ge=1, le=16)
+    pickem_slate: Literal["all", "sunday", "sunday_monday"] = "all"
     squares_game_id: Optional[int] = None
     squares_game_ids: Optional[List[int]] = None
     lock_time: Optional[str] = None
@@ -378,6 +385,7 @@ class PoolOut(BaseModel):
     survivor_objective: str = "win"
     survivor_mulligans: int = 0
     pickem_games_per_week: Optional[int] = None
+    pickem_slate: Literal["all", "sunday", "sunday_monday"] = "all"
     squares_game_id: Optional[int] = None
     squares_game_ids: Optional[List[int]] = None
     lock_time: Optional[datetime] = None
@@ -584,6 +592,34 @@ class PickEmStandingOut(BaseModel):
     points: int
     possible_points: int
     picks_made: int
+
+
+class PickEmTiebreakerUpsert(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    week: int = Field(ge=1, le=18)
+    predicted_total: int = Field(ge=0, le=200)
+
+
+class PickEmTiebreakerOut(BaseModel):
+    id: str
+    entry_id: str
+    week: int
+    predicted_total: int
+    locked: bool
+    actual_total: Optional[int] = None
+    difference: Optional[int] = None
+
+
+class PickEmWeeklyStandingOut(BaseModel):
+    rank: int
+    entry_id: str
+    entry_name: str
+    user_display_name: str
+    points: int
+    completed_picks: int
+    predicted_total: Optional[int] = None
+    actual_total: Optional[int] = None
+    tiebreak_difference: Optional[int] = None
 
 
 class LeaderboardPickOut(BaseModel):

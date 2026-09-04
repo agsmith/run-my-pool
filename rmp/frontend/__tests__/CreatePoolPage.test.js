@@ -111,7 +111,21 @@ describe('CreatePool', () => {
     expect(JSON.parse(createCall[1].body)).toEqual(expect.objectContaining({
       pool_type: 'pickem',
       pickem_games_per_week: 5,
+      pickem_slate: 'all',
     }));
+  });
+
+  test('offers Sunday and Sunday plus Monday Pick Em slates', async () => {
+    const user = userEvent.setup();
+    fetch.mockResolvedValueOnce(billingOverviewResponse()).mockResolvedValueOnce({ ok: true, json: async () => ({ id: 'sun-mon' }) });
+    render(<CreatePool />);
+    await user.click(screen.getByRole('radio', { name: /pick ’em/i }));
+    const gameDays = screen.getByRole('combobox', { name: /weekly game days/i });
+    await user.selectOptions(gameDays, 'sunday_monday');
+    expect(screen.getByText(/Monday Night Football combined-score tiebreaker/i)).toBeInTheDocument();
+    await user.type(screen.getByPlaceholderText(/enter pool name/i), 'Sunday Monday');
+    await user.click(screen.getByRole('button', { name: /create pick ’em pool/i }));
+    expect(JSON.parse(findCreatePoolCall()[1].body)).toEqual(expect.objectContaining({ pickem_slate: 'sunday_monday' }));
   });
 
   test('lets a Squares owner select one or many games', async () => {

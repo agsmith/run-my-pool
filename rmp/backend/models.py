@@ -81,6 +81,10 @@ class Pool(Base):
             "survivor_objective IN ('win', 'lose')",
             name="ck_pools_survivor_objective",
         ),
+        CheckConstraint(
+            "pickem_slate IN ('all', 'sunday', 'sunday_monday')",
+            name="ck_pools_pickem_slate",
+        ),
     )
     id = Column(String(36), primary_key=True, index=True)
     name = Column(String(255), nullable=False)
@@ -89,6 +93,7 @@ class Pool(Base):
     survivor_objective = Column(String(8), nullable=False, default="win", server_default="win")
     survivor_mulligans = Column(Integer, nullable=False, default=0, server_default="0")
     pickem_games_per_week = Column(Integer, nullable=True)
+    pickem_slate = Column(String(20), nullable=False, default="all", server_default="all")
     squares_game_id = Column(Integer, ForeignKey("schedule.game_id"), nullable=True)
     lock_time = Column(DateTime)
     lock_day_of_week = Column(Integer, nullable=True)
@@ -186,6 +191,9 @@ class Entry(Base):
     survivor_plans = relationship(
         "SurvivorEntryPlan", back_populates="entry", cascade="all, delete-orphan"
     )
+    pickem_tiebreakers = relationship(
+        "PickEmTiebreaker", back_populates="entry", cascade="all, delete-orphan"
+    )
 
 
 class Pick(Base):
@@ -209,6 +217,21 @@ class Pick(Base):
     entry = relationship("Entry", back_populates="picks")
     team_obj = relationship("Team", back_populates="picks")
     game = relationship("Schedule", foreign_keys=[game_id])
+
+
+class PickEmTiebreaker(Base):
+    __tablename__ = "pickem_tiebreakers"
+    __table_args__ = (
+        UniqueConstraint("entry_id", "week", name="uq_pickem_tiebreakers_entry_week"),
+        CheckConstraint("predicted_total >= 0 AND predicted_total <= 200", name="ck_pickem_tiebreaker_total"),
+    )
+    id = Column(String(36), primary_key=True)
+    entry_id = Column(String(36), ForeignKey(ENTRIES_ID_FK, ondelete="CASCADE"), nullable=False, index=True)
+    week = Column(Integer, nullable=False)
+    predicted_total = Column(Integer, nullable=False)
+    created_at = Column(DateTime, nullable=False)
+    updated_at = Column(DateTime, nullable=False)
+    entry = relationship("Entry", back_populates="pickem_tiebreakers")
 
 
 class SurvivorEntryPlan(Base):

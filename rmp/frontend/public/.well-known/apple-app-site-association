@@ -1,0 +1,15 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": ["2X2C9FPH93.net.runmypool.app"],
+        "components": [
+          {
+            "/": "/join/*",
+            "comment": "Open pool invitation links in the Run My Pool app"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Cookie, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Cookie, Depends, Header, HTTPException, Response, status
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
@@ -163,6 +163,7 @@ def register(user: schemas.UserCreate, db: Session = Depends(deps.get_db)):
 def login(
     user: schemas.LoginRequest,
     response: Response,
+    x_rmp_client: str | None = Header(default=None),
     db: Session = Depends(deps.get_db),
 ):
     normalized_email = str(user.email).strip().lower()
@@ -232,7 +233,56 @@ def login(
         persistent_token,
         int(PERSISTENT_SESSION_TTL.total_seconds()),
     )
-    return {"access_token": access_token, "token_type": "bearer"}
+    result = {"access_token": access_token, "token_type": "bearer"}
+    # Native clients cannot rely on browser cookie semantics. Return the opaque,
+    # revocable session credential only when they explicitly request the mobile
+    # contract; web clients continue to receive it solely as an HttpOnly cookie.
+    if x_rmp_client == "native":
+        result["refresh_token"] = persistent_token
+        result["refresh_expires_in"] = int(PERSISTENT_SESSION_TTL.total_seconds())
+    return result
+
+
+@router.post("/mobile-refresh")
+def mobile_refresh(request: schemas.MobileRefreshRequest, db: Session = Depends(deps.get_db)):
+    """Rotate a native refresh credential and issue a fresh access token."""
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    digest = hashlib.sha256(request.refresh_token.encode("utf-8")).hexdigest()
+    session = db.query(models.PersistentSession).filter(
+        models.PersistentSession.token_digest == digest,
+        models.PersistentSession.revoked_at.is_(None),
+        models.PersistentSession.expires_at > now,
+    ).first()
+    if not session:
+        raise HTTPException(status_code=401, detail="Invalid authentication credentials")
+
+    db_user = db.query(models.User).filter(models.User.id == session.user_id).first()
+    if not db_user or not db_user.is_active:
+        session.revoked_at = now
+        db.commit()
+        raise HTTPException(status_code=401, detail="User is unavailable")
+
+    rotated_token = secrets.token_urlsafe(32)
+    session.token_digest = hashlib.sha256(rotated_token.encode("utf-8")).hexdigest()
+    session.last_used_at = now
+    session.expires_at = now + PERSISTENT_SESSION_TTL
+    db.commit()
+    return {
+        "access_token": create_access_token(data={"sub": db_user.email}),
+        "refresh_token": rotated_token,
+        "refresh_expires_in": int(PERSISTENT_SESSION_TTL.total_seconds()),
+        "token_type": "bearer",
+    }
+
+
+@router.post("/mobile-logout", status_code=status.HTTP_204_NO_CONTENT)
+def mobile_logout(request: schemas.MobileRefreshRequest, db: Session = Depends(deps.get_db)):
+    """Revoke a native refresh credential without exposing session existence."""
+    digest = hashlib.sha256(request.refresh_token.encode("utf-8")).hexdigest()
+    session = db.query(models.PersistentSession).filter_by(token_digest=digest).first()
+    if session and session.revoked_at is None:
+        session.revoked_at = datetime.now(timezone.utc).replace(tzinfo=None)
+        db.commit()
 
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)

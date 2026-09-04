@@ -1,0 +1,47 @@
+{
+  "expo": {
+    "name": "Run My Pool",
+    "slug": "run-my-pool",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/rmp-icon.png",
+    "scheme": "runmypool",
+    "userInterfaceStyle": "dark",
+    "ios": {
+      "bundleIdentifier": "net.runmypool.app",
+      "supportsTablet": true,
+      "icon": "./assets/images/rmp-icon.png",
+      "associatedDomains": ["applinks:runmypool.net"],
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#07181C",
+        "foregroundImage": "./assets/images/rmp-icon.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "output": "static",
+      "favicon": "./assets/images/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#07181C",
+          "image": "./assets/images/rmp-icon.png",
+          "imageWidth": 160
+        }
+      ],
+      "expo-secure-store"
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    }
+  }
+}

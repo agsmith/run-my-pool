@@ -22,6 +22,7 @@ export default function CreatePool() {
     survivor_objective: 'win',
     survivor_mulligans: 0,
     pickem_games_per_week: 'all',
+    pickem_slate: 'all',
     squares_game_ids: [],
     lock_day_of_week: 6, lock_time_of_day: '13:00', lock_timezone: 'America/New_York',
     is_private: false, join_password: '',
@@ -100,6 +101,7 @@ export default function CreatePool() {
           pickem_games_per_week: form.pool_type === 'pickem' && form.pickem_games_per_week !== 'all'
             ? Number(form.pickem_games_per_week)
             : null,
+          pickem_slate: form.pool_type === 'pickem' ? form.pickem_slate : 'all',
           squares_game_ids: form.pool_type === 'squares' ? form.squares_game_ids.map(Number) : null,
           lock_day_of_week: Number(form.lock_day_of_week),
           lock_time_of_day: `${form.lock_time_of_day}:00`,
@@ -197,7 +199,16 @@ export default function CreatePool() {
 
       {isPickEm && <section className="create-pool-section">
         <h2>2. Pick ’Em slate</h2>
-        <p className="create-pool-help">Choose how many games each entry needs to pick every week. Members may select any games from that week&apos;s schedule.</p>
+        <p className="create-pool-help">Choose which game days count, then choose how many games each entry must pick.</p>
+        <label className="create-pool-field">
+          <span>Weekly game days</span>
+          <select aria-label="Weekly game days" value={form.pickem_slate} onChange={(event) => update('pickem_slate', event.target.value)}>
+            <option value="all">All scheduled games</option>
+            <option value="sunday">Sunday games only</option>
+            <option value="sunday_monday">Sunday and Monday games</option>
+          </select>
+          <small>{form.pickem_slate === 'sunday_monday' ? 'Includes a weekly Monday Night Football combined-score tiebreaker.' : form.pickem_slate === 'sunday' ? 'Includes every Sunday game, including international games and Sunday Night Football.' : 'Includes every game scheduled that week.'}</small>
+        </label>
         <label className="create-pool-field">
           <span>Required games per week</span>
           <select aria-label="Required games per week" value={form.pickem_games_per_week} onChange={(event) => update('pickem_games_per_week', event.target.value)}>

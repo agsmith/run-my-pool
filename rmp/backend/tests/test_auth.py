@@ -197,6 +197,48 @@ class TestAuthEndpoints:
         assert "access_token" in data
         assert data["token_type"] == "bearer"
 
+    def test_native_login_rotates_refresh_token_and_can_revoke_session(
+        self, client, test_user_data
+    ):
+        client.post("/auth/register", json=test_user_data)
+        login = client.post(
+            "/auth/login",
+            headers={"X-RMP-Client": "native"},
+            json=test_user_data,
+        )
+
+        assert login.status_code == 200
+        first_refresh = login.json()["refresh_token"]
+        assert login.json()["refresh_expires_in"] == 180 * 24 * 60 * 60
+
+        refreshed = client.post(
+            "/auth/mobile-refresh", json={"refresh_token": first_refresh}
+        )
+        assert refreshed.status_code == 200
+        second_refresh = refreshed.json()["refresh_token"]
+        assert second_refresh != first_refresh
+        assert "access_token" in refreshed.json()
+
+        replay = client.post(
+            "/auth/mobile-refresh", json={"refresh_token": first_refresh}
+        )
+        assert replay.status_code == 401
+
+        logout = client.post(
+            "/auth/mobile-logout", json={"refresh_token": second_refresh}
+        )
+        assert logout.status_code == 204
+        assert client.post(
+            "/auth/mobile-refresh", json={"refresh_token": second_refresh}
+        ).status_code == 401
+
+    def test_web_login_never_exposes_refresh_token(self, client, test_user_data):
+        client.post("/auth/register", json=test_user_data)
+        login = client.post("/auth/login", json=test_user_data)
+
+        assert login.status_code == 200
+        assert "refresh_token" not in login.json()
+
     def test_login_sets_httponly_cookie_and_cookie_authenticates(
         self, client, test_user_data
     ):

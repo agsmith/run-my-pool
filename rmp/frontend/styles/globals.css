@@ -2117,3 +2117,10 @@ table {
 @media print {
   .sportzballz-ad, .site-disclaimer { display: none!important; }
 }
+
+.pickem-tiebreaker { display:flex; align-items:end; flex-wrap:wrap; gap:.7rem 1rem; margin:1rem 0; padding:1rem; color:#eaf5f5; background:#0a171c; border:1px solid #35535b; border-radius:12px; }
+.pickem-tiebreaker h2 { width:100%; margin:0; color:#c6ff37; font-size:1.05rem; }
+.pickem-tiebreaker p { width:100%; margin:0; color:#b8c8ca; font-size:.85rem; }
+.pickem-tiebreaker label { display:grid; gap:.35rem; font-size:.78rem; font-weight:800; }
+.pickem-tiebreaker input { width:9rem; padding:.65rem; color:#fff; background:#061014; border:1px solid #607980; border-radius:7px; font:inherit; }
+.pickem-tiebreaker button { padding:.68rem 1rem; color:#041218; background:#c6ff37; border:0; border-radius:7px; font-weight:900; }

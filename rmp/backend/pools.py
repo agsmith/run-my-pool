@@ -251,6 +251,7 @@ def create_pool(
             pickem_games_per_week=(
                 pool.pickem_games_per_week if pool.pool_type == "pickem" else None
             ),
+            pickem_slate=pool.pickem_slate if pool.pool_type == "pickem" else "all",
             # Retain the first game in the legacy column during the transition.
             squares_game_id=selected_square_game_ids[0] if pool.pool_type == "squares" else None,
             lock_time=lock_time,
