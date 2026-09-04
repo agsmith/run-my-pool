@@ -3,7 +3,7 @@ import re
 from datetime import date, datetime, time
 from typing import List, Literal, Optional
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
 
 
 class UserRole(str, enum.Enum):
@@ -311,6 +311,18 @@ class PoolBase(BaseModel):
         if normalized not in {"win", "lose"}:
             raise ValueError("Survivor objective must be win or lose")
         return normalized
+
+    @model_validator(mode="after")
+    def validate_pickem_slate_size(self):
+        if (
+            self.pool_type == "pickem"
+            and self.pickem_slate != "all"
+            and self.pickem_games_per_week is not None
+        ):
+            raise ValueError(
+                "Sunday Pick 'Em slates require picks for every eligible game"
+            )
+        return self
 
 
 class PoolCreate(PoolBase):

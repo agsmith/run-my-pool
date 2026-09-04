@@ -315,6 +315,23 @@ class TestPickEndpoints:
         assert response.status_code == 400
         assert "not included" in response.json()["detail"]
 
+    @pytest.mark.parametrize("slate", ["sunday", "sunday_monday"])
+    def test_day_based_pickem_slate_rejects_configurable_game_count(self, client, slate):
+        token = _register_and_login(client, email=f"pickem.invalid-count.{slate}@example.com")
+        response = client.post(
+            "/pools/create",
+            json={
+                "name": f"Invalid {slate} Count",
+                "pool_type": "pickem",
+                "pickem_slate": slate,
+                "pickem_games_per_week": 5,
+            },
+            headers=_authed(token),
+        )
+
+        assert response.status_code == 422
+        assert "require picks for every eligible game" in response.text
+
     def test_sunday_monday_tiebreaker_is_private_then_ranks_closest_after_lock(self, client, db_session):
         token = _register_and_login(client, email="pickem.tiebreak@example.com")
         headers = _authed(token)

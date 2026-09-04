@@ -123,9 +123,13 @@ describe('CreatePool', () => {
     const gameDays = screen.getByRole('combobox', { name: /weekly game days/i });
     await user.selectOptions(gameDays, 'sunday_monday');
     expect(screen.getByText(/Monday Night Football combined-score tiebreaker/i)).toBeInTheDocument();
+    expect(screen.queryByRole('combobox', { name: /required games per week/i })).not.toBeInTheDocument();
     await user.type(screen.getByPlaceholderText(/enter pool name/i), 'Sunday Monday');
     await user.click(screen.getByRole('button', { name: /create pick ’em pool/i }));
-    expect(JSON.parse(findCreatePoolCall()[1].body)).toEqual(expect.objectContaining({ pickem_slate: 'sunday_monday' }));
+    expect(JSON.parse(findCreatePoolCall()[1].body)).toEqual(expect.objectContaining({
+      pickem_slate: 'sunday_monday',
+      pickem_games_per_week: null,
+    }));
   });
 
   test('lets a Squares owner select one or many games', async () => {
