@@ -131,12 +131,15 @@ describe('commissioner portal', () => {
     render(<AdminPortal />);
 
     await screen.findByRole('heading', { name: 'Office Survivor' });
-    await user.click(screen.getByRole('button', { name: /entry management/i }));
-    expect(screen.getByRole('heading', { name: 'Paper Pick Sheets' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Weekly Bar Pick Sheet' })).toBeInTheDocument();
     await user.selectOptions(screen.getByLabelText('Week'), '3');
     await user.click(screen.getByRole('button', { name: 'Open weekly printable' }));
     expect(mockPush).toHaveBeenCalledWith('/admin/league/pool-1/pickem-printable?week=3');
     mockPush.mockClear();
+
+    await user.click(screen.getByRole('button', { name: /entry management/i }));
+    expect(screen.getByRole('heading', { name: 'Paper Pick Sheets' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Weekly Bar Pick Sheet' })).not.toBeInTheDocument();
     await user.type(screen.getByLabelText('Participant name'), '  Pat Paper  ');
     await user.click(screen.getByRole('button', { name: 'Create entry and enter picks' }));
 

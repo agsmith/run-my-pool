@@ -47,9 +47,13 @@ describe('PickEmPrintablePage', () => {
     expect(await screen.findByRole('heading', { name: 'Sunday Bar Pool' })).toBeInTheDocument();
     expect(global.fetch).toHaveBeenCalledWith('/admin/pools/pool-1/pickem-printable/3', expect.objectContaining({ headers: { Authorization: 'Bearer token' } }));
     expect(screen.getByText(/one winner for every matchup/i)).toBeInTheDocument();
-    expect(screen.getByText('Buffalo Bills')).toBeInTheDocument();
-    expect(screen.getByText('Chicago Bears')).toBeInTheDocument();
-    expect(screen.getByText(/Monday Night combined-score tiebreaker/i)).toBeInTheDocument();
+    expect(screen.getByText('NAME')).toBeInTheDocument();
+    expect(screen.getByText('BUF')).toBeInTheDocument();
+    expect(screen.getByText('MIA')).toBeInTheDocument();
+    expect(screen.getByText(/Buffalo Bills vs Miami Dolphins/)).toBeInTheDocument();
+    expect(screen.getByText(/Green Bay Packers vs Chicago Bears/)).toBeInTheDocument();
+    expect(screen.getByText(/Late Monday Night Game — Total Score/i)).toBeInTheDocument();
+    expect(screen.getByText('RunMyPool.net')).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Print / Save PDF' }));
     expect(window.print).toHaveBeenCalledTimes(1);
