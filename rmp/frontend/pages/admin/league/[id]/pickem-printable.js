@@ -117,10 +117,15 @@ export default function PickEmPrintablePage() {
       @media (max-width: 900px) { .pickem-paper-sheet { width: 100%; min-height: auto; } .pickem-paper-games { grid-template-columns: 1fr; } }
       @media print {
         @page { size: letter portrait; margin: 0; }
-        html, body, #__next { width: 8.5in !important; height: 10.95in !important; min-height: 0 !important; margin: 0 !important; padding: 0 !important; background: white !important; overflow: hidden !important; }
-        .pickem-print-page { position: fixed; inset: 0; width: 8.5in; height: 10.95in; min-height: 0; margin: 0; padding: 0; overflow: hidden; background: white; }
+        body:has(.pickem-print-page) .broadcast-nav,
+        body:has(.pickem-print-page) .site-disclaimer,
+        body:has(.pickem-print-page) .sportzballz-ad { display: none !important; }
+        body:has(.pickem-print-page) .broadcast-v2::before { display: none !important; content: none !important; }
+        body:has(.pickem-print-page) .broadcast-v2 { width: 8.5in !important; height: 10.5in !important; min-height: 0 !important; margin: 0 !important; padding: 0 !important; overflow: hidden !important; }
+        html, body, #__next { width: 8.5in !important; height: 10.5in !important; min-height: 0 !important; margin: 0 !important; padding: 0 !important; background: white !important; overflow: hidden !important; }
+        .pickem-print-page { position: relative; width: 8.5in; height: 10.5in; min-height: 0; margin: 0; padding: 0; overflow: hidden; background: white; }
         .pickem-print-controls, .pickem-print-error { display: none !important; }
-        .pickem-paper-sheet { position: absolute; inset: 0; width: 8.5in; height: 10.95in; min-height: 0; max-height: 10.95in; margin: 0; box-shadow: none; overflow: hidden; page-break-before: avoid; page-break-after: avoid; break-before: avoid-page; break-after: avoid-page; print-color-adjust: exact; }
+        .pickem-paper-sheet { position: relative; width: 8.5in; height: 10.5in; min-height: 0; max-height: 10.5in; margin: 0; box-shadow: none; overflow: hidden; page-break-before: avoid; page-break-after: avoid; break-before: avoid-page; break-after: avoid-page; print-color-adjust: exact; }
         .pickem-paper-games { grid-template-columns: 1fr 1fr; }
         .pickem-paper-game { break-inside: avoid; page-break-inside: avoid; }
       }
