@@ -87,39 +87,40 @@ export default function PickEmPrintablePage() {
       .pickem-print-controls button { background: #26d07c; color: #082116; border: 0; font-weight: 700; cursor: pointer; }
       .pickem-print-controls button:first-child { margin-right: auto; background: #e2e8f0; color: #17223a; }
       .pickem-print-error { max-width: 850px; margin: auto; background: #fee2e2; color: #991b1b; padding: 16px; border-radius: 8px; }
-      .pickem-paper-sheet { box-sizing: border-box; width: 8.5in; min-height: 11in; margin: auto; padding: .24in .35in .2in; background: white; border-top: 7px solid #111827; color: #000; font-family: Arial, sans-serif; }
+      .pickem-paper-sheet { box-sizing: border-box; width: 8.5in; min-height: 11in; margin: auto; padding: .24in .35in .2in; background: white; border-top: 7px solid #000; color: #000; font-family: Arial, sans-serif; }
+      .pickem-paper-sheet, .pickem-paper-sheet * { color: #000 !important; }
       .pickem-paper-sheet header { display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #111827; padding-bottom: 6px; }
-      .pickem-paper-sheet header > div:first-child > span { color: #111827; font-weight: 900; letter-spacing: .16em; font-size: 11px; }
+      .pickem-paper-sheet header > div:first-child > span { font-weight: 900; letter-spacing: .16em; font-size: 11px; }
       .pickem-paper-sheet h1 { margin: 2px 0 0; font-size: 25px; }
       .pickem-paper-heading { display: flex; align-items: center; gap: 12px; }
-      .pickem-paper-heading > strong { font-size: 20px; color: #000; white-space: nowrap; }
-      .pickem-paper-qr { display: flex; flex-direction: column; align-items: center; color: #000; font-weight: 800; }
+      .pickem-paper-heading > strong { font-size: 20px; white-space: nowrap; }
+      .pickem-paper-qr { display: flex; flex-direction: column; align-items: center; font-weight: 800; }
       .pickem-paper-qr img { display: block; width: .68in; height: .68in; image-rendering: crisp-edges; }
       .pickem-paper-qr small { margin-top: 1px; font-size: 7px; letter-spacing: .08em; }
       .pickem-paper-fields { margin: 8px 0 7px; }
       .pickem-paper-fields label { display: flex; align-items: end; gap: 8px; font-size: 12px; font-weight: 700; }
       .pickem-paper-fields span { flex: 1; height: 18px; border-bottom: 1px solid #111827; }
-      .pickem-paper-directions { color: #000; font-size: 11px; margin: 0 0 7px; }
+      .pickem-paper-directions { font-size: 11px; margin: 0 0 7px; }
       .pickem-paper-games { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 9px; }
       .pickem-paper-game { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 5px; border: 1.5px solid #334155; border-radius: 4px; padding: 3px 6px; break-inside: avoid; }
-      .pickem-paper-game time { grid-column: 1 / -1; color: #111827; font-size: 8px; font-weight: 600; }
+      .pickem-paper-game time { grid-column: 1 / -1; font-size: 8px; font-weight: 600; }
       .pickem-paper-game label { display: flex; align-items: center; gap: 7px; font-size: 16px; min-width: 0; }
       .pickem-paper-game label:last-child { justify-content: flex-end; text-align: right; }
       .pickem-paper-game i { width: 17px; height: 17px; border: 2px solid #111827; border-radius: 2px; flex: 0 0 auto; }
-      .pickem-paper-game > span { font-size: 10px; font-weight: 800; color: #111827; }
-      .pickem-paper-game small { grid-column: 1 / -1; color: #111827; font-size: 8px; text-align: center; }
+      .pickem-paper-game > span { font-size: 10px; font-weight: 800; }
+      .pickem-paper-game small { grid-column: 1 / -1; font-size: 8px; text-align: center; }
       .pickem-paper-tiebreaker { display: flex; gap: 12px; align-items: end; margin-top: 7px; padding: 6px 9px; border: 2px solid #111827; font-size: 11px; break-inside: avoid; }
       .pickem-paper-tiebreaker span { flex: 1; min-width: 100px; height: 22px; border-bottom: 2px solid #111827; }
       .pickem-paper-empty { border: 1px dashed #94a3b8; padding: 24px; text-align: center; }
-      .pickem-paper-sheet footer { display: flex; justify-content: space-between; gap: 12px; margin-top: 6px; border-top: 1px solid #334155; padding-top: 5px; color: #000; font-size: 8px; }
-      .pickem-paper-sheet footer strong { color: #000; letter-spacing: .05em; white-space: nowrap; }
+      .pickem-paper-sheet footer { display: flex; justify-content: space-between; gap: 12px; margin-top: 6px; border-top: 1px solid #000; padding-top: 5px; font-size: 8px; }
+      .pickem-paper-sheet footer strong { letter-spacing: .05em; white-space: nowrap; }
       @media (max-width: 900px) { .pickem-paper-sheet { width: 100%; min-height: auto; } .pickem-paper-games { grid-template-columns: 1fr; } }
       @media print {
         @page { size: letter portrait; margin: 0; }
-        html, body, #__next { width: 8.5in; height: 11in; margin: 0 !important; padding: 0 !important; background: white !important; overflow: hidden !important; }
-        .pickem-print-page { padding: 0; background: white; }
+        html, body, #__next { width: 8.5in !important; height: 10.95in !important; min-height: 0 !important; margin: 0 !important; padding: 0 !important; background: white !important; overflow: hidden !important; }
+        .pickem-print-page { position: fixed; inset: 0; width: 8.5in; height: 10.95in; min-height: 0; margin: 0; padding: 0; overflow: hidden; background: white; }
         .pickem-print-controls, .pickem-print-error { display: none !important; }
-        .pickem-paper-sheet { width: 8.5in; height: 11in; min-height: 0; margin: 0; box-shadow: none; overflow: hidden; page-break-before: avoid; page-break-after: avoid; break-before: avoid-page; break-after: avoid-page; print-color-adjust: exact; }
+        .pickem-paper-sheet { position: absolute; inset: 0; width: 8.5in; height: 10.95in; min-height: 0; max-height: 10.95in; margin: 0; box-shadow: none; overflow: hidden; page-break-before: avoid; page-break-after: avoid; break-before: avoid-page; break-after: avoid-page; print-color-adjust: exact; }
         .pickem-paper-games { grid-template-columns: 1fr 1fr; }
         .pickem-paper-game { break-inside: avoid; page-break-inside: avoid; }
       }
