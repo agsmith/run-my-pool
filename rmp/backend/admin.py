@@ -898,10 +898,92 @@ def search_entries_admin(
             "name": entry.name,
             "user_id": user.id,
             "owner_email": user.email,
+            "manual_participant_name": entry.manual_participant_name,
             "locked": user.id in locked_users,
         }
         for entry, user in rows
     ]
+
+
+@router.post(
+    "/pools/{pool_id}/manual-pickem-entries",
+    response_model=schemas.EntryOut,
+)
+def create_manual_pickem_entry(
+    pool_id: str,
+    payload: schemas.ManualPickEmEntryCreate,
+    db: Session = Depends(deps.get_db),
+    current_user: models.User = Depends(deps.get_current_user),
+):
+    """Create a commissioner-managed Pick 'Em entry for a paper pick sheet."""
+    if not verify_admin_access(pool_id, current_user, db):
+        raise HTTPException(status_code=403, detail="Admin access required")
+
+    pool = db.query(models.Pool).filter(models.Pool.id == pool_id).first()
+    if not pool:
+        raise HTTPException(status_code=404, detail="Pool not found")
+    if pool.pool_type != "pickem":
+        raise HTTPException(
+            status_code=400,
+            detail="Manual paper entries are only available for Pick 'Em pools",
+        )
+
+    lock_time = pool.join_lock_time
+    if lock_time is None and pool.lock_day_of_week is None:
+        lock_time = pool.lock_time
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    if lock_time and lock_time <= now:
+        raise HTTPException(
+            status_code=423,
+            detail="Pool registration is locked. Manual entries can no longer be created.",
+        )
+
+    entitlements.enforce_entry_capacity(db, pool)
+    duplicate = (
+        db.query(models.Entry.id)
+        .filter(
+            models.Entry.pool_id == pool_id,
+            models.Entry.user_id == current_user.id,
+            func.lower(models.Entry.name) == payload.participant_name.casefold(),
+        )
+        .first()
+    )
+    if duplicate:
+        raise HTTPException(
+            status_code=409,
+            detail="You already manage an entry with this participant name",
+        )
+
+    entry = models.Entry(
+        id=str(uuid.uuid4()),
+        user_id=current_user.id,
+        pool_id=pool_id,
+        name=payload.participant_name,
+        manual_participant_name=payload.participant_name,
+        alive=True,
+        created_at=now,
+        updated_at=now,
+    )
+    db.add(entry)
+    db.commit()
+    db.refresh(entry)
+    log_admin_action(
+        db=db,
+        action="CREATE_MANUAL_PICKEM_ENTRY",
+        admin_user_id=current_user.id,
+        details=f"Created paper Pick 'Em entry for {payload.participant_name}",
+        target_entity_type="entry",
+        target_entity_id=entry.id,
+        additional_data={
+            "pool_id": pool_id,
+            "pool_name": pool.name,
+            "entry_id": entry.id,
+            "participant_name": payload.participant_name,
+            "managed_by_user_id": current_user.id,
+            "managed_by_email": current_user.email,
+        },
+    )
+    return entry
 
 
 @router.delete("/pools/{pool_id}/entries/{entry_id}")

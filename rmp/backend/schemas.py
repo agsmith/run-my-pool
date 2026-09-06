@@ -539,6 +539,19 @@ class EntryTransfer(BaseModel):
     to_email: str
 
 
+class ManualPickEmEntryCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    participant_name: str = Field(min_length=1, max_length=100)
+
+    @field_validator("participant_name")
+    @classmethod
+    def normalize_participant_name(cls, value: str) -> str:
+        normalized = " ".join(value.split())
+        if not normalized:
+            raise ValueError("Participant name is required")
+        return normalized
+
+
 class AdminPickUpdate(BaseModel):
     team: str = Field(min_length=2, max_length=5, pattern=r"^[A-Za-z]+$")
 
@@ -553,6 +566,7 @@ class EntryOut(BaseModel):
     name: str
     user_id: str
     pool_id: str
+    manual_participant_name: Optional[str] = None
     alive: bool = True
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None

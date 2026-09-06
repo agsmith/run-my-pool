@@ -486,7 +486,7 @@ def get_pickem_weekly_standings(
     rows.sort(key=lambda row: (-row["points"], row["difference"] if row["difference"] is not None else 9999,
                                row["entry"].name.casefold(), row["entry"].id))
     return [{"rank": index + 1, "entry_id": row["entry"].id, "entry_name": row["entry"].name,
-             "user_display_name": public_display_name(row["entry"].user), "points": row["points"],
+             "user_display_name": row["entry"].manual_participant_name or public_display_name(row["entry"].user), "points": row["points"],
              "completed_picks": row["completed"], "predicted_total": row["predicted"],
              "actual_total": actual if revealed else None, "tiebreak_difference": row["difference"]}
             for index, row in enumerate(rows)]
@@ -511,6 +511,7 @@ def get_pickem_standings(
             Entry.id,
             Entry.name,
             Entry.user_id,
+            Entry.manual_participant_name,
             User.email,
             func.sum(case((Pick.result == "win", 1), else_=0)).label("points"),
             func.count(Pick.id).label("picks_made"),
@@ -519,7 +520,7 @@ def get_pickem_standings(
         .join(User, User.id == Entry.user_id)
         .outerjoin(Pick, Pick.entry_id == Entry.id)
         .filter(Entry.pool_id == pool_id)
-        .group_by(Entry.id, Entry.name, Entry.user_id, User.email)
+        .group_by(Entry.id, Entry.name, Entry.user_id, Entry.manual_participant_name, User.email)
         .all()
     )
     ordered = sorted(rows, key=lambda row: (-int(row.points or 0), row.name.casefold(), row.id))
@@ -529,7 +530,7 @@ def get_pickem_standings(
             "entry_id": row.id,
             "entry_name": row.name,
             "user_id": row.user_id,
-            "user_display_name": display_name_from_email(row.email),
+            "user_display_name": row.manual_participant_name or display_name_from_email(row.email),
             "points": int(row.points or 0),
             "possible_points": int(row.possible_points or 0),
             "picks_made": int(row.picks_made or 0),

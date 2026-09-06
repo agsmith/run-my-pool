@@ -119,6 +119,26 @@ describe('commissioner portal', () => {
     expect(screen.queryByRole('heading', { name: 'QR Join Printables' })).not.toBeInTheDocument();
   });
 
+  test('creates a commissioner-managed paper Pick Em entry and opens it for picks', async () => {
+    installApi({
+      'GET /pools/pool-1': () => response({ ...league, pool_type: 'pickem' }),
+      'POST /admin/pools/pool-1/manual-pickem-entries': (url, options) => {
+        expect(JSON.parse(options.body)).toEqual({ participant_name: 'Pat Paper' });
+        return response({ id: 'paper-entry-1', name: 'Pat Paper', manual_participant_name: 'Pat Paper' });
+      },
+    });
+    const user = userEvent.setup();
+    render(<AdminPortal />);
+
+    await screen.findByRole('heading', { name: 'Office Survivor' });
+    await user.click(screen.getByRole('button', { name: /entry management/i }));
+    expect(screen.getByRole('heading', { name: 'Paper Pick Sheets' })).toBeInTheDocument();
+    await user.type(screen.getByLabelText('Participant name'), '  Pat Paper  ');
+    await user.click(screen.getByRole('button', { name: 'Create entry and enter picks' }));
+
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/pool/pool-1/pickem?entry=paper-entry-1&paper=1'));
+  });
+
   test('uses a focused member lookup and one contextual pool-lock action', async () => {
     installApi({
       'GET /admin/pools/pool-1/user-lock?email=player%40example.com': () => response({

@@ -181,6 +181,7 @@ class Entry(Base):
     user_id = Column(String(36), ForeignKey(USERS_ID_FK))
     pool_id = Column(String(36), ForeignKey(POOLS_ID_FK))
     name = Column(String(255))
+    manual_participant_name = Column(String(100), nullable=True)
     alive = Column(Boolean, default=True)
     created_at = Column(DateTime)
     updated_at = Column(DateTime)

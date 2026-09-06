@@ -8,7 +8,7 @@ const authHeaders = () => ({ Authorization: `Bearer ${localStorage.getItem('acce
 
 export default function PickEmPage() {
   const router = useRouter();
-  const { id } = router.query;
+  const { id, entry: requestedEntryId, paper } = router.query;
   const [pool, setPool] = useState(null);
   const [entries, setEntries] = useState([]);
   const [entryId, setEntryId] = useState('');
@@ -39,9 +39,10 @@ export default function PickEmPage() {
       fetch(`${process.env.NEXT_PUBLIC_API_URL}/picks/pool/${id}/standings`, { headers: authHeaders() }).then((res) => res.ok ? res.json() : []),
     ]).then(([poolData, entryData, standingData]) => {
       if (poolData.pool_type !== 'pickem') return router.replace(`/pool/${id}/entries`);
-      setPool(poolData); setEntries(entryData); setEntryId(entryData[0]?.id || ''); setStandings(standingData);
+      const requestedEntry = entryData.find((entry) => entry.id === requestedEntryId);
+      setPool(poolData); setEntries(entryData); setEntryId(requestedEntry?.id || entryData[0]?.id || ''); setStandings(standingData);
     }).catch(() => setError('Unable to load the Pick ’Em pool.'));
-  }, [id]);
+  }, [id, requestedEntryId]);
 
   useEffect(() => {
     if (!id) return;
@@ -99,6 +100,7 @@ export default function PickEmPage() {
   return <ProtectedRoute><main className="product-page-shell pickem-page">
     <PoolWorkspaceNav poolId={id} poolName={pool?.name} poolType="pickem" active="entries" />
     <WorkspaceHeader eyebrow="Every pick counts" title={`Week ${week} Pick ’Em`} description={pool?.pickem_games_per_week ? `Choose any ${weeklyTarget} eligible games. No spread—each correct pick earns one point.` : "Pick the winner of every eligible game. No spread—each correct pick earns one point."} meta={`${Object.keys(picksByGame).length} / ${weeklyTarget} selected`} />
+    {paper === '1' && entryId && <div className="workspace-alert" role="status">Paper entry ready. Enter this participant&apos;s Week {week} picks below; normal lock rules still apply.</div>}
     {error && <div className="workspace-alert workspace-alert--error">{error}</div>}
     <section className="matchup-toolbar">
       <button disabled={week === 1} onClick={() => setWeek((value) => value - 1)}>← Previous</button>

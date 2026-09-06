@@ -65,6 +65,8 @@ export default function AdminPortal() {
   const [entryLookupData, setEntryLookupData] = useState({ username: '', entryName: '' });
   const [lookupResults, setLookupResults] = useState([]);
   const [entryActionMessage, setEntryActionMessage] = useState('');
+  const [manualParticipantName, setManualParticipantName] = useState('');
+  const [creatingManualEntry, setCreatingManualEntry] = useState(false);
   
   // Audit Log State
   const [auditSearch, setAuditSearch] = useState({ 
@@ -317,6 +319,38 @@ export default function AdminPortal() {
     } catch (err) {
       setEntryActionMessage('Error performing lookup');
       console.error('Entry lookup error:', err);
+    }
+  };
+
+  const handleCreateManualPickEmEntry = async (event) => {
+    event.preventDefault();
+    const participantName = manualParticipantName.trim();
+    if (!participantName) {
+      setEntryActionMessage('Enter the participant name from the paper pick sheet.');
+      return;
+    }
+    setCreatingManualEntry(true);
+    setEntryActionMessage('');
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/admin/pools/${leagueId}/manual-pickem-entries`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${localStorage.getItem('access_token')}`,
+          },
+          body: JSON.stringify({ participant_name: participantName }),
+        },
+      );
+      const entry = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(entry.detail || 'Unable to create paper entry');
+      setManualParticipantName('');
+      await router.push(`/pool/${leagueId}/pickem?entry=${encodeURIComponent(entry.id)}&paper=1`);
+    } catch (err) {
+      setEntryActionMessage(err.message || 'Unable to create paper entry');
+    } finally {
+      setCreatingManualEntry(false);
     }
   };
 
@@ -910,6 +944,30 @@ export default function AdminPortal() {
         Entry Management
       </h3>
       {entryActionMessage && <div className="admin-entry-feedback" role="status">{entryActionMessage}</div>}
+
+      {league?.pool_type === 'pickem' && <div style={{ marginBottom: '3rem' }}>
+        <h4 style={{ color: '#2d3748', marginBottom: '1rem' }}>Paper Pick Sheets</h4>
+        <form onSubmit={handleCreateManualPickEmEntry} style={{ backgroundColor: 'white', padding: '1.5rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+          <p style={{ color: '#4a5568', marginTop: 0 }}>
+            Create a commissioner-managed entry for someone who submitted picks on paper. It will appear in standings under their participant name and counts toward this pool&apos;s entry limit.
+          </p>
+          <label htmlFor="manual-participant-name" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500', color: '#374151' }}>Participant name</label>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem' }}>
+            <input
+              id="manual-participant-name"
+              value={manualParticipantName}
+              onChange={(event) => setManualParticipantName(event.target.value)}
+              maxLength={100}
+              autoComplete="off"
+              placeholder="Name written on the pick sheet"
+              style={{ flex: '1 1 18rem', minWidth: 0, padding: '0.75rem', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '1rem' }}
+            />
+            <button type="submit" disabled={creatingManualEntry} style={{ backgroundColor: '#2563eb', color: 'white', padding: '0.75rem 1.5rem', border: 'none', borderRadius: '6px', cursor: creatingManualEntry ? 'wait' : 'pointer', fontSize: '1rem', fontWeight: '600' }}>
+              {creatingManualEntry ? 'Creating…' : 'Create entry and enter picks'}
+            </button>
+          </div>
+        </form>
+      </div>}
       
       {/* CSV Export */}
       <div style={{ marginBottom: '3rem' }}>

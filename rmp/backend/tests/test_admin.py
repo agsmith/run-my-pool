@@ -641,9 +641,94 @@ class TestAdminEndpoints:
                 "name": "Alpha Entry",
                 "user_id": response.json()[0]["user_id"],
                 "owner_email": "search.owner@example.com",
+                "manual_participant_name": None,
                 "locked": False,
             }
         ]
+
+    def test_commissioner_creates_audited_manual_pickem_entry(self, client, db_session):
+        import models as m
+
+        owner_token = _register_and_login(client, "paper.owner@example.com")
+        member_token = _register_and_login(client, "paper.member@example.com")
+        headers = _authed(owner_token)
+        pool_response = client.post(
+            "/pools/create",
+            json={
+                "name": f"Paper Pick Em {uuid.uuid4()}",
+                "pool_type": "pickem",
+                "is_private": False,
+                "rule_values": [],
+            },
+            headers=headers,
+        )
+        assert pool_response.status_code == 200, pool_response.text
+        pool_id = pool_response.json()["id"]
+
+        forbidden = client.post(
+            f"/admin/pools/{pool_id}/manual-pickem-entries",
+            json={"participant_name": "Paper Player"},
+            headers=_authed(member_token),
+        )
+        assert forbidden.status_code == 403
+
+        response = client.post(
+            f"/admin/pools/{pool_id}/manual-pickem-entries",
+            json={"participant_name": "  Paper   Player  "},
+            headers=headers,
+        )
+        assert response.status_code == 200, response.text
+        assert response.json()["name"] == "Paper Player"
+        assert response.json()["manual_participant_name"] == "Paper Player"
+
+        entry = db_session.query(m.Entry).filter_by(id=response.json()["id"]).one()
+        owner = db_session.query(m.User).filter_by(email="paper.owner@example.com").one()
+        assert entry.user_id == owner.id
+        audit = db_session.query(m.AuditLog).filter(
+            m.AuditLog.action == "ADMIN_CREATE_MANUAL_PICKEM_ENTRY",
+        ).one()
+        assert entry.id in audit.details
+        standings = client.get(
+            f"/picks/pool/{pool_id}/standings",
+            headers=headers,
+        )
+        assert standings.status_code == 200, standings.text
+        assert standings.json()[0]["user_display_name"] == "Paper Player"
+
+    def test_manual_entry_rejects_non_pickem_pool_and_duplicate_name(self, client):
+        owner_token = _register_and_login(client, "paper.rules@example.com")
+        headers = _authed(owner_token)
+        survivor_pool_id = _create_pool(client, headers)
+        wrong_type = client.post(
+            f"/admin/pools/{survivor_pool_id}/manual-pickem-entries",
+            json={"participant_name": "Paper Player"},
+            headers=headers,
+        )
+        assert wrong_type.status_code == 400
+
+        pool_response = client.post(
+            "/pools/create",
+            json={
+                "name": f"Duplicate Paper Pick Em {uuid.uuid4()}",
+                "pool_type": "pickem",
+                "is_private": False,
+                "rule_values": [],
+            },
+            headers=headers,
+        )
+        pool_id = pool_response.json()["id"]
+        first = client.post(
+            f"/admin/pools/{pool_id}/manual-pickem-entries",
+            json={"participant_name": "Paper Player"},
+            headers=headers,
+        )
+        duplicate = client.post(
+            f"/admin/pools/{pool_id}/manual-pickem-entries",
+            json={"participant_name": "paper player"},
+            headers=headers,
+        )
+        assert first.status_code == 200
+        assert duplicate.status_code == 409
 
     def test_admin_corrects_pick_by_entry_and_week(self, client, db_session):
         owner_token = _register_and_login(client, "correct.owner@example.com")
