@@ -9,6 +9,10 @@ jest.mock('next/router', () => ({
   useRouter: () => ({ query: { id: 'pool-1', week: '3' }, push: mockPush }),
 }));
 jest.mock('../components/ProtectedRoute', () => ({ children }) => children);
+jest.mock('qrcode', () => ({
+  __esModule: true,
+  default: { toDataURL: jest.fn(() => Promise.resolve('data:image/png;base64,join-qr')) },
+}));
 
 const sheet = {
   pool_id: 'pool-1', pool_name: 'Sunday Bar Pool', week: 3,
@@ -54,6 +58,7 @@ describe('PickEmPrintablePage', () => {
     expect(screen.getByText(/Green Bay Packers vs Chicago Bears/)).toBeInTheDocument();
     expect(screen.getByText(/Late Monday Night Game — Total Score/i)).toBeInTheDocument();
     expect(screen.getByText('RunMyPool.net')).toBeInTheDocument();
+    expect(await screen.findByRole('img', { name: 'Scan to join this pool' })).toHaveAttribute('src', 'data:image/png;base64,join-qr');
 
     await user.click(screen.getByRole('button', { name: 'Print / Save PDF' }));
     expect(window.print).toHaveBeenCalledTimes(1);
