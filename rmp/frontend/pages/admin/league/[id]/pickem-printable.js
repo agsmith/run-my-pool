@@ -88,10 +88,10 @@ export default function PickEmPrintablePage() {
       .pickem-print-controls button:first-child { margin-right: auto; background: #e2e8f0; color: #17223a; }
       .pickem-print-error { max-width: 850px; margin: auto; background: #fee2e2; color: #991b1b; padding: 16px; border-radius: 8px; }
       .pickem-paper-sheet { box-sizing: border-box; width: 8.5in; min-height: 11in; margin: auto; padding: .24in .35in .2in; background: white; border-top: 7px solid #000; color: #000; font-family: Arial, sans-serif; }
-      .pickem-paper-sheet, .pickem-paper-sheet * { color: #000 !important; }
+      .pickem-paper-sheet, .pickem-paper-sheet * { color: #000 !important; -webkit-text-fill-color: #000 !important; text-shadow: none !important; }
       .pickem-paper-sheet header { display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #111827; padding-bottom: 6px; }
       .pickem-paper-sheet header > div:first-child > span { font-weight: 900; letter-spacing: .16em; font-size: 11px; }
-      .pickem-paper-sheet h1 { margin: 2px 0 0; font-size: 25px; }
+      .pickem-paper-sheet h1 { margin: 2px 0 0; color: #000 !important; background: none !important; background-image: none !important; -webkit-background-clip: border-box !important; background-clip: border-box !important; -webkit-text-fill-color: #000 !important; font-size: 25px; text-shadow: none !important; }
       .pickem-paper-heading { display: flex; align-items: center; gap: 12px; }
       .pickem-paper-heading > strong { font-size: 20px; white-space: nowrap; }
       .pickem-paper-qr { display: flex; flex-direction: column; align-items: center; font-weight: 800; }
