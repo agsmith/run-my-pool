@@ -12,6 +12,7 @@ from sqlalchemy import and_, func
 from datetime import datetime, timezone
 from typing import Optional
 import uuid
+from zoneinfo import ZoneInfo
 from pydantic import EmailStr
 
 import models
@@ -984,6 +985,64 @@ def create_manual_pickem_entry(
         },
     )
     return entry
+
+
+@router.get("/pools/{pool_id}/pickem-printable/{week}")
+def get_pickem_weekly_printable(
+    pool_id: str,
+    week: int,
+    db: Session = Depends(deps.get_db),
+    current_user: models.User = Depends(deps.get_current_user),
+):
+    """Return the exact commissioner-authorized weekly slate for paper sheets."""
+    if not verify_admin_access(pool_id, current_user, db):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    if week not in range(1, 19):
+        raise HTTPException(status_code=400, detail="Week must be between 1 and 18")
+
+    pool = db.query(models.Pool).filter(models.Pool.id == pool_id).first()
+    if not pool:
+        raise HTTPException(status_code=404, detail="Pool not found")
+    if pool.pool_type != "pickem":
+        raise HTTPException(
+            status_code=400,
+            detail="Weekly pick sheets are only available for Pick 'Em pools",
+        )
+
+    eastern = ZoneInfo("America/New_York")
+    games = current_season_games(db, week)
+    if pool.pickem_slate != "all":
+        allowed_days = {6} if pool.pickem_slate == "sunday" else {0, 6}
+        games = [
+            game
+            for game in games
+            if game.start_time.replace(tzinfo=timezone.utc).astimezone(eastern).weekday()
+            in allowed_days
+        ]
+
+    return {
+        "pool_id": pool.id,
+        "pool_name": pool.name,
+        "week": week,
+        "slate": pool.pickem_slate,
+        "required_picks": min(pool.pickem_games_per_week or len(games), len(games)),
+        "requires_tiebreaker": pool.pickem_slate == "sunday_monday",
+        "games": [
+            {
+                "game_id": game.game_id,
+                "start_time": f"{game.start_time.isoformat()}Z",
+                "away_team": {
+                    "name": game.away_team.name,
+                    "abbrv": game.away_team.abbrv,
+                },
+                "home_team": {
+                    "name": game.home_team.name,
+                    "abbrv": game.home_team.abbrv,
+                },
+            }
+            for game in games
+        ],
+    }
 
 
 @router.delete("/pools/{pool_id}/entries/{entry_id}")

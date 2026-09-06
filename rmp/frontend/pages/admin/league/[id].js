@@ -67,6 +67,7 @@ export default function AdminPortal() {
   const [entryActionMessage, setEntryActionMessage] = useState('');
   const [manualParticipantName, setManualParticipantName] = useState('');
   const [creatingManualEntry, setCreatingManualEntry] = useState(false);
+  const [printableWeek, setPrintableWeek] = useState(1);
   
   // Audit Log State
   const [auditSearch, setAuditSearch] = useState({ 
@@ -964,6 +965,20 @@ export default function AdminPortal() {
             />
             <button type="submit" disabled={creatingManualEntry} style={{ backgroundColor: '#2563eb', color: 'white', padding: '0.75rem 1.5rem', border: 'none', borderRadius: '6px', cursor: creatingManualEntry ? 'wait' : 'pointer', fontSize: '1rem', fontWeight: '600' }}>
               {creatingManualEntry ? 'Creating…' : 'Create entry and enter picks'}
+            </button>
+          </div>
+          <hr style={{ border: 0, borderTop: '1px solid #e2e8f0', margin: '1.5rem 0' }} />
+          <h5 style={{ color: '#2d3748', fontSize: '1rem', margin: '0 0 0.5rem' }}>Blank weekly pick sheet</h5>
+          <p style={{ color: '#4a5568', margin: '0 0 1rem' }}>Print the games included by this pool&apos;s weekly Pick &apos;Em settings for participants to complete on paper.</p>
+          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'end', gap: '0.75rem' }}>
+            <label htmlFor="pickem-printable-week" style={{ color: '#374151', fontWeight: '500' }}>
+              Week
+              <select id="pickem-printable-week" value={printableWeek} onChange={(event) => setPrintableWeek(Number(event.target.value))} style={{ display: 'block', marginTop: '0.4rem', padding: '0.7rem', border: '1px solid #d1d5db', borderRadius: '6px' }}>
+                {Array.from({ length: 18 }, (_, index) => <option key={index + 1} value={index + 1}>{index + 1}</option>)}
+              </select>
+            </label>
+            <button type="button" onClick={() => router.push(`/admin/league/${leagueId}/pickem-printable?week=${printableWeek}`)} style={{ backgroundColor: '#0f766e', color: 'white', padding: '0.75rem 1.5rem', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '1rem', fontWeight: '600' }}>
+              Open weekly printable
             </button>
           </div>
         </form>

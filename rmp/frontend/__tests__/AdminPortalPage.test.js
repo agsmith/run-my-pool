@@ -133,6 +133,10 @@ describe('commissioner portal', () => {
     await screen.findByRole('heading', { name: 'Office Survivor' });
     await user.click(screen.getByRole('button', { name: /entry management/i }));
     expect(screen.getByRole('heading', { name: 'Paper Pick Sheets' })).toBeInTheDocument();
+    await user.selectOptions(screen.getByLabelText('Week'), '3');
+    await user.click(screen.getByRole('button', { name: 'Open weekly printable' }));
+    expect(mockPush).toHaveBeenCalledWith('/admin/league/pool-1/pickem-printable?week=3');
+    mockPush.mockClear();
     await user.type(screen.getByLabelText('Participant name'), '  Pat Paper  ');
     await user.click(screen.getByRole('button', { name: 'Create entry and enter picks' }));
 

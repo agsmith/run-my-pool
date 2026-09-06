@@ -9,7 +9,7 @@ Routes under test:
 """
 
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
@@ -729,6 +729,61 @@ class TestAdminEndpoints:
         )
         assert first.status_code == 200
         assert duplicate.status_code == 409
+
+    def test_weekly_printable_uses_configured_pickem_slate_and_requires_admin(
+        self, client, db_session
+    ):
+        import models as m
+
+        owner_token = _register_and_login(client, "print.owner@example.com")
+        member_token = _register_and_login(client, "print.member@example.com")
+        headers = _authed(owner_token)
+        pool_response = client.post(
+            "/pools/create",
+            json={
+                "name": f"Printable Pick Em {uuid.uuid4()}",
+                "pool_type": "pickem",
+                "pickem_slate": "sunday_monday",
+                "is_private": False,
+                "rule_values": [],
+            },
+            headers=headers,
+        )
+        pool_id = pool_response.json()["id"]
+        teams = [
+            m.Team(id=18101 + index, name=name, abbrv=abbrv)
+            for index, (name, abbrv) in enumerate(
+                [
+                    ("Buffalo Bills", "BFX"), ("Miami Dolphins", "MIX"),
+                    ("Chicago Bears", "CHX"), ("Green Bay Packers", "GBX"),
+                    ("Dallas Cowboys", "DAX"), ("New York Giants", "NYX"),
+                ]
+            )
+        ]
+        db_session.add_all(teams)
+        sunday = datetime(2099, 9, 6, 17)
+        db_session.add_all([
+            m.Schedule(game_id=18101, season=2099, week_num=1, away_team_id=18101, home_team_id=18102, start_time=sunday),
+            m.Schedule(game_id=18102, season=2099, week_num=1, away_team_id=18103, home_team_id=18104, start_time=sunday + timedelta(days=1, hours=7)),
+            m.Schedule(game_id=18103, season=2099, week_num=1, away_team_id=18105, home_team_id=18106, start_time=sunday - timedelta(days=3)),
+        ])
+        db_session.commit()
+
+        forbidden = client.get(
+            f"/admin/pools/{pool_id}/pickem-printable/1",
+            headers=_authed(member_token),
+        )
+        assert forbidden.status_code == 403
+
+        response = client.get(
+            f"/admin/pools/{pool_id}/pickem-printable/1",
+            headers=headers,
+        )
+        assert response.status_code == 200, response.text
+        payload = response.json()
+        assert payload["requires_tiebreaker"] is True
+        assert payload["required_picks"] == 2
+        assert [game["game_id"] for game in payload["games"]] == [18101, 18102]
 
     def test_admin_corrects_pick_by_entry_and_week(self, client, db_session):
         owner_token = _register_and_login(client, "correct.owner@example.com")
