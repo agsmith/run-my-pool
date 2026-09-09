@@ -22,15 +22,15 @@ const pool = {
   is_private: true, created_by: 'someone-else',
 };
 
-function installDashboardApi({ pools = [pool], admin = true, failPools = false } = {}) {
+function installDashboardApi({ pools = [pool], admin = true, failPools = false, week = 1, failActivity = false } = {}) {
   global.fetch = jest.fn((url) => {
     const path = String(url);
     if (path.endsWith('/pools/my-pools')) return response(failPools ? { detail: 'failed' } : pools, !failPools);
     if (path.endsWith('/pools/pool-1/picks-summary')) {
       return response({ 1: { teams: { WSH: 1 }, unlockedCount: 2 } });
     }
-    if (path.includes('/pools/pool-1/activity-summary?week=')) {
-      return response({ entries_remaining: 12, total_entries: 15, week: 1, week_selections: 9 });
+    if (path.endsWith('/pools/pool-1/activity-summary')) {
+      return response({ entries_remaining: 12, total_entries: 15, week, week_selections: 9 }, !failActivity);
     }
     if (path.endsWith('/entries/pool/pool-1')) {
       return response([
@@ -56,6 +56,37 @@ describe('dashboard', () => {
   afterEach(() => {
     jest.restoreAllMocks();
     localStorage.clear();
+  });
+
+  test('uses the server week after September 9 instead of a fixed annual cutoff', async () => {
+    jest.useFakeTimers({ now: new Date('2026-09-09T16:00:00Z') });
+    try {
+      installDashboardApi({ week: 1 });
+      render(<Dashboard />);
+      expect(await screen.findByRole('option', { name: 'Week 1 - (Current)' })).toBeInTheDocument();
+      expect(screen.getByRole('option', { name: 'Week 2 - (Future)' })).toBeInTheDocument();
+      expect(screen.getByLabelText('Select Week:')).toHaveValue('1');
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  test('defaults to the schedule week and allows browsing past weeks', async () => {
+    installDashboardApi({ week: 3 });
+    const user = userEvent.setup();
+    render(<Dashboard />);
+    expect(await screen.findByRole('option', { name: 'Week 3 - (Current)' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Select Week:')).toHaveValue('3');
+    await user.selectOptions(screen.getByLabelText('Select Week:'), '1');
+    expect(screen.getByLabelText('Select Week:')).toHaveValue('1');
+    expect(screen.getByRole('option', { name: 'Week 1 - (Past)' })).toBeInTheDocument();
+  });
+
+  test('does not guess a current week when the activity request fails', async () => {
+    installDashboardApi({ failActivity: true });
+    render(<Dashboard />);
+    expect(await screen.findByText(/Current week is unavailable/)).toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: /Current/ })).not.toBeInTheDocument();
   });
 
   test('summarizes entries and routes an authorized commissioner', async () => {

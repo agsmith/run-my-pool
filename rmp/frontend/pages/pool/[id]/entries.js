@@ -1169,7 +1169,7 @@ export default function LeagueEntries() {
               fontWeight: '400',
               margin: '0 0 1rem 0'
             }}>
-              Click on any week circle to make or change picks
+              To see the games, find your entry below and tap a numbered circle under the week you want to pick. Choose a team, then tap Save Pick. Repeat for each entry. On a phone, swipe the table sideways to see more weeks.
             </p>
             
           </div>

@@ -55,28 +55,8 @@ export default function Dashboard() {
   const [draggedPoolId, setDraggedPoolId] = useState(null); // Track which pool is being dragged
   const [poolOrder, setPoolOrder] = useState([]); // Track custom pool ordering
 
-  // Calculate current NFL week based on date
-  const getCurrentWeek = () => {
-    const now = new Date();
-    const currentYear = now.getFullYear();
-    
-    // Week 1 ends on 9/9 of the current year
-    const week1End = new Date(currentYear, 8, 9); // Month is 0-indexed, so 8 = September
-    
-    // If we're before Week 1 ends, we're in Week 1
-    if (now <= week1End) {
-      return 1;
-    }
-    
-    // Calculate how many days have passed since Week 1 ended
-    const daysSinceWeek1End = Math.floor((now - week1End) / (1000 * 60 * 60 * 24));
-    
-    // Each week is 7 days, so calculate which week we're in
-    const currentWeek = Math.floor(daysSinceWeek1End / 7) + 2; // +2 because we start from Week 2
-    
-    // Cap at Week 18 (NFL regular season)
-    return Math.min(currentWeek, 18);
-  };
+  // Use the same schedule-derived week as the server's activity summary.
+  const getCurrentWeek = (poolId) => poolStatsData[poolId]?.week;
 
   useEffect(() => {
     fetchUserLeagues();
@@ -120,18 +100,15 @@ export default function Dashboard() {
         }
         setLeagues(data);
         
-        // Calculate current week for initial tab state
-        const currentWeek = getCurrentWeek();
-        
         // Initialize active tabs (default to current week) and fetch picks data
         const tabs = {};
         const picksData = {};
         const statsData = {};
         
         for (const league of data) {
-          tabs[league.id] = currentWeek; // Default to current week
           picksData[league.id] = await fetchLeaguePicksData(league.id, token);
           statsData[league.id] = await fetchPoolStats(league.id, token);
+          tabs[league.id] = statsData[league.id]?.week;
         }
         
         setActiveTabs(tabs);
@@ -166,15 +143,15 @@ export default function Dashboard() {
 
   const fetchPoolStats = async (leagueId, token) => {
     try {
-      const week = getCurrentWeek();
-      const summaryRes = await fetch(process.env.NEXT_PUBLIC_API_URL + `/pools/${leagueId}/activity-summary?week=${week}`, {
+      const summaryRes = await fetch(process.env.NEXT_PUBLIC_API_URL + `/pools/${leagueId}/activity-summary`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      if (summaryRes.ok) return await summaryRes.json();
-      return { entries_remaining: 0, total_entries: 0, week, week_selections: 0 };
+      if (!summaryRes.ok) return null;
+      const summary = await summaryRes.json();
+      return Number.isInteger(summary.week) && summary.week >= 1 && summary.week <= 18 ? summary : null;
     } catch (err) {
       console.error(`Failed to fetch pool stats for league ${leagueId}:`, err);
-      return { entries_remaining: 0, total_entries: 0, week: getCurrentWeek(), week_selections: 0 };
+      return null;
     }
   };
 
@@ -398,7 +375,7 @@ export default function Dashboard() {
           color: '#6b7280',
           fontSize: '0.875rem'
         }}>
-          Loading pool activity…
+          Pool activity is unavailable. Refresh the page to try again.
         </div>
       );
     }
@@ -472,7 +449,9 @@ export default function Dashboard() {
 
   const renderWeekSelector = (league) => {
     const leaguePicksData = poolPicksData[league.id] || {};
-    const activeWeek = activeTabs[league.id] || getCurrentWeek();
+    const seasonWeek = getCurrentWeek(league.id);
+    if (!seasonWeek) return <p role="status">Current week is unavailable. Open My Entries to view your picks.</p>;
+    const activeWeek = activeTabs[league.id] || seasonWeek;
     
     // Always show weeks 1-18 for NFL season
     const allWeeks = Array.from({ length: 18 }, (_, i) => i + 1);
@@ -529,8 +508,8 @@ export default function Dashboard() {
           >
             {allWeeks.map(week => (
               <option key={week} value={week}>
-                Week {week} - {getCurrentWeek() === week ? '(Current)' : 
-                             getCurrentWeek() > week ? '(Past)' : 
+                Week {week} - {getCurrentWeek(league.id) === week ? '(Current)' :
+                             getCurrentWeek(league.id) > week ? '(Past)' :
                              '(Future)'}
               </option>
             ))}
@@ -593,25 +572,25 @@ export default function Dashboard() {
               ▶
             </button>
             <button
-              onClick={() => handleTabChange(league.id, getCurrentWeek())}
+              onClick={() => handleTabChange(league.id, getCurrentWeek(league.id))}
               style={{
                 padding: '0.5rem 0.75rem',
                 border: '1px solid #3b82f6',
                 borderRadius: '4px',
-                backgroundColor: activeWeek === getCurrentWeek() ? '#3b82f6' : 'white',
-                color: activeWeek === getCurrentWeek() ? 'white' : '#3b82f6',
+                backgroundColor: activeWeek === getCurrentWeek(league.id) ? '#3b82f6' : 'white',
+                color: activeWeek === getCurrentWeek(league.id) ? 'white' : '#3b82f6',
                 cursor: 'pointer',
                 fontSize: '0.75rem',
                 fontWeight: '500',
                 transition: 'all 0.2s ease'
               }}
               onMouseEnter={(e) => {
-                if (activeWeek !== getCurrentWeek()) {
+                if (activeWeek !== getCurrentWeek(league.id)) {
                   e.target.style.backgroundColor = '#eff6ff';
                 }
               }}
               onMouseLeave={(e) => {
-                if (activeWeek !== getCurrentWeek()) {
+                if (activeWeek !== getCurrentWeek(league.id)) {
                   e.target.style.backgroundColor = 'white';
                 }
               }}
@@ -632,13 +611,13 @@ export default function Dashboard() {
           overflowY: 'auto',
           overflowX: 'hidden'
         }}>
-          {renderTeamCounts(leaguePicksData[activeWeek] || { teams: {}, unlockedCount: 1 }, activeWeek)}
+          {renderTeamCounts(leaguePicksData[activeWeek] || { teams: {}, unlockedCount: 1 }, activeWeek, seasonWeek)}
         </div>
       </div>
     );
   };
 
-  const renderTeamCounts = (weekData, currentWeek) => {
+  const renderTeamCounts = (weekData, currentWeek, seasonWeek) => {
     if (!weekData) {
       return (
         <div style={{ 
@@ -654,7 +633,7 @@ export default function Dashboard() {
 
     const { teams = {}, unlockedCount = 0 } = weekData;
     const teamNames = Object.keys(teams).sort((a, b) => teams[b] - teams[a]); // Sort by pick count (highest to lowest)
-    const isWeekInPast = currentWeek < getCurrentWeek();
+    const isWeekInPast = currentWeek < seasonWeek;
     
     if (teamNames.length === 0 && unlockedCount === 0) {
       return (
