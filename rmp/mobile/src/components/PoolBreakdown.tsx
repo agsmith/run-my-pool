@@ -7,7 +7,7 @@ export function PoolBreakdown({ rows }: { rows: Breakdown[] }) {
   const count = rows.reduce((sum, row) => sum + row.count, 0);
   return (
     <View style={s.panel}>
-      <Text style={s.title}>Weekly Picks</Text>
+      <Text style={s.title}>Pick Breakdown</Text>
       <Text style={s.copy}>
         Both teams’ picks lock and appear at kickoff. Remaining picks appear at
         the pool deadline.
