@@ -276,6 +276,7 @@ async def create_pick(
             )
         if pool:
             _check_pick_lock(db, pool, existing_pick.team, pick.week)
+            _check_pick_lock(db, pool, pick.team, pick.week)
 
         # Update existing pick
         old_team = existing_pick.team
@@ -644,7 +645,15 @@ async def get_picks_for_entry(
         )
 
     picks = db.query(Pick).filter(Pick.entry_id == entry_id).order_by(Pick.week).all()
-    return picks
+    pool = db.query(Pool).filter(Pool.id == entry.pool_id).first()
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    result = []
+    for pick in picks:
+        output = PickOut.model_validate(pick, from_attributes=True)
+        deadline = _get_effective_lock_time(db, pool, pick.team, pick.week) if pool else None
+        output.locked = bool(pick.locked or (deadline is not None and deadline <= now))
+        result.append(output)
+    return result
 
 
 @router.put("/picks/{pick_id}", response_model=PickOut)
@@ -697,6 +706,8 @@ async def update_pick(
         pool = db.query(Pool).filter(Pool.id == entry.pool_id).first()
         if pool:
             _check_pick_lock(db, pool, pick.team, pick.week)
+            if pick_update.team:
+                _check_pick_lock(db, pool, pick_update.team, pick.week)
     else:
         pool = None
 
@@ -841,7 +852,7 @@ def get_pick_breakdown(
     """
     Return per-team pick counts and per-user entry counts for surviving entries.
     Configured pools reveal every pick once the weekly pool deadline passes.
-    Legacy pools without a weekly deadline retain kickoff-based revealing.
+    Before that deadline, both teams in each started game are revealed.
     """
     if not is_pool_participant(db, pool_id, current_user.id):
         raise HTTPException(status_code=403, detail="League membership required")
@@ -849,22 +860,15 @@ def get_pick_breakdown(
     pool = db.query(Pool).filter(Pool.id == pool_id).first()
     if not pool:
         raise HTTPException(status_code=404, detail="Pool not found")
-    deadline = pool_week_lock_time(pool, current_season_games(db, week))
-    if deadline is not None and deadline > now:
-        return []
-
-    # Subquery: team IDs with a game that has already started this week
-    started_home = db.query(Schedule.home_team_id).filter(
-        Schedule.week_num == week, Schedule.start_time < now
-    )
-    started_away = db.query(Schedule.away_team_id).filter(
-        Schedule.week_num == week, Schedule.start_time < now
-    )
-    started_team_ids = started_home.union(started_away).subquery()
-
+    games = current_season_games(db, week)
+    deadline = pool_week_lock_time(pool, games)
+    started_team_ids = {
+        team_id for game in games if game.start_time <= now
+        for team_id in (game.home_team_id, game.away_team_id)
+    }
     filters = [Entry.pool_id == pool_id, Entry.alive == True, Pick.week == week]  # noqa: E712
-    if deadline is None:
-        filters.append(Pick.team_id.in_(started_team_ids))
+    if deadline is None or deadline > now:
+        filters.append(Team.id.in_(started_team_ids))
 
     rows = (
         db.query(
@@ -901,6 +905,20 @@ def get_pick_breakdown(
             "entry_count": row.entry_count,
         })
 
+    entry_rows = (
+        db.query(Pick.team, Entry.id, Entry.name)
+        .join(Entry, Pick.entry_id == Entry.id)
+        .join(Team, Team.abbrv == Pick.team)
+        .filter(*filters)
+        .order_by(Entry.name, Entry.id)
+        .all()
+    )
+    entries_by_team = {}
+    for item in entry_rows:
+        entries_by_team.setdefault(item.team, []).append({
+            "entry_id": item.id, "entry_name": item.name,
+        })
+
     return [
         PickBreakdownItem(
             team=row.team,
@@ -910,6 +928,7 @@ def get_pick_breakdown(
             team_logo=row.team_logo,
             count=row.count,
             users=users_by_team.get(row.team, []),
+            entries=entries_by_team.get(row.team, []),
         )
         for row in rows
     ]

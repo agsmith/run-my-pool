@@ -695,6 +695,11 @@ class PickBreakdownUser(BaseModel):
     entry_count: int
 
 
+class PickBreakdownEntry(BaseModel):
+    entry_id: str
+    entry_name: str
+
+
 class PickBreakdownItem(BaseModel):
     team: str
     team_id: int
@@ -703,6 +708,7 @@ class PickBreakdownItem(BaseModel):
     team_logo: Optional[str] = None
     count: int
     users: List[PickBreakdownUser] = Field(default_factory=list)
+    entries: List[PickBreakdownEntry] = Field(default_factory=list)
 
 
 class MessageBoardCreate(BaseModel):

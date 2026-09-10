@@ -6,6 +6,7 @@ import { PoolWorkspaceNav, WorkspaceHeader } from '../../components/ProductWorks
 import PoolLaunchChecklist from '../../components/PoolLaunchChecklist';
 import MemberPoolWelcome from '../../components/MemberPoolWelcome';
 import WeeklyActionCenter from '../../components/WeeklyActionCenter';
+import PoolPickBreakdown from '../../components/PoolPickBreakdown';
 import MemberWeeklyRecap from '../../components/MemberWeeklyRecap';
 import { trackLifecycleEvent } from '../../lib/lifecycleAnalytics';
 
@@ -238,6 +239,8 @@ export default function PoolDetail() {
                 error={weeklySummaryError}
                 onAction={openWeeklyAction}
               />
+
+              {pool.pool_type === 'survivor' && <PoolPickBreakdown poolId={id} currentWeek={weeklySummary?.week} />}
 
               <section className="pool-home-actions" aria-label="Pool shortcuts">
                 <button onClick={() => router.push(picksHref)}><span>01</span><strong>{pool.pool_type === 'pickem' ? 'Pick ’Em Board' : pool.pool_type === 'squares' ? 'Squares Board' : 'My Entries'}</strong><small>{pool.pool_type === 'squares' ? 'Claim squares and follow quarter winners' : 'Make selections and review entries'}</small></button>

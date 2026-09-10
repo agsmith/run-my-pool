@@ -105,7 +105,7 @@ function PickBreakdownPanel({ data, week, loading, error, locked }) {
       {!loading && !error && total === 0 && <p style={{ color: '#c9d4d3', margin: 0 }}>
         {locked
           ? `No surviving picks were recorded for Week ${week}.`
-          : `Week ${week} picks will be revealed after the weekly lock time.`}
+          : `Week ${week} picks are revealed when their game starts or the weekly pool deadline passes.`}
       </p>}
 
       {!loading && !error && breakdown.map((item) => {
@@ -824,6 +824,7 @@ export default function LeagueEntries() {
               ) : (
                 weekSchedule.map((game) => {
                   const gameTime = formatGameTime(game.start_time);
+                  const gameStarted = new Date(game.start_time).getTime() <= lockClock;
                   const awayTeam = game.away_team;
                   const homeTeam = game.home_team;
                   const awayUsed = usedInOtherWeeks.has(awayTeam.abbrv);
@@ -844,7 +845,7 @@ export default function LeagueEntries() {
                         <button
                           className={`entries-team-option${awayUsed ? ' entries-team-option--used' : ''}${awayCurrent ? ' entries-team-option--current' : ''}${selectedTeam === awayTeam.abbrv ? ' entries-team-option--selected' : ''}`}
                           onClick={() => handleTeamSelect(awayTeam.abbrv)}
-                          disabled={awayUsed}
+                          disabled={awayUsed || gameStarted}
                           aria-label={`${awayTeam.name}${awayUsed ? ', used in another week' : awayCurrent ? ', current week pick' : ''}`}
                           style={getTeamButtonStyle(awayTeam.abbrv, selectedTeam === awayTeam.abbrv, awayUsed, awayCurrent)}
                         >
@@ -857,6 +858,7 @@ export default function LeagueEntries() {
                             <div style={{ fontWeight: 'bold', fontSize: '14px' }}>{awayTeam.abbrv}</div>
                             <div style={{ fontSize: '12px', color: '#666' }}>{awayTeam.name}</div>
                             {awayCurrent && <div style={{ fontSize: '11px', color: '#526900', fontWeight: 800 }}>CURRENT PICK</div>}
+                            {gameStarted && <div className="entries-team-option__used">LOCKED · GAME STARTED</div>}
                             {awayUsed && <div className="entries-team-option__used">USED · WEEK {usedWeekByTeam.get(awayTeam.abbrv)}</div>}
                           </div>
                         </button>
@@ -864,7 +866,7 @@ export default function LeagueEntries() {
                         <button
                           className={`entries-team-option${homeUsed ? ' entries-team-option--used' : ''}${homeCurrent ? ' entries-team-option--current' : ''}${selectedTeam === homeTeam.abbrv ? ' entries-team-option--selected' : ''}`}
                           onClick={() => handleTeamSelect(homeTeam.abbrv)}
-                          disabled={homeUsed}
+                          disabled={homeUsed || gameStarted}
                           aria-label={`${homeTeam.name}${homeUsed ? ', used in another week' : homeCurrent ? ', current week pick' : ''}`}
                           style={getTeamButtonStyle(homeTeam.abbrv, selectedTeam === homeTeam.abbrv, homeUsed, homeCurrent)}
                         >
@@ -877,6 +879,7 @@ export default function LeagueEntries() {
                             <div style={{ fontWeight: 'bold', fontSize: '14px' }}>{homeTeam.abbrv}</div>
                             <div style={{ fontSize: '12px', color: '#666' }}>{homeTeam.name}</div>
                             {homeCurrent && <div style={{ fontSize: '11px', color: '#526900', fontWeight: 800 }}>CURRENT PICK</div>}
+                            {gameStarted && <div className="entries-team-option__used">LOCKED · GAME STARTED</div>}
                             {homeUsed && <div className="entries-team-option__used">USED · WEEK {usedWeekByTeam.get(homeTeam.abbrv)}</div>}
                           </div>
                         </button>

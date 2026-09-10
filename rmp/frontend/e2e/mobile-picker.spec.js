@@ -76,3 +76,15 @@ for(const width of [320,390]){
   }
  });
 }
+
+test('Pool Home reveals team counts and individual entries on a narrow phone', async ({page}) => {
+ await page.setViewportSize({width:320,height:568});await fixture(page);
+ await page.route('**/breakdown',route=>route.fulfill({json:[{team:'SEA',team_name:'Seattle Seahawks',count:2,entries:[{entry_id:'1',entry_name:name},{entry_id:'2',entry_name:'Seattle Two'}]},{team:'NE',team_name:'New England Patriots',count:1,entries:[{entry_id:'3',entry_name:'New England One'}]}]}));
+ await page.goto('/pool/mobile-pool');
+ await expect(page.getByText('Seattle Seahawks',{exact:true})).toBeVisible();
+ await page.getByText('Seattle Seahawks',{exact:true}).click();
+ await expect(page.getByText(name,{exact:true})).toBeVisible();
+ await page.evaluate(()=>document.documentElement.style.fontSize='20px');
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+ await page.locator('.pick-breakdown').screenshot({path:'/tmp/rmp-pool-home-breakdown.png'});
+});

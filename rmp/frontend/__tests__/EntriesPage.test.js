@@ -389,7 +389,7 @@ describe('player entries page', () => {
       expect.stringContaining('/picks/pool/pool-1/week/1/breakdown'),
       expect.any(Object),
     ));
-    expect(screen.getByText('Week 1 picks will be revealed after the weekly lock time.')).toBeInTheDocument();
+    expect(screen.getByText('Week 1 picks are revealed when their game starts or the weekly pool deadline passes.')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /show users who picked/i })).not.toBeInTheDocument();
 
     await user.selectOptions(screen.getByLabelText('Pick breakdown week'), '2');

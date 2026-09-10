@@ -863,3 +863,44 @@ class TestPickBreakdown:
         assert data[0]["count"] == 2
         assert data[1]["team_abbrv"] == "NYG"
         assert data[1]["count"] == 1
+
+@pytest.mark.parametrize("day", [9, 10])
+def test_early_game_locks_both_teams_and_reveals_entries(client, db_session, monkeypatch, day):
+    import picks
+    from datetime import time, timezone
+    class Clock(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            value = cls(2026, 9, day, 23, 0)
+            return value.replace(tzinfo=timezone.utc) if tz else value
+    monkeypatch.setattr(picks, 'datetime', Clock)
+    headers = _authed(_register_and_login(client))
+    pool_id = _create_pool(client, headers)
+    entries = [_create_entry(client, headers, pool_id, name) for name in ['Seattle One', 'New England One', 'Later One']]
+    for id, name, abbr in [(80,'Seattle Seahawks','SEA'),(81,'New England Patriots','NE'),(82,'Buffalo Bills','BUF'),(83,'Miami Dolphins','MIA')]:
+        _seed_team(db_session,id,name,abbr)
+    _seed_schedule(db_session,1080,1,80,81,datetime(2026,9,day,23,1))
+    _seed_schedule(db_session,1081,1,82,83,datetime(2026,9,13,17))
+    pool = db_session.query(models.Pool).filter_by(id=pool_id).one()
+    pool.lock_day_of_week = 6
+    pool.lock_time_of_day = time(12)
+    pool.lock_timezone = 'America/New_York'
+    db_session.commit()
+    saved = [_create_pick(client,headers,entry,1,team).json() for entry,team in zip(entries,['SEA','NE','BUF'])]
+    url = f'/picks/pool/{pool_id}/week/1/breakdown'
+    assert client.get(url,headers=headers).json() == []
+    # Exact kickoff boundary: both sides lock, without a background sweep.
+    db_session.query(models.Schedule).filter_by(game_id=1080).one().start_time = datetime(2026,9,day,23)
+    db_session.commit()
+    revealed = client.get(url,headers=headers).json()
+    assert {row['team']:row['count'] for row in revealed} == {'SEA':1,'NE':1}
+    assert {entry['entry_name'] for row in revealed for entry in row['entries']} == {'Seattle One','New England One'}
+    for entry,pick in zip(entries[:2],saved[:2]):
+        assert client.get(f'/picks/entry/{entry}',headers=headers).json()[0]['locked'] is True
+        assert client.put(f"/picks/{pick['id']}",json={'team':'BUF'},headers=headers).status_code == 423
+        assert client.delete(f"/picks/{pick['id']}",headers=headers).status_code == 423
+        assert _create_pick(client,headers,entry,1,'BUF').status_code == 423
+    for team in ['SEA','NE']:
+        assert client.put(f"/picks/{saved[2]['id']}",json={'team':team},headers=headers).status_code == 423
+        assert _create_pick(client,headers,entries[2],1,team).status_code == 423
+    assert client.get(f'/picks/entry/{entries[2]}',headers=headers).json()[0]['locked'] is False
