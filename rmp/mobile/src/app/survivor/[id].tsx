@@ -1,3 +1,4 @@
+import { TeamHelmet } from "@/components/TeamHelmet";
 import { Redirect, Stack, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -285,6 +286,7 @@ export default function SurvivorScreen() {
                   key={row.id}
                 >
                   <Text style={s.heading}>{row.name}</Text>
+                  {current && <TeamHelmet team={current.team} size={60} />}
                   <Text style={s.copy}>
                     {!row.alive
                       ? "Eliminated"
@@ -436,6 +438,7 @@ export default function SurvivorScreen() {
                           !!blocked && s.disabled,
                         ]}
                       >
+                        <TeamHelmet team={team.abbrv} />
                         <Text
                           style={selection === team.abbrv ? s.dark : s.text}
                         >

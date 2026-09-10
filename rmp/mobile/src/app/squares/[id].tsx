@@ -1,3 +1,4 @@
+import { TeamHelmet } from "@/components/TeamHelmet";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { apiTime } from "@/domain/time";
 import { Stack, useLocalSearchParams } from "expo-router";
@@ -90,10 +91,17 @@ export default function Squares() {
         <>
           <Text style={ui.heading}>{d.pool_name}</Text>
           {d.games.map((g) => (
-            <Text key={g.game_id} style={ui.copy}>
-              {g.away_team.name} at {g.home_team.name} ·{" "}
-              {new Date(apiTime(g.start_time)).toLocaleString()}
-            </Text>
+            <View key={g.game_id} style={{ gap: 8 }}>
+              <View style={ui.row}>
+                <TeamHelmet team={g.away_team.abbrv} />
+                <Text style={ui.copy}>at</Text>
+                <TeamHelmet team={g.home_team.abbrv} />
+              </View>
+              <Text style={ui.copy}>
+                {g.away_team.name} at {g.home_team.name} ·{" "}
+                {new Date(apiTime(g.start_time)).toLocaleString()}
+              </Text>
+            </View>
           ))}
           <Text style={ui.copy}>
             {d.claims.length}/100 claimed · {locked ? "Locked" : "Open"}
@@ -195,7 +203,8 @@ export default function Squares() {
                 <SafeAreaView style={{ flex: 1, backgroundColor: colors.ink }}>
                   <ScrollView
                     contentContainerStyle={{ padding: 20, gap: 16 }}
-                    keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets
+                    keyboardShouldPersistTaps="handled"
+                    automaticallyAdjustKeyboardInsets
                   >
                     <Button
                       secondary

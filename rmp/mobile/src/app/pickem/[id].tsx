@@ -1,3 +1,4 @@
+import { TeamHelmet } from "@/components/TeamHelmet";
 import { Stack, useLocalSearchParams } from "expo-router";
 import { useCallback, useState } from "react";
 import { Text, TextInput, View } from "react-native";
@@ -164,6 +165,11 @@ export default function PickEm() {
                       !current && !locked && !full && ui.attention,
                     ]}
                   >
+                    <View style={ui.row}>
+                      <TeamHelmet team={g.away_team.abbrv} />
+                      <Text style={ui.copy}>at</Text>
+                      <TeamHelmet team={g.home_team.abbrv} />
+                    </View>
                     <Text style={ui.heading}>
                       {g.away_team.abbrv} at {g.home_team.abbrv}
                     </Text>

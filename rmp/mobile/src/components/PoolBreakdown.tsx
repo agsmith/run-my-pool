@@ -1,3 +1,4 @@
+import { TeamHelmet } from "./TeamHelmet";
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import type { Breakdown } from "@/domain/survivor";
@@ -25,6 +26,7 @@ export function PoolBreakdown({ rows }: { rows: Breakdown[] }) {
             onPress={() => setExpanded(expanded === row.team ? null : row.team)}
             style={s.row}
           >
+            <TeamHelmet team={row.team} size={52} />
             <Text style={s.name}>{row.team_name}</Text>
             <Text style={s.count}>
               {row.count} · {expanded === row.team ? "−" : "+"}
