@@ -106,8 +106,8 @@ class TestMessageBoardAccess:
         assert resp.status_code == 403
         assert "must be a member of this pool to post messages" in resp.json()["detail"]
 
-    def test_deleted_entry_user_cannot_post(self, client):
-        """User who deleted their own entry can no longer post → 403."""
+    def test_owner_without_entry_keeps_forum_access(self, client):
+        """Pool owners retain Forum and moderation access without an entry."""
         token = _reg(client, "deleted_entry@example.com")
         pool_id = _create_pool(client, token)
         entry_id = _create_entry(client, token, pool_id)
@@ -117,7 +117,7 @@ class TestMessageBoardAccess:
         assert del_resp.status_code == 200
 
         resp = _post_msg(client, token, pool_id)
-        assert resp.status_code == 403
+        assert resp.status_code == 200
 
     def test_no_entry_user_cannot_read(self, client):
         """User without entry in pool cannot read messages → 403."""

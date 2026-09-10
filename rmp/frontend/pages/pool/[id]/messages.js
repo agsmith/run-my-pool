@@ -1,3 +1,4 @@
+import { useForumSafety, ForumSafetyPanel, ForumMessageActions } from '../../../components/ForumSafety';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import ProtectedRoute from '../../../components/ProtectedRoute';
@@ -14,6 +15,7 @@ export default function MessageBoard() {
   const router = useRouter();
   const { user } = useAuth();
   const { id: poolId } = router.query;
+  const safety = useForumSafety(poolId, () => fetchMessages());
 
   useEffect(() => {
     if (poolId) {
@@ -230,6 +232,7 @@ export default function MessageBoard() {
             boxShadow: '0 10px 25px rgba(0, 0, 0, 0.1)'
           }}>
             <h3 style={{ marginTop: 0, color: '#1a202c' }}>Post a Message</h3>
+            <ForumSafetyPanel safety={safety} />
             <form onSubmit={handlePostMessage}>
               <textarea
                 value={newMessage}
@@ -262,7 +265,7 @@ export default function MessageBoard() {
                 </span>
                 <button
                   type="submit"
-                  disabled={posting || !newMessage.trim()}
+                  disabled={safety.state?.suspended || posting || !newMessage.trim()}
                   style={{
                     backgroundColor: posting || !newMessage.trim() ? '#cbd5e0' : '#667eea',
                     color: 'white',
@@ -413,6 +416,7 @@ export default function MessageBoard() {
                     }}>
                       {message.message}
                     </p>
+                    {message.user_id !== user?.id && <ForumMessageActions message={message} safety={safety} />}
                   </article>
                 ))}
               </div>

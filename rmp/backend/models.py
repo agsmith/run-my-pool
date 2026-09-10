@@ -680,3 +680,33 @@ class StripeWebhookEvent(Base):
     id = Column(String(255), primary_key=True)
     event_type = Column(String(100), nullable=False)
     processed_at = Column(DateTime, nullable=False)
+
+
+class ForumBlock(Base):
+    __tablename__ = "forum_blocks"
+    blocker_id = Column(String(36), ForeignKey(USERS_ID_FK, ondelete="CASCADE"), primary_key=True)
+    blocked_id = Column(String(36), ForeignKey(USERS_ID_FK, ondelete="CASCADE"), primary_key=True)
+    created_at = Column(DateTime, nullable=False)
+
+
+class ForumBan(Base):
+    __tablename__ = "forum_bans"
+    pool_id = Column(String(36), ForeignKey(POOLS_ID_FK, ondelete="CASCADE"), primary_key=True)
+    user_id = Column(String(36), ForeignKey(USERS_ID_FK, ondelete="CASCADE"), primary_key=True)
+    created_at = Column(DateTime, nullable=False)
+
+
+class ForumReport(Base):
+    __tablename__ = "forum_reports"
+    __table_args__ = (UniqueConstraint("message_id", "reporter_id", name="uq_forum_report_member"),)
+    id = Column(String(36), primary_key=True)
+    pool_id = Column(String(36), ForeignKey(POOLS_ID_FK, ondelete="CASCADE"), nullable=False, index=True)
+    message_id = Column(String(36), nullable=False)
+    reporter_id = Column(String(36), ForeignKey(USERS_ID_FK, ondelete="CASCADE"), nullable=False)
+    author_id = Column(String(36), ForeignKey(USERS_ID_FK, ondelete="CASCADE"), nullable=False)
+    message_snapshot = Column(Text, nullable=False)
+    reason = Column(String(40), nullable=False)
+    status = Column(String(20), nullable=False, default="open")
+    created_at = Column(DateTime, nullable=False)
+    resolved_at = Column(DateTime, nullable=True)
+    resolved_by = Column(String(36), nullable=True)

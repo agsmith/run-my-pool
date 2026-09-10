@@ -712,7 +712,7 @@ class PickBreakdownItem(BaseModel):
 
 
 class MessageBoardCreate(BaseModel):
-    pool_id: str
+    pool_id: Optional[str] = None
     message: str
 
 

@@ -1,4 +1,4 @@
-import { Stack, useLocalSearchParams } from "expo-router";
+import { router, Stack, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { Alert, Switch, Text, TextInput, View } from "react-native";
 import { apiFetch } from "@/api/client";
@@ -87,6 +87,7 @@ export default function Admin() {
       {d && (
         <>
           <Card>
+            <Button secondary title="Forum moderation" onPress={() => router.push({ pathname: "/forum/[id]", params: { id } })} />
             <Text style={ui.heading}>Pool settings</Text>
             <Text style={ui.copy}>Pool name</Text>
             <TextInput

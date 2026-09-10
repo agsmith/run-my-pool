@@ -8,7 +8,7 @@
       "title": "Information we collect",
       "paragraphs": [
         "Account information includes your email address, account identifier, password hash, verification status, account role, and account and sign-in records. We store password hashes rather than readable passwords.",
-        "Pool information includes memberships, administrator roles, entry and display names, selections, season plans, scores, standings, Squares claims, and Forum messages. Pool organizers may enter information about members, including dues status and prize records on the website. The native app does not display those financial records.",
+        "Pool information includes memberships, administrator roles, entry and display names, selections, season plans, scores, standings, Squares claims, and Forum messages. We also store member blocks, abuse reports (including a copy of the reported message), and moderation decisions to investigate concerns and enforce Forum rules. Pool organizers may enter information about members, including dues status and prize records on the website. The native app does not display those financial records.",
         "If you purchase a Run My Pool plan on the website, Stripe processes checkout. We receive transaction identifiers, purchase amounts, currency, payment status, and plan entitlements. Payment-card details are submitted to Stripe; they are not stored in the Run My Pool application database. These purchases are separate from any dues or prizes managed independently by pool organizers.",
         "We receive information you send to support. Our servers and service providers may process IP addresses, browser or device information, request times, errors, and security or administrative logs when you access the service."
       ]
