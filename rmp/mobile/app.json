@@ -11,7 +11,9 @@
       "bundleIdentifier": "net.runmypool.app",
       "supportsTablet": true,
       "icon": "./assets/images/rmp-icon.png",
-      "associatedDomains": ["applinks:runmypool.net"],
+      "associatedDomains": [
+        "applinks:runmypool.net"
+      ],
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
@@ -21,7 +23,8 @@
         "backgroundColor": "#07181C",
         "foregroundImage": "./assets/images/rmp-icon.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "net.runmypool.app"
     },
     "web": {
       "output": "static",

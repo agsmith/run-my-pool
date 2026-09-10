@@ -1,34 +1,45 @@
 # Run My Pool native app
 
-Expo/React Native application for iOS and Android. It uses the existing FastAPI backend and stores rotating, revocable mobile session credentials in the platform secure store.
+Expo / React Native app for iOS and Android, using the existing Run My Pool API.
 
-## Local development
+## Run locally
 
-1. Copy `.env.example` to `.env.local` and override the API URL if needed.
-2. Run `npm install`.
-3. Run `npm run ios` or `npm run android`.
+```sh
+npm ci
+npm run typecheck
+npm test
+npx expo-doctor
+npm run ios
+# Or, with Android Studio and a device/emulator:
+npm run android
+```
 
-## Current foundation
+Copy `.env.example` to `.env.local` to override the API URL. Never put account credentials or signing keys in Expo public environment variables. Native sessions use the platform secure store and the backend's rotating mobile refresh tokens.
 
-- Branded native shell and pool navigation
-- Secure login with 180-day rolling refresh sessions
-- My Pools, Pool Directory, account, and pool summary screens
-- Universal/deep-link configuration for `https://runmypool.net/join/...`
-- EAS development, preview, and production build profiles
+## Implemented
 
-## Delivery sequence
+- Native sign-in, My Pools, pool browsing, and account screens.
+- Native Survivor board: schedule-derived current week, week selection, multiple entries, entry creation, matchups, and confirmed pick saving.
+- Both teams lock at kickoff; pool deadline and existing server locks also apply. Used teams cannot be selected again for the same entry.
+- Full-screen native picker with an independently scrolling game list and fixed confirmation footer inside the safe area.
+- Native Pool Home team counts and expandable entry names. Only server-revealed picks are shown.
+- Refresh on screen focus and every 30 seconds; the Survivor board also refreshes when the app returns to the foreground.
+- iOS bundle identifier and Android package: `net.runmypool.app`.
 
-1. Native Survivor entry and pick workflow
-2. Native Pick Em workflow
-3. Native Squares workflow
-4. Leaderboards, roster, forum, and commissioner tools
-5. Push-token registration and weekly reminder notifications
-6. Accessibility, offline/error states, device matrix, TestFlight/Play internal testing
-7. Store privacy disclosures, screenshots, review, and phased release
+Pick ’Em, Squares, leaderboards, and commissioner tools currently open the website. This is a native Survivor milestone, not complete website feature parity or a store-ready release.
 
-## Store setup still required
+## Verification
 
-- Apple Developer Program membership and App Store Connect app
-- Expo account/project (`eas init`)
-- Apple associated-domain file deployed on `runmypool.net`
-- Privacy-policy review and App Store privacy declarations
+```sh
+npx expo export --platform ios --platform android --output-dir /tmp/rmp-native-export
+```
+
+Exports validate JavaScript bundles, not signed binaries or device behavior. Native simulator/device builds and end-to-end testing are required before release. Rule tests cover the exact early-game kickoff boundary, both sides of the game, previous-week reuse, and the pool deadline.
+
+## Distribution
+
+Use `npx eas-cli@latest` rather than installing EAS CLI as a project dependency. The EAS project still needs linking with `eas init`. The existing build profiles cover development, internal preview, and store production. Physical iPhone builds require Apple signing and registered test devices or TestFlight; Android internal builds should use an APK profile.
+
+Before store submission: finish account creation/deletion and recovery flows, native workflows for other pool types, store disclosures and screenshots, associated-domain verification, push permissions/reminders, accessibility/device testing, and Apple/Google signing and store configuration. No store submission is implied by a successful export.
+
+Framework references: [Expo Router](https://docs.expo.dev/versions/latest/sdk/router/) and [secure storage](https://docs.expo.dev/develop/user-interface/store-data/).
