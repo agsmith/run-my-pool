@@ -17,6 +17,7 @@ export function useForumSafety(poolId, onChange) {
     const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}${path}`, {
       method,
       credentials: "include",
+        cache: "no-store",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${localStorage.getItem("access_token")}`,
