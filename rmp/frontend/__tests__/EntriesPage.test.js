@@ -30,6 +30,7 @@ function installApi({ pool = {}, entries = [], picks = {}, lockWeeks = {}, creat
         join_lock_time: null, ...pool,
       });
     }
+    if (path.endsWith('/pools/pool-1/activity-summary')) return jsonResponse({ week: 2 });
     if (path.endsWith('/pools/pool-1/lock-status')) {
       return jsonResponse({ weeks: lockWeeks });
     }
@@ -89,6 +90,35 @@ describe('player entries page', () => {
     localStorage.clear();
   });
 
+  test('mobile cards use the schedule week and save a pick for the selected entry', async () => {
+    installApi({ entries: [{ id: 'entry-1', name: 'Phone Entry', alive: true }] });
+    const user = userEvent.setup();
+    render(<LeagueEntries />);
+    const mobile = within(await screen.findByRole('region', { name: 'Weekly entry picks' }));
+    expect(mobile.getByLabelText('Your picks')).toHaveValue('2');
+    await user.click(mobile.getByRole('button', { name: 'Make week 2 pick for Phone Entry' }));
+    await user.click(await screen.findByRole('button', { name: 'Buffalo Bills' }));
+    await user.click(screen.getByRole('button', { name: 'Save Pick' }));
+    await waitFor(() => expect(fetch).toHaveBeenCalledWith(
+      expect.stringContaining('/picks/create'),
+      expect.objectContaining({ method: 'POST', body: expect.stringContaining('"entry_id":"entry-1"') }),
+    ));
+    expect(await mobile.findByRole('button', { name: 'Change week 2 pick for Phone Entry' })).toHaveTextContent('BUF');
+    await user.click(mobile.getByRole('button', { name: /View season/ }));
+    expect(mobile.getByRole('button', { name: /Hide season/ })).toHaveAttribute('aria-expanded', 'true');
+  });
+
+  test('mobile cards prevent picking for locked weeks and eliminated entries', async () => {
+    installApi({ entries: [{ id: 'entry-1', name: 'Active', alive: true }, { id: 'entry-2', name: 'Out', alive: false }], lockWeeks: { '2': { locked: true } } });
+    const user = userEvent.setup();
+    render(<LeagueEntries />);
+    const mobile = within(await screen.findByRole('region', { name: 'Weekly entry picks' }));
+    expect(mobile.getByRole('button', { name: 'Make week 2 pick for Active' })).toBeDisabled();
+    await user.selectOptions(mobile.getByLabelText('Your picks'), '3');
+    expect(mobile.getByRole('button', { name: 'Make week 3 pick for Active' })).toBeEnabled();
+    expect(mobile.getByRole('button', { name: 'Make week 3 pick for Out' })).toBeDisabled();
+  });
+
   test('preserves green winners and red loser while disabling remaining weeks', async () => {
     installApi({
       entries: [{ id: 'entry-1', name: 'One and Done', alive: false }],
@@ -104,7 +134,7 @@ describe('player entries page', () => {
 
     const winner = await screen.findByTitle('BUF - win');
     const loser = screen.getByTitle('KC - loss');
-    const row = screen.getByText('One and Done').closest('tr');
+    const row = screen.getByText('One and Done', { selector: 'td span' }).closest('tr');
     const future = within(row).getByRole('button', { name: '3' });
 
     expect(winner).toHaveStyle({ backgroundColor: '#e8f5e9', borderColor: '#4caf50' });
@@ -128,7 +158,7 @@ describe('player entries page', () => {
     render(<LeagueEntries />);
 
     const locked = await screen.findByTitle('Week 1 is locked');
-    const row = screen.getByText('Still Alive').closest('tr');
+    const row = screen.getByText('Still Alive', { selector: 'td span' }).closest('tr');
     const future = within(row).getByRole('button', { name: '2' });
 
     expect(locked).toBeDisabled();
@@ -146,7 +176,7 @@ describe('player entries page', () => {
     });
     render(<LeagueEntries />);
 
-    const row = (await screen.findByText('Still Alive')).closest('tr');
+    const row = (await screen.findByText('Still Alive', { selector: 'td span' })).closest('tr');
     await user.click(within(row).getByRole('button', { name: '2' }));
     expect(await screen.findByRole('heading', { name: /week 2 matchups/i })).toBeInTheDocument();
 
@@ -172,7 +202,7 @@ describe('player entries page', () => {
     });
     render(<LeagueEntries />);
 
-    const row = (await screen.findByText('Still Alive')).closest('tr');
+    const row = (await screen.findByText('Still Alive', { selector: 'td span' })).closest('tr');
     await user.click(within(row).getByTitle('BUF'));
     expect(await screen.findByText('CURRENT PICK')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Clear Pick' }));
@@ -198,7 +228,7 @@ describe('player entries page', () => {
     expect(await screen.findByAltText('DET logo')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: /create new entry/i }));
 
-    expect(await screen.findByText('Entry 2')).toBeInTheDocument();
+    expect(await screen.findByText('Entry 2', { selector: 'td span' })).toBeInTheDocument();
     expect(screen.getByAltText('DET logo')).toBeInTheDocument();
     expect(fetch).toHaveBeenCalledWith(
       expect.stringContaining('/picks/entry/entry-1'),
@@ -217,11 +247,11 @@ describe('player entries page', () => {
     });
     render(<LeagueEntries />);
 
-    await screen.findByText('Entry 1');
+    await screen.findByText('Entry 1', { selector: 'td span' });
     await user.click(screen.getByRole('button', { name: /create new entry/i }));
-    await screen.findByText('Entry 2');
+    await screen.findByText('Entry 2', { selector: 'td span' });
     await user.click(screen.getByRole('button', { name: /create new entry/i }));
-    await screen.findByText('Entry 3');
+    await screen.findByText('Entry 3', { selector: 'td span' });
 
     const createBodies = fetch.mock.calls
       .filter(([url, options]) => String(url).endsWith('/entries/create') && options?.method === 'POST')
@@ -254,7 +284,7 @@ describe('player entries page', () => {
     installApi({ entries: [{ id: 'entry-1', name: 'Original Name', alive: true }] });
     render(<LeagueEntries />);
 
-    const entryName = await screen.findByText('Original Name');
+    const entryName = await screen.findByText('Original Name', { selector: 'td span' });
     expect(entryName.closest('button')).toBeNull();
     await user.click(screen.getByRole('button', { name: 'Rename Original Name' }));
     const input = screen.getByDisplayValue('Original Name');
@@ -262,7 +292,7 @@ describe('player entries page', () => {
     await user.type(input, 'Changed Name');
     await user.click(screen.getByRole('button', { name: 'Cancel renaming Original Name' }));
 
-    expect(screen.getByText('Original Name')).toBeInTheDocument();
+    expect(screen.getByText('Original Name', { selector: 'td span' })).toBeInTheDocument();
     expect(fetch).not.toHaveBeenCalledWith(
       expect.stringContaining('/entries/entry-1'),
       expect.objectContaining({ method: 'PUT' }),
@@ -297,8 +327,8 @@ describe('player entries page', () => {
       expect.stringContaining('/entries/old-entry'),
       expect.objectContaining({ method: 'DELETE' }),
     ));
-    expect(screen.queryByText('Zulu')).not.toBeInTheDocument();
-    expect(screen.getByText('Alpha')).toBeInTheDocument();
+    expect(screen.queryByText('Zulu', { selector: 'td span' })).not.toBeInTheDocument();
+    expect(screen.getByText('Alpha', { selector: 'td span' })).toBeInTheDocument();
   });
 
   test('hides entry deletion as soon as Week 1 locks', async () => {
@@ -308,7 +338,7 @@ describe('player entries page', () => {
     });
     render(<LeagueEntries />);
 
-    expect(await screen.findByText('Locked Entry')).toBeInTheDocument();
+    expect(await screen.findByText('Locked Entry', { selector: 'td span' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /delete entry/i })).not.toBeInTheDocument();
   });
 
@@ -354,7 +384,7 @@ describe('player entries page', () => {
     });
     render(<LeagueEntries />);
 
-    expect(await screen.findByText('Alive')).toBeInTheDocument();
+    expect(await screen.findByText('Alive', { selector: 'td span' })).toBeInTheDocument();
     await waitFor(() => expect(fetch).toHaveBeenCalledWith(
       expect.stringContaining('/picks/pool/pool-1/week/1/breakdown'),
       expect.any(Object),

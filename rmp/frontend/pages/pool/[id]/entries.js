@@ -1,5 +1,6 @@
 
 import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useRouter } from 'next/router';
 import ProtectedRoute from '../../../components/ProtectedRoute';
 import { useAuth } from '../../../context/AuthContext';
@@ -168,6 +169,7 @@ export default function LeagueEntries() {
   const [entries, setEntries] = useState([]);
   const [creatingEntry, setCreatingEntry] = useState(false);
   const creatingEntryRef = useRef(false);
+  const matchupDialogRef = useRef(null);
   const [allPicks, setAllPicks] = useState({});
   const [weekLockStatus, setWeekLockStatus] = useState({});
   const [scheduleData, setScheduleData] = useState({}); // Store schedule data by week
@@ -175,6 +177,9 @@ export default function LeagueEntries() {
   const [error, setError] = useState('');
   const [lockClock, setLockClock] = useState(() => Date.now());
   const [selectedWeek, setSelectedWeek] = useState(null);
+  const [mobileWeek, setMobileWeek] = useState(null);
+  const [showMobileSeason, setShowMobileSeason] = useState(false);
+  const [scheduleLoading, setScheduleLoading] = useState(false);
   const [breakdownWeek, setBreakdownWeek] = useState(1);
   const [breakdownData, setBreakdownData] = useState([]);
   const [breakdownLoading, setBreakdownLoading] = useState(false);
@@ -202,6 +207,48 @@ export default function LeagueEntries() {
       fetchLeagueAndEntries();
     }
   }, [id, user]);
+
+  useEffect(() => {
+    if (!showMatchupOverlay) return;
+    const previousFocus = document.activeElement;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const dialog = matchupDialogRef.current;
+    const overlay = dialog?.parentElement;
+    const viewport = window.visualViewport;
+    const fitViewport = () => {
+      overlay?.style.setProperty('--picker-height', `${viewport?.height ?? window.innerHeight}px`);
+      overlay?.style.setProperty('--picker-width', `${viewport?.width ?? window.innerWidth}px`);
+      overlay?.style.setProperty('--picker-top', `${viewport?.offsetTop ?? 0}px`);
+      overlay?.style.setProperty('--picker-left', `${viewport?.offsetLeft ?? 0}px`);
+    };
+    fitViewport();
+    viewport?.addEventListener('resize', fitViewport);
+    viewport?.addEventListener('scroll', fitViewport);
+    window.addEventListener('resize', fitViewport);
+    dialog?.focus();
+    const trapFocus = (event) => {
+      if (event.key !== 'Tab') return;
+      const buttons = dialog?.querySelectorAll('button:not([disabled])');
+      if (!buttons?.length) return;
+      const first = buttons[0];
+      const last = buttons[buttons.length - 1];
+      if (event.shiftKey && (document.activeElement === first || document.activeElement === dialog)) {
+        event.preventDefault(); last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault(); first.focus();
+      }
+    };
+    dialog?.addEventListener('keydown', trapFocus);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      dialog?.removeEventListener('keydown', trapFocus);
+      viewport?.removeEventListener('resize', fitViewport);
+      viewport?.removeEventListener('scroll', fitViewport);
+      window.removeEventListener('resize', fitViewport);
+      if (previousFocus?.isConnected) previousFocus.focus();
+    };
+  }, [showMatchupOverlay]);
 
   // Add escape key listener for closing overlay
   useEffect(() => {
@@ -277,6 +324,19 @@ export default function LeagueEntries() {
         const lockStatus = await lockStatusRes.json();
         setWeekLockStatus(lockStatus.weeks || {});
       }
+
+      // The server determines the current season week from its schedule.
+      try {
+        const summaryRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/pools/${id}/activity-summary`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (summaryRes.ok) {
+          const summary = await summaryRes.json();
+          if (Number.isInteger(summary.week) && summary.week >= 1 && summary.week <= 18) {
+            setMobileWeek((previous) => previous ?? summary.week);
+          }
+        }
+      } catch { /* The full season board remains available if the summary fails. */ }
 
       // Fetch user's entries for this league
       const entriesRes = await fetch(process.env.NEXT_PUBLIC_API_URL + `/entries/pool/${id}`, {
@@ -405,8 +465,13 @@ export default function LeagueEntries() {
     setSelectedTeam(currentPick?.team || null);
     
     // Fetch schedule data for this week if we don't have it
-    await fetchScheduleForWeek(week);
     setShowMatchupOverlay(true);
+    setScheduleLoading(true);
+    try {
+      await fetchScheduleForWeek(week);
+    } finally {
+      setScheduleLoading(false);
+    }
   };
 
   const handleTeamSelect = (team) => {
@@ -713,7 +778,7 @@ export default function LeagueEntries() {
       }
     };
 
-    return (
+    return createPortal(
       <div className="entries-overlay" style={{
         position: 'fixed',
         top: 0,
@@ -726,7 +791,7 @@ export default function LeagueEntries() {
         justifyContent: 'center',
         zIndex: 1000
       }}>
-        <div className="entries-overlay__dialog" style={{
+        <div className="entries-overlay__dialog" ref={matchupDialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="entry-matchups-title" style={{
           backgroundColor: 'white',
           borderRadius: '12px',
           maxWidth: '600px',
@@ -738,7 +803,7 @@ export default function LeagueEntries() {
         }}>
           {/* Header */}
           <div className="entries-overlay__header" style={{ padding: '2rem 2rem 1rem 2rem' }}>
-            <h2>Week {selectedWeek} Matchups - {selectedEntry.name}</h2>
+            <h2 id="entry-matchups-title">Week {selectedWeek} Matchups - {selectedEntry.name}</h2>
             <p style={{ color: '#666', marginBottom: '0' }}>
               Teams used in other weeks are unavailable. Your saved pick for this week is highlighted in lime.
             </p>
@@ -752,7 +817,7 @@ export default function LeagueEntries() {
             maxHeight: 'calc(80vh - 160px)' 
           }}>
             <div style={{ display: 'grid', gap: '1rem', paddingBottom: '1rem' }}>
-              {weekSchedule.length === 0 ? (
+              {scheduleLoading ? <p role="status">Loading games…</p> : weekSchedule.length === 0 ? (
                 <div style={{ textAlign: 'center', color: '#666', padding: '2rem' }}>
                   No games scheduled for this week yet.
                 </div>
@@ -902,7 +967,8 @@ export default function LeagueEntries() {
             </button>
           </div>
         </div>
-      </div>
+      </div>,
+      document.querySelector('.broadcast-v2--entries') || document.body,
     );
   };
 
@@ -1146,7 +1212,7 @@ export default function LeagueEntries() {
           <WorkspaceHeader
             eyebrow="Picks desk"
             title={league?.name || 'Pool picks'}
-            description="Make selections, review every entry, and track the season week by week."
+            description="Choose a week, open an entry, and save your team."
             meta={`${entries.length} ${entries.length === 1 ? 'entry' : 'entries'}`}
           />
           {/* Header */}
@@ -1295,6 +1361,30 @@ export default function LeagueEntries() {
           </div>
         ) : (
           <>
+            <section className="entries-mobile" aria-label="Weekly entry picks">
+              <div className="entries-mobile__week">
+                <label htmlFor="mobile-pick-week">Your picks</label>
+                <select id="mobile-pick-week" value={mobileWeek ?? ''} onChange={(event) => setMobileWeek(Number(event.target.value))}>
+                  <option value="" disabled>Choose week</option>
+                  {Array.from({ length: 18 }, (_, i) => i + 1).map((week) => <option key={week} value={week}>Week {week}{weekLockStatus[String(week)]?.locked ? ' · Locked' : ''}</option>)}
+                </select>
+              </div>
+              <p className="entries-mobile__hint">{mobileWeek ? 'Make a separate pick for each entry. Tap a team below to change a saved pick.' : 'Choose the week you want to pick.'}</p>
+              {[...entries].sort((a, b) => a.name.localeCompare(b.name)).map((entry) => {
+                const pick = getPickForEntryWeek(entry.id, mobileWeek);
+                const locked = Boolean(weekLockStatus[String(mobileWeek)]?.locked || pick?.locked);
+                const eliminated = entry.alive === false;
+                return <article className="entries-mobile__card" key={entry.id}>
+                  <div className="entries-mobile__identity"><h2>{entry.name}</h2><span>{eliminated ? 'Eliminated' : pick?.team ? `Week ${mobileWeek} · Saved` : 'Ready to pick'}</span></div>
+                  <button type="button" className={`entries-mobile__pick${pick?.team ? ' is-saved' : ''}`} disabled={!mobileWeek || locked || eliminated} onClick={() => handlePickClick(entry, mobileWeek)} aria-label={`${pick?.team ? 'Change' : 'Make'} week ${mobileWeek || ''} pick for ${entry.name}`}>
+                    {pick?.team ? <><img src={`/nfl/${pick.team.toLowerCase()}.svg`} alt="" /><strong>{pick.team}</strong></> : <strong>Make pick</strong>}
+                    <span aria-hidden="true">{locked ? 'Locked' : eliminated ? 'Out' : '→'}</span>
+                  </button>
+                  {(locked || eliminated) && <p>{eliminated ? 'This entry is out of the pool.' : 'The deadline has passed. This pick is read-only.'}</p>}
+                </article>;
+              })}
+              <button type="button" className="entries-mobile__season-toggle" aria-expanded={showMobileSeason} onClick={() => setShowMobileSeason(!showMobileSeason)}>{showMobileSeason ? 'Hide season table' : 'View season & edit entry names'} <span aria-hidden="true">{showMobileSeason ? '−' : '+'}</span></button>
+            </section>
             <div className="entries-breakdown-week">
               <label htmlFor="entries-breakdown-week">Pick breakdown week</label>
               <select id="entries-breakdown-week" value={breakdownWeek} onChange={(event) => setBreakdownWeek(Number(event.target.value))}>
@@ -1308,7 +1398,7 @@ export default function LeagueEntries() {
               error={breakdownError}
               locked={Boolean(weekLockStatus[String(breakdownWeek)]?.locked)}
             />
-            <div className="entries-table-scroll" style={{
+            <div className={`entries-table-scroll${showMobileSeason ? ' entries-table-scroll--expanded' : ''}`} style={{
               overflowX: 'auto',
               borderRadius: '12px',
             boxShadow: 'none',

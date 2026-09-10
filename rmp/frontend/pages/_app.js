@@ -1,4 +1,5 @@
 import '../styles/globals.css'
+import '../styles/mobile.css'
 import { AuthProvider } from '../context/AuthContext'
 import Head from 'next/head'
 import { useRouter } from 'next/router'

@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { useEffect, useRef } from 'react';
 
 export function WorkspaceHeader({ eyebrow, title, description, meta, actions }) {
   return (
@@ -19,6 +20,12 @@ export function WorkspaceHeader({ eyebrow, title, description, meta, actions }) 
 }
 
 export function PoolWorkspaceNav({ poolId, poolName, poolType = 'survivor', active, showAdmin = false }) {
+  const navRef = useRef(null);
+  useEffect(() => {
+    const nav = navRef.current;
+    const selected = nav?.querySelector('[aria-current="page"]');
+    if (selected) nav.scrollLeft += selected.getBoundingClientRect().left - nav.getBoundingClientRect().left - (nav.clientWidth - selected.clientWidth) / 2;
+  }, [active, poolId]);
   if (!poolId) return null;
 
   const entryHref = poolType === 'pickem' ? `/pool/${poolId}/pickem` : poolType === 'squares' ? `/pool/${poolId}/squares` : `/pool/${poolId}/entries`;
@@ -43,7 +50,7 @@ export function PoolWorkspaceNav({ poolId, poolName, poolType = 'survivor', acti
         <span className="pool-workspace-nav__live">Live pool</span>
         <strong>{poolName || 'Pool workspace'}</strong>
       </div>
-      <nav>
+      <nav ref={navRef}>
         {items.map((item) => (
           <Link
             key={item.id}
