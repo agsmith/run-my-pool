@@ -192,7 +192,7 @@ def build_http_session() -> requests.Session:
         allowed_methods=frozenset({"GET"}),
     )
     session = requests.Session()
-    session.headers.update({"User-Agent": "RunMyPool-results-updater/1.0"})
+    # Use requests' standard client header; ESPN rejects the former custom header.
     session.mount("https://", HTTPAdapter(max_retries=retry))
     return session
 

@@ -187,9 +187,9 @@ variable "require_email_verification" {
 }
 
 variable "result_updater_schedule_enabled" {
-  description = "Enable the new ECS result updater only after dry-run validation and Lambda cutover"
+  description = "Enable the validated ECS result updater schedules"
   type        = bool
-  default     = false
+  default     = true
 }
 
 variable "owner_pool_reports_schedule_enabled" {

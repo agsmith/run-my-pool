@@ -136,7 +136,7 @@ resource "aws_ecs_task_definition" "result_updater" {
       command                = ["python", "-m", "result_updater"]
       readonlyRootFilesystem = true
       environment = [
-        { name = "DB_POOL_SIZE", value = "1" },
+        { name = "DB_POOL_SIZE", value = "2" },
         { name = "DB_MAX_OVERFLOW", value = "0" },
         { name = "DB_POOL_TIMEOUT_SECONDS", value = "10" },
         { name = "DB_POOL_RECYCLE_SECONDS", value = "300" },
@@ -575,13 +575,15 @@ resource "aws_iam_role_policy" "result_updater_scheduler" {
 }
 
 locals {
+  # Preserve existing schedule identities during cutover; these two windows
+  # now cover every day, including Wednesday and Friday games.
   result_updater_game_windows = {
     thursday-evening  = "cron(0/15 19-23 ? SEP-DEC THU *)"
     friday-overnight  = "cron(0/15 0-2 ? SEP-DEC FRI *)"
     saturday-games    = "cron(0/15 12-23 ? DEC,JAN SAT *)"
     sunday-overnight  = "cron(0/15 0-2 ? DEC,JAN SUN *)"
-    sunday-games      = "cron(0/15 12-23 ? SEP-DEC,JAN SUN *)"
-    monday-overnight  = "cron(0/15 0-2 ? SEP-DEC,JAN MON *)"
+    sunday-games      = "cron(0/15 12-23 ? SEP-DEC,JAN-FEB * *)"
+    monday-overnight  = "cron(0/15 0-2 ? SEP-DEC,JAN-FEB * *)"
     monday-evening    = "cron(0/15 19-23 ? SEP-DEC,JAN MON *)"
     tuesday-overnight = "cron(0/15 0-2 ? SEP-DEC,JAN TUE *)"
   }
@@ -591,7 +593,7 @@ resource "aws_scheduler_schedule" "result_updater_game_windows" {
   for_each = local.result_updater_game_windows
 
   name                         = "runmypool-results-updater-${each.key}"
-  state                        = var.result_updater_schedule_enabled ? "ENABLED" : "DISABLED"
+  state                        = var.result_updater_schedule_enabled && contains(["sunday-games", "monday-overnight"], each.key) ? "ENABLED" : "DISABLED"
   schedule_expression          = each.value
   schedule_expression_timezone = "America/New_York"
 

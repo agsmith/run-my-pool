@@ -180,8 +180,8 @@ jobs:
              | .containerDefinitions[0].image = $image
              | .containerDefinitions[0].environment =
                  ((.containerDefinitions[0].environment // [])
-                  | map(select(.name != "IMAGE_REVISION"))
-                  + [{"name":"IMAGE_REVISION","value":$revision}])' \
+                  | map(select(.name != "IMAGE_REVISION" and .name != "DB_POOL_SIZE"))
+                  + [{"name":"IMAGE_REVISION","value":$revision},{"name":"DB_POOL_SIZE","value":"2"}])' \
             /tmp/result-updater-task.json > /tmp/result-updater-task-register.json
 
           aws ecs register-task-definition \
