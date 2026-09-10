@@ -415,4 +415,40 @@ describe('player entries page', () => {
     expect(await screen.findByText('No surviving picks were recorded for Week 3.')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Week 3 Pick Breakdown' })).toBeInTheDocument();
   });
+  test('save rejection stays visible inside the picker and allows another team', async () => {
+    installApi({ entries: [{ id: 'entry-1', name: 'Phone Entry', alive: true }] });
+    const original = global.fetch;
+    let attempts = 0;
+    global.fetch = jest.fn((url, options) => String(url).endsWith('/picks/create') && ++attempts === 1
+      ? jsonResponse({ detail: 'This pick is locked. The game has started or the pool lock time has passed.' }, false)
+      : original(url, options));
+    const user = userEvent.setup();
+    render(<LeagueEntries />);
+    await user.click(await screen.findByRole('button', { name: 'Make week 2 pick for Phone Entry' }));
+    const dialog = within(screen.getByRole('dialog'));
+    await user.click(await dialog.findByRole('button', { name: 'Buffalo Bills' }));
+    await user.click(dialog.getByRole('button', { name: 'Save Pick' }));
+    expect(await dialog.findByRole('alert')).toHaveTextContent('This pick is locked.');
+    await user.click(dialog.getByRole('button', { name: 'Miami Dolphins' }));
+    expect(dialog.queryByRole('alert')).not.toBeInTheDocument();
+    await user.click(dialog.getByRole('button', { name: 'Save Pick' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  });
+
+  test('both teams in a started game are disabled and clearly labeled', async () => {
+    installApi({ entries: [{ id: 'entry-1', name: 'Phone Entry', alive: true }] });
+    const original = global.fetch;
+    global.fetch = jest.fn((url, options) => String(url).endsWith('/schedule/week/2')
+      ? jsonResponse([{game_id:20,start_time:'2020-09-13T17:00:00Z',away_team:{id:1,name:'Seattle Seahawks',abbrv:'SEA'},home_team:{id:2,name:'New England Patriots',abbrv:'NE'}}])
+      : original(url,options));
+    const user = userEvent.setup();
+    render(<LeagueEntries />);
+    await user.click(await screen.findByRole('button', { name: 'Make week 2 pick for Phone Entry' }));
+    const dialog = within(screen.getByRole('dialog'));
+    expect(await dialog.findByRole('button', { name: 'Seattle Seahawks, locked — game started' })).toBeDisabled();
+    expect(dialog.getByRole('button', { name: 'New England Patriots, locked — game started' })).toBeDisabled();
+    expect(dialog.getAllByText('Locked — game started')).toHaveLength(2);
+    expect(dialog.getByRole('button', { name: 'Save Pick' })).toBeDisabled();
+  });
+
 });

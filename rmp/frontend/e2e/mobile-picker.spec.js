@@ -88,3 +88,18 @@ test('Pool Home reveals team counts and individual entries on a narrow phone', a
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
  await page.locator('.pick-breakdown').screenshot({path:'/tmp/rmp-pool-home-breakdown.png'});
 });
+
+test('save rejection is visible beside Save on a narrow phone', async ({page}) => {
+ await page.setViewportSize({width:320,height:568});await fixture(page);
+ await page.route('**/picks/create',route=>route.fulfill({status:423,json:{detail:'This pick is locked. The game has started or the pool lock time has passed.'}}));
+ await page.goto('/pool/mobile-pool/entries');
+ await page.getByRole('button',{name:`Make week 1 pick for ${name}`,exact:true}).click();
+ await page.locator('.entries-team-option').first().click();
+ await page.getByRole('button',{name:'Save Pick',exact:true}).click();
+ const alert=page.getByRole('dialog').getByRole('alert');
+ await expect(alert).toContainText('This pick is locked.');
+ await expect(alert).toBeVisible();
+ await fits(page);
+ const bounds=await alert.boundingBox();expect(bounds.y).toBeGreaterThanOrEqual(0);expect(bounds.y+bounds.height).toBeLessThanOrEqual(568);
+ await page.screenshot({path:'/tmp/rmp-picker-error-phone.png'});
+});

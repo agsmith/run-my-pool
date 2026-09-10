@@ -23,11 +23,11 @@ test("both teams lock at the exact early kickoff despite Sunday pool deadline", 
     assert.equal(pickLocked(pick, games, lock, kickoff), true);
     assert.equal(
       unavailable("BUF", 1, [pick], games, lock, kickoff),
-      "Pick locked",
+      "Locked — this pick can no longer be changed",
     );
     assert.equal(
       unavailable(team, 1, [], games, lock, kickoff),
-      "Game started",
+      "Locked — game started",
     );
   }
   assert.equal(unavailable("BUF", 1, [], games, lock, kickoff), null);
@@ -43,7 +43,7 @@ test("reuse is per entry and excludes the selected week", () => {
 });
 test("Sunday deadline and explicit server locks remain authoritative", () => {
   const now = Date.parse(lock.deadline);
-  assert.equal(unavailable("BUF", 1, [], games, lock, now), "Pick locked");
+  assert.equal(unavailable("BUF", 1, [], games, lock, now), "Locked — this pick can no longer be changed");
   assert.equal(
     pickLocked(
       { id: "p", entry_id: "e", week: 1, team: "BUF", locked: true },

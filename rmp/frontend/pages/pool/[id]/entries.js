@@ -188,9 +188,12 @@ export default function LeagueEntries() {
   const [showMatchupOverlay, setShowMatchupOverlay] = useState(false);
   const [selectedTeam, setSelectedTeam] = useState(null);
   const [clearingPick, setClearingPick] = useState(false);
+  const [pickerError, setPickerError] = useState('');
+  const [savingPick, setSavingPick] = useState(false);
+  const pickMutation = useRef(false);
 
   useEffect(() => {
-    const timer = window.setInterval(() => setLockClock(Date.now()), 30000);
+    const timer = window.setInterval(() => setLockClock(Date.now()), 1000);
     return () => window.clearInterval(timer);
   }, []);
   const [editingEntryId, setEditingEntryId] = useState(null);
@@ -459,6 +462,8 @@ export default function LeagueEntries() {
       setError(`Week ${week} is locked. Picks can no longer be added or changed.`);
       return;
     }
+    setPickerError('');
+    setError('');
     setSelectedEntry(entry);
     setSelectedWeek(week);
     const { currentPick } = getPickAvailability(allPicks[entry.id] || [], week);
@@ -474,12 +479,26 @@ export default function LeagueEntries() {
     }
   };
 
+  const pickBlockReason = (team, now = lockClock) => {
+    const lock = weekLockStatus[String(selectedWeek)];
+    if (lock?.locked || (lock?.deadline && Date.parse(lock.deadline) <= now)) return 'Locked — the pool deadline has passed.';
+    const games = scheduleData[selectedWeek] || [];
+    const current = (allPicks[selectedEntry?.id] || []).find(pick => pick.week === selectedWeek);
+    const gameFor = abbreviation => games.find(game => [game.away_team.abbrv, game.home_team.abbrv].includes(abbreviation));
+    if (current && Date.parse(gameFor(current.team)?.start_time) <= now) return 'Locked — your saved pick’s game has started.';
+    if (current?.locked) return 'This entry’s pick is locked and cannot be changed.';
+    if (team && Date.parse(gameFor(team)?.start_time) <= now) return 'Locked — game started. Choose another available team.';
+    return '';
+  };
+
   const handleTeamSelect = (team) => {
+    if (savingPick || clearingPick) return;
+    setPickerError('');
     setSelectedTeam((currentTeam) => currentTeam === team ? null : team);
   };
 
   const handleClearPick = async () => {
-    if (!selectedWeek || !selectedEntry || clearingPick) return;
+    if (!selectedWeek || !selectedEntry || clearingPick || savingPick) return;
     const { currentPick } = getPickAvailability(
       allPicks[selectedEntry.id] || [],
       selectedWeek
@@ -487,7 +506,7 @@ export default function LeagueEntries() {
     if (!currentPick) return;
 
     setClearingPick(true);
-    setError('');
+    setPickerError('');
     try {
       const token = localStorage.getItem('access_token');
       const response = await fetch(
@@ -499,7 +518,7 @@ export default function LeagueEntries() {
       );
       if (!response.ok) {
         const errorData = await response.json();
-        setError(errorData.detail || 'Failed to clear pick');
+        setPickerError(errorData.detail || 'Failed to clear pick');
         return;
       }
       setAllPicks((previousPicks) => ({
@@ -511,14 +530,19 @@ export default function LeagueEntries() {
       setSelectedTeam(null);
       setShowMatchupOverlay(false);
     } catch {
-      setError('Failed to clear pick');
+      setPickerError('Failed to clear pick');
     } finally {
       setClearingPick(false);
     }
   };
 
   const handleSubmitPick = async () => {
-    if (!selectedTeam || !selectedWeek || !selectedEntry) return;
+    if (!selectedTeam || !selectedWeek || !selectedEntry || pickMutation.current || clearingPick) return;
+    const reason = pickBlockReason(selectedTeam, Date.now());
+    if (reason) { setPickerError(reason); setLockClock(Date.now()); return; }
+    pickMutation.current = true;
+    setSavingPick(true);
+    setPickerError('');
 
     console.log('Submitting pick:', {
       team: selectedTeam,
@@ -559,11 +583,14 @@ export default function LeagueEntries() {
       } else {
         const errorData = await res.json();
         console.error('Failed to create pick:', errorData);
-        setError(errorData.detail || 'Failed to save pick');
+        setPickerError(typeof errorData.detail === 'string' ? errorData.detail : 'Could not save your pick. Please try again.');
       }
     } catch (err) {
       console.error('Failed to save pick:', err);
-      setError('Failed to save pick');
+      setPickerError('Could not save your pick. Check your connection and try again.');
+    } finally {
+      pickMutation.current = false;
+      setSavingPick(false);
     }
   };
 
@@ -759,6 +786,10 @@ export default function LeagueEntries() {
       selectedWeek
     );
 
+    const slotReason = pickBlockReason(null);
+    const selectedReason = pickBlockReason(selectedTeam);
+    const saveDisabled = !selectedTeam || !!selectedReason || savingPick || clearingPick;
+
     // Helper function to format date and time
     const formatGameTime = (startTime) => {
       if (!startTime) return { date: 'TBD', time: 'TBD' };
@@ -845,9 +876,9 @@ export default function LeagueEntries() {
                         <button
                           className={`entries-team-option${awayUsed ? ' entries-team-option--used' : ''}${awayCurrent ? ' entries-team-option--current' : ''}${selectedTeam === awayTeam.abbrv ? ' entries-team-option--selected' : ''}`}
                           onClick={() => handleTeamSelect(awayTeam.abbrv)}
-                          disabled={awayUsed || gameStarted}
-                          aria-label={`${awayTeam.name}${awayUsed ? ', used in another week' : awayCurrent ? ', current week pick' : ''}`}
-                          style={getTeamButtonStyle(awayTeam.abbrv, selectedTeam === awayTeam.abbrv, awayUsed, awayCurrent)}
+                          disabled={awayUsed || gameStarted || !!slotReason || savingPick || clearingPick}
+                          aria-label={`${awayTeam.name}${gameStarted ? ', locked — game started' : slotReason ? ', pick locked' : awayUsed ? ', used in another week' : awayCurrent ? ', current week pick' : ''}`}
+                          style={getTeamButtonStyle(awayTeam.abbrv, selectedTeam === awayTeam.abbrv, awayUsed || gameStarted || !!slotReason, awayCurrent)}
                         >
                           <img 
                             src={awayTeam.logo} 
@@ -858,7 +889,7 @@ export default function LeagueEntries() {
                             <div style={{ fontWeight: 'bold', fontSize: '14px' }}>{awayTeam.abbrv}</div>
                             <div style={{ fontSize: '12px', color: '#666' }}>{awayTeam.name}</div>
                             {awayCurrent && <div style={{ fontSize: '11px', color: '#526900', fontWeight: 800 }}>CURRENT PICK</div>}
-                            {gameStarted && <div className="entries-team-option__used">LOCKED · GAME STARTED</div>}
+                            {gameStarted && <div className="entries-team-option__used">Locked — game started</div>}
                             {awayUsed && <div className="entries-team-option__used">USED · WEEK {usedWeekByTeam.get(awayTeam.abbrv)}</div>}
                           </div>
                         </button>
@@ -866,9 +897,9 @@ export default function LeagueEntries() {
                         <button
                           className={`entries-team-option${homeUsed ? ' entries-team-option--used' : ''}${homeCurrent ? ' entries-team-option--current' : ''}${selectedTeam === homeTeam.abbrv ? ' entries-team-option--selected' : ''}`}
                           onClick={() => handleTeamSelect(homeTeam.abbrv)}
-                          disabled={homeUsed || gameStarted}
-                          aria-label={`${homeTeam.name}${homeUsed ? ', used in another week' : homeCurrent ? ', current week pick' : ''}`}
-                          style={getTeamButtonStyle(homeTeam.abbrv, selectedTeam === homeTeam.abbrv, homeUsed, homeCurrent)}
+                          disabled={homeUsed || gameStarted || !!slotReason || savingPick || clearingPick}
+                          aria-label={`${homeTeam.name}${gameStarted ? ', locked — game started' : slotReason ? ', pick locked' : homeUsed ? ', used in another week' : homeCurrent ? ', current week pick' : ''}`}
+                          style={getTeamButtonStyle(homeTeam.abbrv, selectedTeam === homeTeam.abbrv, homeUsed || gameStarted || !!slotReason, homeCurrent)}
                         >
                           <img 
                             src={homeTeam.logo} 
@@ -879,7 +910,7 @@ export default function LeagueEntries() {
                             <div style={{ fontWeight: 'bold', fontSize: '14px' }}>{homeTeam.abbrv}</div>
                             <div style={{ fontSize: '12px', color: '#666' }}>{homeTeam.name}</div>
                             {homeCurrent && <div style={{ fontSize: '11px', color: '#526900', fontWeight: 800 }}>CURRENT PICK</div>}
-                            {gameStarted && <div className="entries-team-option__used">LOCKED · GAME STARTED</div>}
+                            {gameStarted && <div className="entries-team-option__used">Locked — game started</div>}
                             {homeUsed && <div className="entries-team-option__used">USED · WEEK {usedWeekByTeam.get(homeTeam.abbrv)}</div>}
                           </div>
                         </button>
@@ -901,14 +932,18 @@ export default function LeagueEntries() {
             borderTop: '1px solid #e5e7eb',
             backgroundColor: 'white',
             borderRadius: '0 0 12px 12px',
-            display: 'flex', 
-            gap: '1rem', 
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: '1rem',
             justifyContent: 'flex-end'
           }}>
+            {(pickerError || selectedReason) && <div className="entries-overlay__error" role="alert" style={{ flexBasis: '100%', gridColumn: '1 / -1', color: '#ffdddd', background: '#542a30', padding: '10px 12px', borderRadius: 6, overflowWrap: 'anywhere' }}>
+              {pickerError || selectedReason}
+            </div>}
             {currentPick && <button
               type="button"
               onClick={handleClearPick}
-              disabled={clearingPick}
+              disabled={clearingPick || savingPick || !!slotReason}
               className="entries-overlay__clear-pick"
             >
               {clearingPick ? 'Clearing…' : 'Clear Pick'}
@@ -938,7 +973,7 @@ export default function LeagueEntries() {
             </button>
             <button
               onClick={handleSubmitPick}
-              disabled={!selectedTeam}
+              disabled={saveDisabled}
               style={{
                 padding: '12px 24px',
                 border: 'none',
@@ -966,7 +1001,7 @@ export default function LeagueEntries() {
                 }
               }}
             >
-              Save Pick
+              {savingPick ? 'Saving…' : 'Save Pick'}
             </button>
           </div>
         </div>

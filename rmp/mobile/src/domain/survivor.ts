@@ -58,13 +58,13 @@ export function unavailable(
       now,
     )
   )
-    return "Pick locked";
+    return "Locked — this pick can no longer be changed";
   const used = picks.find((p) => p.week !== week && p.team === team);
   if (used) return `Used in week ${used.week}`;
   const game = games.find((g) =>
     [g.home_team.abbrv, g.away_team.abbrv].includes(team),
   );
   if (!game) return "Not scheduled";
-  if (started(game, now)) return "Game started";
+  if (started(game, now)) return "Locked — game started";
   return null;
 }

@@ -46,6 +46,7 @@ export default function SurvivorScreen() {
   const [board, setBoard] = useState<Board | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [pickerError, setPickerError] = useState("");
   const [notice, setNotice] = useState("");
   const [entry, setEntry] = useState<Entry | null>(null);
   const [selection, setSelection] = useState<string | null>(null);
@@ -149,12 +150,12 @@ export default function SurvivorScreen() {
       Date.now(),
     );
     if (blocked) {
-      setError(blocked);
+      setPickerError(blocked);
       return;
     }
     mutation.current = true;
     setSaving(true);
-    setError("");
+    setPickerError("");
     try {
       await apiFetch("/picks/create", {
         method: "POST",
@@ -165,7 +166,7 @@ export default function SurvivorScreen() {
       setSelection(null);
       await load();
     } catch (e) {
-      setError(
+      setPickerError(
         e instanceof Error
           ? e.message
           : "Could not save your pick. Refresh before retrying.",
@@ -287,6 +288,7 @@ export default function SurvivorScreen() {
                     onPress={() => {
                       setEntry(row);
                       setSelection(current?.team || null);
+                      setPickerError("");
                       setError("");
                     }}
                   >
@@ -390,7 +392,7 @@ export default function SurvivorScreen() {
                         selected: selection === team.abbrv,
                       }}
                       disabled={!!blocked || saving}
-                      onPress={() => setSelection(team.abbrv)}
+                      onPress={() => { setSelection(team.abbrv); setPickerError(""); }}
                       style={[
                         s.team,
                         selection === team.abbrv && s.selected,
@@ -414,12 +416,12 @@ export default function SurvivorScreen() {
             ))}
           </ScrollView>
           <View style={s.footer}>
-            {!!error && (
-              <Text accessibilityRole="alert" style={s.error}>
-                {error}
+            {!!(pickerError || error || reason) && (
+              <Text accessibilityRole="alert" accessibilityLiveRegion="assertive" style={s.error}>
+                {pickerError || error || reason}
               </Text>
             )}
-            {!!reason && <Text style={s.error}>{reason}</Text>}
+
             <Pressable
               accessibilityRole="button"
               disabled={!selection || !!reason || saving || !board}
