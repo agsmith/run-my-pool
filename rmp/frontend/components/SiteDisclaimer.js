@@ -1,7 +1,10 @@
+import Link from 'next/link';
+
 export default function SiteDisclaimer() {
   return (
     <footer className="site-disclaimer">
       <span>For entertainment purposes only</span>
+      <Link href="/privacy">Privacy Policy</Link>
       <a
         href="https://www.instagram.com/runmypool/"
         target="_blank"

@@ -1,0 +1,71 @@
+{
+  "title": "Privacy Policy",
+  "updated": "September 10, 2026",
+  "contact": "support@runmypool.net",
+  "intro": "This policy explains how Run My Pool collects, uses, and shares information when you use runmypool.net, the Run My Pool mobile app, and our support services.",
+  "sections": [
+    {
+      "title": "Information we collect",
+      "paragraphs": [
+        "Account information includes your email address, account identifier, password hash, verification status, account role, and account and sign-in records. We store password hashes rather than readable passwords.",
+        "Pool information includes memberships, administrator roles, entry and display names, selections, season plans, scores, standings, Squares claims, and Forum messages. Pool organizers may enter information about members, including dues status and prize records on the website. The native app does not display those financial records.",
+        "If you purchase a Run My Pool plan on the website, Stripe processes checkout. We receive transaction identifiers, purchase amounts, currency, payment status, and plan entitlements. Payment-card details are submitted to Stripe; they are not stored in the Run My Pool application database. These purchases are separate from any dues or prizes managed independently by pool organizers.",
+        "We receive information you send to support. Our servers and service providers may process IP addresses, browser or device information, request times, errors, and security or administrative logs when you access the service."
+      ]
+    },
+    {
+      "title": "How we use information",
+      "paragraphs": [
+        "We use information to create and secure accounts, maintain sessions, run pools, save and grade selections, display standings and results, deliver account and pool emails, respond to support requests, fulfill website plan purchases, prevent abuse, troubleshoot problems, and understand how the service is used."
+      ]
+    },
+    {
+      "title": "What other people can see",
+      "paragraphs": [
+        "Other pool participants can see information made available by pool features, including entry or display names, revealed picks, standings, Squares claims, and Forum posts. Pick visibility depends on pool rules and game or pool lock times. Public pool listings may show pool names and descriptions.",
+        "Pool owners and authorized administrators can access member information needed to manage their pools, including email addresses, entries, picks, roles, and website dues records. Platform administrators can access information needed to operate and support the service. Do not include sensitive personal information in entry names, pool descriptions, or Forum messages."
+      ]
+    },
+    {
+      "title": "Service providers and other disclosures",
+      "paragraphs": [
+        "We use service providers for hosting, databases, operational logs, and email delivery, including Amazon Web Services; Stripe for website checkout; and Cloudflare for website traffic analytics when enabled. We require service providers handling personal information on our behalf to protect it consistently with this policy and use it for the services they provide to us. We limit disclosures to the information needed for those purposes.",
+        "We may disclose information when required by law, to respond to valid legal requests, to investigate abuse or protect users and the service, or as part of a business transfer with appropriate privacy protections. Links to other websites, including promotional links, lead to services governed by their own privacy policies."
+      ]
+    },
+    {
+      "title": "Cookies, device storage, and analytics",
+      "paragraphs": [
+        "The website uses authentication cookies and browser storage to keep you signed in and remember session information. It also records website activity, such as account, plan, checkout, and support interactions, using a browser-session identifier. Cloudflare Web Analytics may collect website traffic and performance measurements when enabled.",
+        "The mobile app stores authentication tokens in the device\u2019s secure storage. Signing out clears the app\u2019s stored session credentials. Clearing website cookies or storage can sign you out. Uninstalling the app does not delete your account or records held by the service."
+      ]
+    },
+    {
+      "title": "Retention and security",
+      "paragraphs": [
+        "Account and pool records are retained to provide the service and preserve pool history while the account and records remain in use. Retention varies by record type and purpose; account records are not automatically deleted when you stop using the app. You can request deletion using the contact below.",
+        "When handling deletion requests, we may retain records needed for legal, tax, dispute-resolution, fraud-prevention, or security purposes. Backup copies may remain until replaced or expired through backup rotation. We will explain any applicable retention limitations when responding to your request.",
+        "We use measures such as password hashing, protected authentication storage, encrypted network connections, and access controls to protect information. No storage or transmission method can guarantee absolute security. Information may be processed in the United States and other locations where our providers operate."
+      ]
+    },
+    {
+      "title": "Your choices and privacy requests",
+      "paragraphs": [
+        "Email support@runmypool.net to request access to, correction of, or deletion of your personal information, to ask about retention, or to withdraw consent where processing relies on consent. Use the email associated with your account when possible. We may need to verify your identity; do not send your password or payment-card details.",
+        "Deleting an account can affect entries and pool administration. We will explain how your request affects associated records, any ownership transfer needed, and any information that must be retained. Depending on where you live, you may have additional rights, including data portability, restriction of or objection to processing, and the right to complain to a privacy regulator. We respond in accordance with applicable law."
+      ]
+    },
+    {
+      "title": "Children\u2019s privacy",
+      "paragraphs": [
+        "Run My Pool is not directed to children under 13. If you believe a child under 13 has provided personal information, contact support@runmypool.net so we can investigate and address the information."
+      ]
+    },
+    {
+      "title": "Changes and contact",
+      "paragraphs": [
+        "We may update this policy as the service or our practices change. The date above identifies the latest revision. We will provide additional notice of material changes when required. For privacy questions, contact Run My Pool at support@runmypool.net."
+      ]
+    }
+  ]
+}

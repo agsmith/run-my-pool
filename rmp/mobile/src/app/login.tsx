@@ -105,6 +105,7 @@ export default function LoginScreen() {
               <Text style={styles.link}>Forgot password?</Text>
             </Pressable>
           </View>
+          <Pressable accessibilityRole="button" onPress={() => router.push("/privacy")}><Text style={styles.link}>Privacy Policy</Text></Pressable>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
