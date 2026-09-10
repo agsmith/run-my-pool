@@ -12,7 +12,6 @@ type Member = {
   total_entries: number;
   surviving_entries: number;
   picked_entries: number;
-  dues_paid: boolean;
   is_admin: boolean;
   admin_role: string;
 };
@@ -186,20 +185,6 @@ export default function Admin() {
                     picks
                   </Text>
                 )}
-                <Button
-                  secondary
-                  disabled={busy}
-                  title={
-                    m.dues_paid
-                      ? "Dues paid · mark unpaid"
-                      : "Dues unpaid · mark paid"
-                  }
-                  onPress={() =>
-                    mutate(`/admin/pools/${id}/users/${m.id}/dues`, "PUT", {
-                      paid: !m.dues_paid,
-                    })
-                  }
-                />
                 {m.admin_role !== "Owner" && (
                   <>
                     <Button

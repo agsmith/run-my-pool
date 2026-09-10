@@ -90,7 +90,7 @@ export default function PoolScreen() {
                 secondary
                 title={
                   d.pool.pool_type === "squares"
-                    ? "Results & payouts"
+                    ? "Results"
                     : "Leaderboard"
                 }
                 onPress={() =>

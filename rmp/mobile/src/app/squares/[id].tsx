@@ -35,13 +35,11 @@ type Board = {
   home_digits: number[] | null;
   away_digits: number[] | null;
   claims: Claim[];
-  total_pot_cents: number | null;
   permissions: { is_admin: boolean; can_claim: boolean };
   payouts: {
     game_id: number;
     checkpoint: string;
     winner_display_name: string | null;
-    amount_cents: number | null;
     home_score: number;
     away_score: number;
   }[];
@@ -99,9 +97,6 @@ export default function Squares() {
           ))}
           <Text style={ui.copy}>
             {d.claims.length}/100 claimed · {locked ? "Locked" : "Open"}
-            {d.total_pot_cents != null
-              ? ` · $${(d.total_pot_cents / 100).toFixed(2)} pot`
-              : ""}
           </Text>
           <Text style={ui.copy}>
             Swipe the board sideways to see all columns. Tap a square for its
@@ -297,7 +292,7 @@ export default function Squares() {
               }
             />
           )}
-          <Text style={ui.heading}>Results & payouts</Text>
+          <Text style={ui.heading}>Results</Text>
           {!d.payouts.length && (
             <Text style={ui.copy}>
               Results appear after scoring checkpoints are settled.
@@ -310,9 +305,6 @@ export default function Squares() {
               </Text>
               <Text style={ui.text}>
                 {p.winner_display_name || "Unclaimed square"}
-                {p.amount_cents != null
-                  ? ` · $${(p.amount_cents / 100).toFixed(2)}`
-                  : ""}
               </Text>
             </Card>
           ))}
