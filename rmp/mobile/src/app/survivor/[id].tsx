@@ -1,13 +1,7 @@
-import {
-  Redirect,
-  Stack,
-  useFocusEffect,
-  useLocalSearchParams,
-} from "expo-router";
+import { Redirect, Stack, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  AppState,
   Modal,
   Pressable,
   RefreshControl,
@@ -17,7 +11,7 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { apiFetch } from "@/api/client";
 import { useAuth } from "@/auth/AuthContext";
 import { colors } from "@/theme";
@@ -116,24 +110,27 @@ export default function SurvivorScreen() {
       if (version === request.current) setBusy(false);
     }
   }, [id, week, status]);
-  useFocusEffect(
-    useCallback(() => {
-      load();
-      const timer = setInterval(load, 30000);
-      const subscription = AppState.addEventListener("change", (value) => {
-        if (value === "active") load();
-      });
-      return () => {
-        ++request.current;
-        clearInterval(timer);
-        subscription.remove();
-      };
-    }, [load]),
-  );
   useEffect(() => {
-    const timer = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(timer);
-  }, []);
+    void load();
+    return () => {
+      ++request.current;
+    };
+  }, [load]);
+  // Update local lock labels at the deadline without refreshing server data.
+  useEffect(() => {
+    const next = [
+      ...(board?.games.map((g) => Date.parse(g.start_time)) || []),
+      Date.parse(board?.lock.deadline || ""),
+    ]
+      .filter((t) => t > Date.now())
+      .sort((a, b) => a - b)[0];
+    if (!next) return;
+    const timer = setTimeout(
+      () => setNow(Date.now()),
+      Math.min(next - Date.now() + 50, 2147483647),
+    );
+    return () => clearTimeout(timer);
+  }, [board, now]);
   const picks = entry && board ? board.picks[entry.id] || [] : [];
   const reason =
     selection && board && week
@@ -202,7 +199,7 @@ export default function SurvivorScreen() {
       <Stack.Screen options={{ title: "Survivor picks" }} />
       <ScrollView
         contentContainerStyle={s.content}
-        keyboardShouldPersistTaps="handled"
+        keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets
         refreshControl={
           <RefreshControl
             refreshing={busy}
@@ -262,8 +259,31 @@ export default function SurvivorScreen() {
             {board.entries.map((row) => {
               const current = board.picks[row.id]?.find((p) => p.week === week);
               const locked = pickLocked(current, board.games, board.lock, now);
+              const hasEligibleTeam = board.games.some((game) =>
+                [game.home_team, game.away_team].some(
+                  (team) =>
+                    !unavailable(
+                      team.abbrv,
+                      week!,
+                      board.picks[row.id] || [],
+                      board.games,
+                      board.lock,
+                      now,
+                    ),
+                ),
+              );
               return (
-                <View style={s.card} key={row.id}>
+                <View
+                  style={[
+                    s.card,
+                    !current &&
+                      row.alive &&
+                      !locked &&
+                      hasEligibleTeam &&
+                      s.attention,
+                  ]}
+                  key={row.id}
+                >
                   <Text style={s.heading}>{row.name}</Text>
                   <Text style={s.copy}>
                     {!row.alive
@@ -272,18 +292,21 @@ export default function SurvivorScreen() {
                         ? `${current.team} · ${locked ? "Locked" : "Saved"}`
                         : locked
                           ? "Week locked · no pick"
-                          : "No pick yet"}
+                          : !hasEligibleTeam
+                            ? "No eligible teams available"
+                            : "Needs attention · choose a team"}
                   </Text>
                   <Pressable
                     accessibilityRole="button"
-                    disabled={!row.alive || locked || !board.games.length}
+                    disabled={!row.alive || locked || !hasEligibleTeam}
                     accessibilityState={{
-                      disabled: !row.alive || locked || !board.games.length,
+                      disabled: !row.alive || locked || !hasEligibleTeam,
                     }}
                     style={[
                       s.button,
-                      (!row.alive || locked || !board.games.length) &&
-                        s.disabled,
+                      (current || locked || !row.alive || !hasEligibleTeam) &&
+                        s.changeButton,
+                      (!row.alive || locked || !hasEligibleTeam) && s.disabled,
                     ]}
                     onPress={() => {
                       setEntry(row);
@@ -292,12 +315,22 @@ export default function SurvivorScreen() {
                       setError("");
                     }}
                   >
-                    <Text style={s.dark}>
-                      {locked
-                        ? "Locked"
-                        : current
-                          ? "Change pick"
-                          : "Choose team"}
+                    <Text
+                      style={
+                        current || locked || !row.alive || !hasEligibleTeam
+                          ? s.changeText
+                          : s.dark
+                      }
+                    >
+                      {!row.alive
+                        ? "Eliminated"
+                        : locked
+                          ? "Locked"
+                          : !hasEligibleTeam
+                            ? "No eligible teams"
+                            : current
+                              ? "Change pick"
+                              : "Choose team"}
                     </Text>
                   </Pressable>
                 </View>
@@ -345,102 +378,113 @@ export default function SurvivorScreen() {
           if (!saving) setEntry(null);
         }}
       >
-        <SafeAreaView style={s.screen}>
-          <View style={s.modalHeader}>
-            <Text style={s.heading}>
-              Week {week} · {entry?.name}
-            </Text>
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => {
-                if (!saving) setEntry(null);
-              }}
-              style={s.close}
-            >
-              <Text style={s.text}>Close</Text>
-            </Pressable>
-          </View>
-          <ScrollView contentContainerStyle={s.content}>
-            {board?.games.map((game) => (
-              <View key={game.game_id} style={s.card}>
-                <Text style={s.copy}>
-                  {new Date(game.start_time).toLocaleString([], {
-                    weekday: "short",
-                    month: "short",
-                    day: "numeric",
-                    hour: "numeric",
-                    minute: "2-digit",
-                  })}
-                </Text>
-                {[game.away_team, game.home_team].map((team) => {
-                  const blocked = week
-                    ? unavailable(
-                        team.abbrv,
-                        week,
-                        picks,
-                        board.games,
-                        board.lock,
-                        now,
-                      )
-                    : "Choose week";
-                  return (
-                    <Pressable
-                      key={team.id}
-                      accessibilityRole="button"
-                      accessibilityState={{
-                        disabled: !!blocked,
-                        selected: selection === team.abbrv,
-                      }}
-                      disabled={!!blocked || saving}
-                      onPress={() => { setSelection(team.abbrv); setPickerError(""); }}
-                      style={[
-                        s.team,
-                        selection === team.abbrv && s.selected,
-                        !!blocked && s.disabled,
-                      ]}
-                    >
-                      <Text style={selection === team.abbrv ? s.dark : s.text}>
-                        {team.abbrv} · {team.name}
-                      </Text>
-                      {!!blocked && (
+        <SafeAreaProvider>
+          <SafeAreaView style={s.screen}>
+            <View style={s.modalHeader}>
+              <Text style={s.heading}>
+                Week {week} · {entry?.name}
+              </Text>
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => {
+                  if (!saving) setEntry(null);
+                }}
+                style={s.close}
+              >
+                <Text style={s.text}>Close</Text>
+              </Pressable>
+            </View>
+            <ScrollView contentContainerStyle={s.content}>
+              {board?.games.map((game) => (
+                <View key={game.game_id} style={s.card}>
+                  <Text style={s.copy}>
+                    {new Date(game.start_time).toLocaleString([], {
+                      weekday: "short",
+                      month: "short",
+                      day: "numeric",
+                      hour: "numeric",
+                      minute: "2-digit",
+                    })}
+                  </Text>
+                  {[game.away_team, game.home_team].map((team) => {
+                    const blocked = week
+                      ? unavailable(
+                          team.abbrv,
+                          week,
+                          picks,
+                          board.games,
+                          board.lock,
+                          now,
+                        )
+                      : "Choose week";
+                    return (
+                      <Pressable
+                        key={team.id}
+                        accessibilityRole="button"
+                        accessibilityState={{
+                          disabled: !!blocked,
+                          selected: selection === team.abbrv,
+                        }}
+                        disabled={!!blocked || saving}
+                        onPress={() => {
+                          setSelection(team.abbrv);
+                          setPickerError("");
+                        }}
+                        style={[
+                          s.team,
+                          selection === team.abbrv && s.selected,
+                          !!blocked && s.disabled,
+                        ]}
+                      >
                         <Text
-                          style={selection === team.abbrv ? s.dark : s.copy}
+                          style={selection === team.abbrv ? s.dark : s.text}
                         >
-                          {blocked}
+                          {team.abbrv} · {team.name}
                         </Text>
-                      )}
-                    </Pressable>
-                  );
-                })}
-              </View>
-            ))}
-          </ScrollView>
-          <View style={s.footer}>
-            {!!(pickerError || error || reason) && (
-              <Text accessibilityRole="alert" accessibilityLiveRegion="assertive" style={s.error}>
-                {pickerError || error || reason}
-              </Text>
-            )}
+                        {!!blocked && (
+                          <Text
+                            style={selection === team.abbrv ? s.dark : s.copy}
+                          >
+                            {blocked}
+                          </Text>
+                        )}
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              ))}
+            </ScrollView>
+            <View style={s.footer}>
+              {!!(pickerError || error || reason) && (
+                <Text
+                  accessibilityRole="alert"
+                  accessibilityLiveRegion="assertive"
+                  style={s.error}
+                >
+                  {pickerError || error || reason}
+                </Text>
+              )}
 
-            <Pressable
-              accessibilityRole="button"
-              disabled={!selection || !!reason || saving || !board}
-              style={[
-                s.button,
-                (!selection || !!reason || saving || !board) && s.disabled,
-              ]}
-              onPress={save}
-            >
-              <Text style={s.dark}>
-                {saving
-                  ? "Saving…"
-                  : selection
-                    ? `Confirm ${selection}`
-                    : "Choose a team"}
-              </Text>
-            </Pressable>
-          </View>
-        </SafeAreaView>
+              <Pressable
+                accessibilityRole="button"
+                disabled={!selection || !!reason || saving || !board}
+                style={[
+                  s.button,
+                  (!selection || !!reason || saving || !board) && s.disabled,
+                ]}
+                onPress={save}
+              >
+                <Text style={s.dark}>
+                  {saving
+                    ? "Saving…"
+                    : selection
+                      ? `Confirm ${selection}`
+                      : "Choose a team"}
+                </Text>
+              </Pressable>
+            </View>
+          </SafeAreaView>
+        </SafeAreaProvider>
       </Modal>
     </SafeAreaView>
   );
@@ -483,6 +527,13 @@ const s = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  attention: { borderWidth: 1, borderColor: colors.lime },
+  changeButton: {
+    backgroundColor: "transparent",
+    borderWidth: 1,
+    borderColor: colors.cyan,
+  },
+  changeText: { color: colors.cyan, fontSize: 16, fontWeight: "800" },
   disabled: { opacity: 0.45 },
   error: { color: colors.danger, fontSize: 16, lineHeight: 22 },
   success: { color: colors.lime, fontSize: 16 },

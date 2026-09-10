@@ -1,145 +1,148 @@
-import {
-  Redirect,
-  useFocusEffect,
-  useLocalSearchParams,
-  router,
-} from "expo-router";
+import { Redirect, Stack, router, useLocalSearchParams } from "expo-router";
 import { useCallback, useState } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Text } from "react-native";
+import { Text, TextInput } from "react-native";
 import { apiFetch } from "@/api/client";
 import type { Pool } from "@/api/types";
 import { useAuth } from "@/auth/AuthContext";
 import { Screen } from "@/components/Screen";
+import { Button, Card, LoadState, ui } from "@/components/NativeUI";
 import { PoolBreakdown } from "@/components/PoolBreakdown";
 import type { Breakdown } from "@/domain/survivor";
-import { colors } from "@/theme";
+import { useResource } from "@/hooks/useResource";
 export default function PoolScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { status } = useAuth();
-  const [pool, setPool] = useState<Pool | null>(null);
-  const [week, setWeek] = useState<number | null>(null);
-  const [rows, setRows] = useState<Breakdown[] | null>(null);
+  const [password, setPassword] = useState("");
+  const [joining, setJoining] = useState(false);
   const [error, setError] = useState("");
-  const [refresh, setRefresh] = useState(0);
-  useFocusEffect(
-    useCallback(() => {
-      let active = true;
-      async function load() {
-        if (status !== "authenticated" || !id) return;
-        try {
-          const value = await apiFetch<Pool>(`/pools/${id}`);
-          if (!active) return;
-          setPool(value);
-          if (value.pool_type === "survivor") {
-            const summary = await apiFetch<{ week: number }>(
-              `/pools/${id}/activity-summary`,
-            );
-            const breakdown = await apiFetch<Breakdown[]>(
-              `/picks/pool/${id}/week/${summary.week}/breakdown`,
-            );
-            if (active) {
-              setWeek(summary.week);
-              setRows(breakdown);
-            }
-          }
-          if (active) setError("");
-        } catch (e) {
-          if (active) {
-            setRows(null);
-            setError(e instanceof Error ? e.message : "Unable to load pool");
-          }
-        }
+  const resource = useResource(
+    useCallback(async () => {
+      const [access, mine] = await Promise.all([
+        apiFetch<{ has_admin_access: boolean }>(`/pools/${id}/is-admin`),
+        apiFetch<Pool[]>("/pools/my-pools"),
+      ]);
+      const member = access.has_admin_access || mine.some((p) => p.id === id);
+      const pool = await apiFetch<Pool>(
+        member ? `/pools/${id}` : `/pools/invite/${id}`,
+      );
+      let week: number | null = null;
+      let rows: Breakdown[] | null = null;
+      if (member && pool.pool_type === "survivor") {
+        week = (
+          await apiFetch<{ week: number }>(`/pools/${id}/activity-summary`)
+        ).week;
+        rows = await apiFetch<Breakdown[]>(
+          `/picks/pool/${id}/week/${week}/breakdown`,
+        );
       }
-      load();
-      const timer = setInterval(load, 30000);
-      return () => {
-        active = false;
-        clearInterval(timer);
-      };
-    }, [id, status, refresh]),
+      return { pool, access, member, week, rows };
+    }, [id]),
   );
+  async function join() {
+    setJoining(true);
+    setError("");
+    try {
+      await apiFetch(`/pools/${id}/join`, {
+        method: "POST",
+        body: JSON.stringify({ password: password || null }),
+      });
+      await resource.reload();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setJoining(false);
+    }
+  }
   if (status === "anonymous") return <Redirect href="/login" />;
+  const d = resource.data;
   return (
-    <Screen>
-      {pool ? (
+    <Screen refreshing={resource.busy} onRefresh={resource.reload}>
+      <Stack.Screen options={{ title: d?.pool.name || "Pool Home" }} />
+      <LoadState
+        busy={resource.busy}
+        error={resource.error || error}
+        empty={!d}
+      />
+      {d && (
         <>
-          <Text style={s.kicker}>{pool.pool_type.toUpperCase()}</Text>
-          <Text style={s.title}>{pool.name}</Text>
-          <Text style={s.copy}>
-            {week ? `Week ${week} · Pool Home` : "Pool Home"}
+          <Text style={ui.title}>{d.pool.name}</Text>
+          <Text style={ui.copy}>
+            {d.week ? `Week ${d.week} · ` : ""}Pool Home
           </Text>
-          <Pressable
-            accessibilityRole="button"
-            style={s.primary}
-            onPress={() =>
-              pool.pool_type === "survivor"
-                ? router.push({ pathname: "/survivor/[id]", params: { id } })
-                : router.push({
-                    pathname: "/web",
-                    params: {
-                      path: `/pool/${id}/${pool.pool_type === "pickem" ? "pickem" : "squares"}`,
-                    },
+          {d.member ? (
+            <>
+              <Button
+                title="My entries & picks"
+                onPress={() =>
+                  router.push({
+                    pathname:
+                      d.pool.pool_type === "survivor"
+                        ? "/survivor/[id]"
+                        : d.pool.pool_type === "pickem"
+                          ? "/pickem/[id]"
+                          : "/squares/[id]",
+                    params: { id },
                   })
-            }
-          >
-            <Text style={s.primaryText}>
-              {pool.pool_type === "survivor"
-                ? "My entries & picks"
-                : "Open picks on website"}
-            </Text>
-          </Pressable>
-          {rows && <PoolBreakdown rows={rows} />}
-          <Pressable
-            accessibilityRole="button"
-            style={s.secondary}
-            onPress={() =>
-              router.push({
-                pathname: "/web",
-                params: { path: `/pool/${id}/leaderboard` },
-              })
-            }
-          >
-            <Text style={s.secondaryText}>Leaderboard on website</Text>
-          </Pressable>
+                }
+              />
+              {d.rows && <PoolBreakdown rows={d.rows} />}
+              <Button
+                secondary
+                title={
+                  d.pool.pool_type === "squares"
+                    ? "Results & payouts"
+                    : "Leaderboard"
+                }
+                onPress={() =>
+                  router.push({
+                    pathname:
+                      d.pool.pool_type === "squares"
+                        ? "/squares/[id]"
+                        : "/leaderboard/[id]",
+                    params: { id },
+                  })
+                }
+              />
+              <Button
+                secondary
+                title="Forum"
+                onPress={() =>
+                  router.push({ pathname: "/forum/[id]", params: { id } })
+                }
+              />
+              {d.access.has_admin_access && (
+                <Button
+                  secondary
+                  title="Pool Admin"
+                  onPress={() =>
+                    router.push({ pathname: "/admin/[id]", params: { id } })
+                  }
+                />
+              )}
+            </>
+          ) : (
+            <Card>
+              <Text style={ui.heading}>Join this pool</Text>
+              {d.pool.is_private && (
+                <TextInput
+                  style={ui.input}
+                  placeholder="Join code"
+                  accessibilityLabel="Join code"
+                  placeholderTextColor="#9ab0b3"
+                  secureTextEntry
+                  value={password}
+                  onChangeText={setPassword}
+                />
+              )}
+              <Button
+                title={joining ? "Joining…" : "Join pool"}
+                disabled={joining}
+                onPress={join}
+              />
+            </Card>
+          )}
         </>
-      ) : (
-        !error && <ActivityIndicator color={colors.lime} />
-      )}{" "}
-      {!!error && (
-        <Text accessibilityRole="alert" style={s.error}>
-          {error}
-        </Text>
       )}
-      <Pressable
-        accessibilityRole="button"
-        style={s.secondary}
-        onPress={() => setRefresh((v) => v + 1)}
-      >
-        <Text style={s.secondaryText}>Refresh pool</Text>
-      </Pressable>
     </Screen>
   );
 }
-const s = StyleSheet.create({
-  kicker: { color: colors.lime, fontWeight: "900", letterSpacing: 2 },
-  title: { color: colors.text, fontSize: 34, fontWeight: "900" },
-  copy: { color: colors.muted, fontSize: 16, lineHeight: 23 },
-  primary: {
-    backgroundColor: colors.lime,
-    padding: 16,
-    minHeight: 50,
-    borderRadius: 12,
-    alignItems: "center",
-  },
-  primaryText: { color: colors.ink, fontWeight: "900", fontSize: 16 },
-  secondary: {
-    borderColor: colors.line,
-    borderWidth: 1,
-    padding: 16,
-    minHeight: 48,
-    borderRadius: 12,
-    alignItems: "center",
-  },
-  secondaryText: { color: colors.cyan, fontWeight: "800", fontSize: 16 },
-  error: { color: colors.danger },
-});

@@ -7,14 +7,14 @@ export function PoolBreakdown({ rows }: { rows: Breakdown[] }) {
   const count = rows.reduce((sum, row) => sum + row.count, 0);
   return (
     <View style={s.panel}>
-      <Text style={s.title}>Who picked whom</Text>
+      <Text style={s.title}>Weekly Picks</Text>
       <Text style={s.copy}>
         Both teams’ picks lock and appear at kickoff. Remaining picks appear at
         the pool deadline.
       </Text>
       <Text style={s.copy}>
         {count
-          ? `${count} active entries with revealed picks`
+          ? `${count} active ${count === 1 ? "entry" : "entries"} with revealed picks`
           : "No active entries have revealed picks yet."}
       </Text>
       {rows.map((row) => (
