@@ -38,7 +38,7 @@ Exports validate JavaScript bundles, not signed binaries or device behavior. Nat
 
 ## Distribution
 
-Use `npx eas-cli@latest` rather than installing EAS CLI as a project dependency. The EAS project still needs linking with `eas init`. The existing build profiles cover development, internal preview, and store production. Physical iPhone builds require Apple signing and registered test devices or TestFlight; Android internal builds should use an APK profile.
+Use `npx eas-cli@latest` rather than installing EAS CLI as a project dependency. The EAS project is linked as `@agsmith11/run-my-pool` (project ID `0c554287-2cbc-40ea-b6e4-b37f3f8216ca`). App Store Connect app ID is `6810498155`; signing credentials are managed by EAS. The existing build profiles cover development, internal preview, and store production. Physical iPhone builds require Apple signing and registered test devices or TestFlight; Android internal builds should use an APK profile.
 
 Before store submission: finish account creation/deletion and recovery flows, native workflows for other pool types, store disclosures and screenshots, associated-domain verification, push permissions/reminders, accessibility/device testing, and Apple/Google signing and store configuration. No store submission is implied by a successful export.
 
