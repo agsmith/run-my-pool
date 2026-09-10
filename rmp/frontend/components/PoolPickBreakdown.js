@@ -35,7 +35,7 @@ export default function PoolPickBreakdown({ poolId, currentWeek }) {
   return (
     <section className="pick-breakdown" aria-labelledby="pool-picks-title">
       <div className="heading">
-        <h2 id="pool-picks-title">Who picked whom</h2>
+        <h2 id="pool-picks-title">Pick Breakdown</h2>
         <label>Week <select aria-label="Pick breakdown week" value={week || ''} onChange={(event) => setSelectedWeek(Number(event.target.value))}>
           {!week && <option value="">Choose week</option>}
           {Array.from({ length: 18 }, (_, index) => <option key={index + 1} value={index + 1}>{index + 1}</option>)}
