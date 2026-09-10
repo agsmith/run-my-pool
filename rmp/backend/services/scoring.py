@@ -75,7 +75,12 @@ def _reconcile_picks(
                 and_(
                     models.Pool.pool_type == "survivor",
                     models.Pick.week == game.week_num,
-                    models.Pick.team_id.in_([game.home_team_id, game.away_team_id]),
+                    or_(
+                        models.Pick.team_id.in_([game.home_team_id, game.away_team_id]),
+                        and_(models.Pick.team_id.is_(None), models.Pick.team.in_([
+                            game.home_team.abbrv, game.away_team.abbrv,
+                        ])),
+                    ),
                 ),
             )
         )
@@ -84,6 +89,13 @@ def _reconcile_picks(
     changed = 0
     affected_survivor_entries: set[str] = set()
     for pick in picks:
+        # Older Survivor saves stored only the abbreviation. Resolve that
+        # existing selection against this validated game before grading.
+        if pick.team_id is None and pick.entry.pool.pool_type == "survivor":
+            pick.team_id = {
+                game.home_team.abbrv: game.home_team_id,
+                game.away_team.abbrv: game.away_team_id,
+            }[pick.team]
         # A final tie awards no Pick 'Em point and eliminates either Survivor pick.
         survived = winner_id is not None and pick.team_id == winner_id
         if (

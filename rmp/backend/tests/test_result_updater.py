@@ -746,3 +746,17 @@ def test_main_custom_run_id_is_persisted(db_session, monkeypatch):
 
     assert exit_code == 0
     assert db_session.get(models.UpdaterRun, "custom-id-999") is not None
+
+
+def test_legacy_survivor_abbreviation_is_resolved_and_graded(db_session):
+    _, entry, _ = _seed_scoring(db_session)
+    pick = db_session.get(models.Pick, "survivor-pick")
+    pick.team_id = None
+    db_session.commit()
+    first = apply_final_results(db_session, [_result(home_score=17, away_score=24)])
+    db_session.commit()
+    assert pick.team_id == 2
+    assert pick.result == "win"
+    assert entry.alive is True
+    assert first.picks_changed == 2
+    assert apply_final_results(db_session, [_result(home_score=17, away_score=24)]).picks_changed == 0
