@@ -45,7 +45,7 @@ export default function PoolPickBreakdown({ poolId, currentWeek }) {
       <p>Picks on either team lock and appear here when their game starts, even before the pool’s weekly deadline. All remaining picks are revealed at that deadline.</p>
       {!week ? <p>Choose a week to see its picks.</p> : state.loading ? <p role="status">Loading picks…</p> : state.error ? <p role="alert">Couldn’t load picks. Tap Refresh to try again.</p> : !total ? <p>No entries have revealed picks yet.</p> : <>
         <p><strong>{total}</strong> {total === 1 ? 'entry with a revealed pick' : 'entries with revealed picks'}. Tap a team to see entry names.</p>
-        <div className="teams">{state.rows.map((row) => <details key={row.team}>
+        <div className="teams">{state.rows.map((row) => <details key={row.team} className={row.result === 'win' ? 'result-win' : row.result === 'loss' ? 'result-loss' : ''}>
           <summary><span>{row.team_name || row.team}{row.result === 'win' ? ' · Win' : row.result === 'loss' ? ' · Loss' : ''}</span><strong>{row.count} {row.count === 1 ? 'entry' : 'entries'}</strong></summary>
           <ul>{(row.entries || []).map((entry) => <li key={entry.entry_id}>{entry.entry_name}</li>)}</ul>
         </details>)}</div>
@@ -60,7 +60,9 @@ export default function PoolPickBreakdown({ poolId, currentWeek }) {
         details { border: 1px solid #34464b; min-width: 0; }
         summary { display: flex; justify-content: space-between; align-items: center; gap: 12px; min-height: 48px; padding: 12px; cursor: pointer; }
         summary span { overflow-wrap: anywhere; min-width: 0; }
-        summary strong { color: #d9ff3f; white-space: nowrap; }
+        details.result-win { border-color: #62c98b; --result-color: #62c98b; }
+        details.result-loss { border-color: #f19aaf; --result-color: #f19aaf; }
+        summary strong { color: var(--result-color, #c1ced1); white-space: nowrap; }
         summary::before { content: '+'; }
         details[open] summary::before { content: '−'; }
         li { padding: 6px 12px 6px 0; overflow-wrap: anywhere; }

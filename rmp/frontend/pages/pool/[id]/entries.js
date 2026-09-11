@@ -111,7 +111,7 @@ function PickBreakdownPanel({ data, week, loading, error, locked }) {
       {!loading && !error && breakdown.map((item) => {
         const pct = Math.round((item.count / total) * 100);
         return (
-          <div className="entries-breakdown__row" key={item.team_id} style={{ marginBottom: '0.4rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <div className={`entries-breakdown__row entries-breakdown__row--${item.result === 'win' ? 'win' : item.result === 'loss' ? 'loss' : 'pending'}`} key={item.team_id} style={{ marginBottom: '0.4rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <img
               src={`/nfl/${item.team_abbrv.toLowerCase()}.svg`}
               alt={item.team_abbrv}
@@ -127,7 +127,7 @@ function PickBreakdownPanel({ data, week, loading, error, locked }) {
                 width: `${pct}%`,
                 minWidth: pct > 0 ? '4px' : '0',
                 height: '100%',
-                backgroundColor: '#d7ff3f',
+                backgroundColor: 'var(--breakdown-color, #b8c5c6)',
                 borderRadius: '4px',
                 transition: 'width 0.3s ease',
               }} />

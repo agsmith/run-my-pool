@@ -19,7 +19,7 @@ export function PoolBreakdown({ rows }: { rows: Breakdown[] }) {
           : "No entries have revealed picks yet."}
       </Text>
       {rows.map((row) => (
-        <View key={row.team} style={s.team}>
+        <View key={row.team} style={[s.team, row.result === "win" ? s.winBorder : row.result === "loss" ? s.lossBorder : null]}>
           <Pressable
             accessibilityRole="button"
             accessibilityState={{ expanded: expanded === row.team }}
@@ -28,7 +28,7 @@ export function PoolBreakdown({ rows }: { rows: Breakdown[] }) {
           >
             <TeamHelmet team={row.team} size={52} />
             <Text style={s.name}>{row.team_name}{row.result === "win" ? " · Win" : row.result === "loss" ? " · Loss" : ""}</Text>
-            <Text style={s.count}>
+            <Text style={[s.count, row.result === "win" ? s.winText : row.result === "loss" ? s.lossText : null]}>
               {row.count} · {expanded === row.team ? "−" : "+"}
             </Text>
           </Pressable>
@@ -52,9 +52,13 @@ const s = StyleSheet.create({
   },
   title: { color: colors.text, fontSize: 23, fontWeight: "800" },
   copy: { color: colors.muted, lineHeight: 22 },
-  team: { borderTopWidth: 1, borderColor: colors.line },
+  team: { borderWidth: 1, borderColor: colors.line, padding: 8, borderRadius: 8 },
+  winBorder: { borderColor: "#62c98b" },
+  lossBorder: { borderColor: "#f19aaf" },
+  winText: { color: "#62c98b" },
+  lossText: { color: "#f19aaf" },
   row: { flexDirection: "row", alignItems: "center", gap: 12, minHeight: 52 },
   name: { flex: 1, color: colors.text, fontSize: 16, fontWeight: "700" },
-  count: { color: colors.lime, fontWeight: "800" },
+  count: { color: colors.muted, fontWeight: "800" },
   entry: { color: colors.muted, paddingVertical: 8, fontSize: 16 },
 });

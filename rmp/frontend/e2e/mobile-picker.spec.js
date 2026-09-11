@@ -125,3 +125,26 @@ for (const width of [390, 1280]) {
   await expect(loser).toBeDisabled();
  });
 }
+
+for (const width of [390, 1280]) {
+ test(`breakdown uses settled result colors at ${width}px`, async ({page}) => {
+  await page.setViewportSize({width,height:900}); await fixture(page);
+  await page.route('**/breakdown', route => route.fulfill({json:[
+   {team_id:1,team:'SEA',team_abbrv:'SEA',team_name:'Seattle Seahawks',count:16,result:'win',entries:[]},
+   {team_id:2,team:'LAR',team_abbrv:'LAR',team_name:'Los Angeles Rams',count:13,result:'loss',entries:[]},
+   {team_id:3,team:'BUF',team_abbrv:'BUF',team_name:'Buffalo Bills',count:1,result:null,entries:[]}
+  ]}));
+  await page.goto('/pool/mobile-pool/entries');
+  for (const [team,color] of [['SEA','rgb(98, 201, 139)'],['LAR','rgb(241, 154, 175)'],['BUF','rgb(184, 197, 198)']]) {
+   const count = page.getByRole('button',{name:`Show users who picked ${team}`});
+   await expect(count).toHaveCSS('color',color);
+   await expect(count.locator('xpath=../..').locator(':scope > div > div')).toHaveCSS('background-color',color);
+  }
+  await page.goto('/pool/mobile-pool');
+  for (const [result,color] of [['win','rgb(98, 201, 139)'],['loss','rgb(241, 154, 175)']]) {
+   const row=page.locator(`.pick-breakdown details.result-${result}`);
+   await expect(row).toHaveCSS('border-top-color',color);
+   await expect(row.locator('summary strong')).toHaveCSS('color',color);
+  }
+ });
+}

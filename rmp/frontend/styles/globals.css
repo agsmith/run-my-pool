@@ -596,8 +596,11 @@ table {
 .pool-card__pick-row { padding:.62rem .7rem!important; color:#d8e2e0; background:#142024!important; border:1px solid #2d4145!important; border-radius:0!important; box-shadow:none!important; }
 .pool-card__pick-row--open { background:#111b1e!important; }
 .pool-card__pick-row--missed { border-color:rgba(255,129,122,.48)!important; }
-.entries-breakdown__count { padding:.1rem .25rem; color:var(--lime); background:transparent; border:0; font:inherit; font-weight:900; text-decoration:underline; text-underline-offset:.2em; cursor:pointer; }
-.entries-breakdown__count:hover { color:#e2ff72; }
+.entries-breakdown__count { padding:.1rem .25rem; color:var(--breakdown-color, #b8c5c6); background:transparent; border:0; font:inherit; font-weight:900; text-decoration:underline; text-underline-offset:.2em; cursor:pointer; }
+.entries-breakdown__row { --breakdown-color:#b8c5c6; }
+.entries-breakdown__row--win { --breakdown-color:#62c98b; }
+.entries-breakdown__row--loss { --breakdown-color:#f19aaf; }
+.entries-breakdown__count:hover { color:var(--breakdown-color); }
 .entries-breakdown__count:focus-visible { outline:3px solid var(--ice); outline-offset:2px; }
 .entries-breakdown__modal { width:min(92vw,560px); }
 .entries-breakdown-week { display:flex; align-items:center; justify-content:flex-end; gap:.6rem; margin:0 0 .75rem; color:#c9d4d3; }
@@ -716,7 +719,7 @@ table {
 .broadcast-v2--entries .entries-season-table__week { min-width:82px!important; }
 .broadcast-v2--entries .entries-breakdown { color:var(--ink)!important; background:#10191c!important; border-color:#314449!important; }
 .broadcast-v2--entries .entries-breakdown__row > div { background:#26363a!important; }
-.broadcast-v2--entries .entries-breakdown__row > div > div { background:var(--lime)!important; }
+.broadcast-v2--entries .entries-breakdown__row > div > div { background:var(--breakdown-color)!important; }
 .broadcast-v2--entries .entries-breakdown__row > span { color:#b8c5c6!important; }
 .broadcast-v2--entries .entries-empty-state { color:var(--ink)!important; background:#0d1618!important; border-color:#3a5055!important; box-shadow:none!important; }
 .broadcast-v2--entries .entries-empty-state h3 { color:var(--ink)!important; }
