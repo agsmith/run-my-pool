@@ -48,7 +48,7 @@ export default function PoolLeaderboardPage() {
           <span className={`leaderboard-entry__status ${entry.alive ? 'is-alive' : 'is-eliminated'}`}>{entry.alive ? 'Remaining' : 'Eliminated'}</span>
         </>}
         <div className="leaderboard-entry__picks" aria-label={`${entry.entry_name} revealed picks`}>
-          {entry.picks.length ? entry.picks.map((pick, index) => <span className={`leaderboard-pick is-${pick.result || 'pending'}`} key={`${pick.week}-${pick.team}-${index}`}><b>W{pick.week}</b> {pick.team}</span>) : <span className="leaderboard-entry__empty">No revealed picks yet</span>}
+          {entry.picks.length ? entry.picks.map((pick, index) => <span className={`leaderboard-pick is-${pick.result || 'pending'}`} key={`${pick.week}-${pick.team}-${index}`}><b>W{pick.week}</b> {pick.team}{pick.result === 'win' ? ' · Win' : pick.result === 'loss' ? ' · Loss' : ''}</span>) : <span className="leaderboard-entry__empty">No revealed picks yet</span>}
         </div>
       </article>)}
     </section>}

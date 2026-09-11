@@ -668,16 +668,16 @@ export default function LeagueEntries() {
     let borderWidth = '2px';
     let opacity = 1;
     if (pick?.result === 'win') {
-      backgroundColor = '#e8f5e9';
+      backgroundColor = '#101e22';
       borderColor = '#4caf50';
-      textColor = '#1b5e20';
+      textColor = '#b9f6cf';
       borderWidth = '2.5px';
       cursor = 'not-allowed';
       opacity = 1;
     } else if (pick?.result === 'loss') {
-      backgroundColor = '#ffebee';
-      borderColor = '#f44336';
-      textColor = '#b71c1c';
+      backgroundColor = '#101e22';
+      borderColor = '#f19aaf';
+      textColor = '#ffd0dd';
       borderWidth = '2.5px';
       cursor = 'not-allowed';
       opacity = 1;

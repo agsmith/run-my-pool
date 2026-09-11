@@ -2124,3 +2124,11 @@ table {
 .pickem-tiebreaker label { display:grid; gap:.35rem; font-size:.78rem; font-weight:800; }
 .pickem-tiebreaker input { width:9rem; padding:.65rem; color:#fff; background:#061014; border:1px solid #607980; border-radius:7px; font:inherit; }
 .pickem-tiebreaker button { padding:.68rem 1rem; color:#041218; background:#c6ff37; border:0; border-radius:7px; font-weight:900; }
+
+/* Graded picks retain their outcome outlines, including when locked. */
+.leaderboard-pick.is-win,
+.pickem-game button.is-selected.is-win { background:#101e22; border:2px solid #62c98b; color:#b9f6cf; opacity:1; }
+.leaderboard-pick.is-loss,
+.pickem-game button.is-selected.is-loss { background:#101e22; border:2px solid #f19aaf; color:#ffd0dd; opacity:1; }
+.pickem-game button.is-selected.is-win small,
+.pickem-game button.is-selected.is-loss small { color:inherit; }

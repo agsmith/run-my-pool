@@ -1,3 +1,4 @@
+import { ui } from "@/components/NativeUI";
 import { TeamHelmet } from "@/components/TeamHelmet";
 import { Redirect, Stack, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -277,6 +278,8 @@ export default function SurvivorScreen() {
                 <View
                   style={[
                     s.card,
+                    current?.result === "win" && ui.pickWin,
+                    current?.result === "loss" && ui.pickLoss,
                     !current &&
                       row.alive &&
                       !locked &&
@@ -288,7 +291,9 @@ export default function SurvivorScreen() {
                   <Text style={s.heading}>{row.name}</Text>
                   {current && <TeamHelmet team={current.team} size={60} />}
                   <Text style={s.copy}>
-                    {!row.alive
+                    {current?.result === "win" || current?.result === "loss"
+                      ? `${current.team} · ${current.result === "win" ? "Win" : "Loss"}`
+                      : !row.alive
                       ? "Eliminated"
                       : current
                         ? `${current.team} · ${locked ? "Locked" : "Saved"}`

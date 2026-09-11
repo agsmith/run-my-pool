@@ -42,7 +42,7 @@ export default function Leaderboard() {
             {row.completed_picks} completed
           </Text>
           {row.picks.map((p, i) => (
-            <Text key={`${p.week}-${i}`} style={ui.text}>
+            <Text key={`${p.week}-${i}`} style={[ui.text, ui.pickBar, p.result === "win" && ui.pickWin, p.result === "loss" && ui.pickLoss, p.result === "win" && ui.pickWinText, p.result === "loss" && ui.pickLossText]}>
               Week {p.week} · {p.team} ·{" "}
               {p.result === "win"
                 ? "Win"

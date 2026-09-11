@@ -50,6 +50,11 @@ export const ui = StyleSheet.create({
   },
   buttonText: { color: colors.ink, fontWeight: "800", fontSize: 16 },
   secondaryText: { color: colors.cyan, fontWeight: "800", fontSize: 16 },
+  pickBar: { padding: 12, borderRadius: 10, borderWidth: 1, borderColor: colors.line },
+  pickWin: { backgroundColor: colors.panel, borderColor: "#62c98b", borderWidth: 2 },
+  pickLoss: { backgroundColor: colors.panel, borderColor: "#f19aaf", borderWidth: 2 },
+  pickWinText: { color: "#b9f6cf" },
+  pickLossText: { color: "#ffd0dd" },
   attention: { borderWidth: 1, borderColor: colors.lime },
 });
 export function Button({
@@ -57,11 +62,13 @@ export function Button({
   onPress,
   disabled,
   secondary = false,
+  result,
 }: {
   title: string;
   onPress: () => void;
   disabled?: boolean;
   secondary?: boolean;
+  result?: string | null;
 }) {
   return (
     <Pressable
@@ -72,10 +79,12 @@ export function Button({
       style={[
         ui.button,
         secondary && ui.outline,
-        disabled && { opacity: 0.45 },
+        disabled && !result && { opacity: 0.45 },
+        result === "win" && ui.pickWin,
+        result === "loss" && ui.pickLoss,
       ]}
     >
-      <Text style={secondary ? ui.secondaryText : ui.buttonText}>{title}</Text>
+      <Text style={[secondary ? ui.secondaryText : ui.buttonText, result === "win" && ui.pickWinText, result === "loss" && ui.pickLossText]}>{title}</Text>
     </Pressable>
   );
 }

@@ -190,7 +190,8 @@ export default function PickEm() {
                     {[g.away_team, g.home_team].map((t) => (
                       <Button
                         key={t.id}
-                        title={`${current?.team === t.abbrv ? "✓ Saved · " : current ? "Change to " : ""}${t.name}`}
+                        result={current?.team === t.abbrv ? current.result : undefined}
+                        title={`${current?.team === t.abbrv ? (current.result === "win" ? "✓ Win · " : current.result === "loss" ? "Loss · " : "✓ Saved · ") : current ? "Change to " : ""}${t.name}`}
                         secondary={!!current || locked || full}
                         disabled={busy || locked || full}
                         onPress={() => {

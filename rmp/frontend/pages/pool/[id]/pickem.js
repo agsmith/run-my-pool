@@ -125,8 +125,8 @@ export default function PickEmPage() {
       </section>}
       <section className="pickem-board">{eligibleGames.map((game) => <article key={game.game_id} className="pickem-game">
         <time>{new Date(game.start_time).toLocaleString()}</time>
-        {[game.away_team, game.home_team].map((team) => <button key={team.id} disabled={savingGame === game.game_id || (targetReached && !picksByGame[game.game_id])} className={picksByGame[game.game_id]?.team === team.abbrv ? 'is-selected' : ''} onClick={() => selectWinner(game, team)}>
-          <img src={`/nfl/${team.abbrv.toLowerCase()}.svg`} alt="" title={team.abbrv} /><span><strong>{team.abbrv}</strong><small>{team.name}</small></span>{picksByGame[game.game_id]?.team === team.abbrv && <b>✓</b>}
+        {[game.away_team, game.home_team].map((team) => <button key={team.id} disabled={savingGame === game.game_id || (targetReached && !picksByGame[game.game_id])} className={picksByGame[game.game_id]?.team === team.abbrv ? `is-selected is-${picksByGame[game.game_id]?.result || 'pending'}` : ''} onClick={() => selectWinner(game, team)}>
+          <img src={`/nfl/${team.abbrv.toLowerCase()}.svg`} alt="" title={team.abbrv} /><span><strong>{team.abbrv}</strong><small>{team.name}</small></span>{picksByGame[game.game_id]?.team === team.abbrv && <b>{picksByGame[game.game_id]?.result === 'win' ? 'Win' : picksByGame[game.game_id]?.result === 'loss' ? 'Loss' : '✓'}</b>}
         </button>)}
       </article>)}</section></>}
     <section className="pickem-standings"><h2>Week {week} standings</h2><table><thead><tr><th>Rank</th><th>Entry</th><th>Points</th>{pool?.pickem_slate === 'sunday_monday' && <><th>Prediction</th><th>Difference</th></>}</tr></thead><tbody>{weeklyStandings.map((row) => <tr key={row.entry_id}><td>{row.rank}</td><td><strong>{row.entry_name}</strong><small>{row.user_display_name}</small></td><td>{row.points}</td>{pool?.pickem_slate === 'sunday_monday' && <><td>{row.predicted_total ?? 'Hidden until lock'}</td><td>{row.tiebreak_difference ?? '—'}</td></>}</tr>)}</tbody></table></section>
