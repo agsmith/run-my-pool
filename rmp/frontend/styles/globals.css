@@ -2132,3 +2132,6 @@ table {
 .pickem-game button.is-selected.is-loss { background:#101e22; border:2px solid #f19aaf; color:#ffd0dd; opacity:1; }
 .pickem-game button.is-selected.is-win small,
 .pickem-game button.is-selected.is-loss small { color:inherit; }
+
+.broadcast-v2--entries .entries-season-table__week > button.is-win { color:#b9f6cf!important; background:#0b1315!important; border-color:#62c98b!important; opacity:1; }
+.broadcast-v2--entries .entries-season-table__week > button.is-loss { color:#ffd0dd!important; background:#0b1315!important; border-color:#f19aaf!important; opacity:1; }

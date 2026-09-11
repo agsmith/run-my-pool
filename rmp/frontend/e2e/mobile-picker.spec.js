@@ -103,3 +103,25 @@ test('save rejection is visible beside Save on a narrow phone', async ({page}) =
  const bounds=await alert.boundingBox();expect(bounds.y).toBeGreaterThanOrEqual(0);expect(bounds.y+bounds.height).toBeLessThanOrEqual(568);
  await page.screenshot({path:'/tmp/rmp-picker-error-phone.png'});
 });
+
+for (const width of [390, 1280]) {
+ test(`locked result outlines remain visible at ${width}px`, async ({page}) => {
+  await page.setViewportSize({width,height:900}); await fixture(page);
+  await page.route('**/entries/pool/mobile-pool', route => route.fulfill({json:[{id:'entry-1',name,alive:false}]}));
+  await page.route('**/picks/entry/entry-1', route => route.fulfill({json:[
+   {id:'win',week:1,team:'SEA',result:'win',locked:true},
+   {id:'loss',week:2,team:'NE',result:'loss',locked:true}
+  ]}));
+  await page.goto('/pool/mobile-pool/entries');
+  const mobile = page.getByRole('region',{name:'Weekly entry picks'});
+  const winner = width < 650 ? mobile.locator('.entries-mobile__pick') : page.getByTitle('SEA - win');
+  await expect(winner).toHaveCSS('border-top-color','rgb(98, 201, 139)');
+  await expect(winner).toHaveCSS('opacity','1');
+  await expect(winner).toBeDisabled();
+  if(width < 650) await mobile.getByLabel('Your picks',{exact:true}).selectOption('2');
+  const loser = width < 650 ? mobile.locator('.entries-mobile__pick') : page.getByTitle('NE - loss');
+  await expect(loser).toHaveCSS('border-top-color','rgb(241, 154, 175)');
+  await expect(loser).toHaveCSS('opacity','1');
+  await expect(loser).toBeDisabled();
+ });
+}

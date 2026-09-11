@@ -700,7 +700,7 @@ export default function LeagueEntries() {
     return (
       <button
         key={week}
-        className={`entries-pick-button${hasTeam ? ' entries-pick-button--team' : ''}`}
+        className={`entries-pick-button${hasTeam ? ' entries-pick-button--team' : ''}${pick?.result === 'win' ? ' is-win' : pick?.result === 'loss' ? ' is-loss' : ''}`}
         onClick={() => isEntryAlive && !isWeekLocked ? handlePickClick(entry, week) : null}
         disabled={!isEntryAlive || isWeekLocked}
         style={{
