@@ -119,7 +119,7 @@ describe('player entries page', () => {
     expect(mobile.getByRole('button', { name: 'Make week 3 pick for Out' })).toBeDisabled();
   });
 
-  test('preserves green winners and red loser while disabling remaining weeks', async () => {
+  test('preserves green and pink result outlines while disabling remaining weeks', async () => {
     installApi({
       entries: [{ id: 'entry-1', name: 'One and Done', alive: false }],
       picks: {
@@ -137,8 +137,8 @@ describe('player entries page', () => {
     const row = screen.getByText('One and Done', { selector: 'td span' }).closest('tr');
     const future = within(row).getByRole('button', { name: '3' });
 
-    expect(winner).toHaveStyle({ backgroundColor: '#e8f5e9', borderColor: '#4caf50' });
-    expect(loser).toHaveStyle({ backgroundColor: '#ffebee', borderColor: '#f44336' });
+    expect(winner).toHaveStyle({ backgroundColor: '#101e22', borderColor: '#4caf50', borderWidth: '2.5px', opacity: '1' });
+    expect(loser).toHaveStyle({ backgroundColor: '#101e22', borderColor: '#f19aaf', borderWidth: '2.5px', opacity: '1' });
     expect(winner).toBeDisabled();
     expect(loser).toBeDisabled();
     expect(future).toBeDisabled();
