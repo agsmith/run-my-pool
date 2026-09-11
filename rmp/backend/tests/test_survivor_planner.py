@@ -1,8 +1,27 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
+
+import pytest
 
 from fastapi import HTTPException
 from models import Entry, Pick, Pool, PoolMember, Schedule, SurvivorEntryPlan, Team, User
+
+
+@pytest.fixture(autouse=True)
+def planner_clock(monkeypatch):
+    """Keep the seeded 2026 slate before kickoff regardless of the CI date."""
+    class BeforeKickoff(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            instant = datetime(2026, 9, 9, 12, tzinfo=timezone.utc)
+            return instant.astimezone(tz) if tz else instant.replace(tzinfo=None)
+
+        @classmethod
+        def utcnow(cls):
+            return cls.now(timezone.utc).replace(tzinfo=None)
+
+    for module in ("schedule", "picks", "survivor_planner"):
+        monkeypatch.setattr(f"{module}.datetime", BeforeKickoff)
 
 
 def _register(client, email):
