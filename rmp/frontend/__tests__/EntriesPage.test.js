@@ -432,7 +432,7 @@ describe('player entries page', () => {
 
     await user.selectOptions(await screen.findByLabelText('Pick breakdown week'), '3');
 
-    expect(await screen.findByText('No surviving picks were recorded for Week 3.')).toBeInTheDocument();
+    expect(await screen.findByText('No picks were recorded for Week 3.')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Week 3 Pick Breakdown' })).toBeInTheDocument();
   });
   test('save rejection stays visible inside the picker and allows another team', async () => {

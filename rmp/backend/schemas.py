@@ -701,6 +701,7 @@ class PickBreakdownEntry(BaseModel):
 
 
 class PickBreakdownItem(BaseModel):
+    result: Optional[str] = None
     team: str
     team_id: int
     team_name: str

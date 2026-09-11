@@ -850,7 +850,7 @@ def get_pick_breakdown(
     current_user=Depends(get_current_user),
 ):
     """
-    Return per-team pick counts and per-user entry counts for surviving entries.
+    Return revealed picks, including entries eliminated after their game.
     Configured pools reveal every pick once the weekly pool deadline passes.
     Before that deadline, both teams in each started game are revealed.
     """
@@ -866,7 +866,7 @@ def get_pick_breakdown(
         team_id for game in games if game.start_time <= now
         for team_id in (game.home_team_id, game.away_team_id)
     }
-    filters = [Entry.pool_id == pool_id, Entry.alive == True, Pick.week == week]  # noqa: E712
+    filters = [Entry.pool_id == pool_id, Pick.week == week]
     if deadline is None or deadline > now:
         filters.append(Team.id.in_(started_team_ids))
 
@@ -878,6 +878,7 @@ def get_pick_breakdown(
             Team.abbrv.label("team_abbrv"),
             Team.logo.label("team_logo"),
             func.count(Pick.id).label("count"),
+            func.min(Pick.result).label("result"),
         )
         .join(Entry, Pick.entry_id == Entry.id)
         .join(Team, Team.abbrv == Pick.team)
@@ -927,6 +928,7 @@ def get_pick_breakdown(
             team_abbrv=row.team_abbrv,
             team_logo=row.team_logo,
             count=row.count,
+            result=row.result,
             users=users_by_team.get(row.team, []),
             entries=entries_by_team.get(row.team, []),
         )

@@ -15,8 +15,8 @@ export function PoolBreakdown({ rows }: { rows: Breakdown[] }) {
       </Text>
       <Text style={s.copy}>
         {count
-          ? `${count} active ${count === 1 ? "entry" : "entries"} with revealed picks`
-          : "No active entries have revealed picks yet."}
+          ? `${count} ${count === 1 ? "entry" : "entries"} with revealed picks`
+          : "No entries have revealed picks yet."}
       </Text>
       {rows.map((row) => (
         <View key={row.team} style={s.team}>
@@ -27,7 +27,7 @@ export function PoolBreakdown({ rows }: { rows: Breakdown[] }) {
             style={s.row}
           >
             <TeamHelmet team={row.team} size={52} />
-            <Text style={s.name}>{row.team_name}</Text>
+            <Text style={s.name}>{row.team_name}{row.result === "win" ? " · Win" : row.result === "loss" ? " · Loss" : ""}</Text>
             <Text style={s.count}>
               {row.count} · {expanded === row.team ? "−" : "+"}
             </Text>

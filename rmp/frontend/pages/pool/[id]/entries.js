@@ -96,7 +96,7 @@ function PickBreakdownPanel({ data, week, loading, error, locked }) {
           🔒 Locked
         </span>}
         {total > 0 && <span style={{ fontSize: '0.8rem', color: '#c9d4d3', marginLeft: 'auto' }}>
-          {total} alive {total === 1 ? 'entry' : 'entries'}
+          {total} {total === 1 ? 'entry' : 'entries'}
         </span>}
       </div>
 
@@ -104,7 +104,7 @@ function PickBreakdownPanel({ data, week, loading, error, locked }) {
       {!loading && error && <p role="alert" style={{ color: '#ff8e8e', margin: 0 }}>{error}</p>}
       {!loading && !error && total === 0 && <p style={{ color: '#c9d4d3', margin: 0 }}>
         {locked
-          ? `No surviving picks were recorded for Week ${week}.`
+          ? `No picks were recorded for Week ${week}.`
           : `Week ${week} picks are revealed when their game starts or the weekly pool deadline passes.`}
       </p>}
 
@@ -119,8 +119,8 @@ function PickBreakdownPanel({ data, week, loading, error, locked }) {
               className="entries-team-logo entries-team-logo--breakdown"
               onError={(e) => { e.target.style.display = 'none'; }}
             />
-            <span style={{ width: '36px', fontSize: '0.8rem', fontWeight: '500', flexShrink: 0 }}>
-              {item.team_abbrv}
+            <span style={{ width: '76px', fontSize: '0.8rem', fontWeight: '500', flexShrink: 0 }}>
+              {item.team_abbrv}{item.result === 'win' ? ' · Win' : item.result === 'loss' ? ' · Loss' : ''}
             </span>
             <div style={{ flex: 1, backgroundColor: '#e9ecef', borderRadius: '4px', height: '18px', overflow: 'hidden' }}>
               <div style={{
@@ -146,7 +146,7 @@ function PickBreakdownPanel({ data, week, loading, error, locked }) {
             <div><span>Week {week}</span><h3 id="pick-users-title">{selectedBreakdown.team_abbrv} picks</h3></div>
             <button type="button" aria-label="Close pick details" onClick={() => setSelectedBreakdown(null)}>×</button>
           </div>
-          <p>{selectedBreakdown.count} surviving {selectedBreakdown.count === 1 ? 'entry' : 'entries'} selected {selectedBreakdown.team_name}.</p>
+          <p>{selectedBreakdown.count} {selectedBreakdown.count === 1 ? 'entry' : 'entries'} selected {selectedBreakdown.team_name}.</p>
           <div className="admin-user-overview__table-wrap"><table className="admin-user-overview__table">
             <thead><tr><th>User</th><th>Entries</th></tr></thead>
             <tbody>{(selectedBreakdown.users || []).map((pickedUser) => <tr key={pickedUser.user_id}>

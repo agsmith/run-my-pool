@@ -43,10 +43,10 @@ export default function PoolPickBreakdown({ poolId, currentWeek }) {
         <button type="button" onClick={() => setRefresh((value) => value + 1)}>Refresh</button>
       </div>
       <p>Picks on either team lock and appear here when their game starts, even before the pool’s weekly deadline. All remaining picks are revealed at that deadline.</p>
-      {!week ? <p>Choose a week to see its picks.</p> : state.loading ? <p role="status">Loading picks…</p> : state.error ? <p role="alert">Couldn’t load picks. Tap Refresh to try again.</p> : !total ? <p>No active entries have revealed picks yet.</p> : <>
-        <p><strong>{total}</strong> active {total === 1 ? 'entry with a revealed pick' : 'entries with revealed picks'}. Tap a team to see entry names.</p>
+      {!week ? <p>Choose a week to see its picks.</p> : state.loading ? <p role="status">Loading picks…</p> : state.error ? <p role="alert">Couldn’t load picks. Tap Refresh to try again.</p> : !total ? <p>No entries have revealed picks yet.</p> : <>
+        <p><strong>{total}</strong> {total === 1 ? 'entry with a revealed pick' : 'entries with revealed picks'}. Tap a team to see entry names.</p>
         <div className="teams">{state.rows.map((row) => <details key={row.team}>
-          <summary><span>{row.team_name || row.team}</span><strong>{row.count} {row.count === 1 ? 'entry' : 'entries'}</strong></summary>
+          <summary><span>{row.team_name || row.team}{row.result === 'win' ? ' · Win' : row.result === 'loss' ? ' · Loss' : ''}</span><strong>{row.count} {row.count === 1 ? 'entry' : 'entries'}</strong></summary>
           <ul>{(row.entries || []).map((entry) => <li key={entry.entry_id}>{entry.entry_name}</li>)}</ul>
         </details>)}</div>
       </>}

@@ -12,7 +12,7 @@ test('shows team counts and named entries, changes weeks, and refreshes at focus
   expect(screen.getByText('Seattle One')).toBeInTheDocument();
   fetch.mockResolvedValue({ok:true,json:async()=>[]});
   fireEvent.change(screen.getByLabelText('Pick breakdown week'),{target:{value:'2'}});
-  expect(await screen.findByText('No active entries have revealed picks yet.')).toBeInTheDocument();
+  expect(await screen.findByText('No entries have revealed picks yet.')).toBeInTheDocument();
   expect(fetch).toHaveBeenLastCalledWith(expect.stringContaining('/week/2/breakdown'),expect.any(Object));
   fetch.mockResolvedValue({ok:true,json:async()=>rows});
   fireEvent(window,new Event('focus'));
@@ -25,4 +25,12 @@ test('distinguishes failed requests from no revealed picks and supports retry', 
   fetch.mockResolvedValue({ok:true,json:async()=>rows});
   fireEvent.click(screen.getByRole('button',{name:'Refresh'}));
   await waitFor(()=>expect(screen.getByText('Seattle Seahawks')).toBeInTheDocument());
+});
+
+test('retains revealed losing picks and identifies their result', async () => {
+  global.fetch = jest.fn().mockResolvedValue({ok:true,json:async()=>[{team:'LAR',team_name:'Los Angeles Rams',result:'loss',count:13,entries:[{entry_id:'out',entry_name:'Eliminated entry'}]}]});
+  render(<PoolPickBreakdown poolId="pool" currentWeek={1} />);
+  expect(await screen.findByText('Los Angeles Rams · Loss')).toBeInTheDocument();
+  expect(screen.getByText('13 entries')).toBeInTheDocument();
+  expect(screen.getByText('Eliminated entry')).toBeInTheDocument();
 });

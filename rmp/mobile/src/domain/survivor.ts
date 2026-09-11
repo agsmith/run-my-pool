@@ -16,6 +16,7 @@ export type Pick = {
 export type Entry = { id: string; name: string; alive: boolean };
 export type WeekLock = { locked: boolean; deadline: string | null };
 export type Breakdown = {
+  result?: string | null;
   team: string;
   team_name: string;
   count: number;

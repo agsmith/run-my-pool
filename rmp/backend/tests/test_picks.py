@@ -656,7 +656,7 @@ class TestPickBreakdown:
         assert resp.status_code == 200
         assert resp.json() == []
 
-    def test_weekly_lock_reveals_all_surviving_picks_and_groups_users(self, client, db_session):
+    def test_weekly_lock_reveals_all_picks_and_groups_users(self, client, db_session):
         from datetime import datetime, timedelta
 
         owner_token = _register_and_login(client, "reveal.owner@example.com")
@@ -692,9 +692,9 @@ class TestPickBreakdown:
         assert response.status_code == 200
         item = response.json()[0]
         assert item["team_abbrv"] == "BUF"
-        assert item["count"] == 3
+        assert item["count"] == 4
         assert item["users"] == [
-            {"user_id": item["users"][0]["user_id"], "display_name": "reveal.member", "entry_count": 1},
+            {"user_id": item["users"][0]["user_id"], "display_name": "reveal.member", "entry_count": 2},
             {"user_id": item["users"][1]["user_id"], "display_name": "reveal.owner", "entry_count": 2},
         ]
         assert sum(user["entry_count"] for user in item["users"]) == item["count"]
@@ -749,8 +749,8 @@ class TestPickBreakdown:
         assert data[0]["team_abbrv"] == "KC"
         assert data[0]["count"] == 2
 
-    def test_eliminated_entries_excluded(self, client, db_session):
-        """Eliminated entries are not counted in the breakdown."""
+    def test_eliminated_entries_remain_in_breakdown(self, client, db_session):
+        """Revealed losing picks remain visible after elimination."""
         from datetime import datetime, timedelta
 
         token = _register_and_login(client, email="breakdown_elim@example.com")
@@ -805,7 +805,8 @@ class TestPickBreakdown:
         assert resp.status_code == 200
         data = resp.json()
         assert len(data) == 1
-        assert data[0]["count"] == 1  # only the alive entry
+        assert data[0]["count"] == 2
+        assert {e["entry_id"] for e in data[0]["entries"]} == {alive_entry, dead_entry}
 
     def test_sorted_by_count_descending(self, client, db_session):
         """Results are ordered from most picks to fewest."""
