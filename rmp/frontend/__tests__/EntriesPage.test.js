@@ -145,6 +145,26 @@ describe('player entries page', () => {
     expect(future).toHaveAttribute('title', 'Entry eliminated - no remaining picks available');
   });
 
+  test('shows win and loss outlines on locked mobile pick bars', async () => {
+    installApi({
+      entries: [{ id: 'sea', name: 'Seattle Entry', alive: true }, { id: 'ne', name: 'Patriots Entry', alive: false }],
+      picks: {
+        sea: [{ id: 'sea-pick', week: 2, team: 'SEA', result: 'win', locked: true }],
+        ne: [{ id: 'ne-pick', week: 2, team: 'NE', result: 'loss', locked: true }],
+      },
+    });
+    render(<LeagueEntries />);
+    const mobile = within(await screen.findByRole('region', { name: 'Weekly entry picks' }));
+    const winner = await mobile.findByRole('button', { name: 'Change week 2 pick for Seattle Entry' });
+    const loser = mobile.getByRole('button', { name: 'Change week 2 pick for Patriots Entry' });
+    expect(winner).toHaveClass('is-win');
+    expect(winner).toHaveTextContent('Win');
+    expect(loser).toHaveClass('is-loss');
+    expect(loser).toHaveTextContent('Loss');
+    expect(winner).toBeDisabled();
+    expect(loser).toBeDisabled();
+  });
+
   test('hides entry management after registration lock and disables only locked weeks', async () => {
     installApi({
       pool: { join_lock_time: '2020-01-01T00:00:00' },

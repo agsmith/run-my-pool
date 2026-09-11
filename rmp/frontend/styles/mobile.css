@@ -156,3 +156,9 @@
 }
 
 .broadcast-v2--entries .entries-overlay__dialog button { border-radius:6px!important; }
+
+/* Result outlines take precedence over the locked mobile pick appearance. */
+.broadcast-v2 .entries-mobile__pick.is-win,
+.broadcast-v2 .entries-mobile__pick.is-win:disabled { color:#b9f6cf!important; background:#1a282c!important; border:2px solid #62c98b; opacity:1; }
+.broadcast-v2 .entries-mobile__pick.is-loss,
+.broadcast-v2 .entries-mobile__pick.is-loss:disabled { color:#ffd0dd!important; background:#1a282c!important; border:2px solid #f19aaf; opacity:1; }

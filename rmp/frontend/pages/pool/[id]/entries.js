@@ -1414,9 +1414,9 @@ export default function LeagueEntries() {
                 const eliminated = entry.alive === false;
                 return <article className="entries-mobile__card" key={entry.id}>
                   <div className="entries-mobile__identity"><h2>{entry.name}</h2><span>{eliminated ? 'Eliminated' : pick?.team ? `Week ${mobileWeek} · Saved` : 'Ready to pick'}</span></div>
-                  <button type="button" className={`entries-mobile__pick${pick?.team ? ' is-saved' : ''}`} disabled={!mobileWeek || locked || eliminated} onClick={() => handlePickClick(entry, mobileWeek)} aria-label={`${pick?.team ? 'Change' : 'Make'} week ${mobileWeek || ''} pick for ${entry.name}`}>
+                  <button type="button" className={`entries-mobile__pick${pick?.team ? ' is-saved' : ''}${pick?.result === 'win' ? ' is-win' : pick?.result === 'loss' ? ' is-loss' : ''}`} disabled={!mobileWeek || locked || eliminated} onClick={() => handlePickClick(entry, mobileWeek)} aria-label={`${pick?.team ? 'Change' : 'Make'} week ${mobileWeek || ''} pick for ${entry.name}`}>
                     {pick?.team ? <><img src={`/nfl/${pick.team.toLowerCase()}.svg`} alt="" /><strong>{pick.team}</strong></> : <strong>Make pick</strong>}
-                    <span aria-hidden="true">{locked ? 'Locked' : eliminated ? 'Out' : '→'}</span>
+                    <span aria-hidden="true">{pick?.result === 'win' ? 'Win' : pick?.result === 'loss' ? 'Loss' : locked ? 'Locked' : eliminated ? 'Out' : '→'}</span>
                   </button>
                   {(locked || eliminated) && <p>{eliminated ? 'This entry is out of the pool.' : 'The deadline has passed. This pick is read-only.'}</p>}
                 </article>;
