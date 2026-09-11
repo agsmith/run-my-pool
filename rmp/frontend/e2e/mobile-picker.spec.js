@@ -148,3 +148,23 @@ for (const width of [390, 1280]) {
   }
  });
 }
+
+for (const poolType of ['survivor','pickem','squares']) {
+ test(`commissioner email export works for ${poolType} on phone`, async ({page}) => {
+  await page.setViewportSize({width:390,height:844}); await fixture(page);
+  await page.route('**/pools/mobile-pool',route=>route.fulfill({json:{...pool,owner_id:'demo',pool_type:poolType}}));
+  await page.route('**/pools',route=>route.fulfill({json:[]}));
+  await page.route('**/users-overview',route=>route.fulfill({json:{current_week:1,total_users:2,users:[{id:'demo',email:'owner@example.com'},{id:'member',email:'member@example.com'}]}}));
+  await page.route('**/auto-picks?*',route=>route.fulfill({json:[]}));
+  await page.goto('/admin/league/mobile-pool');
+  await page.getByRole('button',{name:'User Management',exact:true}).click();
+  await expect(page.getByRole('button',{name:'Copy all emails'})).toBeEnabled();
+  const download=page.waitForEvent('download');
+  await page.getByRole('button',{name:'Download email list (.txt)'}).click();
+  expect((await download).suggestedFilename()).toContain('-emails.txt');
+  await page.getByText('Select addresses manually').click();
+  await expect(page.getByLabel('All pool email addresses')).toHaveValue('member@example.com, owner@example.com');
+  const box=await page.locator('.pool-email-export').boundingBox();
+  expect(box.x+box.width).toBeLessThanOrEqual(390);
+ });
+}

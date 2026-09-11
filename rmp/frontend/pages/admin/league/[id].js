@@ -871,7 +871,7 @@ export default function AdminPortal() {
         User Management
       </h3>
 
-      <AdminUserOverview overview={userOverview} loading={userOverviewLoading} error={userOverviewError} onRefresh={fetchUserOverview} onChangeEmail={handleChangeUserEmail} onChangeDues={handleChangeUserDues} onRemoveUser={handleRemoveUser} removingUserId={removingUserId} />
+      <AdminUserOverview poolName={league?.name} overview={userOverview} loading={userOverviewLoading} error={userOverviewError} onRefresh={fetchUserOverview} onChangeEmail={handleChangeUserEmail} onChangeDues={handleChangeUserDues} onRemoveUser={handleRemoveUser} removingUserId={removingUserId} />
       {removeUserMessage && <p role="status" className="admin-user-overview__message">{removeUserMessage}</p>}
 
       <AdminAutoPickReport week={autoPickWeek} onWeekChange={setAutoPickWeek} records={autoPicks} loading={autoPicksLoading} error={autoPicksError} />

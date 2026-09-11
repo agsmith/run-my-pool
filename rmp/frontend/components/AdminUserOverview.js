@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import PoolEmailExport from './PoolEmailExport';
 
 const textCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
 const sortValues = {
@@ -42,7 +43,7 @@ function pickStatus(user) {
   return { label: 'Missing', tone: 'missing' };
 }
 
-export default function AdminUserOverview({ overview, loading, error, onRefresh, onChangeEmail, onChangeDues, onRemoveUser, removingUserId = '' }) {
+export default function AdminUserOverview({ overview, loading, error, onRefresh, onChangeEmail, onChangeDues, onRemoveUser, removingUserId = '', poolName = 'Pool' }) {
   const [search, setSearch] = useState('');
   const [savingDuesFor, setSavingDuesFor] = useState('');
   const [sort, setSort] = useState({ column: '', direction: 'ascending' });
@@ -87,6 +88,8 @@ export default function AdminUserOverview({ overview, loading, error, onRefresh,
         <div><input id="league-user-search" type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="name@example.com" /><button type="button" onClick={onRefresh}>Refresh</button></div>
       </div>
     </div>
+
+    <PoolEmailExport users={overview?.users || []} poolName={poolName} disabled={loading || Boolean(error)} />
 
     {error && <div className="admin-user-overview__state is-error" role="alert">{error}</div>}
     {loading ? <div className="admin-user-overview__state">Loading pool users…</div> : !error && users.length === 0 ?
