@@ -51,21 +51,21 @@ def lock_pool_week(
             ).update({"locked": True}, synchronize_session="fetch")
         db.commit()
         return 0
-    # NFL Wednesday/Thursday games are never eligible for weekly defaults.
-    # Other in-progress games remain eligible; final games never do.
-    nfl_timezone = ZoneInfo("America/New_York")
-    concluded_team_ids = {
+    # Compare kickoff with the configured deadline, not the sweep's run time:
+    # a delayed sweep may still select a game that kicked off at the deadline.
+    deadline = pool_week_lock_time(pool, games)
+    excluded_team_ids = {
         team_id for game in games
         if (getattr(game, "status", None) or "").lower() == "final"
-        or (getattr(game, "home_team_id", None) is not None
-            and game.start_time.replace(tzinfo=timezone.utc).astimezone(nfl_timezone).weekday() in (2, 3))
-        for team_id in (game.home_team_id, game.away_team_id)
+        or (deadline is not None and game.start_time < deadline)
+        for team_id in (getattr(game, "home_team_id", None), getattr(game, "away_team_id", None))
+        if team_id is not None
     }
-    concluded_teams = {
+    excluded_teams = {
         team.abbrv for team in db.query(models.Team).filter(
-            models.Team.id.in_(concluded_team_ids)
+            models.Team.id.in_(excluded_team_ids)
         )
-    } if concluded_team_ids else set()
+    } if excluded_team_ids else set()
     frozen_lines = line_freezer(db, pool.id, week, games, captured_at=now)
     ranked_lines = sorted(
         frozen_lines,
@@ -141,7 +141,7 @@ def lock_pool_week(
             continue
         used = {pick.team for pick in db.query(models.Pick).filter(models.Pick.entry_id == entry.id)}
         candidate = next(
-            (team for team in line_ranked_teams + fallback_teams if team not in used and team not in concluded_teams),
+            (team for team in line_ranked_teams + fallback_teams if team not in used and team not in excluded_teams),
             None,
         )
         if candidate is None:

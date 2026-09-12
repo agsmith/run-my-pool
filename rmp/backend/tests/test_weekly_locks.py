@@ -1854,11 +1854,18 @@ class TestProcessDueWeeklyLocksEdgeCases:
 @pytest.mark.parametrize("objective", ["win", "lose"])
 @pytest.mark.parametrize("use_lines", [True, False])
 @pytest.mark.parametrize("remaining_status", ["in_progress", "scheduled", "final"])
-@pytest.mark.parametrize("kickoff", [datetime(2026,9,13,17), datetime(2026,9,10,0,20), datetime(2026,9,11,0,20)])
-def test_autopick_excludes_final_games_but_allows_live(db_session, objective, use_lines, remaining_status, kickoff):
+@pytest.mark.parametrize("kickoff", [datetime(2026,9,13,16,59,59), datetime(2026,9,13,17), datetime(2026,9,13,17,0,1), datetime(2026,9,10,0,20)])
+@pytest.mark.parametrize("recurring", [True, False])
+def test_autopick_uses_deadline_not_sweep_time(db_session, objective, use_lines, remaining_status, kickoff, recurring):
     db = db_session
     owner = _user(db)
     pool = _pool(db, owner_id=owner.id)
+    pool.lock_time = datetime(2026,9,13,17)
+    if recurring:
+        pool.lock_day_of_week = 6
+        pool.lock_time_of_day = time(13)
+        pool.lock_timezone = "America/New_York"
+        pool.lock_time = datetime(2026,9,10)  # recurring settings take precedence
     pool.survivor_objective = objective
     db.add(pool)
     teams = [models.Team(name=abbr, abbrv=abbr) for abbr in ['FINA','FINB','LIVEA','LIVEB']]
@@ -1873,7 +1880,7 @@ def test_autopick_excludes_final_games_but_allows_live(db_session, objective, us
     lines = [SimpleNamespace(game_id=game.game_id, favorite_team=teams[i*2], favorite_team_id=teams[i*2].id, spread=20-i) for i,game in enumerate(games)]
     kwargs = dict(now=datetime(2026,9,13,17,0,30), games_provider=lambda *_: games, line_freezer=lambda *a, **kw: lines if use_lines else [])
     weekly_locks.lock_pool_week(db, pool, 1, owner.id, **kwargs)
-    if remaining_status == "final" or kickoff.day != 13:
+    if remaining_status == "final" or kickoff < datetime(2026,9,13,17):
         assert db.query(models.Pick).filter_by(entry_id=entry.id, week=1).count() == 0
         return
     pick = db.query(models.Pick).filter_by(entry_id=entry.id, week=1).one()
