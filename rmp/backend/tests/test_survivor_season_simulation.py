@@ -3,6 +3,7 @@
 from collections import Counter, defaultdict
 from datetime import datetime, timedelta, timezone
 import uuid
+from zoneinfo import ZoneInfo
 
 import pytest
 
@@ -153,10 +154,13 @@ def test_200_member_survivor_pool_completes_full_season(client, db_session):
         for index in range(TEAM_COUNT)
     ]
     db_session.add_all(teams)
-    base_kickoff = datetime(2026, 9, 6, 17)
+    base_kickoff = datetime(2026, 9, 6, 13, tzinfo=ZoneInfo("America/New_York"))
     games = []
     for week in range(1, WEEK_COUNT + 1):
-        kickoff = base_kickoff + timedelta(weeks=week - 1)
+        # Keep kickoff at 1 PM Eastern across the November DST transition.
+        kickoff = (base_kickoff + timedelta(weeks=week - 1)).astimezone(
+            timezone.utc
+        ).replace(tzinfo=None)
         for game_index in range(TEAM_COUNT // 2):
             games.append(
                 models.Schedule(
@@ -298,6 +302,7 @@ def test_200_member_survivor_pool_completes_full_season(client, db_session):
 
         deadline = pool_week_lock_time(pool, week_games)
         assert deadline is not None
+        assert week_games[0].start_time == deadline
         lock_time = deadline + timedelta(seconds=1)
         auto_count = lock_pool_week(
             db_session,
