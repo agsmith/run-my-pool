@@ -29,7 +29,7 @@ export default function PickEmPage() {
     const weekday = new Intl.DateTimeFormat('en-US', { weekday: 'short', timeZone: 'America/New_York' }).format(new Date(game.start_time));
     return pool.pickem_slate === 'sunday' ? weekday === 'Sun' : ['Sun', 'Mon'].includes(weekday);
   }), [games, pool]);
-  const picksByGame = useMemo(() => Object.fromEntries(picks.filter((pick) => pick.week === week).map((pick) => [pick.game_id, pick])), [picks, week]);
+  const picksByGame = useMemo(() => Object.fromEntries(picks.filter((pick) => pick.week === week && eligibleGames.some((game) => game.game_id === pick.game_id)).map((pick) => [pick.game_id, pick])), [picks, week, eligibleGames]);
   const weeklyTarget = Math.min(pool?.pickem_games_per_week || eligibleGames.length, eligibleGames.length);
   const targetReached = weeklyTarget > 0 && Object.keys(picksByGame).length >= weeklyTarget;
 

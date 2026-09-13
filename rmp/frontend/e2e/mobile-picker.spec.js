@@ -197,3 +197,16 @@ test('Survivor commissioner can inspect weekly auto-picks',async({page})=>{
  await expect(page.getByRole('status')).toContainText('Week 2');
  await page.getByRole('button',{name:'Refresh auto-picks'}).click();
 });
+
+test('Sunday Monday Pickem counter excludes early-week picks',async({page})=>{
+ await page.setViewportSize({width:390,height:844});await fixture(page);
+ await page.route('**/pools/mobile-pool',r=>r.fulfill({json:{...pool,pool_type:'pickem',pickem_slate:'sunday_monday'}}));
+ await page.route('**/standings',r=>r.fulfill({json:[]}));
+ await page.route('**/weekly-standings/*',r=>r.fulfill({json:[]}));
+ const dates=['2026-09-10T00:20:00Z','2026-09-11T00:20:00Z','2026-09-13T17:00:00Z','2026-09-15T00:20:00Z'];
+ await page.route('**/matchups?pool_id=mobile-pool',r=>r.fulfill({json:dates.map((start_time,i)=>({...game,game_id:i+1,start_time}))}));
+ await page.route('**/picks/entry/entry-1',r=>r.fulfill({json:dates.map((_,i)=>({id:`p${i}`,week:1,game_id:i+1,team:'BUF'}))}));
+ await page.goto('/pool/mobile-pool/pickem');
+ await expect(page.getByText('2 / 2 selected',{exact:true})).toBeVisible();
+ await expect(page.locator('.pickem-game')).toHaveCount(2);
+});

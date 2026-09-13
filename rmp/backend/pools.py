@@ -391,6 +391,8 @@ def get_pool_activity_summary(
     )
     total_entries = user_entries.count()
     entries_remaining = user_entries.filter(models.Entry.alive.is_(True)).count()
+    from picks import _pickem_slate_games
+    eligible_game_ids = [game.game_id for game in _pickem_slate_games(db, pool, selected_week)] if pool.pool_type == "pickem" else []
     selection_counter = (
         func.count(models.Pick.id)
         if pool.pool_type == "pickem"
@@ -406,13 +408,14 @@ def get_pool_activity_summary(
             models.Pick.week == selected_week,
             models.Pick.team.isnot(None),
             models.Pick.team != "",
+            models.Pick.game_id.in_(eligible_game_ids) if pool.pool_type == "pickem" else True,
         )
         .scalar()
         or 0
     )
     scheduled_games = (
         min(
-            len(current_season_games(db, selected_week)),
+            len(eligible_game_ids),
             pool.pickem_games_per_week or 16,
         )
         if pool.pool_type == "pickem"

@@ -1382,3 +1382,21 @@ class TestParseLockTime:
         assert resp.status_code == 200, resp.text
         # lock_time should be stored and returned (may be null in PoolOut if not serialised)
         # at minimum the endpoint should not 500
+
+@pytest.mark.parametrize('slate,expected', [('all',4),('sunday',1),('sunday_monday',2)])
+def test_pickem_activity_counts_only_eligible_slate(db_session, slate, expected):
+    from pools import get_pool_activity_summary
+    db=db_session
+    user=models.User(id='slate-owner',email='slate@example.com',hashed_password='unused',is_active=True)
+    pool=models.Pool(id='slate-pool',name='Slate Summary',owner_id=user.id,pool_type='pickem',pickem_slate=slate)
+    entry=models.Entry(id='slate-entry',name='One',user_id=user.id,pool_id=pool.id,alive=True)
+    teams=[models.Team(id=9700+i,name=f'Team {i}',abbrv=f'Q{i}') for i in range(8)]
+    db.add_all([user,pool,*teams]);db.flush();db.add(entry);db.flush()
+    # UTC timestamps cover Wednesday, Thursday, Sunday and Monday in Eastern time.
+    for i,start in enumerate([datetime(2026,9,10,0,20),datetime(2026,9,11,0,20),datetime(2026,9,13,17),datetime(2026,9,15,0,20)]):
+        db.add(models.Schedule(game_id=9700+i,week_num=1,season=2026,start_time=start,home_team_id=teams[2*i].id,away_team_id=teams[2*i+1].id))
+        db.add(models.Pick(id=f'slate-pick-{i}',entry_id=entry.id,week=1,game_id=9700+i,team=teams[2*i].abbrv))
+    db.commit()
+    result=get_pool_activity_summary(pool.id,1,db,user)
+    assert result['week_selection_total']==expected
+    assert result['week_selections']==expected

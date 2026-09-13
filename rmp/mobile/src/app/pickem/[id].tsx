@@ -90,7 +90,7 @@ export default function PickEm() {
           : ["Sun", "Mon"].includes(day))
       );
     }) || [];
-  const picks = d?.picks.filter((p) => p.week === d.week) || [];
+  const picks = d?.picks.filter((p) => p.week === d.week && games.some((game) => game.game_id === p.game_id)) || [];
   const target = Math.min(
     d?.pool.pickem_games_per_week || games.length,
     games.length,
