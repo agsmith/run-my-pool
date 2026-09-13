@@ -2138,3 +2138,5 @@ table {
 
 .broadcast-v2--entries .entries-season-table__week > button.is-win { color:#b9f6cf!important; background:#0b1315!important; border-color:#62c98b!important; opacity:1; }
 .broadcast-v2--entries .entries-season-table__week > button.is-loss { color:#ffd0dd!important; background:#0b1315!important; border-color:#f19aaf!important; opacity:1; }
+
+.pickem-game .pickem-team-spread { color:#b8e5eb; font-weight:700; font-size:.85rem; margin-top:4px; white-space:normal; }

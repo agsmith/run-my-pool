@@ -1,5 +1,8 @@
 export type Team = { id: number; abbrv: string; name: string; logo?: string };
+export type GameLine = { spread: number | null; favorite_team_id: number | null };
 export type Game = {
+  official_line?: GameLine | null;
+  live_line?: GameLine | null;
   game_id: number;
   start_time: string;
   home_team: Team;

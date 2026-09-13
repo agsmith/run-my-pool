@@ -8,6 +8,7 @@ import type { Entry, Game, Pick, WeekLock } from "@/domain/survivor";
 import { Screen } from "@/components/Screen";
 import { Button, Card, LoadState, ui } from "@/components/NativeUI";
 import { useResource } from "@/hooks/useResource";
+import { teamSpread } from "@/domain/teamSpread";
 type GamePick = Pick & { game_id: number };
 export default function PickEm() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -27,7 +28,7 @@ export default function PickEm() {
       const [pool, entries, games, locks] = await Promise.all([
         apiFetch<Pool>(`/pools/${id}`),
         apiFetch<Entry[]>(`/entries/pool/${id}`),
-        apiFetch<Game[]>(`/schedule/week/${selectedWeek}`),
+        apiFetch<Game[]>(`/schedule/week/${selectedWeek}/matchups?pool_id=${id}`),
         apiFetch<{ weeks: Record<string, WeekLock> }>(
           `/pools/${id}/lock-status`,
         ),
@@ -102,6 +103,7 @@ export default function PickEm() {
     <Screen refreshing={r.busy} onRefresh={r.reload}>
       <Stack.Screen options={{ title: "Pick ’Em" }} />
       <Text style={ui.title}>Weekly Picks</Text>
+      <Text style={ui.copy}>Spreads are a guide; each outright winner earns one point.</Text>
       <LoadState busy={r.busy} error={error || r.error} empty={!d} />
       {!!notice && (
         <Text accessibilityLiveRegion="polite" style={ui.success}>
@@ -191,7 +193,7 @@ export default function PickEm() {
                       <Button
                         key={t.id}
                         result={current?.team === t.abbrv ? current.result : undefined}
-                        title={`${current?.team === t.abbrv ? (current.result === "win" ? "✓ Win · " : current.result === "loss" ? "Loss · " : "✓ Saved · ") : current ? "Change to " : ""}${t.name}`}
+                        title={`${current?.team === t.abbrv ? (current.result === "win" ? "✓ Win · " : current.result === "loss" ? "Loss · " : "✓ Saved · ") : current ? "Change to " : ""}${t.name} · ${teamSpread(g, t)}`}
                         secondary={!!current || locked || full}
                         disabled={busy || locked || full}
                         onPress={() => {
