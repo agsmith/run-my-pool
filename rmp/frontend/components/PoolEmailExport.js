@@ -26,7 +26,7 @@ export default function PoolEmailExport({ users = [], poolName = 'Pool', disable
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
-  return <section className="pool-email-export" aria-label="Pool email export">
+  return <section className="pool-email-export" aria-label={title}>
     <h4>{title}</h4>
     <p>{description}</p>
     <div className="actions">

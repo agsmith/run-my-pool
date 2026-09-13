@@ -164,7 +164,7 @@ for (const poolType of ['survivor','pickem','squares']) {
   expect((await download).suggestedFilename()).toContain('-emails.txt');
   await page.getByText('Select addresses manually').click();
   await expect(page.getByLabel('All pool email addresses')).toHaveValue('member@example.com, owner@example.com');
-  const box=await page.locator('.pool-email-export').boundingBox();
+  const box=await page.getByRole('region', {name:'Group email list',exact:true}).boundingBox();
   expect(box.x+box.width).toBeLessThanOrEqual(390);
  });
 }

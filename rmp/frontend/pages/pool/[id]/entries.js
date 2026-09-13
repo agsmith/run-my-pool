@@ -537,10 +537,10 @@ export default function LeagueEntries() {
     }
   };
 
-  const handleSubmitPick = async () => {
+  const handleSubmitPick = async (submittedAt) => {
     if (!selectedTeam || !selectedWeek || !selectedEntry || pickMutation.current || clearingPick) return;
-    const reason = pickBlockReason(selectedTeam, Date.now());
-    if (reason) { setPickerError(reason); setLockClock(Date.now()); return; }
+    const reason = pickBlockReason(selectedTeam, submittedAt);
+    if (reason) { setPickerError(reason); setLockClock(submittedAt); return; }
     pickMutation.current = true;
     setSavingPick(true);
     setPickerError('');
@@ -973,7 +973,7 @@ export default function LeagueEntries() {
               Cancel
             </button>
             <button
-              onClick={handleSubmitPick}
+              onClick={() => handleSubmitPick(Date.now())}
               disabled={saveDisabled}
               style={{
                 padding: '12px 24px',
