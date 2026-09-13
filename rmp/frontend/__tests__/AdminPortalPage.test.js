@@ -65,6 +65,7 @@ function installApi(overrides = {}) {
       event_types: [], users: [], includes_system_events: false,
     });
     if (path.includes('/audit/')) return response([]);
+    if (path.endsWith('/teams/')) return response([]);
     throw new Error(`Unexpected request: ${key}`);
   });
 }
@@ -336,8 +337,8 @@ describe('commissioner portal', () => {
     expect(screen.getByText('Please enter either username or entry name to search')).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: /correct pick/i }));
-    expect(screen.getByText('Entry ID, week, and team are required.')).toBeInTheDocument();
-    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
+    expect(screen.getByRole('button', { name: /correct pick/i })).toBeDisabled();
+    expect(fetch.mock.calls.some(([, options]) => options?.method === 'PATCH')).toBe(false);
   });
 
   test('shows scoped audit events and applies search filters', async () => {

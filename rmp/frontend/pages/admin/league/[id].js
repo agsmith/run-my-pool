@@ -1,3 +1,4 @@
+import AdminPickCorrection from '../../../components/AdminPickCorrection';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import ProtectedRoute from '../../../components/ProtectedRoute';
@@ -61,7 +62,6 @@ export default function AdminPortal() {
   // Entry Management State
   const [transferEntryData, setTransferEntryData] = useState({ entryId: '', fromUser: '', toUser: '' });
   const [deleteEntryData, setDeleteEntryData] = useState({ entryId: '', username: '' });
-  const [correctPickData, setCorrectPickData] = useState({ entryId: '', weekNum: '', teamAbbr: '', reason: '' });
   const [entryLookupData, setEntryLookupData] = useState({ username: '', entryName: '' });
   const [lookupResults, setLookupResults] = useState([]);
   const [entryActionMessage, setEntryActionMessage] = useState('');
@@ -561,25 +561,6 @@ export default function AdminPortal() {
       setDeleteEntryData({ entryId: '', username: '' });
       setLookupResults((current) => current.filter((entry) => entry.id !== deleteEntryData.entryId.trim()));
     } catch (err) { setEntryActionMessage(err.message || 'Unable to delete entry'); }
-  };
-
-  const handleCorrectPick = async () => {
-    if (!correctPickData.entryId.trim() || !correctPickData.weekNum || !correctPickData.teamAbbr.trim()) {
-      setEntryActionMessage('Entry ID, week, and team are required.');
-      return;
-    }
-    try {
-      const token = localStorage.getItem('access_token');
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/pools/${leagueId}/entries/${correctPickData.entryId.trim()}/weeks/${correctPickData.weekNum}/pick`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ team: correctPickData.teamAbbr.trim().toUpperCase(), reason: correctPickData.reason.trim() || null }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || 'Unable to correct pick');
-      setEntryActionMessage(`Week ${data.week} pick corrected to ${data.team}.`);
-      setCorrectPickData({ entryId: '', weekNum: '', teamAbbr: '', reason: '' });
-    } catch (err) { setEntryActionMessage(err.message || 'Unable to correct pick'); }
   };
 
   const handleToggleUserLock = async (userId, currentlyLocked) => {
@@ -1344,109 +1325,7 @@ export default function AdminPortal() {
         </div>
       </div>
 
-      {/* Correct Pick */}
-      <div style={{ marginBottom: '3rem' }}>
-        <h4 style={{ color: '#2d3748', marginBottom: '1rem' }}>Correct Pick</h4>
-        <div style={{ 
-          backgroundColor: 'white', 
-          padding: '1.5rem', 
-          borderRadius: '8px',
-          border: '1px solid #e2e8f0'
-        }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
-            <div>
-              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500', color: '#374151' }}>
-                Entry ID
-              </label>
-              <input
-                type="text"
-                value={correctPickData.entryId}
-                onChange={(e) => setCorrectPickData({...correctPickData, entryId: e.target.value})}
-                placeholder="Enter entry ID"
-                style={{
-                  width: '100%',
-                  padding: '0.75rem',
-                  border: '1px solid #d1d5db',
-                  borderRadius: '6px',
-                  fontSize: '1rem'
-                }}
-              />
-            </div>
-            <div>
-              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500', color: '#374151' }}>
-                Week Number
-              </label>
-              <input
-                type="number"
-                min="1"
-                max="18"
-                value={correctPickData.weekNum}
-                onChange={(e) => setCorrectPickData({...correctPickData, weekNum: e.target.value})}
-                placeholder="1-18"
-                style={{
-                  width: '100%',
-                  padding: '0.75rem',
-                  border: '1px solid #d1d5db',
-                  borderRadius: '6px',
-                  fontSize: '1rem'
-                }}
-              />
-            </div>
-            <div>
-              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500', color: '#374151' }}>
-                Team Abbreviation
-              </label>
-              <input
-                type="text"
-                value={correctPickData.teamAbbr}
-                onChange={(e) => setCorrectPickData({...correctPickData, teamAbbr: e.target.value})}
-                placeholder="e.g., NE, GB, DAL"
-                style={{
-                  width: '100%',
-                  padding: '0.75rem',
-                  border: '1px solid #d1d5db',
-                  borderRadius: '6px',
-                  fontSize: '1rem'
-                }}
-              />
-            </div>
-          </div>
-          <div style={{ marginBottom: '1rem' }}>
-            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500', color: '#374151' }}>
-              Reason for Correction
-            </label>
-            <textarea
-              value={correctPickData.reason}
-              onChange={(e) => setCorrectPickData({...correctPickData, reason: e.target.value})}
-              placeholder="Enter reason for this pick correction..."
-              rows={3}
-              style={{
-                width: '100%',
-                padding: '0.75rem',
-                border: '1px solid #d1d5db',
-                borderRadius: '6px',
-                fontSize: '1rem',
-                resize: 'vertical'
-              }}
-            />
-          </div>
-          <button
-            onClick={handleCorrectPick}
-            style={{
-              backgroundColor: '#f59e0b',
-              color: 'white',
-              padding: '0.75rem 1.5rem',
-              border: 'none',
-              borderRadius: '6px',
-              cursor: 'pointer',
-              fontSize: '1rem',
-              fontWeight: '500'
-            }}
-          >
-            Correct Pick
-          </button>
-        </div>
-      </div>
+      <AdminPickCorrection key={leagueId} poolId={leagueId} />
     </div>
   );
 

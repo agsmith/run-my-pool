@@ -3,6 +3,7 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import LeagueEntries from '../pages/pool/[id]/entries';
 
+const RealDate = Date;
 const push = jest.fn();
 const mockAuthenticatedUser = { id: 'user-1', email: 'player@example.com' };
 jest.mock('next/router', () => ({
@@ -81,11 +82,17 @@ function installApi({ pool = {}, entries = [], picks = {}, lockWeeks = {}, creat
 
 describe('player entries page', () => {
   beforeEach(() => {
+    // Keep the fixture game in the future without changing async test timers.
+    global.Date = class extends RealDate {
+      constructor(...args) { super(...(args.length ? args : ['2026-09-12T12:00:00Z'])); }
+      static now() { return new RealDate('2026-09-12T12:00:00Z').getTime(); }
+    };
     push.mockReset();
     localStorage.setItem('access_token', 'test-token');
   });
 
   afterEach(() => {
+    global.Date = RealDate;
     jest.restoreAllMocks();
     localStorage.clear();
   });

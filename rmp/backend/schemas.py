@@ -554,6 +554,7 @@ class ManualPickEmEntryCreate(BaseModel):
 
 class AdminPickUpdate(BaseModel):
     team: str = Field(min_length=2, max_length=5, pattern=r"^[A-Za-z]+$")
+    reason: Optional[str] = None
 
 
 class AdminPickCorrection(BaseModel):

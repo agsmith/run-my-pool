@@ -1149,6 +1149,30 @@ def lock_week(
     }
 
 
+@router.get("/pools/{pool_id}/users/{user_id}/correction-picks")
+def user_correction_picks(
+    pool_id: str,
+    user_id: str,
+    db: Session = Depends(deps.get_db),
+    current_user: models.User = Depends(deps.get_current_user),
+):
+    """Return the exact picks a commissioner can select for correction."""
+    if not verify_admin_access(pool_id, current_user, db):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    rows = (
+        db.query(models.Pick, models.Entry)
+        .join(models.Entry, models.Pick.entry_id == models.Entry.id)
+        .filter(models.Entry.pool_id == pool_id, models.Entry.user_id == user_id)
+        .order_by(models.Entry.name, models.Pick.week, models.Pick.id)
+        .all()
+    )
+    return [
+        {"id": pick.id, "entry_id": entry.id, "entry_name": entry.name,
+         "week": pick.week, "team": pick.team, "game_id": pick.game_id}
+        for pick, entry in rows
+    ]
+
+
 @router.patch("/pools/{pool_id}/picks/{pick_id}", response_model=schemas.PickOut)
 def admin_update_pick(
     pool_id: str,
@@ -1191,7 +1215,7 @@ def admin_update_pick(
         )
         .first()
     )
-    if conflict:
+    if conflict and pool.pool_type == "survivor":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Team {corrected_team} already used by this entry in week {conflict.week}",
@@ -1222,6 +1246,7 @@ def admin_update_pick(
             "old_team_id": old_team_id,
             "new_team": corrected_team,
             "new_team_id": pick.team_id,
+            "reason": pick_update.reason,
             "survivor_objective": pool.survivor_objective,
             "admin_email": current_user.email,
         },

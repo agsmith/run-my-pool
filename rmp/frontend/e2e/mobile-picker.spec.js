@@ -3,6 +3,7 @@ const pool={id:'mobile-pool',name:'Sunday Football Club with a longer pool name'
 const name='Taller Napoleon 4 with a longer entry name';
 const game={start_time:'2026-09-13T17:00:00Z',away_team:{id:1,name:'Buffalo Bills',abbrv:'BUF',logo:'/nfl/buf.svg'},home_team:{id:2,name:'Miami Dolphins',abbrv:'MIA',logo:'/nfl/mia.svg'}};
 async function fixture(page){
+ await page.clock.setFixedTime(new Date('2026-09-12T12:00:00Z'));
  await page.addInitScript(()=>localStorage.setItem('session_expires_at',String(Date.now()+86400000)));
  await page.route('**/*',async route=>{
   const req=route.request(),p=new URL(req.url()).pathname;
@@ -219,5 +220,33 @@ for (const width of [390,1280]) {
   await expect(page.getByRole('button',{name:/Create New Entry/})).toHaveCount(0);
   await expect(page.getByRole('button',{name:/Delete Entry/})).toHaveCount(0);
   await expect(page.locator('.entries-mobile__card')).toHaveCount(1);
+ });
+}
+
+for (const width of [390, 1280]) {
+ test(`commissioner corrects a selected pick at ${width}px`, async ({page}) => {
+  await page.setViewportSize({width,height:844}); await fixture(page);
+  await page.route('**/pools/mobile-pool',route=>route.fulfill({json:{...pool,owner_id:'demo'}}));
+  await page.route('**/pools',route=>route.fulfill({json:[]}));
+  await page.route('**/users-overview',route=>route.fulfill({json:{users:[{id:'member',email:'member@example.com'}]}}));
+  await page.route('**/teams/',route=>route.fulfill({json:[{id:1,abbrv:'BUF'},{id:2,abbrv:'MIA'}]}));
+  await page.route('**/correction-picks',route=>route.fulfill({json:[{id:'chosen',entry_name:'Sunday entry',week:1,team:'BUF'}]}));
+  await page.route('**/admin/pools/mobile-pool/picks/chosen', async route=>{
+   expect(route.request().postDataJSON()).toEqual({team:'MIA',reason:null});
+   await route.fulfill({json:{id:'chosen',week:1,team:'MIA'}});
+  });
+  await page.goto('/admin/league/mobile-pool');
+  await page.getByRole('button',{name:/entry management/i}).click();
+  await page.getByRole('heading',{name:'Correct Pick'}).waitFor();
+  await page.getByLabel('Username',{exact:true}).selectOption('member');
+  await page.getByLabel('User’s pick').selectOption('chosen');
+  await expect(page.getByText('Current pick: BUF',{exact:true})).toBeVisible();
+  await page.getByLabel('Modified pick').selectOption('MIA');
+  await page.getByRole('button',{name:'Correct Pick',exact:true}).click();
+  await expect(page.getByText('Current pick: MIA',{exact:true})).toBeVisible();
+  for(const field of ['Username','User’s pick','Modified pick']) {
+   const box=await page.getByLabel(field,{exact:true}).boundingBox();
+   expect(box.x).toBeGreaterThanOrEqual(0);expect(box.x+box.width).toBeLessThanOrEqual(width);
+  }
  });
 }

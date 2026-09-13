@@ -1723,3 +1723,25 @@ class TestUserLockEnforcement:
             headers=_authed(admin_token),
         )
         assert resp.status_code == 200, f"Transfer should succeed: {resp.text}"
+
+
+def test_correction_pick_list_is_scoped_and_admin_only(client, db_session):
+    owner = _authed(_register_and_login(client, 'correction-list-owner@example.com'))
+    member = _authed(_register_and_login(client, 'correction-list-member@example.com'))
+    pool = _create_pool(client, owner)
+    other_pool = _create_pool(client, owner)
+    member_id = _add_pool_member(db_session, pool, 'correction-list-member@example.com')
+    _add_pool_member(db_session, other_pool, 'correction-list-member@example.com')
+    entry = _create_entry(client, member, pool, 'Member entry')
+    other_entry = _create_entry(client, member, other_pool, 'Other pool')
+    owner_entry = _create_entry(client, owner, pool, 'Owner entry')
+    pick = _create_pick(db_session, entry, 1, 'SEA')
+    _create_pick(db_session, other_entry, 1, 'BUF')
+    _create_pick(db_session, owner_entry, 1, 'MIA')
+    url = f'/admin/pools/{pool}/users/{member_id}/correction-picks'
+    response = client.get(url, headers=owner)
+    assert response.status_code == 200
+    assert [row['id'] for row in response.json()] == [pick.id]
+    assert response.json()[0]['entry_name'] == 'Member entry'
+    assert response.json()[0]['team'] == 'SEA'
+    assert client.get(url, headers=member).status_code == 403
