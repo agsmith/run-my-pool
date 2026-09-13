@@ -66,8 +66,9 @@ export default function AdminPickCorrection({ poolId }) {
     finally { setSaving(false); }
   }
 
-  return <section className="admin-user-overview" aria-labelledby="correct-pick-title">
-    <h4 id="correct-pick-title">Correct Pick</h4>
+  return <div style={{ marginBottom: '3rem' }}>
+    <h4 id="correct-pick-title" style={{ color: '#2d3748', marginBottom: '1rem' }}>Correct Pick</h4>
+    <section className="admin-user-overview" aria-labelledby="correct-pick-title" style={{ backgroundColor: 'white', padding: '1.5rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
     <p>Select a user and their saved pick, then choose the replacement team. Corrections are recorded in the audit log.</p>
     <form onSubmit={save}>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))', gap: '1rem' }}>
@@ -91,5 +92,6 @@ export default function AdminPickCorrection({ poolId }) {
     </form>
     {message && <p role="status">{message}</p>}
     {error && <div role="alert">{error} <button type="button" disabled={saving} onClick={() => { setError(''); setLoading(true); setLoadingPicks(Boolean(userId)); setPicks([]); setPickId(''); setTeam(''); setRetry((value) => value + 1); }}>Retry</button></div>}
-  </section>;
+    </section>
+  </div>;
 }
