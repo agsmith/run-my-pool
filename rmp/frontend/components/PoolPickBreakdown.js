@@ -1,12 +1,17 @@
 import { useEffect, useState } from 'react';
 
-export default function PoolPickBreakdown({ poolId, currentWeek }) {
+export default function PoolPickBreakdown({ poolId, currentWeek, poolType = 'survivor' }) {
   const [selectedWeek, setSelectedWeek] = useState(null);
   const week = selectedWeek || currentWeek;
   const [state, setState] = useState({ rows: [], loading: true, error: false });
+  const [lockState, setLockState] = useState({ loading: poolType === 'pickem', weeks: {} });
   const [refresh, setRefresh] = useState(0);
   useEffect(() => {
-    if (!poolId || !week) return undefined;
+    if (!poolId || !week || (poolType === 'pickem' && lockState.loading)) return undefined;
+    if (poolType === 'pickem' && !lockState.weeks[String(week)]?.locked) {
+      setState({ rows: [], loading: false, error: false });
+      return undefined;
+    }
     let active = true;
     let sequence = 0;
     const controller = new AbortController();
@@ -30,7 +35,19 @@ export default function PoolPickBreakdown({ poolId, currentWeek }) {
     const timer = setInterval(load, 30000);
     window.addEventListener('focus', load);
     return () => { active = false; controller.abort(); clearInterval(timer); window.removeEventListener('focus', load); };
-  }, [poolId, week, refresh]);
+  }, [poolId, week, refresh, poolType, lockState]);
+  useEffect(() => {
+    if (poolType !== 'pickem' || !poolId) return undefined;
+    let active = true;
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/pools/${poolId}/lock-status`, {
+      headers: { Authorization: `Bearer ${localStorage.getItem('access_token')}` },
+    }).then((response) => {
+      if (!response.ok) throw new Error('Unable to load lock status');
+      return response.json();
+    }).then((data) => { if (active) setLockState({ loading: false, weeks: data.weeks || {} }); })
+      .catch(() => { if (active) setLockState({ loading: false, weeks: {} }); });
+    return () => { active = false; };
+  }, [poolId, poolType]);
   const total = state.rows.reduce((sum, row) => sum + row.count, 0);
   return (
     <section className="pick-breakdown" aria-labelledby="pool-picks-title">
@@ -38,12 +55,12 @@ export default function PoolPickBreakdown({ poolId, currentWeek }) {
         <h2 id="pool-picks-title">Pick Breakdown</h2>
         <label>Week <select aria-label="Pick breakdown week" value={week || ''} onChange={(event) => setSelectedWeek(Number(event.target.value))}>
           {!week && <option value="">Choose week</option>}
-          {Array.from({ length: 18 }, (_, index) => <option key={index + 1} value={index + 1}>{index + 1}</option>)}
+          {Array.from({ length: 18 }, (_, index) => { const value = index + 1; const locked = poolType !== 'pickem' || lockState.weeks[String(value)]?.locked; return <option key={value} value={value} disabled={!locked}>{value}{poolType === 'pickem' && !locked ? ' · Open' : ''}</option>; })}
         </select></label>
         <button type="button" onClick={() => setRefresh((value) => value + 1)}>Refresh</button>
       </div>
-      <p>Picks on either team lock and appear here when their game starts, even before the pool’s weekly deadline. All remaining picks are revealed at that deadline.</p>
-      {!week ? <p>Choose a week to see its picks.</p> : state.loading ? <p role="status">Loading picks…</p> : state.error ? <p role="alert">Couldn’t load picks. Tap Refresh to try again.</p> : !total ? <p>No entries have revealed picks yet.</p> : <>
+      <p>{poolType === 'pickem' ? 'After the weekly lock, see how every entry picked each team.' : 'Picks on either team lock and appear here when their game starts, even before the pool’s weekly deadline. All remaining picks are revealed at that deadline.'}</p>
+      {!week ? <p>Choose a week to see its picks.</p> : poolType === 'pickem' && lockState.loading ? <p role="status">Checking the weekly lock…</p> : poolType === 'pickem' && !lockState.weeks[String(week)]?.locked ? <p role="status">Pick Breakdown will appear after Week {week} locks.</p> : state.loading ? <p role="status">Loading picks…</p> : state.error ? <p role="alert">Couldn’t load picks. Tap Refresh to try again.</p> : !total ? <p>No entries have revealed picks yet.</p> : <>
         <p><strong>{total}</strong> {total === 1 ? 'entry with a revealed pick' : 'entries with revealed picks'}. Tap a team to see entry names.</p>
         <div className="teams">{state.rows.map((row) => <details key={row.team} className={row.result === 'win' ? 'result-win' : row.result === 'loss' ? 'result-loss' : ''}>
           <summary><span>{row.team_name || row.team}{row.result === 'win' ? ' · Win' : row.result === 'loss' ? ' · Loss' : ''}</span><strong>{row.count} {row.count === 1 ? 'entry' : 'entries'}</strong></summary>

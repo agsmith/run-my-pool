@@ -240,7 +240,7 @@ export default function PoolDetail() {
                 onAction={openWeeklyAction}
               />
 
-              {pool.pool_type === 'survivor' && <PoolPickBreakdown poolId={id} currentWeek={weeklySummary?.week} />}
+              {(pool.pool_type === 'survivor' || pool.pool_type === 'pickem') && <PoolPickBreakdown poolId={id} currentWeek={weeklySummary?.week} poolType={pool.pool_type} />}
 
               <section className="pool-home-actions" aria-label="Pool shortcuts">
                 <button onClick={() => router.push(picksHref)}><span>01</span><strong>{pool.pool_type === 'pickem' ? 'Pick ’Em Board' : pool.pool_type === 'squares' ? 'Squares Board' : 'My Entries'}</strong><small>{pool.pool_type === 'squares' ? 'Claim squares and follow quarter winners' : 'Make selections and review entries'}</small></button>
