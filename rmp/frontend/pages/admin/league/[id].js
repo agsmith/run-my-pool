@@ -11,6 +11,7 @@ import OwnershipTransferControl from '../../../components/OwnershipTransferContr
 import LeagueLockSettings from '../../../components/LeagueLockSettings';
 import LeaguePasswordViewer from '../../../components/LeaguePasswordViewer';
 import OwnerPoolReports from '../../../components/OwnerPoolReports';
+import AdminWeeklyEmailGenerator from '../../../components/AdminWeeklyEmailGenerator';
 import PoolQrPrintables from '../../../components/PoolQrPrintables';
 import { getAuditUsername } from '../../../utils/auditDisplay';
 import { downloadAuditCsv } from '../../../utils/auditCsv';
@@ -588,6 +589,7 @@ export default function AdminPortal() {
       <h3 style={{ color: '#1a202c', marginTop: 0, marginBottom: '2rem' }}>
         Pool Management
       </h3>
+      {league?.pool_type === 'pickem' && <AdminWeeklyEmailGenerator poolId={leagueId} />}
 
       <form className="admin-pool-name-panel" onSubmit={handleRenamePool}>
         <div>

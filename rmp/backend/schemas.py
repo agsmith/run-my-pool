@@ -562,6 +562,11 @@ class AdminPickCorrection(BaseModel):
     reason: Optional[str] = None
 
 
+class AdminWeeklyEmailRequest(BaseModel):
+    week: int = Field(ge=1, le=18)
+    payout_notes: Optional[str] = Field(default=None, max_length=2000)
+
+
 class EntryOut(BaseModel):
     id: str
     name: str

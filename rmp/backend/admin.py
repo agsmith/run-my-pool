@@ -5,6 +5,8 @@ Admin endpoints for administrative operations
 import csv
 import io
 import json
+import os
+import httpx
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
@@ -28,6 +30,84 @@ from weekly_locks import lock_pool_week
 from platform_admin import is_bootstrap_super_admin, is_platform_super_admin
 
 router = APIRouter(prefix="/admin", tags=["admin"])
+
+
+@router.post("/pools/{pool_id}/weekly-email")
+def generate_weekly_email(
+    pool_id: str,
+    request: schemas.AdminWeeklyEmailRequest,
+    db: Session = Depends(deps.get_db),
+    current_user: models.User = Depends(deps.get_current_user),
+):
+    """Generate commissioner-ready Pick'em email copy with OpenAI."""
+    if not verify_admin_access(pool_id, current_user, db):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    pool = db.query(models.Pool).filter(models.Pool.id == pool_id).first()
+    if not pool:
+        raise HTTPException(status_code=404, detail="Pool not found")
+    if pool.pool_type != "pickem":
+        raise HTTPException(status_code=400, detail="Weekly email generation is only available for Pick 'Em pools")
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        raise HTTPException(status_code=503, detail="OpenAI email generation is not configured")
+
+    entries = db.query(models.Entry).filter(models.Entry.pool_id == pool_id).all()
+    picks = db.query(models.Pick).filter(
+        models.Pick.entry_id.in_([entry.id for entry in entries] or [""]),
+    ).all()
+    users = {user.id: user for user in db.query(models.User).filter(models.User.id.in_([entry.user_id for entry in entries] or [""])).all()}
+    picks_by_entry = {}
+    for pick in picks:
+        picks_by_entry.setdefault(pick.entry_id, []).append(pick)
+    standings = []
+    for entry in entries:
+        entry_picks = picks_by_entry.get(entry.id, [])
+        standings.append({
+            "entry": entry.name,
+            "player": entry.manual_participant_name or (users.get(entry.user_id).email if users.get(entry.user_id) else "Unknown"),
+            "points": sum(1 for pick in entry_picks if pick.result == "win"),
+            "picks_made": len(entry_picks),
+            "picks": [{"week": pick.week, "team": pick.team, "result": pick.result} for pick in entry_picks],
+        })
+    standings.sort(key=lambda row: (-row["points"], row["entry"].casefold()))
+    games = current_season_games(db, request.week)
+    game_details = [{
+        "game": game.game_id,
+        "away": game.away_team.abbrv,
+        "home": game.home_team.abbrv,
+        "status": game.status,
+        "score": f"{game.away_score}-{game.home_score}" if game.home_score is not None else None,
+        "start_time": game.start_time.isoformat() if game.start_time else None,
+    } for game in games]
+    payload = {
+        "pool": pool.name,
+        "week": request.week,
+        "slate": pool.pickem_slate,
+        "games": game_details,
+        "standings": standings,
+        "payout_notes": request.payout_notes or "",
+    }
+    prompt = """Write a thoughtful weekly email for a private NFL Pick'em pool. Use the voice of a veteran sports writer: observant, lively, specific, and concise. Use only the supplied data; do not invent scores, picks, players, injuries, or storylines. Mention the leading entries and notable team pick patterns. If games remain, explain realistic standings scenarios based on the remaining games and current points. Explain the Monday-night combined-score tiebreaker when relevant. Include a short subject line on the first line beginning with 'Subject:'. Return plain text email copy only, with no markdown code fences.\n\nPool data:\n""" + json.dumps(payload, default=str)
+    try:
+        with httpx.Client(timeout=45) as client:
+            response = client.post(
+                "https://api.openai.com/v1/chat/completions",
+                headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+                json={"model": os.getenv("OPENAI_EMAIL_MODEL", "gpt-4o-mini"), "temperature": 0.7, "messages": [
+                    {"role": "system", "content": "You are a veteran sports writer preparing accurate pool updates."},
+                    {"role": "user", "content": prompt},
+                ]},
+            )
+        if response.status_code >= 400:
+            raise HTTPException(status_code=502, detail="OpenAI could not generate the email")
+        content = response.json().get("choices", [{}])[0].get("message", {}).get("content", "").strip()
+    except HTTPException:
+        raise
+    except (httpx.HTTPError, ValueError, KeyError, IndexError):
+        raise HTTPException(status_code=502, detail="OpenAI could not generate the email")
+    if not content:
+        raise HTTPException(status_code=502, detail="OpenAI returned an empty email")
+    return {"week": request.week, "text": content}
 
 
 def _csv_safe(value: str) -> str:
