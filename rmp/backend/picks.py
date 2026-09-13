@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session, selectinload
-from sqlalchemy import and_, case, func, or_
+from sqlalchemy.orm import Session, aliased, selectinload
+from sqlalchemy import and_, case, exists, func, or_
 from typing import List
 import uuid
 from datetime import datetime, timezone
@@ -867,6 +867,16 @@ def get_pick_breakdown(
         for team_id in (game.home_team_id, game.away_team_id)
     }
     filters = [Entry.pool_id == pool_id, Pick.week == week]
+    # A Survivor entry's later picks are stale if it already lost in an
+    # earlier week (for example, a pre-filled week 2 pick after a week 1 loss).
+    # Keep the loss week's own pick visible so the elimination is explainable.
+    if pool.pool_type == "survivor":
+        prior_pick = aliased(Pick)
+        filters.append(~exists().where(
+            prior_pick.entry_id == Entry.id,
+            prior_pick.result == "loss",
+            prior_pick.week < week,
+        ))
     if deadline is None or deadline > now:
         filters.append(Team.id.in_(started_team_ids))
 

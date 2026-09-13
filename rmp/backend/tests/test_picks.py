@@ -7,6 +7,7 @@ the db_session fixture — no HTTP-level lock endpoint exists.
 """
 
 import pytest
+import uuid
 import models
 from datetime import datetime, timedelta
 
@@ -807,6 +808,31 @@ class TestPickBreakdown:
         assert len(data) == 1
         assert data[0]["count"] == 2
         assert {e["entry_id"] for e in data[0]["entries"]} == {alive_entry, dead_entry}
+
+    def test_survivor_breakdown_excludes_future_picks_after_prior_loss(self, client, db_session):
+        """A week-1 loss must not make an accidental week-2 pick count."""
+        from datetime import datetime, timedelta
+        token = _register_and_login(client, email="breakdown_future@example.com")
+        headers = _authed(token)
+        pool_id = _create_pool(client, headers)
+        entry_id = _create_entry(client, headers, pool_id, name="Eliminated entry")
+        _seed_team(db_session, 30, "Seattle Seahawks", "SEA")
+        _seed_team(db_session, 31, "Buffalo Bills", "BUF")
+        for week, team, result in [(1, "SEA", "loss"), (2, "BUF", None)]:
+            db_session.add(models.Pick(
+                id=str(uuid.uuid4()), entry_id=entry_id, week=week, team=team,
+                result=result, locked=True, created_at=datetime.utcnow(), updated_at=datetime.utcnow(),
+            ))
+        db_session.commit()
+        game = models.Schedule(
+            game_id=3002, season=2026, week_num=2, home_team_id=31, away_team_id=30,
+            start_time=datetime.utcnow() - timedelta(hours=1), status="scheduled",
+        )
+        db_session.add(game)
+        db_session.commit()
+        response = client.get(f"/picks/pool/{pool_id}/week/2/breakdown", headers=headers)
+        assert response.status_code == 200
+        assert response.json() == []
 
     def test_sorted_by_count_descending(self, client, db_session):
         """Results are ordered from most picks to fewest."""
