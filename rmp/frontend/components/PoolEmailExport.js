@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-export default function PoolEmailExport({ users = [], poolName = 'Pool', disabled = false }) {
+export default function PoolEmailExport({ users = [], poolName = 'Pool', disabled = false, title = 'Group email list', description = 'All pool users, including those without entries and eliminated players. Each address appears once, regardless of the search below. Paste into your email’s Bcc field to keep addresses private.', copyLabel = 'Copy all emails', copyOnly = false }) {
   const [message, setMessage] = useState('');
   const emails = [...new Set(users.map((user) => (user.email || '').trim().toLowerCase()).filter(Boolean))].sort();
   const text = emails.join(', ');
@@ -9,7 +9,7 @@ export default function PoolEmailExport({ users = [], poolName = 'Pool', disable
   async function copyEmails() {
     try {
       await navigator.clipboard.writeText(text);
-      setMessage(`Copied ${emails.length} email addresses.`);
+      setMessage(`Copied ${emails.length} ${emails.length === 1 ? 'email address' : 'email addresses'}.`);
     } catch {
       setMessage('Copy was unavailable. Select and copy the addresses below.');
     }
@@ -27,15 +27,15 @@ export default function PoolEmailExport({ users = [], poolName = 'Pool', disable
   }
 
   return <section className="pool-email-export" aria-label="Pool email export">
-    <h4>Group email list</h4>
-    <p>All pool users, including those without entries and eliminated players. Each address appears once, regardless of the search below. Paste into your email’s Bcc field to keep addresses private.</p>
+    <h4>{title}</h4>
+    <p>{description}</p>
     <div className="actions">
-      <button type="button" disabled={unavailable} onClick={copyEmails}>Copy all emails</button>
-      <button type="button" disabled={unavailable} onClick={downloadEmails}>Download email list (.txt)</button>
+      <button type="button" disabled={unavailable} onClick={copyEmails}>{copyLabel}</button>
+      {!copyOnly && <button type="button" disabled={unavailable} onClick={downloadEmails}>Download email list (.txt)</button>}
       <span>{disabled ? 'Email list unavailable' : `${emails.length} unique email addresses`}</span>
     </div>
     {!unavailable && <details><summary>Select addresses manually</summary><textarea aria-label="All pool email addresses" readOnly value={text} onFocus={(event) => event.target.select()} /></details>}
-    <p role="status">{message}</p>
+    {message && <p role="status">{message}</p>}
     <style jsx>{`
       .pool-email-export { border: 1px solid #40555a; padding: 16px; margin: 16px 0; }
       h4 { margin: 0 0 8px; }

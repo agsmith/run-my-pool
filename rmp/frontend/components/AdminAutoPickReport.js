@@ -1,3 +1,5 @@
+import PoolEmailExport from './PoolEmailExport';
+
 export default function AdminAutoPickReport({ week, onWeekChange, records, loading, error, onRefresh }) {
   return <section className="admin-user-overview" aria-labelledby="auto-pick-report-title">
     <div className="admin-user-overview__head">
@@ -15,6 +17,15 @@ export default function AdminAutoPickReport({ week, onWeekChange, records, loadi
       </div>
     </div>
     {!loading && !error && records.length > 0 && <p role="status">{records.length} auto-picked {records.length === 1 ? 'entry' : 'entries'} for Week {week}.</p>}
+    <PoolEmailExport
+      key={week}
+      title={`Week ${week} auto-pick emails`}
+      description="Only users who received an auto-pick this week. Each address appears once. Paste into your email’s Bcc field to keep addresses private."
+      copyLabel="Copy auto-pick emails"
+      copyOnly
+      users={records.filter((record) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test((record.user_email || '').trim())).map((record) => ({ email: record.user_email }))}
+      disabled={loading || Boolean(error)}
+    />
     {error ? <div className="admin-user-overview__state is-error" role="alert">{error}</div> : loading ?
       <div className="admin-user-overview__state">Loading autopicks…</div> : records.length === 0 ?
       <div className="admin-user-overview__state">No autopicks were made for Week {week}.</div> :
