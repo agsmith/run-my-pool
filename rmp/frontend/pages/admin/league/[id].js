@@ -100,7 +100,7 @@ export default function AdminPortal() {
   }, [activeSection, leagueId]);
 
   useEffect(() => {
-    if (activeSection === 'user-management' && leagueId) fetchAutoPicks(autoPickWeek);
+    if (['user-management', 'auto-picks'].includes(activeSection) && leagueId) fetchAutoPicks(autoPickWeek);
   }, [activeSection, leagueId, autoPickWeek]);
 
   const fetchUserOverview = async () => {
@@ -481,6 +481,7 @@ export default function AdminPortal() {
         {[
           { id: 'league-management', label: 'Pool Management', marker: 'PL' },
           { id: 'user-management', label: 'User Management', marker: 'US' },
+          ...(league?.pool_type === 'survivor' ? [{ id: 'auto-picks', label: 'Auto-picks', marker: 'AP' }] : []),
           { id: 'entry-management', label: 'Entry Management', marker: 'EN' },
           { id: 'audit-log', label: 'Audit Log', marker: 'AU' }
         ].map(section => (
@@ -874,7 +875,7 @@ export default function AdminPortal() {
       <AdminUserOverview poolName={league?.name} overview={userOverview} loading={userOverviewLoading} error={userOverviewError} onRefresh={fetchUserOverview} onChangeEmail={handleChangeUserEmail} onChangeDues={handleChangeUserDues} onRemoveUser={handleRemoveUser} removingUserId={removingUserId} />
       {removeUserMessage && <p role="status" className="admin-user-overview__message">{removeUserMessage}</p>}
 
-      <AdminAutoPickReport week={autoPickWeek} onWeekChange={setAutoPickWeek} records={autoPicks} loading={autoPicksLoading} error={autoPicksError} />
+      <AdminAutoPickReport week={autoPickWeek} onWeekChange={setAutoPickWeek} records={autoPicks} loading={autoPicksLoading} error={autoPicksError} onRefresh={() => fetchAutoPicks(autoPickWeek)} />
 
       <section className="admin-user-lock" aria-labelledby="admin-user-lock-title">
         <div className="admin-user-lock__heading">
@@ -1688,6 +1689,8 @@ export default function AdminPortal() {
         return renderLeagueManagement();
       case 'user-management':
         return renderUserManagement();
+      case 'auto-picks':
+        return <AdminAutoPickReport week={autoPickWeek} onWeekChange={setAutoPickWeek} records={autoPicks} loading={autoPicksLoading} error={autoPicksError} onRefresh={() => fetchAutoPicks(autoPickWeek)} />;
       case 'entry-management':
         return renderEntryManagement();
       case 'audit-log':

@@ -26,3 +26,11 @@ test('states when a week has no autopicks', () => {
   render(<AdminAutoPickReport week={2} onWeekChange={() => {}} loading={false} error="" records={[]} />);
   expect(screen.getByText('No autopicks were made for Week 2.')).toBeInTheDocument();
 });
+
+test('reports assignment count and lets commissioners refresh', () => {
+  const onRefresh=jest.fn();
+  render(<AdminAutoPickReport week={1} onWeekChange={()=>{}} records={[{audit_id:'a',user_email:'member@example.com',entry_name:'Entry One',team:'SEA',created_at:'2026-09-13T16:00:30'}]} loading={false} error="" onRefresh={onRefresh} />);
+  expect(screen.getByRole('status')).toHaveTextContent('1 auto-picked entry for Week 1');
+  fireEvent.click(screen.getByRole('button',{name:'Refresh auto-picks'}));
+  expect(onRefresh).toHaveBeenCalledTimes(1);
+});

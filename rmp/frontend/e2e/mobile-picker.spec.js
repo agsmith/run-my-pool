@@ -182,3 +182,18 @@ for (const width of [390,1280]) {
   expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
  });
 }
+
+test('Survivor commissioner can inspect weekly auto-picks',async({page})=>{
+ await page.setViewportSize({width:390,height:844});await fixture(page);
+ await page.route('**/pools/mobile-pool',r=>r.fulfill({json:{...pool,owner_id:'demo',pool_type:'survivor'}}));
+ await page.route('**/pools',r=>r.fulfill({json:[]}));
+ await page.route('**/auto-picks?*',r=>r.fulfill({json:[{audit_id:'auto1',entry_name:'Missed Deadline',user_email:'member@example.com',team:'BUF',created_at:'2026-09-13T16:00:30'}]}));
+ await page.goto('/admin/league/mobile-pool');
+ await page.getByRole('button',{name:'Auto-picks',exact:true}).click();
+ await expect(page.getByRole('heading',{name:'Weekly auto-picks'})).toBeVisible();
+ await expect(page.getByText('Missed Deadline',{exact:true})).toBeVisible();
+ await expect(page.getByText('BUF',{exact:true})).toBeVisible();
+ await page.getByLabel('Week',{exact:true}).selectOption('2');
+ await expect(page.getByRole('status')).toContainText('Week 2');
+ await page.getByRole('button',{name:'Refresh auto-picks'}).click();
+});
