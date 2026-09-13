@@ -210,3 +210,14 @@ test('Sunday Monday Pickem counter excludes early-week picks',async({page})=>{
  await expect(page.getByText('2 / 2 selected',{exact:true})).toBeVisible();
  await expect(page.locator('.pickem-game')).toHaveCount(2);
 });
+
+for (const width of [390,1280]) {
+ test(`season lock hides entry actions at ${width}px`,async({page})=>{
+  await page.setViewportSize({width,height:900});await fixture(page);
+  await page.route('**/lock-status',r=>r.fulfill({json:{weeks:{1:{locked:false,deadline:'2026-09-01T17:00:00Z'},2:{locked:false,deadline:'2099-09-20T17:00:00Z'}}}}));
+  await page.goto('/pool/mobile-pool/entries');
+  await expect(page.getByRole('button',{name:/Create New Entry/})).toHaveCount(0);
+  await expect(page.getByRole('button',{name:/Delete Entry/})).toHaveCount(0);
+  await expect(page.locator('.entries-mobile__card')).toHaveCount(1);
+ });
+}

@@ -163,7 +163,8 @@ function PickBreakdownPanel({ data, week, loading, error, locked }) {
 export default function LeagueEntries() {
   // Helper to check if pool lock time is in the past
   const isPoolLocked = () => {
-    return isLeagueJoinLocked(league, new Date(lockClock));
+    const firstWeek = weekLockStatus['1'];
+    return isLeagueJoinLocked(league, new Date(lockClock)) || Boolean(firstWeek?.locked || (firstWeek?.deadline && Date.parse(firstWeek.deadline) <= lockClock));
   };
   const [league, setLeague] = useState(null);
   const [entries, setEntries] = useState([]);
