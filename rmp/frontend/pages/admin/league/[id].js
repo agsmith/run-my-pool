@@ -1535,6 +1535,11 @@ export default function AdminPortal() {
                   <div style={{ fontSize: '0.875rem', color: '#4b5563', marginBottom: '0.25rem' }}>
                     Username: {getAuditUsername(log, details)}
                   </div>
+                  {(log.ip_address || log.city || log.country || details?.origin_ip || details?.origin_city || details?.origin_country) && (
+                    <div style={{ fontSize: '0.8rem', color: '#6b7280', marginBottom: '0.25rem' }}>
+                      Origin: {log.ip_address || details.origin_ip || 'Unknown IP'}{(log.city || details.origin_city) ? ` · ${log.city || details.origin_city}` : ''}{(log.country || details.origin_country) ? ` · ${log.country || details.origin_country}` : ''}
+                    </div>
+                  )}
                   {pickData.entry_name && (
                     <div style={{ fontSize: '0.875rem', color: '#4b5563', marginBottom: '0.25rem' }}>
                       Entry: {pickData.entry_name}

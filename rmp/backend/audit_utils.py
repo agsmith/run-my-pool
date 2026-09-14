@@ -8,6 +8,12 @@ from sqlalchemy.orm import Session
 from typing import Optional, Dict, Any
 import models
 import json
+from contextvars import ContextVar
+
+
+# Populated by the HTTP middleware for request-originated events. Background
+# jobs intentionally leave these values unset.
+audit_origin_context: ContextVar[dict] = ContextVar("audit_origin_context", default={})
 
 
 def create_audit_log(
@@ -37,6 +43,13 @@ def create_audit_log(
             "description": details,
             "timestamp": datetime.now(timezone.utc).isoformat(),
         }
+        origin = audit_origin_context.get()
+        if origin.get("ip_address"):
+            audit_details["origin_ip"] = origin["ip_address"]
+        if origin.get("country"):
+            audit_details["origin_country"] = origin["country"]
+        if origin.get("city"):
+            audit_details["origin_city"] = origin["city"]
 
         if entity_type:
             audit_details["entity_type"] = entity_type
@@ -54,6 +67,9 @@ def create_audit_log(
             action=action,
             details=details_json,
             created_at=datetime.now(timezone.utc),
+            ip_address=origin.get("ip_address"),
+            country=origin.get("country"),
+            city=origin.get("city"),
         )
 
         db.add(audit_entry)

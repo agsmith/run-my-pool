@@ -683,6 +683,9 @@ class AuditLogOut(BaseModel):
     action: str
     details: str
     created_at: datetime
+    ip_address: Optional[str] = None
+    country: Optional[str] = None
+    city: Optional[str] = None
 
     class Config:
         orm_mode = True

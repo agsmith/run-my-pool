@@ -14,6 +14,7 @@ import uuid
 from contextlib import suppress
 from weekly_locks import process_due_weekly_locks
 from app_logging import configure_logging, log_event, request_id_context
+from audit_utils import audit_origin_context
 
 configure_logging()
 logger = logging.getLogger("runmypool.api")
@@ -41,6 +42,13 @@ app = FastAPI(
 async def add_security_headers(request, call_next):
     request_id = _request_id(request)
     token = request_id_context.set(request_id)
+    forwarded_for = request.headers.get("X-Forwarded-For", "")
+    origin_ip = (forwarded_for.split(",", 1)[0].strip() if forwarded_for else "") or (
+        request.client.host if request.client else None
+    )
+    country = (request.headers.get("CloudFront-Viewer-Country") or request.headers.get("X-Country-Code") or "").strip().upper()
+    city = (request.headers.get("CloudFront-Viewer-City") or request.headers.get("X-City") or "").strip()
+    origin_token = audit_origin_context.set({"ip_address": origin_ip, "country": country[:2] or None, "city": city[:128] or None})
     started = time.monotonic()
     try:
         response = await call_next(request)
@@ -57,6 +65,7 @@ async def add_security_headers(request, call_next):
         raise
     finally:
         request_id_context.reset(token)
+        audit_origin_context.reset(origin_token)
     response.headers["X-Request-ID"] = request_id
     response.headers["Content-Security-Policy"] = "default-src 'none'; frame-ancestors 'none'"
     response.headers["Referrer-Policy"] = "no-referrer"

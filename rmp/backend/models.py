@@ -262,6 +262,9 @@ class AuditLog(Base):
     action = Column(String(255))
     details = Column(Text)
     created_at = Column(DateTime)
+    ip_address = Column(String(45), nullable=True)
+    country = Column(String(2), nullable=True)
+    city = Column(String(128), nullable=True)
 
 
 class UsedPasswordResetToken(Base):

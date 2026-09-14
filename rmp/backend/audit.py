@@ -133,6 +133,9 @@ def list_audit_logs(
             action=log.action,
             details=log.details,
             created_at=log.created_at,
+            ip_address=log.ip_address,
+            country=log.country,
+            city=log.city,
         )
         for log in logs
     ]

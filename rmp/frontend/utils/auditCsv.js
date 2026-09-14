@@ -13,7 +13,7 @@ const parseDetails = (details) => {
 };
 
 export function buildAuditCsv(logs) {
-  const columns = ['Timestamp (UTC)', 'Action', 'Username', 'User ID', 'Description', 'Entry', 'Week', 'Old Team', 'New Team', 'Details'];
+  const columns = ['Timestamp (UTC)', 'Action', 'Username', 'User ID', 'Origin IP', 'City', 'Country', 'Description', 'Entry', 'Week', 'Old Team', 'New Team', 'Details'];
   const rows = logs.map((log) => {
     const details = parseDetails(log.details);
     const data = details.additional_data || {};
@@ -24,6 +24,9 @@ export function buildAuditCsv(logs) {
       log.action || '',
       getAuditUsername(log, details),
       log.user_id || '',
+      log.ip_address || details.origin_ip || '',
+      log.city || details.origin_city || '',
+      log.country || details.origin_country || '',
       details.description || '',
       context.entry_name || '',
       context.week || '',
