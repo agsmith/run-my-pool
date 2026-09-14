@@ -22,7 +22,7 @@ from schemas import (
 from audit_utils import log_create_operation, log_update_operation, log_delete_operation
 from admin import is_user_locked_in_pool
 from pool_access import is_pool_participant
-from schedule import current_season_games
+from schedule import current_season_games, current_season_week
 from weekly_locks import pool_week_lock_time
 from public_identity import display_name_from_email, public_display_name
 
@@ -564,7 +564,7 @@ def get_pool_leaderboard(
     now = datetime.now(timezone.utc).replace(tzinfo=None)
     entries = (
         db.query(Entry)
-        .options(selectinload(Entry.picks), selectinload(Entry.user))
+        .options(selectinload(Entry.picks), selectinload(Entry.user), selectinload(Entry.pickem_tiebreakers))
         .filter(Entry.pool_id == pool_id)
         .order_by(Entry.name, Entry.id)
         .all()
@@ -577,6 +577,20 @@ def get_pool_leaderboard(
         is not None
         and deadline <= now
     }
+
+    tiebreaker_week = None
+    tiebreaker_actual = None
+    tiebreaker_revealed = False
+    if _is_pickem(pool) and pool.pickem_slate == "sunday_monday":
+        tiebreaker_week = current_season_week(db, now)
+        monday_game = _monday_night_game(db, pool, tiebreaker_week)
+        tiebreaker_actual = (
+            monday_game.home_score + monday_game.away_score
+            if monday_game and monday_game.home_score is not None and monday_game.away_score is not None
+            else None
+        )
+        deadline = _pickem_week_deadline(db, pool, tiebreaker_week)
+        tiebreaker_revealed = bool(deadline and deadline <= now)
 
     rows = []
     for entry in entries:
@@ -598,6 +612,10 @@ def get_pool_leaderboard(
                     pick.result in {"win", "loss"} for pick in visible_picks
                 ),
                 "picks": visible_picks,
+                "tiebreaker": next(
+                    (item for item in entry.pickem_tiebreakers if item.week == tiebreaker_week),
+                    None,
+                ) if tiebreaker_week is not None and tiebreaker_revealed else None,
             }
         )
 
@@ -623,6 +641,14 @@ def get_pool_leaderboard(
                 {"week": pick.week, "team": pick.team, "result": pick.result}
                 for pick in row["picks"]
             ],
+            "tiebreaker_week": tiebreaker_week,
+            "predicted_total": row["tiebreaker"].predicted_total if row["tiebreaker"] else None,
+            "actual_total": tiebreaker_actual if row["tiebreaker"] and tiebreaker_revealed else None,
+            "tiebreak_difference": (
+                abs(row["tiebreaker"].predicted_total - tiebreaker_actual)
+                if row["tiebreaker"] and tiebreaker_actual is not None and tiebreaker_revealed
+                else None
+            ),
         }
         for index, row in enumerate(rows)
     ]

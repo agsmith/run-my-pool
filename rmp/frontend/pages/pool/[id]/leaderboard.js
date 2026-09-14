@@ -37,13 +37,14 @@ export default function PoolLeaderboardPage() {
 
   return <ProtectedRoute><div className="product-page leaderboard-page"><main className="product-main leaderboard-main">
     {pool && <PoolWorkspaceNav poolId={id} poolName={pool.name} poolType={pool.pool_type} active="leaderboard" showAdmin={showAdmin} />}
-    <WorkspaceHeader eyebrow="Pool standings" title="Leaderboard" description={pool?.pool_type === 'survivor' ? 'Every entry, ordered by weeks survived. Selections appear for everyone after the week locks or the result is final.' : 'Every entry, ranked by correct picks. Selections appear for everyone after the week locks or the result is final.'} meta={entries ? `${entries.length} ${entries.length === 1 ? 'entry' : 'entries'}` : null} />
+    <WorkspaceHeader eyebrow="Pool standings" title="Leaderboard" description={pool?.pool_type === 'survivor' ? 'Every entry, ordered by weeks survived. Selections appear for everyone after the week locks or the result is final.' : 'Every entry, ranked by correct picks. The point-total tiebreaker appears after the week locks.'} meta={entries ? `${entries.length} ${entries.length === 1 ? 'entry' : 'entries'}` : null} />
     {error ? <div className="workspace-alert workspace-alert--error" role="alert">{error}</div> : !entries ? <div className="leaderboard-state">Loading leaderboard…</div> : entries.length === 0 ? <div className="leaderboard-state">No entries have been created yet.</div> : <section className="leaderboard-list" aria-label="Pool leaderboard">
       {displayedEntries.map((entry, index) => <article className="leaderboard-entry" key={entry.entry_id}>
         <div className="leaderboard-entry__rank" aria-label={`Rank ${index + 1}`}>{index + 1}</div>
         <div className="leaderboard-entry__identity"><strong>{entry.entry_name}</strong><span>{entry.user_display_name}</span></div>
         {pool?.pool_type === 'survivor' ? <div className="leaderboard-entry__score" aria-label={`${entry.correct_picks} weeks survived`}><strong>{entry.correct_picks}</strong><span>Weeks Survived</span></div> : <>
           <div className="leaderboard-entry__score" aria-label={`${entry.correct_picks} correct picks`}><strong>{entry.correct_picks}</strong><span>Correct</span></div>
+          {entry.tiebreaker_week && <div className="leaderboard-entry__record" aria-label={`${entry.entry_name} point total tiebreaker`}><strong>{entry.predicted_total ?? '—'}</strong><span>Point total tiebreaker</span>{entry.actual_total != null && <small>Actual {entry.actual_total} · {entry.tiebreak_difference} away</small>}</div>}
         </>}
         <div className="leaderboard-entry__picks" aria-label={`${entry.entry_name} revealed picks`}>
           {entry.picks.length ? entry.picks.map((pick, index) => <span className={`leaderboard-pick is-${pick.result || 'pending'}`} key={`${pick.week}-${pick.team}-${index}`}><b>W{pick.week}</b> {pick.team}{pick.result === 'win' ? ' · Win' : pick.result === 'loss' ? ' · Loss' : ''}</span>) : <span className="leaderboard-entry__empty">No revealed picks yet</span>}

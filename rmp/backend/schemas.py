@@ -670,6 +670,10 @@ class LeaderboardEntryOut(BaseModel):
     completed_picks: int
     alive: bool
     picks: List[LeaderboardPickOut] = Field(default_factory=list)
+    tiebreaker_week: Optional[int] = None
+    predicted_total: Optional[int] = None
+    actual_total: Optional[int] = None
+    tiebreak_difference: Optional[int] = None
 
 
 class AuditLogOut(BaseModel):

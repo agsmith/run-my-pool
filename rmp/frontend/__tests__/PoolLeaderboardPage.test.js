@@ -62,4 +62,23 @@ describe('PoolLeaderboardPage', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Unable to load the leaderboard.');
   });
+
+  test('shows the point total tiebreaker for Pick Em entries', async () => {
+    global.fetch = jest.fn((url) => {
+      const path = String(url);
+      if (path === '/pools/pool-1') return response({ id: 'pool-1', name: 'Foy\'s Pick Em', pool_type: 'pickem', pickem_slate: 'sunday_monday' });
+      if (path === '/pools/pool-1/is-admin') return response({ has_admin_access: false });
+      if (path === '/picks/pool/pool-1/leaderboard') return response([
+        { rank: 1, entry_id: 'entry-1', entry_name: 'Sunday Sharp', user_display_name: 'sharp', correct_picks: 10, completed_picks: 10, alive: true, picks: [], tiebreaker_week: 2, predicted_total: 47, actual_total: 44, tiebreak_difference: 3 },
+      ]);
+      throw new Error(`Unexpected request ${path}`);
+    });
+
+    render(<PoolLeaderboardPage />);
+
+    expect(await screen.findByText('Sunday Sharp')).toBeInTheDocument();
+    expect(screen.getByLabelText('Sunday Sharp point total tiebreaker')).toHaveTextContent('47');
+    expect(screen.getByLabelText('Sunday Sharp point total tiebreaker')).toHaveTextContent('Actual 44 · 3 away');
+    expect(screen.getByText('Point total tiebreaker')).toBeInTheDocument();
+  });
 });

@@ -362,6 +362,14 @@ class TestPickEndpoints:
         assert standings.json()[0]["actual_total"] == 45
         assert standings.json()[0]["tiebreak_difference"] == 1
 
+        leaderboard = client.get(f"/picks/pool/{pool['id']}/leaderboard", headers=headers)
+        assert leaderboard.status_code == 200
+        close_row = next(row for row in leaderboard.json() if row["entry_id"] == entry_id)
+        assert close_row["tiebreaker_week"] == 6
+        assert close_row["predicted_total"] == 44
+        assert close_row["actual_total"] == 45
+        assert close_row["tiebreak_difference"] == 1
+
         locked_update = client.put(f"/picks/entry/{entry_id}/tiebreaker", json={"week": 6, "predicted_total": 45}, headers=headers)
         assert locked_update.status_code == 423
 
