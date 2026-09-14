@@ -1745,3 +1745,65 @@ def test_correction_pick_list_is_scoped_and_admin_only(client, db_session):
     assert response.json()[0]['entry_name'] == 'Member entry'
     assert response.json()[0]['team'] == 'SEA'
     assert client.get(url, headers=member).status_code == 403
+
+
+def test_survivor_weekly_email_includes_survival_context(client, db_session, monkeypatch):
+    import admin
+    import models as m
+
+    token = _register_and_login(client, "survivor-email-owner@example.com")
+    headers = _authed(token)
+    pool_response = client.post(
+        "/pools/create",
+        json={
+            "name": f"Survivor Email {uuid.uuid4()}",
+            "pool_type": "survivor",
+            "is_private": False,
+            "rule_values": [],
+        },
+        headers=headers,
+    )
+    assert pool_response.status_code == 200, pool_response.text
+    pool_id = pool_response.json()["id"]
+    entry_id = _create_entry(client, headers, pool_id, "Still Alive")
+    _create_pick(db_session, entry_id, 1, "SEA", locked=True)
+    db_session.query(m.Pick).filter_by(entry_id=entry_id).one().result = "win"
+    db_session.commit()
+    eliminated_id = _create_entry(client, headers, pool_id, "Eliminated")
+    db_session.query(m.Entry).filter_by(id=eliminated_id).one().alive = False
+    db_session.commit()
+
+    class FakeResponse:
+        status_code = 200
+        def json(self):
+            return {"choices": [{"message": {"content": "Subject: Survivor update\nThe race continues."}}]}
+
+    captured = {}
+    class FakeClient:
+        def __init__(self, **kwargs):
+            pass
+        def __enter__(self):
+            return self
+        def __exit__(self, *args):
+            return False
+        def post(self, url, **kwargs):
+            captured.update(kwargs)
+            return FakeResponse()
+
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    monkeypatch.setattr(admin.httpx, "Client", FakeClient)
+    monkeypatch.setattr(admin, "current_season_games", lambda db, week: [])
+
+    response = client.post(
+        f"/admin/pools/{pool_id}/weekly-email",
+        json={"week": 2},
+        headers=headers,
+    )
+    assert response.status_code == 200, response.text
+    assert "Survivor update" in response.json()["text"]
+    request_messages = captured["json"]["messages"]
+    assert "one-team-per-entry-per-week" in request_messages[0]["content"]
+    user_prompt = request_messages[1]["content"]
+    assert '"pool_type": "survivor"' in user_prompt
+    assert '"alive": false' in user_prompt
+    assert '"used_teams": ["SEA"]' in user_prompt

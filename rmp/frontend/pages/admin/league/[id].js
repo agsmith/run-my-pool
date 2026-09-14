@@ -589,7 +589,7 @@ export default function AdminPortal() {
       <h3 style={{ color: '#1a202c', marginTop: 0, marginBottom: '2rem' }}>
         Pool Management
       </h3>
-      {league?.pool_type === 'pickem' && <AdminWeeklyEmailGenerator poolId={leagueId} />}
+      {['pickem', 'survivor'].includes(league?.pool_type) && <AdminWeeklyEmailGenerator poolId={leagueId} poolType={league.pool_type} />}
 
       <form className="admin-pool-name-panel" onSubmit={handleRenamePool}>
         <div>
