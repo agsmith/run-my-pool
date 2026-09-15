@@ -18,6 +18,7 @@ import type { Pool } from "@/api/types";
 import { useAuth } from "@/auth/AuthContext";
 import { colors } from "@/theme";
 import { PoolBreakdown } from "@/components/PoolBreakdown";
+import { teamSpread } from "@/domain/teamSpread";
 import {
   Breakdown,
   Entry,
@@ -413,10 +414,8 @@ export default function SurvivorScreen() {
                         ]}
                       >
                         <TeamHelmet team={team.abbrv} />
-                        <Text
-                          style={selection === team.abbrv ? s.dark : s.text}
-                        >
-                          {team.abbrv} · {team.name}
+                        <Text style={selection === team.abbrv ? s.dark : s.text}>
+                          {team.abbrv} · {team.name} · {teamSpread(game, team)}
                         </Text>
                         {!!blocked && (
                           <Text
