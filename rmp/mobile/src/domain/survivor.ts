@@ -25,6 +25,26 @@ export type Breakdown = {
   count: number;
   entries: { entry_id: string; entry_name: string }[];
 };
+
+/**
+ * Keep an entry on the board through the week in which it was eliminated.
+ * Once a loss is settled, later weeks should not show that entry as if it
+ * still needs a pick. Entries without a settled loss remain visible.
+ */
+export function visibleEntriesForWeek(
+  entries: Entry[],
+  picks: Record<string, Pick[]>,
+  week: number,
+) {
+  return entries.filter((entry) => {
+    const lossWeeks = (picks[entry.id] || [])
+      .filter((pick) => pick.result?.toLowerCase() === "loss")
+      .map((pick) => pick.week);
+    const eliminatedWeek = lossWeeks.length ? Math.min(...lossWeeks) : null;
+    return eliminatedWeek === null || week <= eliminatedWeek;
+  });
+}
+
 export function started(game: Game, now: number) {
   return Date.parse(game.start_time) <= now;
 }

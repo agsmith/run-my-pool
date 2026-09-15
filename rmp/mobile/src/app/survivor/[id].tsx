@@ -26,6 +26,7 @@ import {
   WeekLock,
   pickLocked,
   unavailable,
+  visibleEntriesForWeek,
 } from "@/domain/survivor";
 
 type Board = {
@@ -94,8 +95,14 @@ export default function SurvivorScreen() {
         ),
       );
       if (version === request.current) {
+        const visibleEntries = visibleEntriesForWeek(entries, picks, selectedWeek);
+        setEntry((current) =>
+          current && visibleEntries.some((row) => row.id === current.id)
+            ? current
+            : null,
+        );
         setBoard({
-          entries,
+          entries: visibleEntries,
           games,
           picks,
           breakdown,

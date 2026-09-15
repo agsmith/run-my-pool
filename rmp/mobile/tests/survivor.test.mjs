@@ -1,6 +1,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { pickLocked, unavailable } from "../src/domain/survivor.ts";
+import {
+  pickLocked,
+  unavailable,
+  visibleEntriesForWeek,
+} from "../src/domain/survivor.ts";
 const game = {
   game_id: 1,
   start_time: "2026-09-10T00:20:00Z",
@@ -56,5 +60,34 @@ test("Sunday deadline and explicit server locks remain authoritative", () => {
   assert.equal(
     unavailable("FAKE", 1, [], games, lock, kickoff),
     "Not scheduled",
+  );
+});
+
+test("eliminated entries remain visible through their elimination week only", () => {
+  const entries = [
+    { id: "alive", name: "Still Alive", alive: true },
+    { id: "week-2", name: "Eliminated Week 2", alive: false },
+    { id: "week-1", name: "Eliminated Week 1", alive: false },
+  ];
+  const picks = {
+    alive: [],
+    "week-2": [
+      { id: "p2", entry_id: "week-2", week: 2, team: "BUF", locked: true, result: "loss" },
+    ],
+    "week-1": [
+      { id: "p1", entry_id: "week-1", week: 1, team: "SEA", locked: true, result: "LOSS" },
+    ],
+  };
+  assert.deepEqual(
+    visibleEntriesForWeek(entries, picks, 1).map((entry) => entry.id),
+    ["alive", "week-2", "week-1"],
+  );
+  assert.deepEqual(
+    visibleEntriesForWeek(entries, picks, 2).map((entry) => entry.id),
+    ["alive", "week-2"],
+  );
+  assert.deepEqual(
+    visibleEntriesForWeek(entries, picks, 3).map((entry) => entry.id),
+    ["alive"],
   );
 });
