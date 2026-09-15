@@ -6,8 +6,6 @@ import type { Pool } from "@/api/types";
 import { useAuth } from "@/auth/AuthContext";
 import { Screen } from "@/components/Screen";
 import { Button, Card, LoadState, ui } from "@/components/NativeUI";
-import { PoolBreakdown } from "@/components/PoolBreakdown";
-import type { Breakdown } from "@/domain/survivor";
 import { useResource } from "@/hooks/useResource";
 export default function PoolScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -25,17 +23,11 @@ export default function PoolScreen() {
       const pool = await apiFetch<Pool>(
         member ? `/pools/${id}` : `/pools/invite/${id}`,
       );
-      let week: number | null = null;
-      let rows: Breakdown[] | null = null;
-      if (member && pool.pool_type === "survivor") {
-        week = (
-          await apiFetch<{ week: number }>(`/pools/${id}/activity-summary`)
-        ).week;
-        rows = await apiFetch<Breakdown[]>(
-          `/picks/pool/${id}/week/${week}/breakdown`,
-        );
-      }
-      return { pool, access, member, week, rows };
+      const week = member
+        ? (await apiFetch<{ week: number }>(`/pools/${id}/activity-summary`))
+            .week
+        : null;
+      return { pool, access, member, week };
     }, [id]),
   );
   async function join() {
@@ -72,7 +64,7 @@ export default function PoolScreen() {
           {d.member ? (
             <>
               <Button
-                title="My entries & picks"
+                title="My Picks"
                 onPress={() =>
                   router.push({
                     pathname:
@@ -85,7 +77,18 @@ export default function PoolScreen() {
                   })
                 }
               />
-              {d.rows && <PoolBreakdown rows={d.rows} />}
+              {d.pool.pool_type !== "squares" && (
+                <Button
+                  secondary
+                  title="Pick Breakdown"
+                  onPress={() =>
+                    router.push({
+                      pathname: "/breakdown/[id]",
+                      params: { id },
+                    })
+                  }
+                />
+              )}
               <Button
                 secondary
                 title={
