@@ -15,6 +15,7 @@ import {
 } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { apiFetch } from "@/api/client";
+import type { Pool } from "@/api/types";
 import { useAuth } from "@/auth/AuthContext";
 import { colors } from "@/theme";
 import { PoolBreakdown } from "@/components/PoolBreakdown";
@@ -35,6 +36,7 @@ type Board = {
   games: Game[];
   lock: WeekLock;
   breakdown: Breakdown[];
+  seasonLockTime: string | null;
 };
 export default function SurvivorScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -72,7 +74,8 @@ export default function SurvivorScreen() {
         if (version === request.current) setWeek(selectedWeek);
         return;
       }
-      const [entries, games, locks, breakdown] = await Promise.all([
+      const [pool, entries, games, locks, breakdown] = await Promise.all([
+        apiFetch<Pool>(`/pools/${id}`),
         apiFetch<Entry[]>(`/entries/pool/${id}`),
         apiFetch<Game[]>(`/schedule/week/${selectedWeek}`),
         apiFetch<{ weeks: Record<string, WeekLock> }>(
@@ -107,6 +110,7 @@ export default function SurvivorScreen() {
           picks,
           breakdown,
           lock: locks.weeks[String(selectedWeek)],
+          seasonLockTime: pool.lock_time || null,
         });
         setNow(Date.now());
       }
@@ -130,6 +134,7 @@ export default function SurvivorScreen() {
     const next = [
       ...(board?.games.map((g) => Date.parse(g.start_time)) || []),
       Date.parse(board?.lock.deadline || ""),
+      Date.parse(board?.seasonLockTime || ""),
     ]
       .filter((t) => t > Date.now())
       .sort((a, b) => a - b)[0];
@@ -141,6 +146,8 @@ export default function SurvivorScreen() {
     return () => clearTimeout(timer);
   }, [board, now]);
   const picks = entry && board ? board.picks[entry.id] || [] : [];
+  const seasonLocked =
+    !!board?.seasonLockTime && Date.parse(board.seasonLockTime) <= now;
   const reason =
     selection && board && week
       ? unavailable(selection, week, picks, board.games, board.lock, now)
@@ -358,28 +365,30 @@ export default function SurvivorScreen() {
                 Matchups have not been posted for this week.
               </Text>
             )}
-            <View style={s.card}>
-              <Text style={s.heading}>Add an entry</Text>
-              <TextInput
-                accessibilityLabel="Entry name"
-                value={name}
-                onChangeText={setName}
-                placeholder="Entry name"
-                placeholderTextColor={colors.muted}
-                style={s.input}
-                maxLength={100}
-              />
-              <Pressable
-                accessibilityRole="button"
-                disabled={saving || !name.trim()}
-                onPress={createEntry}
-                style={[s.button, (saving || !name.trim()) && s.disabled]}
-              >
-                <Text style={s.dark}>
-                  {saving ? "Saving…" : "Create entry"}
-                </Text>
-              </Pressable>
-            </View>
+            {!seasonLocked && (
+              <View style={s.card}>
+                <Text style={s.heading}>Add an entry</Text>
+                <TextInput
+                  accessibilityLabel="Entry name"
+                  value={name}
+                  onChangeText={setName}
+                  placeholder="Entry name"
+                  placeholderTextColor={colors.muted}
+                  style={s.input}
+                  maxLength={100}
+                />
+                <Pressable
+                  accessibilityRole="button"
+                  disabled={saving || !name.trim()}
+                  onPress={createEntry}
+                  style={[s.button, (saving || !name.trim()) && s.disabled]}
+                >
+                  <Text style={s.dark}>
+                    {saving ? "Saving…" : "Create entry"}
+                  </Text>
+                </Pressable>
+              </View>
+            )}
             {(board.lock.locked ||
               !!(board.lock.deadline && Date.parse(board.lock.deadline) <= now)) && (
               <PoolBreakdown rows={board.breakdown} />
