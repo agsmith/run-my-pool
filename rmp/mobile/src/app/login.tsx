@@ -113,6 +113,11 @@ export default function LoginScreen() {
                 I agree to the <Text style={styles.inlineLink} onPress={() => router.push("/terms")}>Terms of Use</Text>, including the zero-tolerance Forum rules.
               </Text>
             </Pressable>
+            {!acceptedTerms && (
+              <Text accessibilityRole="alert" style={styles.termsError}>
+                Check the Terms of Use box before signing in.
+              </Text>
+            )}
             <Pressable onPress={() => router.push("/forgot-password")}>
               <Text style={styles.link}>Forgot password?</Text>
             </Pressable>
@@ -176,6 +181,7 @@ const styles = StyleSheet.create({
   termsRow: { flexDirection: "row", alignItems: "flex-start", gap: 8, marginTop: 8 },
   checkbox: { color: colors.lime, fontSize: 22, lineHeight: 24 },
   termsText: { color: colors.muted, flex: 1, fontSize: 13, lineHeight: 20 },
+  termsError: { color: colors.danger, fontSize: 13, lineHeight: 19 },
   inlineLink: { color: colors.cyan, fontWeight: "800" },
   footerLinks: { flexDirection: "row", justifyContent: "center", gap: 18 },
 });
