@@ -3,7 +3,7 @@ import { Text, View } from "react-native";
 import { Redirect, Stack, useLocalSearchParams } from "expo-router";
 import { apiFetch } from "@/api/client";
 import type { Pool } from "@/api/types";
-import type { Breakdown, WeekLock } from "@/domain/survivor";
+import type { Breakdown, PickEmWeeklyStanding, WeekLock } from "@/domain/survivor";
 import { Screen } from "@/components/Screen";
 import { Button, LoadState, ui } from "@/components/NativeUI";
 import { PoolBreakdown } from "@/components/PoolBreakdown";
@@ -18,16 +18,20 @@ export default function BreakdownScreen() {
     useCallback(async () => {
       const selectedWeek =
         week ?? (await apiFetch<{ week: number }>(`/pools/${id}/activity-summary`)).week;
-      const [pool, locks, rows] = await Promise.all([
-        apiFetch<Pool>(`/pools/${id}`),
+      const pool = await apiFetch<Pool>(`/pools/${id}`);
+      const [locks, rows, standings] = await Promise.all([
         apiFetch<{ weeks: Record<string, WeekLock> }>(`/pools/${id}/lock-status`),
         apiFetch<Breakdown[]>(`/picks/pool/${id}/week/${selectedWeek}/breakdown`),
+        pool.pool_type === "pickem"
+          ? apiFetch<PickEmWeeklyStanding[]>(`/picks/pool/${id}/weekly-standings/${selectedWeek}`)
+          : Promise.resolve([] as PickEmWeeklyStanding[]),
       ]);
       return {
         pool,
         week: selectedWeek,
         lock: locks.weeks[String(selectedWeek)],
         rows,
+        standings,
       };
     }, [id, week]),
   );
@@ -74,7 +78,7 @@ export default function BreakdownScreen() {
             ))}
           </View>
           {locked ? (
-            <PoolBreakdown rows={d.rows} />
+            <PoolBreakdown rows={d.rows} poolType={d.pool.pool_type === "pickem" ? "pickem" : "survivor"} standings={d.standings} />
           ) : (
             <Text style={ui.copy}>This week’s picks will appear after the weekly lock.</Text>
           )}

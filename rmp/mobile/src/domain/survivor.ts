@@ -22,8 +22,20 @@ export type Breakdown = {
   result?: string | null;
   team: string;
   team_name: string;
+  team_abbrv?: string;
   count: number;
   entries: { entry_id: string; entry_name: string }[];
+};
+export type PickEmWeeklyStanding = {
+  rank: number;
+  entry_id: string;
+  entry_name: string;
+  user_display_name: string;
+  points: number;
+  completed_picks: number;
+  predicted_total?: number | null;
+  actual_total?: number | null;
+  tiebreak_difference?: number | null;
 };
 
 /**

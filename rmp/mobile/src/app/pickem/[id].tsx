@@ -4,7 +4,7 @@ import { useCallback, useState } from "react";
 import { Text, TextInput, View } from "react-native";
 import { apiFetch } from "@/api/client";
 import type { Pool } from "@/api/types";
-import type { Breakdown, Entry, Game, Pick, WeekLock } from "@/domain/survivor";
+import type { Breakdown, Entry, Game, Pick, PickEmWeeklyStanding, WeekLock } from "@/domain/survivor";
 import { Screen } from "@/components/Screen";
 import { Button, Card, LoadState, ui } from "@/components/NativeUI";
 import { PoolBreakdown } from "@/components/PoolBreakdown";
@@ -26,7 +26,7 @@ export default function PickEm() {
         week ??
         (await apiFetch<{ week: number }>(`/pools/${id}/activity-summary`))
           .week;
-      const [pool, entries, games, locks, breakdown] = await Promise.all([
+      const [pool, entries, games, locks, breakdown, standings] = await Promise.all([
         apiFetch<Pool>(`/pools/${id}`),
         apiFetch<Entry[]>(`/entries/pool/${id}`),
         apiFetch<Game[]>(`/schedule/week/${selectedWeek}/matchups?pool_id=${id}`),
@@ -35,6 +35,9 @@ export default function PickEm() {
         ),
         apiFetch<Breakdown[]>(
           `/picks/pool/${id}/week/${selectedWeek}/breakdown`,
+        ),
+        apiFetch<PickEmWeeklyStanding[]>(
+          `/picks/pool/${id}/weekly-standings/${selectedWeek}`,
         ),
       ]);
       const selectedEntry = entries.find((e) => e.id === entryId) || entries[0];
@@ -56,6 +59,7 @@ export default function PickEm() {
         picks,
         lock: locks.weeks[String(selectedWeek)],
         breakdown,
+        standings,
         tiebreaker,
       };
     }, [id, week, entryId]),
@@ -285,7 +289,7 @@ export default function PickEm() {
                   />
                 </Card>
               )}
-              {poolLocked && <PoolBreakdown rows={d.breakdown} />}
+              {poolLocked && <PoolBreakdown rows={d.breakdown} poolType="pickem" standings={d.standings} />}
             </>
           )}
           {!seasonLocked && (
