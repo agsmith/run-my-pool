@@ -56,6 +56,7 @@ export const ui = StyleSheet.create({
   pickWinText: { color: "#b9f6cf" },
   pickLossText: { color: "#ffd0dd" },
   attention: { borderWidth: 1, borderColor: colors.lime },
+  selectedPick: { borderWidth: 2, borderColor: colors.lime },
 });
 export function Button({
   title,
@@ -63,12 +64,14 @@ export function Button({
   disabled,
   secondary = false,
   result,
+  selected = false,
 }: {
   title: string;
   onPress: () => void;
   disabled?: boolean;
   secondary?: boolean;
   result?: string | null;
+  selected?: boolean;
 }) {
   return (
     <Pressable
@@ -79,6 +82,7 @@ export function Button({
       style={[
         ui.button,
         secondary && ui.outline,
+        selected && ui.selectedPick,
         disabled && !result && { opacity: 0.45 },
         result === "win" && ui.pickWin,
         result === "loss" && ui.pickLoss,

@@ -99,6 +99,8 @@ export default function PickEm() {
     !d?.lock ||
     d.lock.locked ||
     !!(d.lock.deadline && Date.parse(d.lock.deadline) <= Date.now());
+  const seasonLocked =
+    !!d?.pool.lock_time && Date.parse(d.pool.lock_time) <= Date.now();
   return (
     <Screen refreshing={r.busy} onRefresh={r.reload}>
       <Stack.Screen options={{ title: "Pick ’Em" }} />
@@ -183,9 +185,7 @@ export default function PickEm() {
                     >
                       {locked
                         ? "Locked"
-                        : current
-                          ? `Saved: ${current.team}`
-                          : full
+                        : full
                             ? "Weekly limit reached"
                             : "Needs attention · choose a team"}
                     </Text>
@@ -193,8 +193,9 @@ export default function PickEm() {
                       <Button
                         key={t.id}
                         result={current?.team === t.abbrv ? current.result : undefined}
-                        title={`${current?.team === t.abbrv ? (current.result === "win" ? "✓ Win · " : current.result === "loss" ? "Loss · " : "✓ Saved · ") : current ? "Change to " : ""}${t.name} · ${teamSpread(g, t)}`}
-                        secondary={!!current || locked || full}
+                        selected={current?.team === t.abbrv}
+                        title={`${t.name} · ${teamSpread(g, t)}`}
+                        secondary
                         disabled={busy || locked || full}
                         onPress={() => {
                           if (Date.parse(g.start_time) <= Date.now()) {
@@ -281,27 +282,29 @@ export default function PickEm() {
               )}
             </>
           )}
-          <Card>
-            <Text style={ui.heading}>Add an entry</Text>
-            <TextInput
-              accessibilityLabel="Entry name"
-              style={ui.input}
-              value={name}
-              onChangeText={setName}
-            />
-            <Button
-              title="Create entry"
-              disabled={busy || !name.trim()}
-              onPress={() =>
-                mutate(
-                  "/entries/create",
-                  "POST",
-                  { pool_id: id, name: name.trim() },
-                  "Entry created.",
-                )
-              }
-            />
-          </Card>
+          {!seasonLocked && (
+            <Card>
+              <Text style={ui.heading}>Add an entry</Text>
+              <TextInput
+                accessibilityLabel="Entry name"
+                style={ui.input}
+                value={name}
+                onChangeText={setName}
+              />
+              <Button
+                title="Create entry"
+                disabled={busy || !name.trim()}
+                onPress={() =>
+                  mutate(
+                    "/entries/create",
+                    "POST",
+                    { pool_id: id, name: name.trim() },
+                    "Entry created.",
+                  )
+                }
+              />
+            </Card>
+          )}
         </>
       )}
     </Screen>

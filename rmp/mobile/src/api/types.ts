@@ -16,6 +16,7 @@ export type Pool = {
   owner_id?: string;
   pickem_games_per_week?: number;
   pickem_slate?: "all" | "sunday" | "sunday_monday";
+  lock_time?: string | null;
   role?: string;
   member_count?: number;
 };
