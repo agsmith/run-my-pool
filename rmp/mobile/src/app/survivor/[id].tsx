@@ -380,7 +380,10 @@ export default function SurvivorScreen() {
                 </Text>
               </Pressable>
             </View>
-            <PoolBreakdown rows={board.breakdown} />
+            {(board.lock.locked ||
+              !!(board.lock.deadline && Date.parse(board.lock.deadline) <= now)) && (
+              <PoolBreakdown rows={board.breakdown} />
+            )}
           </>
         )}
       </ScrollView>
