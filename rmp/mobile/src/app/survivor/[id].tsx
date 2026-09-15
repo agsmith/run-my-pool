@@ -10,7 +10,6 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
@@ -50,7 +49,6 @@ export default function SurvivorScreen() {
   const [entry, setEntry] = useState<Entry | null>(null);
   const [selection, setSelection] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [name, setName] = useState("");
   const [now, setNow] = useState(Date.now());
   const request = useRef(0);
   const mutation = useRef(false);
@@ -146,8 +144,6 @@ export default function SurvivorScreen() {
     return () => clearTimeout(timer);
   }, [board, now]);
   const picks = entry && board ? board.picks[entry.id] || [] : [];
-  const seasonLocked =
-    !!board?.seasonLockTime && Date.parse(board.seasonLockTime) <= now;
   const reason =
     selection && board && week
       ? unavailable(selection, week, picks, board.games, board.lock, now)
@@ -184,26 +180,6 @@ export default function SurvivorScreen() {
           ? e.message
           : "Could not save your pick. Refresh before retrying.",
       );
-    } finally {
-      mutation.current = false;
-      setSaving(false);
-    }
-  }
-  async function createEntry() {
-    if (!name.trim() || mutation.current) return;
-    mutation.current = true;
-    setSaving(true);
-    setError("");
-    try {
-      await apiFetch("/entries/create", {
-        method: "POST",
-        body: JSON.stringify({ pool_id: id, name: name.trim() }),
-      });
-      setName("");
-      setNotice("Entry created. Choose a team below.");
-      await load();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not create entry");
     } finally {
       mutation.current = false;
       setSaving(false);
@@ -357,37 +333,11 @@ export default function SurvivorScreen() {
                 </View>
               );
             })}
-            {!board.entries.length && (
-              <Text style={s.copy}>Create your first entry below.</Text>
-            )}
+            {!board.entries.length && <Text style={s.copy}>No entries yet.</Text>}
             {!board.games.length && (
               <Text style={s.copy}>
                 Matchups have not been posted for this week.
               </Text>
-            )}
-            {!seasonLocked && (
-              <View style={s.card}>
-                <Text style={s.heading}>Add an entry</Text>
-                <TextInput
-                  accessibilityLabel="Entry name"
-                  value={name}
-                  onChangeText={setName}
-                  placeholder="Entry name"
-                  placeholderTextColor={colors.muted}
-                  style={s.input}
-                  maxLength={100}
-                />
-                <Pressable
-                  accessibilityRole="button"
-                  disabled={saving || !name.trim()}
-                  onPress={createEntry}
-                  style={[s.button, (saving || !name.trim()) && s.disabled]}
-                >
-                  <Text style={s.dark}>
-                    {saving ? "Saving…" : "Create entry"}
-                  </Text>
-                </Pressable>
-              </View>
             )}
             {(board.lock.locked ||
               !!(board.lock.deadline && Date.parse(board.lock.deadline) <= now)) && (

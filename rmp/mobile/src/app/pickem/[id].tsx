@@ -15,7 +15,6 @@ export default function PickEm() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const [week, setWeek] = useState<number | null>(null);
   const [entryId, setEntryId] = useState("");
-  const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -108,8 +107,6 @@ export default function PickEm() {
     !d?.lock ||
     d.lock.locked ||
     !!(d.lock.deadline && Date.parse(d.lock.deadline) <= Date.now());
-  const seasonLocked =
-    !!d?.pool.lock_time && Date.parse(d.pool.lock_time) <= Date.now();
   return (
     <Screen refreshing={r.busy} onRefresh={r.reload}>
       <Stack.Screen options={{ title: "Pick ’Em" }} />
@@ -291,29 +288,6 @@ export default function PickEm() {
               )}
               {poolLocked && <PoolBreakdown rows={d.breakdown} poolType="pickem" standings={d.standings} />}
             </>
-          )}
-          {!seasonLocked && (
-            <Card>
-              <Text style={ui.heading}>Add an entry</Text>
-              <TextInput
-                accessibilityLabel="Entry name"
-                style={ui.input}
-                value={name}
-                onChangeText={setName}
-              />
-              <Button
-                title="Create entry"
-                disabled={busy || !name.trim()}
-                onPress={() =>
-                  mutate(
-                    "/entries/create",
-                    "POST",
-                    { pool_id: id, name: name.trim() },
-                    "Entry created.",
-                  )
-                }
-              />
-            </Card>
           )}
         </>
       )}
