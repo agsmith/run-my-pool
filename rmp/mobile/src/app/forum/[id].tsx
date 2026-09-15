@@ -180,8 +180,8 @@ export default function Forum() {
             Moderation · {safety.reports.length} open reports
           </Text>
           <Text style={ui.copy}>
-            Review reports promptly, starting with the oldest. Remove violations
-            and suspend repeated abuse. Escalate threats or appeals to
+            Review every report within 24 hours, starting with the oldest. Remove violations
+            and suspend or eject abusive users. Escalate threats or appeals to
             support@runmypool.net. Reporter identities are private.
           </Text>
           {!safety.reports.length && (

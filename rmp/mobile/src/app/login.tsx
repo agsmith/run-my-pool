@@ -23,6 +23,7 @@ export default function LoginScreen() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   if (status === "authenticated") return <Redirect href="/(tabs)" />;
   const submit = async () => {
     setError("");
@@ -88,7 +89,7 @@ export default function LoginScreen() {
               </Text>
             )}
             <Pressable
-              disabled={submitting || !email || !password}
+              disabled={submitting || !email || !password || !acceptedTerms}
               onPress={submit}
               style={({ pressed }) => [
                 styles.button,
@@ -101,11 +102,25 @@ export default function LoginScreen() {
                 <Text style={styles.buttonText}>Sign in</Text>
               )}
             </Pressable>
+            <Pressable
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: acceptedTerms }}
+              onPress={() => setAcceptedTerms((value) => !value)}
+              style={styles.termsRow}
+            >
+              <Text style={styles.checkbox}>{acceptedTerms ? "☑" : "☐"}</Text>
+              <Text style={styles.termsText}>
+                I agree to the <Text style={styles.inlineLink} onPress={() => router.push("/terms")}>Terms of Use</Text>, including the zero-tolerance Forum rules.
+              </Text>
+            </Pressable>
             <Pressable onPress={() => router.push("/forgot-password")}>
               <Text style={styles.link}>Forgot password?</Text>
             </Pressable>
           </View>
-          <Pressable accessibilityRole="button" onPress={() => router.push("/privacy")}><Text style={styles.link}>Privacy Policy</Text></Pressable>
+          <View style={styles.footerLinks}>
+            <Pressable accessibilityRole="button" onPress={() => router.push("/terms")}><Text style={styles.link}>Terms of Use</Text></Pressable>
+            <Pressable accessibilityRole="button" onPress={() => router.push("/privacy")}><Text style={styles.link}>Privacy Policy</Text></Pressable>
+          </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -158,4 +173,9 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     paddingTop: 5,
   },
+  termsRow: { flexDirection: "row", alignItems: "flex-start", gap: 8, marginTop: 8 },
+  checkbox: { color: colors.lime, fontSize: 22, lineHeight: 24 },
+  termsText: { color: colors.muted, flex: 1, fontSize: 13, lineHeight: 20 },
+  inlineLink: { color: colors.cyan, fontWeight: "800" },
+  footerLinks: { flexDirection: "row", justifyContent: "center", gap: 18 },
 });
