@@ -5,9 +5,10 @@ from typing import List
 import uuid
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
+import json
 
 from deps import get_db, get_current_user
-from models import Pick, Entry, Schedule, Team, Pool, User, PickEmTiebreaker
+from models import AuditLog, Pick, Entry, Schedule, Team, Pool, User, PickEmTiebreaker
 from schemas import (
     LeaderboardEntryOut,
     PickBreakdownItem,
@@ -514,6 +515,7 @@ def get_pickem_standings(
             Entry.user_id,
             Entry.manual_participant_name,
             User.email,
+            User.display_name,
             func.sum(case((Pick.result == "win", 1), else_=0)).label("points"),
             func.count(Pick.id).label("picks_made"),
             func.sum(case((Pick.result.in_(["win", "loss"]), 1), else_=0)).label("possible_points"),
@@ -521,7 +523,7 @@ def get_pickem_standings(
         .join(User, User.id == Entry.user_id)
         .outerjoin(Pick, Pick.entry_id == Entry.id)
         .filter(Entry.pool_id == pool_id)
-        .group_by(Entry.id, Entry.name, Entry.user_id, Entry.manual_participant_name, User.email)
+        .group_by(Entry.id, Entry.name, Entry.user_id, Entry.manual_participant_name, User.email, User.display_name)
         .all()
     )
     ordered = sorted(rows, key=lambda row: (-int(row.points or 0), row.name.casefold(), row.id))
@@ -531,7 +533,7 @@ def get_pickem_standings(
             "entry_id": row.id,
             "entry_name": row.name,
             "user_id": row.user_id,
-            "user_display_name": row.manual_participant_name or display_name_from_email(row.email),
+            "user_display_name": row.manual_participant_name or row.display_name or display_name_from_email(row.email),
             "points": int(row.points or 0),
             "possible_points": int(row.possible_points or 0),
             "picks_made": int(row.picks_made or 0),
@@ -925,7 +927,7 @@ def get_pick_breakdown(
     )
 
     user_rows = (
-        db.query(Pick.team, User.id, User.email, func.count(Pick.id).label("entry_count"))
+        db.query(Pick.team, User.id, User.email, User.display_name, func.count(Pick.id).label("entry_count"))
         .join(Entry, Pick.entry_id == Entry.id)
         .join(User, Entry.user_id == User.id)
         .join(Team, Team.abbrv == Pick.team)
@@ -938,7 +940,7 @@ def get_pick_breakdown(
     for row in user_rows:
         users_by_team.setdefault(row.team, []).append({
             "user_id": row.id,
-            "display_name": display_name_from_email(row.email),
+            "display_name": row.display_name or display_name_from_email(row.email),
             "entry_count": row.entry_count,
         })
 
@@ -950,10 +952,31 @@ def get_pick_breakdown(
         .order_by(Entry.name, Entry.id)
         .all()
     )
+    # Auto-picks are deliberately kept in the audit trail so the pick itself
+    # remains a normal locked Pick record.  The public breakdown only exposes
+    # the non-sensitive fact that an entry was auto-picked.
+    auto_pick_entries = set()
+    for (details,) in db.query(AuditLog.details).filter(
+        AuditLog.action == "ADMIN_AUTO_PICK"
+    ).all():
+        try:
+            payload = json.loads(details or "{}")
+        except (TypeError, ValueError):
+            continue
+        additional_data = payload.get("additional_data") or {}
+        if (
+            additional_data.get("pool_id") == pool_id
+            and additional_data.get("week") == week
+            and additional_data.get("entry_id")
+        ):
+            auto_pick_entries.add(additional_data["entry_id"])
+
     entries_by_team = {}
     for item in entry_rows:
         entries_by_team.setdefault(item.team, []).append({
-            "entry_id": item.id, "entry_name": item.name,
+            "entry_id": item.id,
+            "entry_name": item.name,
+            "auto_pick": item.id in auto_pick_entries,
         })
 
     return [

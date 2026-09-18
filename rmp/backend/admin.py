@@ -551,6 +551,8 @@ def pool_users_overview(
             {
                 "id": user.id,
                 "email": user.email,
+                "display_name": user.display_name,
+                "notes": membership_by_user.get(user.id).notes if membership_by_user.get(user.id) else None,
                 "total_entries": len(user_entries),
                 "surviving_entries": len(surviving),
                 "picked_entries": picked_count,
@@ -571,6 +573,35 @@ def pool_users_overview(
         "total_users": len(result),
         "users": result,
     }
+
+
+@router.put(
+    "/pools/{pool_id}/users/{user_id}/notes",
+    response_model=schemas.PoolUserNotesOut,
+)
+def update_pool_user_notes(
+    pool_id: str,
+    user_id: str,
+    update: schemas.PoolUserNotesUpdate,
+    db: Session = Depends(deps.get_db),
+    current_user: models.User = Depends(deps.get_current_user),
+):
+    """Save private commissioner notes for a member in this pool."""
+    if not verify_admin_access(pool_id, current_user, db):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    user = require_pool_participant_by_id(db, pool_id, user_id)
+    membership = (
+        db.query(models.PoolMember)
+        .filter(models.PoolMember.pool_id == pool_id, models.PoolMember.user_id == user_id)
+        .first()
+    )
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    if not membership:
+        membership = models.PoolMember(pool_id=pool_id, user_id=user_id, joined_at=now)
+        db.add(membership)
+    membership.notes = update.notes
+    db.commit()
+    return {"pool_id": pool_id, "user_id": user.id, "notes": membership.notes, "updated_at": now}
 
 
 @router.put(

@@ -24,7 +24,7 @@ export type Breakdown = {
   team_name: string;
   team_abbrv?: string;
   count: number;
-  entries: { entry_id: string; entry_name: string }[];
+  entries: { entry_id: string; entry_name: string; auto_pick?: boolean }[];
 };
 export type PickEmWeeklyStanding = {
   rank: number;

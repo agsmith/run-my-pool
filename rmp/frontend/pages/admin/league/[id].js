@@ -185,6 +185,24 @@ export default function AdminPortal() {
     }
   };
 
+  const handleChangeUserNotes = async (account, notes) => {
+    setUserOverviewError('');
+    try {
+      const token = localStorage.getItem('access_token');
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/pools/${leagueId}/users/${account.id}/notes`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ notes }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.detail || 'Unable to save user notes');
+      setUserOverview((current) => current ? { ...current, users: current.users.map((user) => user.id === account.id ? { ...user, notes: data.notes } : user) } : current);
+    } catch (err) {
+      setUserOverviewError(err.message || 'Unable to save user notes');
+      throw err;
+    }
+  };
+
   const handleRemoveUser = async (account) => {
     const confirmed = window.confirm(
       `Remove ${account.email} from "${league?.name || 'this pool'}"?\n\nTheir entries, picks, pool access settings, and Squares claims will be deleted. Their past forum posts, Run My Pool account, and access to other pools will not be affected.`,
@@ -855,7 +873,7 @@ export default function AdminPortal() {
         User Management
       </h3>
 
-      <AdminUserOverview poolName={league?.name} overview={userOverview} loading={userOverviewLoading} error={userOverviewError} onRefresh={fetchUserOverview} onChangeEmail={handleChangeUserEmail} onChangeDues={handleChangeUserDues} onRemoveUser={handleRemoveUser} removingUserId={removingUserId} />
+      <AdminUserOverview poolName={league?.name} overview={userOverview} loading={userOverviewLoading} error={userOverviewError} onRefresh={fetchUserOverview} onChangeEmail={handleChangeUserEmail} onChangeDues={handleChangeUserDues} onChangeNotes={handleChangeUserNotes} onRemoveUser={handleRemoveUser} removingUserId={removingUserId} />
       {removeUserMessage && <p role="status" className="admin-user-overview__message">{removeUserMessage}</p>}
 
       <AdminAutoPickReport week={autoPickWeek} onWeekChange={setAutoPickWeek} records={autoPicks} loading={autoPicksLoading} error={autoPicksError} onRefresh={() => fetchAutoPicks(autoPickWeek)} />

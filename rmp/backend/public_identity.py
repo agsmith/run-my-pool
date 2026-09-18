@@ -13,4 +13,5 @@ def display_name_from_email(email: Optional[str]) -> str:
 
 
 def public_display_name(user) -> str:
-    return display_name_from_email(getattr(user, "email", None))
+    configured = " ".join((getattr(user, "display_name", None) or "").split())
+    return configured or display_name_from_email(getattr(user, "email", None))

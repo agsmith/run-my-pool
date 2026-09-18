@@ -61,9 +61,10 @@ export function PoolBreakdown({ rows, poolType = "survivor", standings = [] }: {
           </Pressable>
           {expanded === row.team &&
             row.entries?.map((entry) => (
-              <Text style={s.survivorEntry} key={entry.entry_id}>
-                {entry.entry_name}
-              </Text>
+              <View style={s.survivorEntry} key={entry.entry_id}>
+                <Text style={s.survivorEntryName}>{entry.entry_name}</Text>
+                {entry.auto_pick && <Text style={s.autoPick}>Auto pick</Text>}
+              </View>
             ))}
         </View>
       ))}
@@ -87,7 +88,9 @@ const s = StyleSheet.create({
   row: { flexDirection: "row", alignItems: "center", gap: 12, minHeight: 52 },
   name: { flex: 1, color: colors.text, fontSize: 16, fontWeight: "700" },
   count: { color: colors.muted, fontWeight: "800" },
-  survivorEntry: { color: colors.muted, paddingVertical: 8, fontSize: 16 },
+  survivorEntry: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 6, paddingLeft: 64 },
+  survivorEntryName: { color: colors.muted, fontSize: 14 },
+  autoPick: { color: colors.lime, borderWidth: 1, borderColor: colors.lime, borderRadius: 5, paddingHorizontal: 6, paddingVertical: 2, fontSize: 11, fontWeight: "800" },
   standingRow: { borderTopWidth: 1, borderTopColor: colors.line, paddingVertical: 12, gap: 8 },
   standingHeader: { flexDirection: "row", alignItems: "center", gap: 10 },
   rank: { color: colors.cyan, fontWeight: "800", width: 28 },

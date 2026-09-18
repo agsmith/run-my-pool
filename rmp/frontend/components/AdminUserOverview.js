@@ -4,6 +4,7 @@ import PoolEmailExport from './PoolEmailExport';
 const textCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
 const sortValues = {
   email: (user) => user.email,
+  display_name: (user) => user.display_name || user.email.split('@')[0],
   admin_role: (user) => user.admin_role,
   dues_paid: (user) => Number(Boolean(user.dues_paid)),
   total_entries: (user) => user.total_entries,
@@ -43,14 +44,15 @@ function pickStatus(user) {
   return { label: 'Missing', tone: 'missing' };
 }
 
-export default function AdminUserOverview({ overview, loading, error, onRefresh, onChangeEmail, onChangeDues, onRemoveUser, removingUserId = '', poolName = 'Pool' }) {
+export default function AdminUserOverview({ overview, loading, error, onRefresh, onChangeEmail, onChangeDues, onChangeNotes, onRemoveUser, removingUserId = '', poolName = 'Pool' }) {
   const [search, setSearch] = useState('');
   const [savingDuesFor, setSavingDuesFor] = useState('');
+  const [savingNotesFor, setSavingNotesFor] = useState('');
   const [sort, setSort] = useState({ column: '', direction: 'ascending' });
   const users = useMemo(() => {
     const query = search.trim().toLowerCase();
     const filtered = query
-      ? (overview?.users || []).filter((user) => user.email.toLowerCase().includes(query))
+      ? (overview?.users || []).filter((user) => `${user.display_name || ''} ${user.email}`.toLowerCase().includes(query))
       : (overview?.users || []);
     if (!sort.column) return filtered;
 
@@ -96,18 +98,19 @@ export default function AdminUserOverview({ overview, loading, error, onRefresh,
       <div className="admin-user-overview__state">No users match this search.</div> : !error &&
       <div className="admin-user-overview__table-wrap"><table className="admin-user-overview__table">
         <thead><tr>
-          <SortableHeader column="email" label="User" sort={sort} onSort={handleSort} />
+          <SortableHeader column="display_name" label="User" sort={sort} onSort={handleSort} />
           <SortableHeader column="admin_role" label="Pool role" sort={sort} onSort={handleSort} />
           <SortableHeader column="dues_paid" label="Dues paid" sort={sort} onSort={handleSort} />
           <SortableHeader column="total_entries" label="Total entries" sort={sort} onSort={handleSort} />
           <SortableHeader column="surviving_entries" label="Surviving" sort={sort} onSort={handleSort} />
           <SortableHeader column="picked_entries" label={`Week ${overview?.current_week || '—'} picks`} sort={sort} onSort={handleSort} />
+          <th scope="col">Commissioner notes</th>
           <th scope="col">Actions</th>
         </tr></thead>
         <tbody>{users.map((user) => {
           const status = pickStatus(user);
           return <tr key={user.id}>
-            <td data-label="User"><strong>{user.email}</strong></td>
+            <td data-label="User"><strong>{user.display_name || user.email.split('@')[0]}</strong><small>{user.email}</small></td>
             <td data-label="Pool role"><span className={`admin-user-role ${user.is_admin ? 'is-admin' : ''}`}>{user.admin_role}</span></td>
             <td data-label="Dues paid">
               <label>
@@ -128,6 +131,13 @@ export default function AdminUserOverview({ overview, loading, error, onRefresh,
             <td data-label="Total entries">{user.total_entries}</td>
             <td data-label="Surviving">{user.surviving_entries}</td>
             <td data-label={`Week ${overview?.current_week || ''} picks`}><span className={`admin-pick-status is-${status.tone}`}>{status.label}</span><small>{user.picked_entries} / {user.surviving_entries} picked</small></td>
+            <td data-label="Commissioner notes">
+              <textarea aria-label={`Notes for ${user.email}`} defaultValue={user.notes || ''} maxLength={2000} rows={2} disabled={savingNotesFor === user.id} onBlur={async (event) => {
+                if (typeof onChangeNotes !== 'function' || event.target.value === (user.notes || '')) return;
+                setSavingNotesFor(user.id);
+                try { await onChangeNotes(user, event.target.value); } finally { setSavingNotesFor(''); }
+              }} placeholder="Private notes about this member" />
+            </td>
             <td data-label="Actions">
               <button type="button" onClick={() => onChangeEmail(user)}>Change login email</button>
               {user.admin_role !== 'Owner' && typeof onRemoveUser === 'function' && <button

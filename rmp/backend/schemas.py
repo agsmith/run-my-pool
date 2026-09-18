@@ -49,6 +49,7 @@ class LifecycleEvent(BaseModel):
 
 class UserBase(BaseModel):
     email: EmailStr
+    display_name: Optional[str] = None
     role: UserRole = UserRole.USER
     is_active: bool = True
     email_verified: bool = False
@@ -73,6 +74,19 @@ class UserCreate(BaseModel):
     @classmethod
     def validate_password(cls, value: str) -> str:
         return validate_account_password(value)
+
+
+class ProfileUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    display_name: Optional[str] = Field(default=None, max_length=100)
+
+    @field_validator("display_name", mode="before")
+    @classmethod
+    def normalize_display_name(cls, value):
+        if value is None:
+            return None
+        normalized = " ".join(str(value).split())
+        return normalized or None
 
 
 class LoginRequest(BaseModel):
@@ -210,6 +224,8 @@ class BillingOverviewOut(BaseModel):
 class LeagueAdminUserSummary(BaseModel):
     id: str
     email: EmailStr
+    display_name: Optional[str] = None
+    notes: Optional[str] = None
     total_entries: int
     surviving_entries: int
     picked_entries: int
@@ -230,6 +246,26 @@ class PoolDuesStatusOut(BaseModel):
     paid: bool
     updated_at: datetime
     updated_by: str
+
+
+class PoolUserNotesUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    notes: Optional[str] = Field(default=None, max_length=2000)
+
+    @field_validator("notes", mode="before")
+    @classmethod
+    def normalize_notes(cls, value):
+        if value is None:
+            return None
+        normalized = str(value).strip()
+        return normalized or None
+
+
+class PoolUserNotesOut(BaseModel):
+    pool_id: str
+    user_id: str
+    notes: Optional[str] = None
+    updated_at: datetime
 
 
 class LeagueAdminUserOverview(BaseModel):
@@ -711,6 +747,7 @@ class PickBreakdownUser(BaseModel):
 class PickBreakdownEntry(BaseModel):
     entry_id: str
     entry_name: str
+    auto_pick: bool = False
 
 
 class PickBreakdownItem(BaseModel):

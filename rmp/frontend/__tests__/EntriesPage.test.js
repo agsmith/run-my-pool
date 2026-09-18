@@ -396,6 +396,23 @@ describe('player entries page', () => {
     expect(screen.queryByRole('dialog', { name: 'BUF picks' })).not.toBeInTheDocument();
   });
 
+  test('labels auto-picked entries in the public pick breakdown', async () => {
+    const user = userEvent.setup();
+    installApi({
+      entries: [{ id: 'entry-1', name: 'Jeremy Ninan', alive: true }],
+      breakdown: [{
+        team: 'LAC', team_id: 3, team_name: 'Los Angeles Chargers', team_abbrv: 'LAC', count: 1,
+        entries: [{ entry_id: 'entry-1', entry_name: 'Jeremy Ninan', auto_pick: true }],
+      }],
+    });
+    render(<LeagueEntries />);
+
+    await user.click(await screen.findByRole('button', { name: 'Show users who picked LAC' }));
+    const dialog = screen.getByRole('dialog', { name: 'LAC picks' });
+    expect(within(dialog).getByText('Jeremy Ninan')).toBeInTheDocument();
+    expect(within(dialog).getByText('AP')).toBeInTheDocument();
+  });
+
   test('keeps pre-lock weeks hidden and loads a selected locked week', async () => {
     const user = userEvent.setup();
     installApi({

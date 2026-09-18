@@ -39,6 +39,9 @@ function formatPlanYearDate(value) {
 
 export default function Profile() {
   const { user, logout } = useAuth();
+  const [displayName, setDisplayName] = useState(() => user?.display_name || '');
+  const [identityMessage, setIdentityMessage] = useState('');
+  const [identityBusy, setIdentityBusy] = useState(false);
   const [billing, setBilling] = useState(null);
   const [billingError, setBillingError] = useState('');
   const [checkoutError, setCheckoutError] = useState('');
@@ -82,6 +85,29 @@ export default function Profile() {
   );
   const hasUnusedPaidPool = entitlement?.status === 'active' && billing?.can_create_pool === true;
 
+  const saveDisplayName = async (event) => {
+    event.preventDefault();
+    setIdentityBusy(true);
+    setIdentityMessage('');
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/me`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('access_token')}` },
+        credentials: 'include',
+        body: JSON.stringify({ display_name: displayName }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.detail || 'Unable to save display name.');
+      localStorage.setItem('user', JSON.stringify(data));
+      setDisplayName(data.display_name || '');
+      setIdentityMessage('Display name saved.');
+    } catch (error) {
+      setIdentityMessage(error.message || 'Unable to save display name.');
+    } finally {
+      setIdentityBusy(false);
+    }
+  };
+
   const beginCheckout = async ({ plan, orderType = 'plan', quantity = 1 }) => {
     const busyKey = orderType === 'entry_blocks' ? 'entry-blocks' : plan;
     setCheckoutBusy(busyKey);
@@ -114,6 +140,16 @@ export default function Profile() {
         <section className="account-identity" aria-labelledby="account-identity-title">
           <div><span>Signed in as</span><h2 id="account-identity-title">{user?.email}</h2></div>
           <Link href="/support">Account support</Link>
+        </section>
+
+        <section className="account-identity" aria-labelledby="display-name-title">
+          <div><span>Public identity</span><h2 id="display-name-title">Display name</h2><p>Pool members will see this name instead of your email handle. Leave it blank to keep using your email handle.</p></div>
+          <form onSubmit={saveDisplayName}>
+            <label htmlFor="profile-display-name">Display name</label>
+            <input id="profile-display-name" value={displayName} maxLength={100} onChange={(event) => setDisplayName(event.target.value)} placeholder={user?.email?.split('@')[0] || 'Your name'} />
+            <button type="submit" disabled={identityBusy}>{identityBusy ? 'Saving…' : 'Save display name'}</button>
+            {identityMessage && <p role="status">{identityMessage}</p>}
+          </form>
         </section>
 
         <section className="billing-overview" aria-labelledby="billing-overview-title">

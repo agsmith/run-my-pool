@@ -147,13 +147,21 @@ function PickBreakdownPanel({ data, week, loading, error, locked }) {
             <button type="button" aria-label="Close pick details" onClick={() => setSelectedBreakdown(null)}>×</button>
           </div>
           <p>{selectedBreakdown.count} {selectedBreakdown.count === 1 ? 'entry' : 'entries'} selected {selectedBreakdown.team_name}.</p>
-          <div className="admin-user-overview__table-wrap"><table className="admin-user-overview__table">
+          {(selectedBreakdown.entries || []).length > 0 ? <div className="admin-user-overview__table-wrap entries-breakdown__detail-list">
+            <table className="admin-user-overview__table">
+              <thead><tr><th>Entry</th><th>Pick source</th></tr></thead>
+              <tbody>{selectedBreakdown.entries.map((entry) => <tr key={entry.entry_id}>
+                <td data-label="Entry"><strong>{entry.entry_name}</strong></td>
+                <td data-label="Pick source">{entry.auto_pick ? <span className="entries-breakdown__auto-badge" title="Auto-picked at the weekly lock">AP</span> : null}</td>
+              </tr>)}</tbody>
+            </table>
+          </div> : <div className="admin-user-overview__table-wrap"><table className="admin-user-overview__table">
             <thead><tr><th>User</th><th>Entries</th></tr></thead>
             <tbody>{(selectedBreakdown.users || []).map((pickedUser) => <tr key={pickedUser.user_id}>
               <td data-label="User"><strong>{pickedUser.display_name}</strong></td>
               <td data-label="Entries">{pickedUser.entry_count}</td>
             </tr>)}</tbody>
-          </table></div>
+          </table></div>}
         </section>
       </div>}
     </div>

@@ -8,3 +8,8 @@ def test_display_name_uses_only_email_local_part():
 def test_display_name_falls_back_without_exposing_missing_identity():
     assert display_name_from_email(None) == "Member"
     assert public_display_name(type("User", (), {"email": "player@company.example"})()) == "player"
+
+
+def test_configured_display_name_replaces_email_handle():
+    user = type("User", (), {"email": "player@company.example", "display_name": "  Sunday Sharp  "})()
+    assert public_display_name(user) == "Sunday Sharp"

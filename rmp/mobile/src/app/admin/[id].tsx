@@ -14,6 +14,8 @@ type Member = {
   picked_entries: number;
   is_admin: boolean;
   admin_role: string;
+  display_name?: string | null;
+  notes?: string | null;
 };
 type Access = { has_admin_access: boolean; is_owner: boolean };
 export default function Admin() {
@@ -170,7 +172,8 @@ export default function Admin() {
             );
             return (
               <Card key={m.id}>
-                <Text style={ui.text}>{m.email}</Text>
+                <Text style={ui.text}>{m.display_name || m.email.split("@")[0]}</Text>
+                <Text style={ui.copy}>{m.email}</Text>
                 <Text style={ui.copy}>
                   {m.admin_role} · {m.total_entries} entries
                 </Text>
@@ -186,6 +189,15 @@ export default function Admin() {
                     picks
                   </Text>
                 )}
+                <TextInput
+                  accessibilityLabel={`Notes for ${m.email}`}
+                  defaultValue={m.notes || ""}
+                  placeholder="Private commissioner notes"
+                  placeholderTextColor="#9ab0b3"
+                  multiline
+                  style={ui.input}
+                  onEndEditing={(event) => mutate(`/admin/pools/${id}/users/${m.id}/notes`, "PUT", { notes: event.nativeEvent.text })}
+                />
                 {m.admin_role !== "Owner" && (
                   <>
                     <Button

@@ -817,6 +817,46 @@ class TestPickBreakdown:
         assert data[0]["count"] == 2
         assert {e["entry_id"] for e in data[0]["entries"]} == {alive_entry, dead_entry}
 
+    def test_breakdown_marks_auto_picked_entries(self, client, db_session):
+        """Members can distinguish a lock-time auto-pick from a manual pick."""
+        import json
+
+        token = _register_and_login(client, email="breakdown_auto@example.com")
+        headers = _authed(token)
+        pool_id = _create_pool(client, headers)
+        auto_entry = _create_entry(client, headers, pool_id, name="Auto Entry")
+        manual_entry = _create_entry(client, headers, pool_id, name="Manual Entry")
+        _seed_team(db_session, 22, "Seattle Seahawks", "SEA")
+        _seed_team(db_session, 23, "New England Patriots", "NE")
+        _seed_schedule(
+            db_session,
+            1004,
+            week_num=8,
+            home_team_id=22,
+            away_team_id=23,
+            start_time=datetime.utcnow() - timedelta(hours=1),
+        )
+        for entry_id in (auto_entry, manual_entry):
+            response = _create_pick(client, headers, entry_id, week=8, team="SEA")
+            assert response.status_code == 200
+            pick = db_session.query(models.Pick).filter(models.Pick.id == response.json()["id"]).one()
+            pick.team_id = 22
+        db_session.add(models.AuditLog(
+            id=str(uuid.uuid4()),
+            action="ADMIN_AUTO_PICK",
+            details=json.dumps({"additional_data": {
+                "pool_id": pool_id, "entry_id": auto_entry, "week": 8,
+            }}),
+            created_at=datetime.utcnow(),
+        ))
+        db_session.commit()
+
+        response = client.get(f"/picks/pool/{pool_id}/week/8/breakdown", headers=headers)
+        assert response.status_code == 200
+        entries = {entry["entry_id"]: entry for entry in response.json()[0]["entries"]}
+        assert entries[auto_entry]["auto_pick"] is True
+        assert entries[manual_entry]["auto_pick"] is False
+
     def test_survivor_breakdown_excludes_future_picks_after_prior_loss(self, client, db_session):
         """A week-1 loss must not make an accidental week-2 pick count."""
         from datetime import datetime, timedelta

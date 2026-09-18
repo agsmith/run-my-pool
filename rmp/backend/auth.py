@@ -328,6 +328,27 @@ def get_current_user_info(
         )
     return current_user
 
+
+@router.patch("/me", response_model=schemas.UserOut)
+def update_current_user_profile(
+    update: schemas.ProfileUpdate,
+    db: Session = Depends(deps.get_db),
+    current_user: models.User = Depends(deps.get_current_user),
+):
+    """Update the public display name used throughout pool activity."""
+    current_user.display_name = update.display_name
+    current_user.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
+    db.commit()
+    db.refresh(current_user)
+    log_update_operation(
+        db=db,
+        entity_type="USER_PROFILE",
+        entity_id=current_user.id,
+        user_id=current_user.id,
+        changes={"display_name": current_user.display_name},
+    )
+    return current_user
+
 @router.post("/forgot-password")
 def forgot_password(request: schemas.ForgotPasswordRequest, db: Session = Depends(deps.get_db)):
     """
