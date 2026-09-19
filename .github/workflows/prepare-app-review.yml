@@ -39,7 +39,7 @@ jobs:
             --task-definition "$task_definition" \
             --launch-type FARGATE \
             --network-configuration "$network_configuration" \
-            --overrides '{"containerOverrides":[{"name":"backend","command":["sh","-c","alembic upgrade a7b8c9d0e1f2 && python prepare_app_review_account.py --preserve-password && python prepare_app_review_account.py --verify-only"]}]}' \
+            --overrides '{"containerOverrides":[{"name":"backend","command":["sh","-c","alembic upgrade d1appreviewaudit && python prepare_app_review_account.py --preserve-password && python prepare_app_review_account.py --verify-only"]}]}' \
             --query 'tasks[0].taskArn' \
             --output text)
           if [[ -z "$task_arn" || "$task_arn" == "None" ]]; then
