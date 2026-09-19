@@ -257,6 +257,21 @@ def seed_review_content(db, password: str | None) -> dict:
             ensure_membership(db, pool, person, now - timedelta(days=24))
     db.flush()
 
+    # Restore a predictable Forum review state after previous App Review runs.
+    # Blocks are account-wide, while reports and suspensions are pool-scoped.
+    demo_pool_ids = [survivor.id, pickem.id, squares.id]
+    db.query(models.ForumBlock).filter(
+        models.ForumBlock.blocker_id == reviewer.id
+    ).delete(synchronize_session=False)
+    db.query(models.ForumReport).filter(
+        models.ForumReport.reporter_id == reviewer.id,
+        models.ForumReport.pool_id.in_(demo_pool_ids),
+    ).delete(synchronize_session=False)
+    db.query(models.ForumBan).filter(
+        models.ForumBan.user_id == reviewer.id,
+        models.ForumBan.pool_id.in_(demo_pool_ids),
+    ).delete(synchronize_session=False)
+
     survivor_entries = [
         ensure_entry(db, "survivor-reviewer", survivor, reviewer, "Review Entry"),
         ensure_entry(db, "survivor-writer", survivor, writers[0], "Sunday Special", alive=False),

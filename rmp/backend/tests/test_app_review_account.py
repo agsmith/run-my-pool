@@ -74,3 +74,9 @@ def test_review_setup_is_idempotent_and_keeps_login_a_plain_member(
     assert db_session.query(models.AuditLog).filter_by(
         action="ADMIN_AUTO_PICK"
     ).count() == 1
+    assert db_session.query(models.ForumBlock).filter_by(
+        blocker_id=reviewer.id
+    ).count() == 0
+    assert db_session.query(models.ForumReport).filter_by(
+        reporter_id=reviewer.id
+    ).count() == 0
