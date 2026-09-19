@@ -180,6 +180,8 @@ class TestAdminEndpoints:
         assert users["overview.owner@example.com"] == {
             "id": owner.id,
             "email": owner.email,
+            "display_name": None,
+            "notes": None,
             "total_entries": 1,
             "surviving_entries": 1,
             "picked_entries": 0,

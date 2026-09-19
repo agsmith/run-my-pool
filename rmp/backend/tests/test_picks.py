@@ -834,13 +834,15 @@ class TestPickBreakdown:
             week_num=8,
             home_team_id=22,
             away_team_id=23,
-            start_time=datetime.utcnow() - timedelta(hours=1),
+            start_time=datetime.utcnow() + timedelta(hours=1),
         )
         for entry_id in (auto_entry, manual_entry):
             response = _create_pick(client, headers, entry_id, week=8, team="SEA")
             assert response.status_code == 200
             pick = db_session.query(models.Pick).filter(models.Pick.id == response.json()["id"]).one()
             pick.team_id = 22
+        game = db_session.query(models.Schedule).filter_by(game_id=1004).one()
+        game.start_time = datetime.utcnow() - timedelta(hours=1)
         db_session.add(models.AuditLog(
             id=str(uuid.uuid4()),
             action="ADMIN_AUTO_PICK",
