@@ -45,18 +45,30 @@ export default function MessageBoard() {
   const fetchMessages = async () => {
     try {
       const token = localStorage.getItem('access_token');
-      const res = await fetch(process.env.NEXT_PUBLIC_API_URL + `/messages/pool/${poolId}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      
-      if (res.ok) {
-        const data = await res.json();
-        setMessages(data);
-      } else if (res.status === 403) {
-        setError('You must be a member of this pool to view messages');
-      } else {
-        setError('Failed to load messages');
+      const pageSize = 500;
+      const allMessages = [];
+
+      for (let skip = 0; ; skip += pageSize) {
+        const res = await fetch(
+          process.env.NEXT_PUBLIC_API_URL + `/messages/pool/${poolId}?skip=${skip}&limit=${pageSize}`,
+          { headers: { 'Authorization': `Bearer ${token}` } }
+        );
+
+        if (!res.ok) {
+          if (res.status === 403) {
+            setError('You must be a member of this pool to view messages');
+          } else {
+            setError('Failed to load messages');
+          }
+          return;
+        }
+
+        const page = await res.json();
+        allMessages.push(...page);
+        if (page.length < pageSize) break;
       }
+
+      setMessages(allMessages);
     } catch (err) {
       setError('Failed to load messages');
     } finally {

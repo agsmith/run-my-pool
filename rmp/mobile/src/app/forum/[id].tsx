@@ -6,6 +6,7 @@ import { apiFetch } from "@/api/client";
 import { useAuth } from "@/auth/AuthContext";
 import { Screen } from "@/components/Screen";
 import { Button, Card, LoadState, ui } from "@/components/NativeUI";
+import { fetchAllForumMessages } from "@/domain/forum";
 import { useResource } from "@/hooks/useResource";
 
 type Message = {
@@ -36,15 +37,18 @@ export default function Forum() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [reporting, setReporting] = useState<string | null>(null);
-  const [limit, setLimit] = useState(50);
   const r = useResource(
     useCallback(async () => {
       const [messages, safety] = await Promise.all([
-        apiFetch<Message[]>(`/messages/pool/${id}?limit=${limit}`),
+        fetchAllForumMessages((skip, limit) =>
+          apiFetch<Message[]>(
+            `/messages/pool/${id}?skip=${skip}&limit=${limit}`,
+          ),
+        ),
         apiFetch<Safety>(`/messages/pool/${id}/safety`),
       ]);
       return { messages, safety };
-    }, [id, limit]),
+    }, [id]),
   );
   async function mutate(
     path: string,
@@ -249,13 +253,6 @@ export default function Forum() {
           )}
         </Card>
       ))}
-      {r.data && r.data.messages.length >= limit && limit < 500 && (
-        <Button
-          secondary
-          title="Older messages"
-          onPress={() => setLimit((n) => Math.min(n + 50, 500))}
-        />
-      )}
     </Screen>
   );
 }

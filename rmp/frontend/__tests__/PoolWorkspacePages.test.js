@@ -254,7 +254,7 @@ describe('pool workspace pages', () => {
     global.fetch = jest.fn((url, options = {}) => {
       const path = String(url);
       if (path.endsWith('/pools/pool-1')) return response(pool);
-      if (path.endsWith('/messages/pool/pool-1') && !options.method) return response(initial);
+      if (path.includes('/messages/pool/pool-1?') && !options.method) return response(initial);
       if (path.endsWith('/messages/pool/pool-1') && options.method === 'POST') {
         return response({ id: 'new', user_id: 'user-1', user_display_name: 'player', message: 'Sunday reminder', created_at: '2026-09-02T12:00:00Z' });
       }
@@ -283,7 +283,7 @@ describe('pool workspace pages', () => {
     global.fetch = jest.fn((url) => {
       const path = String(url);
       if (path.endsWith('/pools/pool-1')) return response(pool);
-      if (path.endsWith('/messages/pool/pool-1')) return response({ detail: 'forbidden' }, false, 403);
+      if (path.includes('/messages/pool/pool-1?')) return response({ detail: 'forbidden' }, false, 403);
       throw new Error(`Unexpected request ${path}`);
     });
     render(<MessageBoard />);
