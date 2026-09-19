@@ -39,7 +39,7 @@ jobs:
             --task-definition "$task_definition" \
             --launch-type FARGATE \
             --network-configuration "$network_configuration" \
-            --overrides '{"containerOverrides":[{"name":"backend","command":["python","prepare_app_review_account.py","--preserve-password"]}]}' \
+            --overrides '{"containerOverrides":[{"name":"backend","command":["sh","-c","python prepare_app_review_account.py --preserve-password && python prepare_app_review_account.py --verify-only"]}]}' \
             --query 'tasks[0].taskArn' \
             --output text)
           if [[ -z "$task_arn" || "$task_arn" == "None" ]]; then
@@ -59,6 +59,12 @@ jobs:
             --query 'tasks[0].containers[?name==`backend`].reason | [0]' \
             --output text)
           echo "Container exit code: $exit_code"
+          task_id=${task_arn##*/}
+          aws logs get-log-events \
+            --log-group-name /ecs/runmypool-backend \
+            --log-stream-name "ecs/backend/$task_id" \
+            --query 'events[].message' \
+            --output text || true
           if [[ "$exit_code" != "0" ]]; then
             echo "Container reason: $reason"
             exit 1
