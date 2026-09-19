@@ -206,7 +206,7 @@ def selected_team(game, wants_winner: bool):
     return game.home_team if wants_winner else game.away_team
 
 
-def seed_review_content(db, password: str) -> dict:
+def seed_review_content(db, password: str | None) -> dict:
     now = naive_utc_now()
     reviewer = ensure_user(db, REVIEW_EMAIL, "App Review Member", password)
     writers = [
@@ -461,6 +461,11 @@ def main() -> int:
         action="store_true",
         help="Print the current review-account state without changing it.",
     )
+    parser.add_argument(
+        "--preserve-password",
+        action="store_true",
+        help="Keep the existing review password instead of reading a new one.",
+    )
     args = parser.parse_args()
     db = SessionLocal()
     try:
@@ -472,8 +477,12 @@ def main() -> int:
                 raise RuntimeError(f"Review account {REVIEW_EMAIL} does not exist.")
             print(json.dumps(review_summary(db, reviewer.id), indent=2))
             return 0
-        password = os.getenv(args.password_env)
-        if not password:
+        if args.preserve_password and reviewer is None:
+            raise RuntimeError(
+                f"Cannot preserve the password because {REVIEW_EMAIL} does not exist."
+            )
+        password = None if args.preserve_password else os.getenv(args.password_env)
+        if not args.preserve_password and not password:
             raise RuntimeError(
                 f"Set {args.password_env} to the review password before running this command."
             )

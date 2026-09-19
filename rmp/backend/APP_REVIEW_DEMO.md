@@ -17,8 +17,15 @@ account a member. The pools include:
 The command removes any `PoolAdmin` grants from the review account and sets its
 global role to `USER`. It does not delete or modify normal customer pools.
 
-Run it only in the backend container or another environment that already has
-the production database variables:
+For the established fixed account, preserve its current password while adding
+or refreshing the demo content:
+
+```bash
+python prepare_app_review_account.py --preserve-password
+```
+
+To set a new review password, run it only in the backend container or another
+environment that already has the production database variables:
 
 ```bash
 export APP_REVIEW_PASSWORD='the password stored in App Store Connect'
