@@ -16,16 +16,8 @@ type Message = {
   created_at: string;
 };
 type Safety = {
-  can_moderate: boolean;
   suspended: boolean;
   blocks: { id: string; name: string }[];
-  reports: {
-    id: string;
-    message: string;
-    reason: string;
-    created_at: string;
-  }[];
-  bans: { id: string; name: string }[];
 };
 const reasons = [
   "Harassment or hate",
@@ -174,100 +166,6 @@ export default function Forum() {
           ))}
         </Card>
       )}
-      {safety?.can_moderate && (
-        <Card>
-          <Text style={ui.heading}>
-            Moderation · {safety.reports.length} open reports
-          </Text>
-          <Text style={ui.copy}>
-            Review every report within 24 hours, starting with the oldest. Remove violations
-            and suspend or eject abusive users. Escalate threats or appeals to
-            support@runmypool.net. Reporter identities are private.
-          </Text>
-          {!safety.reports.length && (
-            <Text style={ui.copy}>No open reports.</Text>
-          )}
-          {safety.reports.map((report) => (
-            <Card key={report.id}>
-              <Text style={ui.heading}>{report.reason}</Text>
-              <Text style={ui.copy}>
-                {new Date(apiTime(report.created_at)).toLocaleString()}
-              </Text>
-              <Text style={ui.text}>{report.message}</Text>
-              <Button
-                secondary
-                disabled={busy}
-                title="Dismiss report"
-                onPress={() =>
-                  confirm(
-                    "Dismiss report?",
-                    "Keep the message after reviewing it against the Forum rules.",
-                    () =>
-                      mutate(
-                        `/messages/pool/${id}/reports/${report.id}/review`,
-                        "POST",
-                        { action: "dismiss" },
-                      ),
-                  )
-                }
-              />
-              <Button
-                secondary
-                disabled={busy}
-                title="Remove message"
-                onPress={() =>
-                  confirm(
-                    "Remove message?",
-                    "Remove this message for everyone in the pool.",
-                    () =>
-                      mutate(
-                        `/messages/pool/${id}/reports/${report.id}/review`,
-                        "POST",
-                        { action: "remove" },
-                      ),
-                  )
-                }
-              />
-              <Button
-                secondary
-                disabled={busy}
-                title="Remove and suspend author"
-                onPress={() =>
-                  confirm(
-                    "Suspend posting?",
-                    "Remove this message, hide the author’s posts, and prevent them from posting in this pool until restored.",
-                    () =>
-                      mutate(
-                        `/messages/pool/${id}/reports/${report.id}/review`,
-                        "POST",
-                        { action: "suspend" },
-                      ),
-                  )
-                }
-              />
-            </Card>
-          ))}
-          {safety.bans.map((b) => (
-            <Button
-              key={b.id}
-              secondary
-              disabled={busy}
-              title={`Restore posting: ${b.name}`}
-              onPress={() =>
-                confirm(
-                  "Restore posting?",
-                  "This member can post again and their remaining messages will reappear.",
-                  () =>
-                    mutate(
-                      `/messages/pool/${id}/suspensions/${b.id}`,
-                      "DELETE",
-                    ),
-                )
-              }
-            />
-          ))}
-        </Card>
-      )}
       {r.data?.messages.length === 0 && (
         <Text style={ui.copy}>No visible messages yet.</Text>
       )}
@@ -278,7 +176,7 @@ export default function Forum() {
             {new Date(apiTime(m.created_at)).toLocaleString()}
           </Text>
           <Text style={ui.text}>{m.message}</Text>
-          {(m.user_id === user?.id || safety?.can_moderate) && (
+          {m.user_id === user?.id && (
             <Button
               secondary
               disabled={busy}

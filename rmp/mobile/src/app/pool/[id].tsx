@@ -15,11 +15,8 @@ export default function PoolScreen() {
   const [error, setError] = useState("");
   const resource = useResource(
     useCallback(async () => {
-      const [access, mine] = await Promise.all([
-        apiFetch<{ has_admin_access: boolean }>(`/pools/${id}/is-admin`),
-        apiFetch<Pool[]>("/pools/my-pools"),
-      ]);
-      const member = access.has_admin_access || mine.some((p) => p.id === id);
+      const mine = await apiFetch<Pool[]>("/pools/my-pools");
+      const member = mine.some((p) => p.id === id);
       const pool = await apiFetch<Pool>(
         member ? `/pools/${id}` : `/pools/invite/${id}`,
       );
@@ -27,7 +24,7 @@ export default function PoolScreen() {
         ? (await apiFetch<{ week: number }>(`/pools/${id}/activity-summary`))
             .week
         : null;
-      return { pool, access, member, week };
+      return { pool, member, week };
     }, [id]),
   );
   async function join() {
@@ -113,15 +110,6 @@ export default function PoolScreen() {
                   router.push({ pathname: "/forum/[id]", params: { id } })
                 }
               />
-              {d.access.has_admin_access && (
-                <Button
-                  secondary
-                  title="Pool Admin"
-                  onPress={() =>
-                    router.push({ pathname: "/admin/[id]", params: { id } })
-                  }
-                />
-              )}
             </>
           ) : (
             <Card>
