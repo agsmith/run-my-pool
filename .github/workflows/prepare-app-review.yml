@@ -34,12 +34,18 @@ jobs:
             --services "$SERVICE" \
             --query 'services[0].networkConfiguration' \
             --output json)
+          setup_command=$(cat <<'COMMAND'
+          python -c "from database import engine; from sqlalchemy import inspect; columns={item['name'] for item in inspect(engine).get_columns('audit_logs')}; connection=engine.connect(); [connection.exec_driver_sql(ddl) for name, ddl in [('ip_address', 'ALTER TABLE audit_logs ADD COLUMN ip_address VARCHAR(45) NULL'), ('country', 'ALTER TABLE audit_logs ADD COLUMN country VARCHAR(2) NULL'), ('city', 'ALTER TABLE audit_logs ADD COLUMN city VARCHAR(128) NULL')] if name not in columns]; connection.commit(); connection.close()" && python prepare_app_review_account.py --preserve-password && python prepare_app_review_account.py --verify-only
+          COMMAND
+          )
+          overrides=$(jq -cn --arg command "$setup_command" \
+            '{containerOverrides:[{name:"backend",command:["sh","-c",$command]}]}')
           task_arn=$(aws ecs run-task \
             --cluster "$CLUSTER" \
             --task-definition "$task_definition" \
             --launch-type FARGATE \
             --network-configuration "$network_configuration" \
-            --overrides '{"containerOverrides":[{"name":"backend","command":["sh","-c","alembic upgrade d1appreviewaudit && python prepare_app_review_account.py --preserve-password && python prepare_app_review_account.py --verify-only"]}]}' \
+            --overrides "$overrides" \
             --query 'tasks[0].taskArn' \
             --output text)
           if [[ -z "$task_arn" || "$task_arn" == "None" ]]; then
