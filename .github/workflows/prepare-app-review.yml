@@ -1,0 +1,65 @@
+name: Prepare App Review Demo
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  prepare:
+    name: Prepare fixed review account
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c  # v6.2.3
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Run idempotent App Review setup task
+        env:
+          CLUSTER: run-my-pool-cluster
+          SERVICE: runmypool-backend-service
+        run: |
+          set -euo pipefail
+          task_definition=$(aws ecs describe-services \
+            --cluster "$CLUSTER" \
+            --services "$SERVICE" \
+            --query 'services[0].taskDefinition' \
+            --output text)
+          network_configuration=$(aws ecs describe-services \
+            --cluster "$CLUSTER" \
+            --services "$SERVICE" \
+            --query 'services[0].networkConfiguration' \
+            --output json)
+          task_arn=$(aws ecs run-task \
+            --cluster "$CLUSTER" \
+            --task-definition "$task_definition" \
+            --launch-type FARGATE \
+            --network-configuration "$network_configuration" \
+            --overrides '{"containerOverrides":[{"name":"backend","command":["python","prepare_app_review_account.py","--preserve-password"]}]}' \
+            --query 'tasks[0].taskArn' \
+            --output text)
+          if [[ -z "$task_arn" || "$task_arn" == "None" ]]; then
+            echo "ECS did not start the App Review setup task."
+            exit 1
+          fi
+          echo "Started $task_arn"
+          aws ecs wait tasks-stopped --cluster "$CLUSTER" --tasks "$task_arn"
+          exit_code=$(aws ecs describe-tasks \
+            --cluster "$CLUSTER" \
+            --tasks "$task_arn" \
+            --query 'tasks[0].containers[?name==`backend`].exitCode | [0]' \
+            --output text)
+          reason=$(aws ecs describe-tasks \
+            --cluster "$CLUSTER" \
+            --tasks "$task_arn" \
+            --query 'tasks[0].containers[?name==`backend`].reason | [0]' \
+            --output text)
+          echo "Container exit code: $exit_code"
+          if [[ "$exit_code" != "0" ]]; then
+            echo "Container reason: $reason"
+            exit 1
+          fi
