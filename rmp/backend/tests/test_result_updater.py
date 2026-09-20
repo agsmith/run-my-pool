@@ -13,6 +13,7 @@ from services.scoring import (
     _allowed_survivor_losses,
     _reconcile_survivor_entries,
     apply_final_results,
+    clear_eliminated_survivor_future_selections,
 )
 
 
@@ -182,6 +183,100 @@ def test_survivor_mulligan_keeps_entry_alive_after_first_loss(db_session):
     assert db_session.get(models.Pick, "survivor-pick").result == "loss"
     assert survivor_entry.alive is True
     assert summary.entries_changed == 0
+
+
+def test_elimination_clears_future_survivor_picks_and_plans(db_session):
+    _, survivor_entry, _ = _seed_scoring(db_session)
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    db_session.add_all([
+        models.Pick(
+            id="survivor-future-pick",
+            entry_id=survivor_entry.id,
+            week=2,
+            team="WAS",
+            team_id=1,
+        ),
+        models.SurvivorEntryPlan(
+            id="survivor-future-plan",
+            entry_id=survivor_entry.id,
+            week_num=3,
+            team_id=2,
+            created_at=now,
+            updated_at=now,
+        ),
+    ])
+    db_session.commit()
+
+    summary = apply_final_results(db_session, [_result()])
+    db_session.commit()
+
+    assert survivor_entry.alive is False
+    assert db_session.get(models.Pick, "survivor-pick") is not None
+    assert db_session.get(models.Pick, "survivor-future-pick") is None
+    assert db_session.get(models.SurvivorEntryPlan, "survivor-future-plan") is None
+    assert summary.picks_changed == 3
+
+
+def test_mulligan_preserves_future_survivor_selections(db_session):
+    _, survivor_entry, _ = _seed_scoring(db_session)
+    survivor_entry.pool.survivor_mulligans = 1
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    db_session.add_all([
+        models.Pick(
+            id="survivor-future-pick",
+            entry_id=survivor_entry.id,
+            week=2,
+            team="WAS",
+            team_id=1,
+        ),
+        models.SurvivorEntryPlan(
+            id="survivor-future-plan",
+            entry_id=survivor_entry.id,
+            week_num=3,
+            team_id=2,
+            created_at=now,
+            updated_at=now,
+        ),
+    ])
+    db_session.commit()
+
+    apply_final_results(db_session, [_result()])
+    db_session.commit()
+
+    assert survivor_entry.alive is True
+    assert db_session.get(models.Pick, "survivor-future-pick") is not None
+    assert db_session.get(models.SurvivorEntryPlan, "survivor-future-plan") is not None
+
+
+def test_cleanup_uses_loss_that_exhausted_mulligans(db_session):
+    _, survivor_entry, _ = _seed_scoring(db_session)
+    survivor_entry.pool.survivor_mulligans = 1
+    db_session.add_all([
+        models.Pick(
+            id="survivor-prior-loss",
+            entry_id=survivor_entry.id,
+            week=0,
+            team="NYG",
+            result="loss",
+        ),
+        models.Pick(
+            id="survivor-stale-future",
+            entry_id=survivor_entry.id,
+            week=2,
+            team="WAS",
+            team_id=1,
+        ),
+    ])
+    db_session.commit()
+    apply_final_results(db_session, [_result()])
+    db_session.commit()
+
+    assert survivor_entry.alive is False
+    assert db_session.get(models.Pick, "survivor-pick") is not None
+    assert db_session.get(models.Pick, "survivor-stale-future") is None
+    assert clear_eliminated_survivor_future_selections(
+        db_session, {survivor_entry.id}
+    ) == (0, 0)
 
 
 def test_losers_survivor_survives_when_selected_team_loses(db_session):

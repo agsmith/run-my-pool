@@ -26,6 +26,7 @@ from pool_access import is_pool_participant
 from schedule import current_season_games, current_season_week
 from weekly_locks import pool_week_lock_time
 from public_identity import display_name_from_email, public_display_name
+from services.scoring import survivor_elimination_week
 
 router = APIRouter()
 
@@ -674,6 +675,10 @@ async def get_picks_for_entry(
 
     picks = db.query(Pick).filter(Pick.entry_id == entry_id).order_by(Pick.week).all()
     pool = db.query(Pool).filter(Pool.id == entry.pool_id).first()
+    if pool and pool.pool_type == "survivor":
+        elimination_week = survivor_elimination_week(pool, picks)
+        if elimination_week is not None:
+            picks = [pick for pick in picks if pick.week <= elimination_week]
     now = datetime.now(timezone.utc).replace(tzinfo=None)
     result = []
     for pick in picks:

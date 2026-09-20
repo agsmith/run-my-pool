@@ -25,6 +25,53 @@ def _allowed_survivor_losses(pool: models.Pool) -> int:
     return min(MAX_SURVIVOR_MULLIGANS, max(0, pool.survivor_mulligans or 0))
 
 
+def survivor_elimination_week(pool: models.Pool, picks: list[models.Pick]) -> int | None:
+    """Return the week that exhausted an entry's allowed Survivor losses."""
+    loss_weeks = sorted({pick.week for pick in picks if pick.result == "loss"})
+    allowed_losses = _allowed_survivor_losses(pool)
+    if len(loss_weeks) <= allowed_losses:
+        return None
+    return loss_weeks[allowed_losses]
+
+
+def clear_eliminated_survivor_future_selections(
+    db: Session,
+    entry_ids: set[str] | None = None,
+) -> tuple[int, int]:
+    """Delete official picks and private plans after a Survivor elimination week."""
+    if entry_ids is not None and not entry_ids:
+        return 0, 0
+
+    query = (
+        db.query(models.Entry)
+        .options(
+            joinedload(models.Entry.pool),
+            joinedload(models.Entry.picks),
+            joinedload(models.Entry.survivor_plans),
+        )
+        .join(models.Pool, models.Pool.id == models.Entry.pool_id)
+        .filter(models.Pool.pool_type == "survivor")
+    )
+    if entry_ids is not None:
+        query = query.filter(models.Entry.id.in_(entry_ids))
+
+    picks_deleted = 0
+    plans_deleted = 0
+    for entry in query.all():
+        elimination_week = survivor_elimination_week(entry.pool, entry.picks)
+        if elimination_week is None:
+            continue
+        for pick in list(entry.picks):
+            if pick.week > elimination_week:
+                db.delete(pick)
+                picks_deleted += 1
+        for plan in list(entry.survivor_plans):
+            if plan.week_num > elimination_week:
+                db.delete(plan)
+                plans_deleted += 1
+    return picks_deleted, plans_deleted
+
+
 @dataclass
 class ScoringSummary:
     final_games: int = 0
@@ -201,6 +248,10 @@ def apply_final_results(
 
     db.flush()
     summary.entries_changed = _reconcile_survivor_entries(db, affected_entries)
+    deleted_picks, _ = clear_eliminated_survivor_future_selections(
+        db, affected_entries
+    )
+    summary.picks_changed += deleted_picks
     db.flush()
     return summary
 
