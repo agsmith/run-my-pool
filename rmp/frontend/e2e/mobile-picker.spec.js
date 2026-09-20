@@ -171,15 +171,16 @@ for (const poolType of ['survivor','pickem','squares']) {
 }
 
 for (const width of [390,1280]) {
- test(`Pickem team spreads display at ${width}px`, async ({page}) => {
+ test(`Pickem favorite and underdog labels display at ${width}px`, async ({page}) => {
   await page.setViewportSize({width,height:900});await fixture(page);
   await page.route('**/pools/mobile-pool',r=>r.fulfill({json:{...pool,pool_type:'pickem'}}));
   await page.route('**/standings',r=>r.fulfill({json:[]}));
   await page.route('**/weekly-standings/*',r=>r.fulfill({json:[]}));
   await page.route('**/matchups?pool_id=mobile-pool',r=>r.fulfill({json:[{...game,live_line:{spread:3.5,favorite_team_id:1}}]}));
   await page.goto('/pool/mobile-pool/pickem');
-  await expect(page.getByRole('button',{name:/BUF Buffalo Bills Favorite −3.5/})).toBeVisible();
-  await expect(page.getByRole('button',{name:/MIA Miami Dolphins Underdog \+3.5/})).toBeVisible();
+  await expect(page.getByRole('button',{name:/BUF Buffalo Bills Favorite/})).toBeVisible();
+  await expect(page.getByRole('button',{name:/MIA Miami Dolphins Underdog/})).toBeVisible();
+  await expect(page.getByText(/3\.5/)).toHaveCount(0);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
  });
 }
