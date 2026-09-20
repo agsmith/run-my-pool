@@ -90,6 +90,35 @@ test('Pool Home reveals team counts and individual entries on a narrow phone', a
  await page.locator('.pick-breakdown').screenshot({path:'/tmp/rmp-pool-home-breakdown.png'});
 });
 
+for (const width of [390, 1280]) {
+ test(`Pick Em breakdown page fits at ${width}px`, async ({page}) => {
+  await page.setViewportSize({width,height:760});
+  await page.addInitScript(()=>localStorage.setItem('session_expires_at',String(Date.now()+86400000)));
+  await page.route('**/*',async route=>{
+   const req=route.request(),p=new URL(req.url()).pathname;
+   if(!['fetch','xhr'].includes(req.resourceType())||p.includes('/_next/'))return route.continue();
+   let data={};
+   if(p.endsWith('/auth/me'))data={id:'demo',email:'demo@example.com'};
+   else if(p.endsWith('/activity-summary'))data={week:2};
+   else if(p.endsWith('/lock-status'))data={weeks:{2:{locked:true,deadline:'2026-09-20T17:00:00Z'}}};
+   else if(p.endsWith('/is-admin'))data={has_admin_access:false};
+   else if(p.endsWith('/week/2/breakdown'))data=[
+    {team:'BUF',team_abbrv:'BUF',result:'win',count:1,entries:[{entry_id:'entry-1',entry_name:'Sunday Sharp'}]},
+    {team:'MIA',team_abbrv:'MIA',result:'loss',count:1,entries:[{entry_id:'entry-1',entry_name:'Sunday Sharp'}]},
+   ];
+   else if(p.endsWith('/weekly-standings/2'))data=[{rank:1,entry_id:'entry-1',entry_name:'Sunday Sharp',user_display_name:'Alex Smith',points:1,completed_picks:2,predicted_total:47}];
+   else if(p.endsWith('/mobile-pool'))data={id:'mobile-pool',name:"Foy's Pick Em",pool_type:'pickem'};
+   return route.fulfill({json:data});
+  });
+  await page.goto('/pool/mobile-pool/breakdown',{waitUntil:'networkidle'});
+  await expect(page.getByRole('heading',{name:'Pick Breakdown'})).toBeVisible();
+  await expect(page.getByLabel('Sunday Sharp Week 2 picks')).toContainText('BUF · W');
+  await expect(page.getByLabel('Sunday Sharp Week 2 picks')).toContainText('MIA · L');
+  await expect(page.getByLabel('Sunday Sharp Week 2 picks')).toContainText('Total: 47');
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+ });
+}
+
 test('save rejection is visible beside Save on a narrow phone', async ({page}) => {
  await page.setViewportSize({width:320,height:568});await fixture(page);
  await page.route('**/picks/create',route=>route.fulfill({status:423,json:{detail:'This pick is locked. The game has started or the pool lock time has passed.'}}));
