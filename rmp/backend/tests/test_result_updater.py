@@ -155,6 +155,19 @@ def test_parse_rejects_final_game_without_score():
         parse_scoreboard(_scoreboard_event(home_score=None), season=2026, week=1)
 
 
+def test_parse_delayed_game_as_unsettled():
+    result = parse_scoreboard(
+        _scoreboard_event(status="STATUS_DELAYED", home_score="7", away_score="3"),
+        season=2026,
+        week=1,
+    )[0]
+
+    assert result.status == "in_progress"
+    assert result.is_final is False
+    assert result.home_score == 7
+    assert result.away_score == 3
+
+
 def test_apply_results_scores_both_pool_types_by_exact_game(db_session):
     game, survivor_entry, pickem_entry = _seed_scoring(db_session)
 

@@ -17,6 +17,7 @@ _STATUS_MAP = {
     "STATUS_IN_PROGRESS": "in_progress",
     "STATUS_HALFTIME": "in_progress",
     "STATUS_END_PERIOD": "in_progress",
+    "STATUS_DELAYED": "in_progress",
     "STATUS_FINAL": "final",
     "STATUS_FINAL_OVERTIME": "final",
     "STATUS_POSTPONED": "postponed",
