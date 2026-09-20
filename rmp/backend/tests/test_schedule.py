@@ -136,12 +136,22 @@ class TestScheduleEndpoints:
         assert response.status_code == 200
         assert [game["game_id"] for game in response.json()] == [7102]
 
-    def test_matchups_are_ordered_by_largest_spread_with_pending_lines_last(
+    def test_matchups_are_chronological_except_for_survivor_pools(
         self, client, db_session, monkeypatch
     ):
         home = models.Team(id=73, name="Home", abbrv="H73")
         away = models.Team(id=74, name="Away", abbrv="A74")
-        db_session.add_all([home, away])
+        survivor = models.Pool(
+            id="schedule-survivor-pool",
+            name="Schedule Survivor Pool",
+            pool_type="survivor",
+        )
+        pickem = models.Pool(
+            id="schedule-pickem-pool",
+            name="Schedule Pickem Pool",
+            pool_type="pickem",
+        )
+        db_session.add_all([home, away, survivor, pickem])
         db_session.add_all([
             models.Schedule(
                 game_id=7301, week_num=5, home_team_id=73, away_team_id=74,
@@ -163,9 +173,17 @@ class TestScheduleEndpoints:
         })
 
         response = client.get("/schedule/week/5/matchups")
+        pickem_response = client.get(
+            "/schedule/week/5/matchups?pool_id=schedule-pickem-pool"
+        )
+        survivor_response = client.get(
+            "/schedule/week/5/matchups?pool_id=schedule-survivor-pool"
+        )
 
         assert response.status_code == 200
-        assert [game["game_id"] for game in response.json()] == [7302, 7301, 7303]
+        assert [game["game_id"] for game in response.json()] == [7301, 7302, 7303]
+        assert [game["game_id"] for game in pickem_response.json()] == [7301, 7302, 7303]
+        assert [game["game_id"] for game in survivor_response.json()] == [7302, 7301, 7303]
 
     def test_week_endpoints_exclude_preseason_games(self, client, db_session, monkeypatch):
         home = models.Team(id=81, name="Home", abbrv="HME")

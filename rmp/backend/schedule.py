@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
 from typing import List, Optional
 from datetime import datetime
-from models import Schedule, Team, PoolGameLine
+from models import Pool, Schedule, Team, PoolGameLine
 from deps import get_db
 from odds_service import get_cached_week_lines
 
@@ -104,7 +104,10 @@ def get_week_matchups(
             "captured_at": frozen[game.game_id].captured_at.isoformat(),
         } if game.game_id in frozen else None),
     } for game in games]
-    return sorted(matchups, key=matchup_spread, reverse=True)
+    pool = db.get(Pool, pool_id) if pool_id else None
+    if pool and pool.pool_type == "survivor":
+        return sorted(matchups, key=matchup_spread, reverse=True)
+    return matchups
 
 @router.get("/week/{week_num}", response_model=List[dict])
 def get_schedule_for_week(week_num: int, db: Session = Depends(get_db)):

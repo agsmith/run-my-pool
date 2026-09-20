@@ -38,6 +38,12 @@ export type PickEmWeeklyStanding = {
   tiebreak_difference?: number | null;
 };
 
+export function chronologicalGames(games: Game[]) {
+  return [...games].sort(
+    (a, b) => Date.parse(a.start_time) - Date.parse(b.start_time),
+  );
+}
+
 /**
  * Keep an entry on the board through the week in which it was eliminated.
  * Once a loss is settled, later weeks should not show that entry as if it

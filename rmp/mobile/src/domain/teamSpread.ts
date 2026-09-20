@@ -7,3 +7,11 @@ export function teamSpread(game: Game, team: Team) {
   if (![game.home_team.id, game.away_team.id].includes(line.favorite_team_id ?? -1)) return 'Spread unavailable';
   return line.favorite_team_id === team.id ? `−${points}` : `+${points}`;
 }
+
+export function pickEmTeamRole(game: Game, team: Team) {
+  const line = game.official_line || game.live_line;
+  if (line?.spread == null || !Number.isFinite(Number(line.spread))) return 'Line unavailable';
+  if (![game.home_team.id, game.away_team.id].includes(line.favorite_team_id ?? -1)) return 'Line unavailable';
+  if (Math.abs(Number(line.spread)) === 0) return 'Even';
+  return line.favorite_team_id === team.id ? 'Favorite' : 'Underdog';
+}

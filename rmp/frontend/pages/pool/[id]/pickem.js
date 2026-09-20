@@ -4,7 +4,7 @@ import Link from 'next/link';
 import ProtectedRoute from '../../../components/ProtectedRoute';
 import { PoolWorkspaceNav, WorkspaceHeader } from '../../../components/ProductWorkspace';
 
-import { teamSpread } from '../../../lib/teamSpread';
+import { pickEmTeamRole } from '../../../lib/teamSpread';
 
 const authHeaders = () => ({ Authorization: `Bearer ${localStorage.getItem('access_token')}` });
 
@@ -28,7 +28,7 @@ export default function PickEmPage() {
     if (!pool || !pool.pickem_slate || pool.pickem_slate === 'all') return true;
     const weekday = new Intl.DateTimeFormat('en-US', { weekday: 'short', timeZone: 'America/New_York' }).format(new Date(game.start_time));
     return pool.pickem_slate === 'sunday' ? weekday === 'Sun' : ['Sun', 'Mon'].includes(weekday);
-  }), [games, pool]);
+  }).sort((a, b) => new Date(a.start_time) - new Date(b.start_time)), [games, pool]);
   const picksByGame = useMemo(() => Object.fromEntries(picks.filter((pick) => pick.week === week && eligibleGames.some((game) => game.game_id === pick.game_id)).map((pick) => [pick.game_id, pick])), [picks, week, eligibleGames]);
   const weeklyTarget = Math.min(pool?.pickem_games_per_week || eligibleGames.length, eligibleGames.length);
   const targetReached = weeklyTarget > 0 && Object.keys(picksByGame).length >= weeklyTarget;
@@ -101,7 +101,7 @@ export default function PickEmPage() {
 
   return <ProtectedRoute><main className="product-page-shell pickem-page">
     <PoolWorkspaceNav poolId={id} poolName={pool?.name} poolType="pickem" active="entries" />
-    <WorkspaceHeader eyebrow="Every pick counts" title={`Week ${week} Pick ’Em`} description={pool?.pickem_games_per_week ? `Choose any ${weeklyTarget} eligible games. Spreads are a guide; each outright winner earns one point.` : "Pick the winner of every eligible game. Spreads are a guide; each outright winner earns one point."} meta={`${Object.keys(picksByGame).length} / ${weeklyTarget} selected`} />
+    <WorkspaceHeader eyebrow="Every pick counts" title={`Week ${week} Pick ’Em`} description={pool?.pickem_games_per_week ? `Choose any ${weeklyTarget} eligible games. Favorite and underdog labels are informational; each outright winner earns one point.` : "Pick the winner of every eligible game. Favorite and underdog labels are informational; each outright winner earns one point."} meta={`${Object.keys(picksByGame).length} / ${weeklyTarget} selected`} />
     {paper === '1' && entryId && <div className="workspace-alert" role="status">Paper entry ready. Enter this participant&apos;s Week {week} picks below; normal lock rules still apply.</div>}
     {error && <div className="workspace-alert workspace-alert--error">{error}</div>}
     <section className="matchup-toolbar">
@@ -128,7 +128,7 @@ export default function PickEmPage() {
       <section className="pickem-board">{eligibleGames.map((game) => <article key={game.game_id} className="pickem-game">
         <time>{new Date(game.start_time).toLocaleString()}</time>
         {[game.away_team, game.home_team].map((team) => <button key={team.id} disabled={savingGame === game.game_id || (targetReached && !picksByGame[game.game_id])} className={picksByGame[game.game_id]?.team === team.abbrv ? `is-selected is-${picksByGame[game.game_id]?.result || 'pending'}` : ''} onClick={() => selectWinner(game, team)}>
-          <img src={`/nfl/${team.abbrv.toLowerCase()}.svg`} alt="" title={team.abbrv} /><span><strong>{team.abbrv}</strong><small>{team.name}</small><small className="pickem-team-spread">{teamSpread(game, team)}</small></span>{picksByGame[game.game_id]?.team === team.abbrv && <b>{picksByGame[game.game_id]?.result === 'win' ? 'Win' : picksByGame[game.game_id]?.result === 'loss' ? 'Loss' : '✓'}</b>}
+          <img src={`/nfl/${team.abbrv.toLowerCase()}.svg`} alt="" title={team.abbrv} /><span><strong>{team.abbrv}</strong><small>{team.name}</small><small className="pickem-team-spread">{pickEmTeamRole(game, team)}</small></span>{picksByGame[game.game_id]?.team === team.abbrv && <b>{picksByGame[game.game_id]?.result === 'win' ? 'Win' : picksByGame[game.game_id]?.result === 'loss' ? 'Loss' : '✓'}</b>}
         </button>)}
       </article>)}</section></>}
     <section className="pickem-standings"><h2>Week {week} standings</h2><table><thead><tr><th>Rank</th><th>Entry</th><th>Points</th>{pool?.pickem_slate === 'sunday_monday' && <><th>Prediction</th><th>Difference</th></>}</tr></thead><tbody>{weeklyStandings.map((row) => <tr key={row.entry_id}><td>{row.rank}</td><td><strong>{row.entry_name}</strong><small>{row.user_display_name}</small></td><td>{row.points}</td>{pool?.pickem_slate === 'sunday_monday' && <><td>{row.predicted_total ?? 'Hidden until lock'}</td><td>{row.tiebreak_difference ?? '—'}</td></>}</tr>)}</tbody></table></section>

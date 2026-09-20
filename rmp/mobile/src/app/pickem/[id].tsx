@@ -4,12 +4,12 @@ import { useCallback, useState } from "react";
 import { Text, TextInput, View } from "react-native";
 import { apiFetch } from "@/api/client";
 import type { Pool } from "@/api/types";
-import type { Breakdown, Entry, Game, Pick, PickEmWeeklyStanding, WeekLock } from "@/domain/survivor";
+import { chronologicalGames, type Breakdown, type Entry, type Game, type Pick, type PickEmWeeklyStanding, type WeekLock } from "@/domain/survivor";
 import { Screen } from "@/components/Screen";
 import { Button, Card, LoadState, ui } from "@/components/NativeUI";
 import { PoolBreakdown } from "@/components/PoolBreakdown";
 import { useResource } from "@/hooks/useResource";
-import { teamSpread } from "@/domain/teamSpread";
+import { pickEmTeamRole } from "@/domain/teamSpread";
 type GamePick = Pick & { game_id: number };
 export default function PickEm() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -84,7 +84,7 @@ export default function PickEm() {
     }
   }
   const d = r.data;
-  const games =
+  const games = chronologicalGames(
     d?.games.filter((g) => {
       const day = new Intl.DateTimeFormat("en-US", {
         weekday: "short",
@@ -97,7 +97,8 @@ export default function PickEm() {
           ? day === "Sun"
           : ["Sun", "Mon"].includes(day))
       );
-    }) || [];
+    }) || [],
+  );
   const picks = d?.picks.filter((p) => p.week === d.week && games.some((game) => game.game_id === p.game_id)) || [];
   const target = Math.min(
     d?.pool.pickem_games_per_week || games.length,
@@ -111,7 +112,7 @@ export default function PickEm() {
     <Screen refreshing={r.busy} onRefresh={r.reload}>
       <Stack.Screen options={{ title: "Pick ’Em" }} />
       <Text style={ui.title}>Weekly Picks</Text>
-      <Text style={ui.copy}>Spreads are a guide; each outright winner earns one point.</Text>
+      <Text style={ui.copy}>Favorite and underdog labels are informational; each outright winner earns one point.</Text>
       <LoadState busy={r.busy} error={error || r.error} empty={!d} />
       {!!notice && (
         <Text accessibilityLiveRegion="polite" style={ui.success}>
@@ -200,7 +201,7 @@ export default function PickEm() {
                         key={t.id}
                         result={current?.team === t.abbrv ? current.result : undefined}
                         selected={current?.team === t.abbrv}
-                        title={`${t.name} · ${teamSpread(g, t)}`}
+                        title={`${t.name} · ${pickEmTeamRole(g, t)}`}
                         secondary
                         disabled={busy || locked || full}
                         onPress={() => {

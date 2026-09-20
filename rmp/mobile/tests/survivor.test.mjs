@@ -1,10 +1,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
+  chronologicalGames,
   pickLocked,
   unavailable,
   visibleEntriesForWeek,
 } from "../src/domain/survivor.ts";
+import { pickEmTeamRole } from "../src/domain/teamSpread.ts";
 const game = {
   game_id: 1,
   start_time: "2026-09-10T00:20:00Z",
@@ -89,5 +91,28 @@ test("eliminated entries remain visible through their elimination week only", ()
   assert.deepEqual(
     visibleEntriesForWeek(entries, picks, 3).map((entry) => entry.id),
     ["alive"],
+  );
+});
+
+test("pick em labels the favorite and underdog without displaying a spread", () => {
+  const linedGame = {
+    ...game,
+    live_line: { spread: 6.5, favorite_team_id: game.home_team.id },
+  };
+  assert.equal(pickEmTeamRole(linedGame, game.home_team), "Favorite");
+  assert.equal(pickEmTeamRole(linedGame, game.away_team), "Underdog");
+  assert.equal(
+    pickEmTeamRole(
+      { ...game, live_line: { spread: 0, favorite_team_id: game.home_team.id } },
+      game.home_team,
+    ),
+    "Even",
+  );
+});
+
+test("pick em games are ordered by kickoff time", () => {
+  assert.deepEqual(
+    chronologicalGames([later, game]).map((item) => item.game_id),
+    [game.game_id, later.game_id],
   );
 });

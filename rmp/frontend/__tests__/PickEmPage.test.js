@@ -32,6 +32,7 @@ describe('PickEmPage', () => {
       start_time: '2026-09-13T17:00:00Z',
       away_team: { id: 1, abbrv: 'BUF', name: 'Buffalo Bills' },
       home_team: { id: 2, abbrv: 'MIA', name: 'Miami Dolphins' },
+      live_line: { spread: 3.5, favorite_team_id: 1 },
     };
     global.fetch = jest.fn((url, options = {}) => {
       const path = String(url);
@@ -53,6 +54,9 @@ describe('PickEmPage', () => {
 
     expect(await screen.findByRole('button', { name: /BUF Buffalo Bills/ })).toBeInTheDocument();
     expect(screen.getByTitle('BUF')).toHaveAttribute('src', '/nfl/buf.svg');
+    expect(screen.getByText('Favorite')).toBeInTheDocument();
+    expect(screen.getByText('Underdog')).toBeInTheDocument();
+    expect(screen.queryByText(/3\.5/)).not.toBeInTheDocument();
     expect(screen.getByText('Office Pick Em')).toBeInTheDocument();
     expect(screen.getByRole('cell', { name: '4' })).toBeInTheDocument();
     expect(screen.queryByText(/official line|live line|line pending/i)).not.toBeInTheDocument();
