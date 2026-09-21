@@ -61,54 +61,6 @@ resource "aws_cloudwatch_metric_alarm" "ecs_memory_high" {
   ok_actions    = [aws_sns_topic.result_updater_alerts.arn]
 }
 
-resource "aws_cloudwatch_metric_alarm" "ecs_running_tasks_low" {
-  for_each = local.ecs_services
-
-  alarm_name          = "runmypool-ecs-${each.key}-running-tasks-low"
-  alarm_description   = "${each.key} has no running ECS task. The service is unavailable until ECS replaces it."
-  namespace           = "ECS/ContainerInsights"
-  metric_name         = "RunningTaskCount"
-  comparison_operator = "LessThanThreshold"
-  threshold           = 1
-  statistic           = "Minimum"
-  period              = 60
-  evaluation_periods  = 2
-  datapoints_to_alarm = 2
-  treat_missing_data  = "breaching"
-
-  dimensions = {
-    ClusterName = aws_ecs_cluster.main.name
-    ServiceName = each.value.service_name
-  }
-
-  alarm_actions = [aws_sns_topic.result_updater_alerts.arn]
-  ok_actions    = [aws_sns_topic.result_updater_alerts.arn]
-}
-
-resource "aws_cloudwatch_metric_alarm" "ecs_scaled_out" {
-  for_each = local.ecs_services
-
-  alarm_name          = "runmypool-ecs-${each.key}-scaled-out"
-  alarm_description   = "${each.key} ECS autoscaling increased desired capacity above the normal one-task baseline. An OK notification means it scaled back to one."
-  namespace           = "ECS/ContainerInsights"
-  metric_name         = "DesiredTaskCount"
-  comparison_operator = "GreaterThanThreshold"
-  threshold           = 1
-  statistic           = "Maximum"
-  period              = 60
-  evaluation_periods  = 1
-  datapoints_to_alarm = 1
-  treat_missing_data  = "notBreaching"
-
-  dimensions = {
-    ClusterName = aws_ecs_cluster.main.name
-    ServiceName = each.value.service_name
-  }
-
-  alarm_actions = [aws_sns_topic.result_updater_alerts.arn]
-  ok_actions    = [aws_sns_topic.result_updater_alerts.arn]
-}
-
 resource "aws_cloudwatch_metric_alarm" "alb_unhealthy_targets" {
   for_each = local.ecs_services
 
