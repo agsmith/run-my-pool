@@ -43,8 +43,8 @@ export default function BreakdownScreen() {
       !!(d.lock.deadline && Date.parse(d.lock.deadline) <= Date.now()));
   return (
     <Screen refreshing={resource.busy} onRefresh={resource.reload}>
-      <Stack.Screen options={{ title: "Pick Breakdown" }} />
-      <Text style={ui.title}>Pick Breakdown</Text>
+      <Stack.Screen options={{ title: "Weekly Pick Breakdown" }} />
+      <Text style={ui.title}>Weekly Pick Breakdown</Text>
       <Text style={ui.copy}>
         View each pool member’s picks after the weekly lock.
       </Text>

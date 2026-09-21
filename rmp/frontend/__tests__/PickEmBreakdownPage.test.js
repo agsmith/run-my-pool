@@ -50,7 +50,7 @@ describe('PickEmBreakdownPage', () => {
     expect(screen.getByLabelText('Sunday Sharp Week 2 picks')).toHaveTextContent('BUF · W');
     expect(screen.getByLabelText('Sunday Sharp Week 2 picks')).toHaveTextContent('MIA · L');
     expect(screen.getByLabelText('Sunday Sharp Week 2 picks')).toHaveTextContent('Total: 47');
-    expect(screen.getByRole('link', { name: 'Pick Breakdown' })).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('link', { name: 'Weekly Pick Breakdown' })).toHaveAttribute('aria-current', 'page');
   });
 
   test('keeps picks hidden until the selected week locks', async () => {

@@ -33,7 +33,7 @@ export default function PickEmBreakdownPage() {
       fetch(`${process.env.NEXT_PUBLIC_API_URL}/pools/${id}/is-admin`, { headers: headers() }),
     ]).then(async ([poolResponse, activityResponse, lockResponse, adminResponse]) => {
       if (!poolResponse.ok || !activityResponse.ok || !lockResponse.ok) {
-        throw new Error('Unable to load Pick Breakdown.');
+        throw new Error('Unable to load Weekly Pick Breakdown.');
       }
       const poolData = await poolResponse.json();
       if (poolData.pool_type !== 'pickem') {
@@ -51,7 +51,7 @@ export default function PickEmBreakdownPage() {
       if (adminResponse.ok) setAdminStatus(await adminResponse.json());
     }).catch((loadError) => {
       if (active) {
-        setError(loadError.message || 'Unable to load Pick Breakdown.');
+        setError(loadError.message || 'Unable to load Weekly Pick Breakdown.');
         setLoading(false);
       }
     });
@@ -110,17 +110,17 @@ export default function PickEmBreakdownPage() {
 
   return <ProtectedRoute><div className="product-page pick-breakdown-page"><main className="product-main pick-breakdown-main">
     {pool && <PoolWorkspaceNav poolId={id} poolName={pool.name} poolType="pickem" active="breakdown" showAdmin={showAdmin} />}
-    <WorkspaceHeader eyebrow="Weekly results" title="Pick Breakdown" description="See every member’s revealed picks, weekly wins, and point-total tiebreaker after the weekly lock." meta={week ? `Week ${week}` : null} />
-    {pool && <section className="matchup-toolbar" aria-label="Pick Breakdown week selector">
+    <WorkspaceHeader eyebrow="Weekly results" title="Weekly Pick Breakdown" description="See every member’s revealed picks, weekly wins, and point-total tiebreaker after the weekly lock." meta={week ? `Week ${week}` : null} />
+    {pool && <section className="matchup-toolbar" aria-label="Weekly Pick Breakdown week selector">
       <button type="button" disabled={week <= 1} onClick={() => setWeek((value) => value - 1)}>← Previous</button>
-      <label>Week <select aria-label="Pick Breakdown week" value={week || ''} onChange={(event) => setWeek(Number(event.target.value))}>
+      <label>Week <select aria-label="Weekly Pick Breakdown week" value={week || ''} onChange={(event) => setWeek(Number(event.target.value))}>
         {Array.from({ length: 18 }, (_, index) => <option key={index + 1} value={index + 1}>Week {index + 1}</option>)}
       </select></label>
       <button type="button" onClick={() => setRefresh((value) => value + 1)}>Refresh</button>
       <button type="button" disabled={week >= 18} onClick={() => setWeek((value) => value + 1)}>Next →</button>
     </section>}
     {error ? <div className="workspace-alert workspace-alert--error" role="alert">{error}</div>
-      : !pool || loading ? <div className="pick-breakdown-state" role="status">Loading Pick Breakdown…</div>
+      : !pool || loading ? <div className="pick-breakdown-state" role="status">Loading Weekly Pick Breakdown…</div>
         : !locked ? <div className="pick-breakdown-state" role="status">Week {week} picks will appear after the weekly lock.</div>
           : standings.length === 0 ? <div className="pick-breakdown-state">No entries have revealed picks for Week {week}.</div>
             : <section className="pick-breakdown-list" aria-label={`Week ${week} Pick Breakdown`}>

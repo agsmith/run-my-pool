@@ -77,7 +77,7 @@ export default function PoolScreen() {
               {d.pool.pool_type !== "squares" && (
                 <Button
                   secondary
-                  title="Pick Breakdown"
+                  title="Weekly Pick Breakdown"
                   onPress={() =>
                     router.push({
                       pathname: "/breakdown/[id]",
@@ -91,7 +91,7 @@ export default function PoolScreen() {
                 title={
                   d.pool.pool_type === "squares"
                     ? "Results"
-                    : "Leaderboard"
+                    : "Season Leaderboard"
                 }
                 onPress={() =>
                   router.push({

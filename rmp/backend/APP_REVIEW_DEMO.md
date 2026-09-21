@@ -41,6 +41,6 @@ python prepare_app_review_account.py --verify-only
 ```
 
 Before resubmission, sign in on a physical iPhone or iPad and verify all three
-demo pools appear under **My Pools**. Open My Picks, Pick Breakdown,
-Leaderboard or Results, and Forum in each applicable pool. Confirm another
+demo pools appear under **My Pools**. Open My Picks, Weekly Pick Breakdown,
+Season Leaderboard or Results, and Forum in each applicable pool. Confirm another
 member's Forum message offers both **Report message** and **Block member**.

@@ -52,7 +52,7 @@ export default function PoolPickBreakdown({ poolId, currentWeek, poolType = 'sur
   return (
     <section className="pick-breakdown" aria-labelledby="pool-picks-title">
       <div className="heading">
-        <h2 id="pool-picks-title">Pick Breakdown</h2>
+        <h2 id="pool-picks-title">Weekly Pick Breakdown</h2>
         <label>Week <select aria-label="Pick breakdown week" value={week || ''} onChange={(event) => setSelectedWeek(Number(event.target.value))}>
           {!week && <option value="">Choose week</option>}
           {Array.from({ length: 18 }, (_, index) => { const value = index + 1; const locked = poolType !== 'pickem' || lockState.weeks[String(value)]?.locked; return <option key={value} value={value} disabled={!locked}>{value}{poolType === 'pickem' && !locked ? ' · Open' : ''}</option>; })}
@@ -60,7 +60,7 @@ export default function PoolPickBreakdown({ poolId, currentWeek, poolType = 'sur
         <button type="button" onClick={() => setRefresh((value) => value + 1)}>Refresh</button>
       </div>
       <p>{poolType === 'pickem' ? 'After the weekly lock, see how every entry picked each team.' : 'Picks on either team lock and appear here when their game starts, even before the pool’s weekly deadline. All remaining picks are revealed at that deadline.'}</p>
-      {!week ? <p>Choose a week to see its picks.</p> : poolType === 'pickem' && lockState.loading ? <p role="status">Checking the weekly lock…</p> : poolType === 'pickem' && !lockState.weeks[String(week)]?.locked ? <p role="status">Pick Breakdown will appear after Week {week} locks.</p> : state.loading ? <p role="status">Loading picks…</p> : state.error ? <p role="alert">Couldn’t load picks. Tap Refresh to try again.</p> : !total ? <p>No entries have revealed picks yet.</p> : <>
+      {!week ? <p>Choose a week to see its picks.</p> : poolType === 'pickem' && lockState.loading ? <p role="status">Checking the weekly lock…</p> : poolType === 'pickem' && !lockState.weeks[String(week)]?.locked ? <p role="status">Weekly Pick Breakdown will appear after Week {week} locks.</p> : state.loading ? <p role="status">Loading picks…</p> : state.error ? <p role="alert">Couldn’t load picks. Tap Refresh to try again.</p> : !total ? <p>No entries have revealed picks yet.</p> : <>
         <p><strong>{total}</strong> {total === 1 ? 'entry with a revealed pick' : 'entries with revealed picks'}. Tap a team to see entry names.</p>
         <div className="teams">{state.rows.map((row) => <details key={row.team} className={row.result === 'win' ? 'result-win' : row.result === 'loss' ? 'result-loss' : ''}>
           <summary><span>{row.team_name || row.team}{row.result === 'win' ? ' · Win' : row.result === 'loss' ? ' · Loss' : ''}</span><strong>{row.count} {row.count === 1 ? 'entry' : 'entries'}</strong></summary>

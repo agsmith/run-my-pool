@@ -111,7 +111,7 @@ for (const width of [390, 1280]) {
    return route.fulfill({json:data});
   });
   await page.goto('/pool/mobile-pool/breakdown',{waitUntil:'networkidle'});
-  await expect(page.getByRole('heading',{name:'Pick Breakdown'})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'Weekly Pick Breakdown'})).toBeVisible();
   await expect(page.getByLabel('Sunday Sharp Week 2 picks')).toContainText('BUF · W');
   await expect(page.getByLabel('Sunday Sharp Week 2 picks')).toContainText('MIA · L');
   await expect(page.getByLabel('Sunday Sharp Week 2 picks')).toContainText('Total: 47');

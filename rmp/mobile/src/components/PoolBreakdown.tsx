@@ -15,7 +15,7 @@ export function PoolBreakdown({ rows, poolType = "survivor", standings = [] }: {
     }));
     return (
       <View style={s.panel}>
-        <Text style={s.title}>Pick Breakdown</Text>
+        <Text style={s.title}>Weekly Pick Breakdown</Text>
         <Text style={s.copy}>Week standings after the weekly lock.</Text>
         {standings.length === 0 ? <Text style={s.copy}>No entries have revealed picks yet.</Text> : standings.map((row) => (
           <View key={row.entry_id} style={s.standingRow}>
@@ -35,7 +35,7 @@ export function PoolBreakdown({ rows, poolType = "survivor", standings = [] }: {
   }
   return (
     <View style={s.panel}>
-      <Text style={s.title}>Pick Breakdown</Text>
+      <Text style={s.title}>Weekly Pick Breakdown</Text>
       <Text style={s.copy}>
         Both teams’ picks lock and appear at kickoff. Remaining picks appear at
         the pool deadline.

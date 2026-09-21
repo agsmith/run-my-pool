@@ -44,10 +44,10 @@ commissioner role.
 After signing in, open **My Pools**. The account contains these private,
 pre-populated pools:
 
-1. **App Review Survivor Demo** — open My Picks, Pick Breakdown, Leaderboard,
+1. **App Review Survivor Demo** — open My Picks, Weekly Pick Breakdown, Season Leaderboard,
    and Forum. The data includes settled picks and one pick marked AP to show an
    automatic pick.
-2. **App Review Pick 'Em Demo** — open My Picks, Pick Breakdown, Leaderboard,
+2. **App Review Pick 'Em Demo** — open My Picks, Weekly Pick Breakdown, Season Leaderboard,
    and Forum. The data includes settled weekly picks, season standings, and
    point-total tiebreakers.
 3. **App Review Squares Demo** — open the read-only board, final result, and

@@ -47,10 +47,10 @@ describe('PoolLeaderboardPage', () => {
     expect(screen.queryByText('Final picks')).not.toBeInTheDocument();
     expect(screen.queryByText('Eliminated')).not.toBeInTheDocument();
     expect(screen.getByLabelText('Goal Line revealed picks')).toHaveTextContent('W1 DAL');
-    const entries = screen.getByRole('region', { name: 'Pool leaderboard' }).querySelectorAll('.leaderboard-entry');
+    const entries = screen.getByRole('region', { name: 'Season leaderboard' }).querySelectorAll('.leaderboard-entry');
     expect(entries[0]).toHaveTextContent('Goal Line');
     expect(entries[1]).toHaveTextContent('Alpha Blitz');
-    expect(screen.getByRole('link', { name: 'Leaderboard' })).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('link', { name: 'Season Leaderboard' })).toHaveAttribute('aria-current', 'page');
   });
 
   test('shows a scoped error when leaderboard access fails', async () => {

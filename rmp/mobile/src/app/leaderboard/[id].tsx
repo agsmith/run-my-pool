@@ -44,8 +44,8 @@ export default function Leaderboard() {
   }) : [];
   return (
     <Screen refreshing={r.busy} onRefresh={r.reload}>
-      <Stack.Screen options={{ title: "Leaderboard" }} />
-      <Text style={ui.title}>Leaderboard</Text>
+      <Stack.Screen options={{ title: "Season Leaderboard" }} />
+      <Text style={ui.title}>Season Leaderboard</Text>
       <Text style={ui.copy}>
         {pickem ? "Season points by member, highest total first." : "Standings include revealed picks only. Pull down for the latest results."}
       </Text>
