@@ -64,6 +64,18 @@ resource "aws_subnet" "public_b" {
   }
 }
 
+resource "aws_subnet" "public_c" {
+  vpc_id                  = aws_vpc.main.id
+  cidr_block              = "10.0.5.0/24"
+  availability_zone       = "us-east-1c"
+  map_public_ip_on_launch = true
+
+  tags = {
+    Name    = "run-my-pool-public-c"
+    Project = "runmypool"
+  }
+}
+
 # ──────────────────────────────────────────────────────────────────────────────
 # Private Subnets (RDS)
 # ──────────────────────────────────────────────────────────────────────────────
@@ -115,6 +127,11 @@ resource "aws_route_table_association" "public_a" {
 
 resource "aws_route_table_association" "public_b" {
   subnet_id      = aws_subnet.public_b.id
+  route_table_id = aws_route_table.public.id
+}
+
+resource "aws_route_table_association" "public_c" {
+  subnet_id      = aws_subnet.public_c.id
   route_table_id = aws_route_table.public.id
 }
 

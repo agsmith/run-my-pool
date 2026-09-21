@@ -45,7 +45,7 @@ output "vpc_id" {
 
 output "public_subnet_ids" {
   description = "Public subnet IDs (used by ECS tasks)"
-  value       = [aws_subnet.public_a.id, aws_subnet.public_b.id]
+  value       = [aws_subnet.public_a.id, aws_subnet.public_b.id, aws_subnet.public_c.id]
 }
 
 output "ecs_security_group_id" {
