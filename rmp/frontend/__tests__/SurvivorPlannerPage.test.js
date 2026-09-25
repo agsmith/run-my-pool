@@ -60,11 +60,23 @@ describe('Survivor season planner', () => {
     await waitFor(() => expect(fetch).toHaveBeenCalledWith('/survivor-planner/entries/entry-1/weeks/1/make-official', expect.objectContaining({ method: 'POST' })));
   });
 
-  test('makes an eliminated entry read-only', async () => {
+  test('omits eliminated entries from the selector', async () => {
+    const entries = [
+      { ...base.entries[0], id: 'entry-out', name: 'Eliminated Path', alive: false },
+      base.entries[0],
+    ];
+    global.fetch = jest.fn((url) => url.includes('/schedule/') ? matchupResponse(url) : response({ ...base, entries }));
+    render(<SurvivorPlannerPage />);
+    const selector = await screen.findByRole('combobox', { name: 'Entry' });
+    expect(within(selector).getByRole('option', { name: 'My Path' })).toBeInTheDocument();
+    expect(within(selector).queryByRole('option', { name: 'Eliminated Path' })).not.toBeInTheDocument();
+  });
+
+  test('shows an active-entry empty state when every entry is eliminated', async () => {
     global.fetch = jest.fn((url) => url.includes('/schedule/') ? matchupResponse(url) : response({ ...base, entries: [{ ...base.entries[0], alive: false }] }));
     render(<SurvivorPlannerPage />);
-    expect(await screen.findByText(/entry has been eliminated/i)).toBeInTheDocument();
-    screen.getAllByRole('button', { name: /Buffalo Bills, week 1/ }).forEach((button) => expect(button).toBeDisabled());
+    expect(await screen.findByText('No active entries are available for season planning.')).toBeInTheDocument();
+    expect(screen.queryByRole('combobox', { name: 'Entry' })).not.toBeInTheDocument();
   });
 
   test('keeps used teams ranked by point spread while making them unselectable', async () => {

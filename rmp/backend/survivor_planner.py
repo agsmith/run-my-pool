@@ -80,7 +80,11 @@ def get_planner(pool_id: str, db: Session = Depends(get_db), current_user=Depend
     if not is_pool_participant(db, pool_id, current_user.id):
         raise HTTPException(status_code=403, detail="Pool membership required")
 
-    entries = db.query(Entry).filter(Entry.pool_id == pool_id, Entry.user_id == current_user.id).order_by(Entry.name).all()
+    entries = db.query(Entry).filter(
+        Entry.pool_id == pool_id,
+        Entry.user_id == current_user.id,
+        Entry.alive.is_(True),
+    ).order_by(Entry.name).all()
     entry_ids = [entry.id for entry in entries]
     picks = db.query(Pick).options(joinedload(Pick.team_obj)).filter(Pick.entry_id.in_(entry_ids)).all() if entry_ids else []
     plans = db.query(SurvivorEntryPlan).options(joinedload(SurvivorEntryPlan.team)).filter(SurvivorEntryPlan.entry_id.in_(entry_ids)).all() if entry_ids else []

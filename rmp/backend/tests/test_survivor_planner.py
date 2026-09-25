@@ -39,6 +39,7 @@ def _seed(db, owner_id, member_id, outsider_id):
     db.add(PoolMember(pool_id=pool.id, user_id=member_id, joined_at=datetime.utcnow()))
     entries = [
         Entry(id="member-entry", user_id=member_id, pool_id=pool.id, name="Mine", alive=True),
+        Entry(id="member-eliminated-entry", user_id=member_id, pool_id=pool.id, name="Eliminated", alive=False),
         Entry(id="owner-entry", user_id=owner_id, pool_id=pool.id, name="Owner secret", alive=True),
     ]
     db.add_all(entries)

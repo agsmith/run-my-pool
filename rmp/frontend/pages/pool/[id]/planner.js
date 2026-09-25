@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/router';
-import Link from 'next/link';
 import Image from 'next/image';
 import ProtectedRoute from '../../../components/ProtectedRoute';
 import { PoolWorkspaceNav, WorkspaceHeader } from '../../../components/ProductWorkspace';
@@ -24,10 +23,11 @@ export default function SurvivorPlannerPage() {
     const response = await fetch(`${apiUrl()}/survivor-planner/pools/${id}`, { headers: { Authorization: `Bearer ${localStorage.getItem('access_token')}` } });
     if (!response.ok) throw new Error((await response.json().catch(() => ({}))).detail || 'Unable to load the season planner.');
     const body = await response.json();
-    setData(body);
+    const activeEntries = body.entries.filter((entry) => entry.alive);
+    setData({ ...body, entries: activeEntries });
     setLineStatus({});
     setLineLoadVersion((current) => current + 1);
-    setEntryId((current) => current && body.entries.some((entry) => entry.id === current) ? current : body.entries[0]?.id || '');
+    setEntryId((current) => current && activeEntries.some((entry) => entry.id === current) ? current : activeEntries[0]?.id || '');
     setWeek((current) => current === 1 ? body.current_week : current);
   };
 
@@ -141,9 +141,8 @@ export default function SurvivorPlannerPage() {
     <p className="planner-note planner-note--prominent">Plans are private and never count as picks until you explicitly make the current week official. Official picks remain governed by server-side pool and kickoff locks.</p>
     {error && <div className="workspace-alert workspace-alert--error" role="alert">{error}</div>}
     {message && <div className="workspace-alert" role="status">{message}</div>}
-    {!data ? <p>Loading planner…</p> : data.entries.length === 0 ? <div className="planner-empty">Create an entry before planning your season. <Link href={`/pool/${id}/entries/create`}>Create entry</Link></div> : <>
+    {!data ? <p>Loading planner…</p> : data.entries.length === 0 ? <div className="planner-empty">No active entries are available for season planning.</div> : <>
       <div className="planner-controls"><label>Entry<select value={entryId} onChange={(event) => { setEntryId(event.target.value); setMessage(''); }}>{data.entries.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><div className="planner-controls__actions"><span>Week {data.current_week} is current</span><button type="button" onClick={clearPlans} disabled={!entry?.plans.length || saving === 'clear'}>Reset</button></div></div>
-      {!entry?.alive && <div className="workspace-alert">This entry has been eliminated. Its season path is read-only.</div>}
       <section className="planner-path" aria-label="Season path">{data.weeks.map(({ week: number }) => { const choice = pickFor(number) || planFor(number); return <button key={number} type="button" className={week === number ? 'is-active' : ''} onClick={() => setWeek(number)}><small>W{number}</small><strong>{choice?.team || '—'}</strong><span>{pickFor(number) ? 'Official' : planFor(number) ? 'Planned' : 'Open'}</span></button>; })}</section>
       {planFor(data.current_week) && !pickFor(data.current_week) && <div className="planner-official"><div><strong>{planFor(data.current_week).team} is planned for Week {data.current_week}</strong><span>This is not your official pick yet.</span></div><button type="button" disabled={saving === 'official'} onClick={makeOfficial}>Make official pick</button></div>}
       <section className="planner-mobile" aria-label={`Week ${week} choices`}><div className="planner-week-heading"><h2>Week {week}</h2><LineStatus status={lineStatus[week]} /></div>{rankedTeams.filter((team) => gameFor(team.id, week)).map((team) => <TeamChoice key={team.id} team={team} game={gameFor(team.id, week)} selected={planFor(week)?.team_id === team.id} official={pickFor(week)?.team_id === team.id} usage={usageFor(team.id, week)} disabled={teamUnavailable(team.id, week) || week < data.current_week || Boolean(pickFor(week)) || !entry.alive} onClick={() => choose(team, week)} />)}</section>
