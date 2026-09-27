@@ -787,6 +787,98 @@ class TestAdminEndpoints:
         assert payload["required_picks"] == 2
         assert [game["game_id"] for game in payload["games"]] == [18101, 18102]
 
+    def test_pickem_completion_reports_only_entries_needing_commissioner_follow_up(
+        self, client, db_session
+    ):
+        import models as m
+
+        owner_token = _register_and_login(client, "completion.owner@example.com")
+        member_token = _register_and_login(client, "completion.member@example.com")
+        owner_headers = _authed(owner_token)
+        pool_response = client.post(
+            "/pools/create",
+            json={
+                "name": f"Completion Pick Em {uuid.uuid4()}",
+                "pool_type": "pickem",
+                "pickem_slate": "sunday_monday",
+                "is_private": False,
+                "rule_values": [],
+            },
+            headers=owner_headers,
+        )
+        pool_id = pool_response.json()["id"]
+        complete_entry_id = _create_entry(
+            client, owner_headers, pool_id, "Complete Entry"
+        )
+        partial_entry_id = _create_entry(
+            client, _authed(member_token), pool_id, "Needs One Pick"
+        )
+        manual_response = client.post(
+            f"/admin/pools/{pool_id}/manual-pickem-entries",
+            json={"participant_name": "Paper Player"},
+            headers=owner_headers,
+        )
+        manual_entry_id = manual_response.json()["id"]
+
+        teams = [
+            m.Team(id=18201 + index, name=name, abbrv=abbrv)
+            for index, (name, abbrv) in enumerate(
+                [
+                    ("Buffalo Bills", "BFY"), ("Miami Dolphins", "MIY"),
+                    ("Chicago Bears", "CHY"), ("Green Bay Packers", "GBY"),
+                ]
+            )
+        ]
+        sunday = datetime(2099, 9, 6, 17)
+        db_session.add_all(teams)
+        db_session.add_all([
+            m.Schedule(game_id=18201, season=2099, week_num=1, away_team_id=18201, home_team_id=18202, start_time=sunday),
+            m.Schedule(game_id=18202, season=2099, week_num=1, away_team_id=18203, home_team_id=18204, start_time=sunday + timedelta(days=1, hours=7)),
+        ])
+        now = datetime.now(timezone.utc)
+        for entry_id, game_ids in {
+            complete_entry_id: [18201, 18202],
+            partial_entry_id: [18201],
+            manual_entry_id: [18201, 18202],
+        }.items():
+            for game_id in game_ids:
+                db_session.add(m.Pick(
+                    id=str(uuid.uuid4()), entry_id=entry_id, week=1,
+                    game_id=game_id, team="BFY", team_id=18201,
+                    locked=False, created_at=now, updated_at=now,
+                ))
+        for entry_id in [complete_entry_id, partial_entry_id]:
+            db_session.add(m.PickEmTiebreaker(
+                id=str(uuid.uuid4()), entry_id=entry_id, week=1,
+                predicted_total=44, created_at=now, updated_at=now,
+            ))
+        db_session.commit()
+
+        forbidden = client.get(
+            f"/admin/pools/{pool_id}/pickem-completion?week=1",
+            headers=_authed(member_token),
+        )
+        assert forbidden.status_code == 403
+
+        response = client.get(
+            f"/admin/pools/{pool_id}/pickem-completion?week=1",
+            headers=owner_headers,
+        )
+        assert response.status_code == 200, response.text
+        payload = response.json()
+        assert payload["total_entries"] == 3
+        assert payload["complete_entries"] == 1
+        assert payload["entries_needing_attention"] == 2
+        assert payload["required_picks"] == 2
+        by_name = {row["entry_name"]: row for row in payload["incomplete_entries"]}
+        assert set(by_name) == {"Needs One Pick", "Paper Player"}
+        assert by_name["Needs One Pick"]["missing_picks"] == 1
+        assert by_name["Needs One Pick"]["tiebreaker_set"] is True
+        assert by_name["Needs One Pick"]["contact_email"] == "completion.member@example.com"
+        assert by_name["Paper Player"]["missing_picks"] == 0
+        assert by_name["Paper Player"]["missing_tiebreaker"] is True
+        assert by_name["Paper Player"]["contact_email"] is None
+
     def test_admin_corrects_pick_by_entry_and_week(self, client, db_session):
         owner_token = _register_and_login(client, "correct.owner@example.com")
         headers = _authed(owner_token)

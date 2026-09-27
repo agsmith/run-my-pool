@@ -275,6 +275,31 @@ class LeagueAdminUserOverview(BaseModel):
     users: List[LeagueAdminUserSummary]
 
 
+class PickEmCompletionEntry(BaseModel):
+    entry_id: str
+    entry_name: str
+    participant_name: str
+    user_id: str
+    contact_email: Optional[EmailStr] = None
+    is_manual: bool = False
+    picks_made: int
+    picks_required: int
+    missing_picks: int
+    tiebreaker_set: bool
+    missing_tiebreaker: bool
+
+
+class PickEmCompletionReport(BaseModel):
+    pool_id: str
+    week: int
+    total_entries: int
+    complete_entries: int
+    entries_needing_attention: int
+    required_picks: int
+    requires_tiebreaker: bool
+    incomplete_entries: List[PickEmCompletionEntry]
+
+
 class LeagueAutoPickOut(BaseModel):
     audit_id: str
     week: int

@@ -12,6 +12,7 @@ import LeagueLockSettings from '../../../components/LeagueLockSettings';
 import LeaguePasswordViewer from '../../../components/LeaguePasswordViewer';
 import OwnerPoolReports from '../../../components/OwnerPoolReports';
 import AdminWeeklyEmailGenerator from '../../../components/AdminWeeklyEmailGenerator';
+import AdminPickEmCompletionReport from '../../../components/AdminPickEmCompletionReport';
 import PoolQrPrintables from '../../../components/PoolQrPrintables';
 import { getAuditUsername } from '../../../utils/auditDisplay';
 import { downloadAuditCsv } from '../../../utils/auditCsv';
@@ -56,6 +57,9 @@ export default function AdminPortal() {
   const [autoPicksError, setAutoPicksError] = useState('');
   const [removingUserId, setRemovingUserId] = useState('');
   const [removeUserMessage, setRemoveUserMessage] = useState('');
+  const [pickEmCompletion, setPickEmCompletion] = useState(null);
+  const [pickEmCompletionLoading, setPickEmCompletionLoading] = useState(false);
+  const [pickEmCompletionError, setPickEmCompletionError] = useState('');
 
   // User lock state
   const [lockMessage, setLockMessage] = useState('');
@@ -101,6 +105,10 @@ export default function AdminPortal() {
   }, [activeSection, leagueId]);
 
   useEffect(() => {
+    if (activeSection === 'user-management' && leagueId && league?.pool_type === 'pickem') fetchPickEmCompletion();
+  }, [activeSection, leagueId, league?.pool_type]);
+
+  useEffect(() => {
     if (['user-management', 'auto-picks'].includes(activeSection) && leagueId) fetchAutoPicks(autoPickWeek);
   }, [activeSection, leagueId, autoPickWeek]);
 
@@ -138,6 +146,25 @@ export default function AdminPortal() {
       setAutoPicksError(err.message || 'Unable to load autopicks');
     } finally {
       setAutoPicksLoading(false);
+    }
+  };
+
+  const fetchPickEmCompletion = async (week) => {
+    setPickEmCompletionLoading(true);
+    setPickEmCompletionError('');
+    try {
+      const token = localStorage.getItem('access_token');
+      const query = week ? `?week=${week}` : '';
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/pools/${leagueId}/pickem-completion${query}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.detail || 'Unable to load weekly Pick Em completion');
+      setPickEmCompletion(data);
+    } catch (err) {
+      setPickEmCompletionError(err.message || 'Unable to load weekly Pick Em completion');
+    } finally {
+      setPickEmCompletionLoading(false);
     }
   };
 
@@ -872,6 +899,14 @@ export default function AdminPortal() {
       <h3 style={{ color: '#1a202c', marginTop: 0, marginBottom: '2rem' }}>
         User Management
       </h3>
+
+      {league?.pool_type === 'pickem' && <AdminPickEmCompletionReport
+        report={pickEmCompletion}
+        loading={pickEmCompletionLoading}
+        error={pickEmCompletionError}
+        onWeekChange={fetchPickEmCompletion}
+        onRefresh={fetchPickEmCompletion}
+      />}
 
       <AdminUserOverview poolName={league?.name} overview={userOverview} loading={userOverviewLoading} error={userOverviewError} onRefresh={fetchUserOverview} onChangeEmail={handleChangeUserEmail} onChangeDues={handleChangeUserDues} onChangeNotes={handleChangeUserNotes} onRemoveUser={handleRemoveUser} removingUserId={removingUserId} />
       {removeUserMessage && <p role="status" className="admin-user-overview__message">{removeUserMessage}</p>}

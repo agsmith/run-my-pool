@@ -32,6 +32,20 @@ from platform_admin import is_bootstrap_super_admin, is_platform_super_admin
 router = APIRouter(prefix="/admin", tags=["admin"])
 
 
+def _pickem_week_games(db: Session, pool: models.Pool, week: int):
+    games = current_season_games(db, week)
+    if pool.pickem_slate == "all":
+        return games
+    eastern = ZoneInfo("America/New_York")
+    allowed_days = {6} if pool.pickem_slate == "sunday" else {0, 6}
+    return [
+        game
+        for game in games
+        if game.start_time.replace(tzinfo=timezone.utc).astimezone(eastern).weekday()
+        in allowed_days
+    ]
+
+
 @router.post("/pools/{pool_id}/weekly-email")
 def generate_weekly_email(
     pool_id: str,
@@ -572,6 +586,116 @@ def pool_users_overview(
         "current_week": selected_week,
         "total_users": len(result),
         "users": result,
+    }
+
+
+@router.get(
+    "/pools/{pool_id}/pickem-completion",
+    response_model=schemas.PickEmCompletionReport,
+)
+def pickem_completion_report(
+    pool_id: str,
+    week: Optional[int] = None,
+    db: Session = Depends(deps.get_db),
+    current_user: models.User = Depends(deps.get_current_user),
+):
+    """Return only Pick 'Em entries that still need picks or a tiebreaker."""
+    if not verify_admin_access(pool_id, current_user, db):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    pool = db.query(models.Pool).filter(models.Pool.id == pool_id).first()
+    if not pool:
+        raise HTTPException(status_code=404, detail="Pool not found")
+    if pool.pool_type != "pickem":
+        raise HTTPException(
+            status_code=400,
+            detail="Weekly completion is only available for Pick 'Em pools",
+        )
+
+    selected_week = week if week is not None else current_season_week(db)
+    if selected_week < 1 or selected_week > 18:
+        raise HTTPException(status_code=400, detail="Week must be between 1 and 18")
+
+    entries = (
+        db.query(models.Entry)
+        .filter(models.Entry.pool_id == pool_id)
+        .order_by(models.Entry.name, models.Entry.id)
+        .all()
+    )
+    entry_ids = [entry.id for entry in entries]
+    games = _pickem_week_games(db, pool, selected_week)
+    eligible_game_ids = {game.game_id for game in games}
+    required_picks = min(pool.pickem_games_per_week or len(games), len(games))
+    requires_tiebreaker = pool.pickem_slate == "sunday_monday" and bool(games)
+
+    pick_counts = {
+        entry_id: count
+        for entry_id, count in (
+            db.query(models.Pick.entry_id, func.count(func.distinct(models.Pick.game_id)))
+            .filter(
+                models.Pick.entry_id.in_(entry_ids or [""]),
+                models.Pick.week == selected_week,
+                models.Pick.game_id.in_(eligible_game_ids or [-1]),
+            )
+            .group_by(models.Pick.entry_id)
+            .all()
+        )
+    }
+    tiebreaker_entry_ids = {
+        entry_id
+        for (entry_id,) in (
+            db.query(models.PickEmTiebreaker.entry_id)
+            .filter(
+                models.PickEmTiebreaker.entry_id.in_(entry_ids or [""]),
+                models.PickEmTiebreaker.week == selected_week,
+            )
+            .all()
+        )
+    }
+    users = {
+        user.id: user
+        for user in db.query(models.User)
+        .filter(models.User.id.in_({entry.user_id for entry in entries} or {""}))
+        .all()
+    }
+
+    incomplete_entries = []
+    for entry in entries:
+        user = users.get(entry.user_id)
+        picks_made = min(pick_counts.get(entry.id, 0), required_picks)
+        missing_picks = max(required_picks - picks_made, 0)
+        tiebreaker_set = entry.id in tiebreaker_entry_ids
+        missing_tiebreaker = requires_tiebreaker and not tiebreaker_set
+        if not missing_picks and not missing_tiebreaker:
+            continue
+        is_manual = bool(entry.manual_participant_name)
+        fallback_name = user.display_name if user and user.display_name else (
+            user.email.split("@")[0] if user else "Unknown participant"
+        )
+        incomplete_entries.append(
+            {
+                "entry_id": entry.id,
+                "entry_name": entry.name,
+                "participant_name": entry.manual_participant_name or fallback_name,
+                "user_id": entry.user_id,
+                "contact_email": None if is_manual or not user else user.email,
+                "is_manual": is_manual,
+                "picks_made": picks_made,
+                "picks_required": required_picks,
+                "missing_picks": missing_picks,
+                "tiebreaker_set": tiebreaker_set,
+                "missing_tiebreaker": missing_tiebreaker,
+            }
+        )
+
+    return {
+        "pool_id": pool_id,
+        "week": selected_week,
+        "total_entries": len(entries),
+        "complete_entries": len(entries) - len(incomplete_entries),
+        "entries_needing_attention": len(incomplete_entries),
+        "required_picks": required_picks,
+        "requires_tiebreaker": requires_tiebreaker,
+        "incomplete_entries": incomplete_entries,
     }
 
 
@@ -1138,16 +1262,7 @@ def get_pickem_weekly_printable(
             detail="Weekly pick sheets are only available for Pick 'Em pools",
         )
 
-    eastern = ZoneInfo("America/New_York")
-    games = current_season_games(db, week)
-    if pool.pickem_slate != "all":
-        allowed_days = {6} if pool.pickem_slate == "sunday" else {0, 6}
-        games = [
-            game
-            for game in games
-            if game.start_time.replace(tzinfo=timezone.utc).astimezone(eastern).weekday()
-            in allowed_days
-        ]
+    games = _pickem_week_games(db, pool, week)
 
     return {
         "pool_id": pool.id,
