@@ -37,6 +37,7 @@ describe('PickEmPage', () => {
     global.fetch = jest.fn((url, options = {}) => {
       const path = String(url);
       if (path === '/pools/pool-1') return response({ id: 'pool-1', name: 'Office Pick Em', pool_type: 'pickem' });
+      if (path === '/pools/pool-1/activity-summary') return response({ week: 1 });
       if (path === '/entries/pool/pool-1') return response([{ id: 'entry-1', name: 'My Card' }]);
       if (path === '/picks/pool/pool-1/standings') return response([{ rank: 1, entry_id: 'entry-1', entry_name: 'My Card', user_display_name: 'me', points: 4, possible_points: 5 }]);
       if (path === '/picks/pool/pool-1/weekly-standings/1') return response([]);
@@ -70,6 +71,7 @@ describe('PickEmPage', () => {
     global.fetch = jest.fn((url) => {
       const path = String(url);
       if (path === '/pools/pool-1') return response({ id: 'pool-1', pool_type: 'survivor' });
+      if (path === '/pools/pool-1/activity-summary') return response({ week: 1 });
       if (path === '/entries/pool/pool-1' || path === '/picks/pool/pool-1/standings' || path === '/picks/pool/pool-1/weekly-standings/1' || path === '/schedule/week/1/matchups?pool_id=pool-1') return response([]);
       throw new Error(`Unexpected request ${path}`);
     });
@@ -82,6 +84,7 @@ describe('PickEmPage', () => {
     global.fetch = jest.fn((url) => {
       const path = String(url);
       if (path === '/pools/pool-1') return response({ id: 'pool-1', name: 'Office Pick Em', pool_type: 'pickem' });
+      if (path === '/pools/pool-1/activity-summary') return response({ week: 1 });
       if (path === '/entries/pool/pool-1' || path === '/picks/pool/pool-1/standings' || path === '/picks/pool/pool-1/weekly-standings/1' || path === '/schedule/week/1/matchups?pool_id=pool-1') return response([]);
       throw new Error(`Unexpected request ${path}`);
     });
@@ -108,6 +111,7 @@ describe('PickEmPage', () => {
     global.fetch = jest.fn((url, options = {}) => {
       const path = String(url);
       if (path === '/pools/pool-1') return response({ id: 'pool-1', name: 'Five Game Pool', pool_type: 'pickem', pickem_games_per_week: 1 });
+      if (path === '/pools/pool-1/activity-summary') return response({ week: 1 });
       if (path === '/entries/pool/pool-1') return response([{ id: 'entry-1', name: 'My Card' }]);
       if (path === '/picks/pool/pool-1/standings') return response([]);
       if (path === '/picks/pool/pool-1/weekly-standings/1') return response([]);
@@ -125,5 +129,53 @@ describe('PickEmPage', () => {
     expect(screen.getByRole('button', { name: /MIA Miami Dolphins/i })).toBeEnabled();
     await user.click(screen.getByRole('button', { name: /MIA Miami Dolphins/i }));
     expect(global.fetch).toHaveBeenCalledWith('/picks/create', expect.objectContaining({ method: 'POST' }));
+  });
+
+  test('defaults to the current schedule week', async () => {
+    global.fetch = jest.fn((url) => {
+      const path = String(url);
+      if (path === '/pools/pool-1') return response({ id: 'pool-1', name: 'Office Pick Em', pool_type: 'pickem' });
+      if (path === '/pools/pool-1/activity-summary') return response({ week: 4 });
+      if (path === '/entries/pool/pool-1' || path === '/picks/pool/pool-1/standings' || path === '/picks/pool/pool-1/weekly-standings/4' || path === '/schedule/week/4/matchups?pool_id=pool-1') return response([]);
+      throw new Error(`Unexpected request ${path}`);
+    });
+
+    render(<PickEmPage />);
+
+    expect(await screen.findByRole('heading', { name: 'Week 4 Pick ’Em' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Week')).toHaveValue('4');
+    expect(global.fetch).toHaveBeenCalledWith('/schedule/week/4/matchups?pool_id=pool-1', expect.any(Object));
+    expect(global.fetch).not.toHaveBeenCalledWith('/schedule/week/1/matchups?pool_id=pool-1', expect.any(Object));
+  });
+
+  test('places the Monday tiebreaker after the Monday games', async () => {
+    const mondayGame = {
+      game_id: 202,
+      start_time: '2026-09-15T00:15:00Z',
+      away_team: { id: 3, abbrv: 'CHI', name: 'Chicago Bears' },
+      home_team: { id: 4, abbrv: 'GB', name: 'Green Bay Packers' },
+    };
+    const sundayGame = {
+      game_id: 201,
+      start_time: '2026-09-13T17:00:00Z',
+      away_team: { id: 1, abbrv: 'BUF', name: 'Buffalo Bills' },
+      home_team: { id: 2, abbrv: 'MIA', name: 'Miami Dolphins' },
+    };
+    global.fetch = jest.fn((url) => {
+      const path = String(url);
+      if (path === '/pools/pool-1') return response({ id: 'pool-1', name: 'Office Pick Em', pool_type: 'pickem', pickem_slate: 'sunday_monday' });
+      if (path === '/pools/pool-1/activity-summary') return response({ week: 1 });
+      if (path === '/entries/pool/pool-1') return response([{ id: 'entry-1', name: 'My Card' }]);
+      if (path === '/picks/pool/pool-1/standings' || path === '/picks/pool/pool-1/weekly-standings/1' || path === '/picks/entry/entry-1') return response([]);
+      if (path === '/schedule/week/1/matchups?pool_id=pool-1') return response([mondayGame, sundayGame]);
+      if (path === '/picks/entry/entry-1/tiebreaker/1') return response(null, false);
+      throw new Error(`Unexpected request ${path}`);
+    });
+
+    render(<PickEmPage />);
+
+    const mondayCard = (await screen.findByRole('button', { name: /CHI Chicago Bears/ })).closest('.pickem-game');
+    const tiebreaker = screen.getByRole('heading', { name: 'Monday Night tiebreaker' }).closest('section');
+    expect(mondayCard.compareDocumentPosition(tiebreaker) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 });

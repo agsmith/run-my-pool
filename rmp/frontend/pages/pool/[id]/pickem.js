@@ -14,7 +14,7 @@ export default function PickEmPage() {
   const [pool, setPool] = useState(null);
   const [entries, setEntries] = useState([]);
   const [entryId, setEntryId] = useState('');
-  const [week, setWeek] = useState(1);
+  const [week, setWeek] = useState(null);
   const [games, setGames] = useState([]);
   const [picks, setPicks] = useState([]);
   const [standings, setStandings] = useState([]);
@@ -39,15 +39,20 @@ export default function PickEmPage() {
       fetch(`${process.env.NEXT_PUBLIC_API_URL}/pools/${id}`, { headers: authHeaders() }).then((res) => res.json()),
       fetch(`${process.env.NEXT_PUBLIC_API_URL}/entries/pool/${id}`, { headers: authHeaders() }).then((res) => res.ok ? res.json() : []),
       fetch(`${process.env.NEXT_PUBLIC_API_URL}/picks/pool/${id}/standings`, { headers: authHeaders() }).then((res) => res.ok ? res.json() : []),
-    ]).then(([poolData, entryData, standingData]) => {
+      fetch(`${process.env.NEXT_PUBLIC_API_URL}/pools/${id}/activity-summary`, { headers: authHeaders() })
+        .then((res) => res.ok ? res.json() : null)
+        .catch(() => null),
+    ]).then(([poolData, entryData, standingData, activityData]) => {
       if (poolData.pool_type !== 'pickem') return router.replace(`/pool/${id}/entries`);
       const requestedEntry = entryData.find((entry) => entry.id === requestedEntryId);
+      const currentWeek = Number(activityData?.week);
       setPool(poolData); setEntries(entryData); setEntryId(requestedEntry?.id || entryData[0]?.id || ''); setStandings(standingData);
+      setWeek(Number.isInteger(currentWeek) && currentWeek >= 1 && currentWeek <= 18 ? currentWeek : 1);
     }).catch(() => setError('Unable to load the Pick ’Em pool.'));
   }, [id, requestedEntryId]);
 
   useEffect(() => {
-    if (!id) return;
+    if (!id || !week) return;
     fetch(`${process.env.NEXT_PUBLIC_API_URL}/schedule/week/${week}/matchups?pool_id=${id}`, { headers: authHeaders() })
       .then((res) => res.ok ? res.json() : Promise.reject()).then(setGames)
       .catch(() => setError(`Unable to load Week ${week}.`));
@@ -61,7 +66,7 @@ export default function PickEmPage() {
   }, [entryId]);
 
   useEffect(() => {
-    if (!id || !pool) return;
+    if (!id || !pool || !week) return;
     fetch(`${process.env.NEXT_PUBLIC_API_URL}/picks/pool/${id}/weekly-standings/${week}`, { headers: authHeaders() })
       .then((res) => res.ok ? res.json() : []).then(setWeeklyStandings);
     if (pool.pickem_slate !== 'sunday_monday' || !entryId) { setTiebreaker(''); return; }
@@ -101,14 +106,14 @@ export default function PickEmPage() {
 
   return <ProtectedRoute><main className="product-page-shell pickem-page">
     <PoolWorkspaceNav poolId={id} poolName={pool?.name} poolType="pickem" active="entries" />
-    <WorkspaceHeader eyebrow="Every pick counts" title={`Week ${week} Pick ’Em`} description={pool?.pickem_games_per_week ? `Choose any ${weeklyTarget} eligible games. Favorite and underdog labels are informational; each outright winner earns one point.` : "Pick the winner of every eligible game. Favorite and underdog labels are informational; each outright winner earns one point."} meta={`${Object.keys(picksByGame).length} / ${weeklyTarget} selected`} />
+    <WorkspaceHeader eyebrow="Every pick counts" title={week ? `Week ${week} Pick ’Em` : 'Pick ’Em'} description={pool?.pickem_games_per_week ? `Choose any ${weeklyTarget} eligible games. Favorite and underdog labels are informational; each outright winner earns one point.` : "Pick the winner of every eligible game. Favorite and underdog labels are informational; each outright winner earns one point."} meta={`${Object.keys(picksByGame).length} / ${weeklyTarget} selected`} />
     {paper === '1' && entryId && <div className="workspace-alert" role="status">Paper entry ready. Enter this participant&apos;s Week {week} picks below; normal lock rules still apply.</div>}
     {error && <div className="workspace-alert workspace-alert--error">{error}</div>}
     <section className="matchup-toolbar">
-      <button disabled={week === 1} onClick={() => setWeek((value) => value - 1)}>← Previous</button>
+      <button disabled={!week || week === 1} onClick={() => setWeek((value) => value - 1)}>← Previous</button>
       {entries.length ? <label>Entry <select value={entryId} onChange={(event) => setEntryId(event.target.value)}>{entries.map((entry) => <option key={entry.id} value={entry.id}>{entry.name}</option>)}</select></label> : <span className="matchup-toolbar__status">No entries yet</span>}
-      <label>Week <select value={week} onChange={(event) => setWeek(Number(event.target.value))}>{Array.from({ length: 18 }, (_, index) => <option key={index + 1}>{index + 1}</option>)}</select></label>
-      <button disabled={week === 18} onClick={() => setWeek((value) => value + 1)}>Next →</button>
+      <label>Week <select value={week || ''} disabled={!week} onChange={(event) => setWeek(Number(event.target.value))}>{!week && <option value="">Loading…</option>}{Array.from({ length: 18 }, (_, index) => <option key={index + 1}>{index + 1}</option>)}</select></label>
+      <button disabled={!week || week === 18} onClick={() => setWeek((value) => value + 1)}>Next →</button>
     </section>
     {!entries.length ? <section className="pickem-entry-required" aria-labelledby="pickem-entry-required-title">
       <div className="pickem-entry-required__icon" aria-hidden="true">+</div>
@@ -119,18 +124,18 @@ export default function PickEmPage() {
       </div>
       <Link className="pickem-entry-required__cta" href={`/pool/${id}/entries/create`}>Create your first entry <b>→</b></Link>
     </section> :
-      <>{pool?.pickem_slate === 'sunday_monday' && <section className="pickem-tiebreaker">
-        <h2>Monday Night tiebreaker</h2>
-        <p>Predict the combined score in the final Monday game. Closest prediction breaks a tie in weekly points.</p>
-        <label>Combined score <input aria-label="Monday Night combined score" type="number" min="0" max="200" inputMode="numeric" value={tiebreaker} onChange={(event) => setTiebreaker(event.target.value)} /></label>
-        <button type="button" disabled={savingTiebreaker || tiebreaker === ''} onClick={saveTiebreaker}>{savingTiebreaker ? 'Saving…' : 'Save tiebreaker'}</button>
-      </section>}
-      <section className="pickem-board">{eligibleGames.map((game) => <article key={game.game_id} className="pickem-game">
+      <><section className="pickem-board">{eligibleGames.map((game) => <article key={game.game_id} className="pickem-game">
         <time>{new Date(game.start_time).toLocaleString()}</time>
         {[game.away_team, game.home_team].map((team) => <button key={team.id} disabled={savingGame === game.game_id || (targetReached && !picksByGame[game.game_id])} className={picksByGame[game.game_id]?.team === team.abbrv ? `is-selected is-${picksByGame[game.game_id]?.result || 'pending'}` : ''} onClick={() => selectWinner(game, team)}>
           <img src={`/nfl/${team.abbrv.toLowerCase()}.svg`} alt="" title={team.abbrv} /><span><strong>{team.abbrv}</strong><small>{team.name}</small><small className="pickem-team-spread">{pickEmTeamRole(game, team)}</small></span>{picksByGame[game.game_id]?.team === team.abbrv && <b>{picksByGame[game.game_id]?.result === 'win' ? 'Win' : picksByGame[game.game_id]?.result === 'loss' ? 'Loss' : '✓'}</b>}
         </button>)}
-      </article>)}</section></>}
+      </article>)}</section>
+      {pool?.pickem_slate === 'sunday_monday' && <section className="pickem-tiebreaker">
+        <h2>Monday Night tiebreaker</h2>
+        <p>Predict the combined score in the final Monday game. Closest prediction breaks a tie in weekly points.</p>
+        <label>Combined score <input aria-label="Monday Night combined score" type="number" min="0" max="200" inputMode="numeric" value={tiebreaker} onChange={(event) => setTiebreaker(event.target.value)} /></label>
+        <button type="button" disabled={savingTiebreaker || tiebreaker === ''} onClick={saveTiebreaker}>{savingTiebreaker ? 'Saving…' : 'Save tiebreaker'}</button>
+      </section>}</>}
     <section className="pickem-standings"><h2>Week {week} standings</h2><table><thead><tr><th>Rank</th><th>Entry</th><th>Points</th>{pool?.pickem_slate === 'sunday_monday' && <><th>Prediction</th><th>Difference</th></>}</tr></thead><tbody>{weeklyStandings.map((row) => <tr key={row.entry_id}><td>{row.rank}</td><td><strong>{row.entry_name}</strong><small>{row.user_display_name}</small></td><td>{row.points}</td>{pool?.pickem_slate === 'sunday_monday' && <><td>{row.predicted_total ?? 'Hidden until lock'}</td><td>{row.tiebreak_difference ?? '—'}</td></>}</tr>)}</tbody></table></section>
     <section className="pickem-standings"><h2>Season standings</h2><table><thead><tr><th>Rank</th><th>Entry</th><th>Points</th><th>Completed picks</th></tr></thead><tbody>{standings.map((row) => <tr key={row.entry_id}><td>{row.rank}</td><td><strong>{row.entry_name}</strong><small>{row.user_display_name}</small></td><td>{row.points}</td><td>{row.possible_points}</td></tr>)}</tbody></table></section>
   </main></ProtectedRoute>;
