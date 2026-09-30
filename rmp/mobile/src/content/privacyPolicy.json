@@ -1,6 +1,6 @@
 {
   "title": "Privacy Policy",
-  "updated": "September 19, 2026",
+  "updated": "September 30, 2026",
   "contact": "support@runmypool.net",
   "intro": "This policy explains how Run My Pool collects, uses, and shares information when you use runmypool.net, the Run My Pool mobile app, and our support services.",
   "sections": [
@@ -8,7 +8,7 @@
       "title": "Information we collect",
       "paragraphs": [
         "Account information includes your email address, account identifier, password hash, verification status, account role, and account and sign-in records. We store password hashes rather than readable passwords.",
-        "Pool information includes memberships, administrator roles, entry and display names, selections, season plans, scores, standings, Squares claims, and Forum messages. We also store member blocks, abuse reports (including a copy of the reported message), and moderation decisions to investigate concerns and enforce Forum rules. Pool organizers may enter information about members, including dues status and prize records on the website. The native app does not display those financial records.",
+        "Pool information includes memberships, administrator roles, entry and display names, selections, season plans, scores, standings, and Squares claims. The Run My Pool website may also store Forum messages, member blocks, abuse reports, and moderation decisions. The native app does not provide access to the website Forum or display financial records entered by pool organizers.",
         "The iOS app is a free participant companion. It does not offer purchases, link to purchasing, or unlock commissioner features based on a purchase made elsewhere. Separate commissioner tools are offered only on the Run My Pool website. If a website customer purchases a website plan, Stripe processes checkout. We receive transaction identifiers, purchase amounts, currency, payment status, and website plan entitlements. Payment-card details are submitted to Stripe; they are not stored in the Run My Pool application database. These purchases are separate from any dues or prizes managed independently by pool organizers.",
         "We receive information you send to support. Our servers and service providers may process IP addresses, browser or device information, request times, errors, and security or administrative logs when you access the service."
       ]
@@ -22,8 +22,8 @@
     {
       "title": "What other people can see",
       "paragraphs": [
-        "Other pool participants can see information made available by pool features, including entry or display names, revealed picks, standings, Squares claims, and Forum posts. Pick visibility depends on pool rules and game or pool lock times. Public pool listings may show pool names and descriptions.",
-        "Pool owners and authorized administrators can access member information needed to manage their pools, including email addresses, entries, picks, roles, and website dues records. Platform administrators can access information needed to operate and support the service. Do not include sensitive personal information in entry names, pool descriptions, or Forum messages."
+        "Other pool participants can see information made available by pool features, including entry or display names, revealed picks, standings, and Squares claims. Pick visibility depends on pool rules and game or pool lock times. Public pool listings may show pool names and descriptions. The native app does not include a Forum, chat, direct messaging, or other member-posting feature.",
+        "Pool owners and authorized administrators can access member information needed to manage their pools, including email addresses, entries, picks, roles, and website dues records. Platform administrators can access information needed to operate and support the service. Do not include sensitive personal information in entry names or pool descriptions."
       ]
     },
     {

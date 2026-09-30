@@ -12,7 +12,8 @@ account a member. The pools include:
   an auto-pick label.
 - Pick 'Em entries, settled weekly picks, season standings, and tiebreakers.
 - A locked Squares board with several named claims and a final result.
-- Forum posts from three other members so report and block can be reviewed.
+- Website Forum fixtures used by website moderation tests. The native app does
+  not expose the Forum or any other member-posting feature.
 
 The command removes any `PoolAdmin` grants from the review account and sets its
 global role to `USER`. It does not delete or modify normal customer pools.
@@ -41,6 +42,7 @@ python prepare_app_review_account.py --verify-only
 ```
 
 Before resubmission, sign in on a physical iPhone or iPad and verify all three
-demo pools appear under **My Pools**. Open My Picks, Weekly Pick Breakdown,
-Season Leaderboard or Results, and Forum in each applicable pool. Confirm another
-member's Forum message offers both **Report message** and **Block member**.
+demo pools appear under **My Pools**. Open My Picks, Weekly Pick Breakdown, and
+Season Leaderboard or Results in each applicable pool. Confirm there is no
+Forum, chat, direct messaging, comments, or other member-posting feature in the
+native app.

@@ -24,7 +24,7 @@ Copy `.env.example` to `.env.local` to override the API URL. Never put account c
 - Full-screen native picker with an independently scrolling game list and fixed confirmation footer inside the safe area.
 - Native Pool Home team counts and expandable entry names. Only server-revealed picks are shown.
 - Pull-to-refresh on data screens. Initial loads, explicit week/entry selection, and successful edits load data; focus changes, foregrounding, and timers do not refresh it. Survivor lock labels update locally at kickoff without a network request.
-- Native Forum with posting and own-message deletion, revealed-pick Leaderboard, and permission-gated Pool Admin settings, dues, member pick locks, delegated admin access, and week locking.
+- Native season leaderboards and weekly pick breakdowns for Survivor and Pick ’Em pools.
 - Native Pick ’Em entries, game selections, and tiebreakers; native Squares claims, releases, number drawing, and results.
 - Native pool joining and password recovery. Missing Survivor picks have an attention border and filled action; saved picks use an outlined change action. Navigation consistently says Back.
 - iOS bundle identifier and Android package: `net.runmypool.app`.

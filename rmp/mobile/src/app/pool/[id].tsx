@@ -103,13 +103,6 @@ export default function PoolScreen() {
                   })
                 }
               />
-              <Button
-                secondary
-                title="Forum"
-                onPress={() =>
-                  router.push({ pathname: "/forum/[id]", params: { id } })
-                }
-              />
             </>
           ) : (
             <Card>

@@ -67,9 +67,8 @@ export default function LoginScreen() {
           <View style={styles.card}>
             <Text style={styles.cardTitle}>Before you sign in</Text>
             <Text style={styles.termsIntro}>
-              Run My Pool has zero tolerance for objectionable content or
-              abusive users. The Terms explain the Forum filters, reporting,
-              blocking, and 24-hour moderation process.
+              Review and accept the Run My Pool Terms of Use before accessing
+              your pools and picks.
             </Text>
             <Pressable
               accessibilityRole="button"
@@ -89,8 +88,7 @@ export default function LoginScreen() {
             >
               <Text style={styles.checkbox}>{acceptedTerms ? "☑" : "☐"}</Text>
               <Text style={styles.termsText}>
-                I agree to the Terms of Use, including the zero-tolerance Forum
-                rules.
+                I agree to the Terms of Use.
               </Text>
             </Pressable>
             {!!termsError && (
