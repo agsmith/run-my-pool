@@ -106,6 +106,23 @@ def test_personal_block_and_unblock(client, forum):
     assert len(client.get(f"/messages/pool/{pool}", headers=_h(other)).json()) == 1
 
 
+def test_block_hides_member_and_notifies_moderators(client, forum, db_session):
+    owner, member, other, pool, author = forum
+    mid = _post_msg(client, member, pool, "A message to block").json()["id"]
+    response = client.put(
+        f"/messages/pool/{pool}/blocks/{author}",
+        headers=_h(other),
+        json={"message_id": mid, "reason": "Other"},
+    )
+    assert response.status_code == 200
+    assert response.json()["moderation_report_created"] is True
+    assert client.get(f"/messages/pool/{pool}", headers=_h(other)).json() == []
+    report = db_session.query(models.ForumReport).one()
+    assert report.message_id == mid
+    assert report.author_id == author
+    assert report.message_snapshot == "A message to block"
+
+
 def test_suspend_enforced_and_restore(client, forum):
     owner, member, other, pool, author = forum
     mid = _post_msg(client, member, pool).json()["id"]

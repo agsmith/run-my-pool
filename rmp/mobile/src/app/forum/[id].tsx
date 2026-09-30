@@ -94,6 +94,11 @@ export default function Forum() {
           check; report anything they miss. Reports go to pool and platform
           moderators.
         </Text>
+        <Text style={ui.copy}>
+          Every post from another member includes Report and Block controls.
+          Reporting hides that post immediately. Blocking hides all of that
+          member’s posts immediately and sends the selected post to moderators.
+        </Text>
         <Text selectable style={ui.copy}>
           Questions, urgent reports, or appeals: support@runmypool.net
         </Text>
@@ -238,13 +243,13 @@ export default function Forum() {
                 onPress={() =>
                   confirm(
                     "Block member?",
-                    "Hide this member’s posts from you in all pool forums. You can unblock them above.",
+                    "Hide this member’s posts from you in all pool forums and send this post to moderators for review. You can unblock them above.",
                     () =>
                       mutate(
                         `/messages/pool/${id}/blocks/${m.user_id}`,
                         "PUT",
-                        undefined,
-                        "Member blocked.",
+                        { message_id: m.id, reason: "Other" },
+                        "Member blocked. Their posts were removed from your feed and this post was sent to moderators.",
                       ),
                   )
                 }

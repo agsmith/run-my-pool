@@ -4,7 +4,7 @@ from sqlalchemy import desc
 import models
 import schemas
 import deps
-from typing import List
+from typing import List, Optional
 import uuid
 from datetime import datetime, timedelta, timezone
 from audit_utils import log_create_operation, log_delete_operation
@@ -293,6 +293,18 @@ class ReportInput(BaseModel):
     ]
 
 
+class BlockInput(BaseModel):
+    message_id: str
+    reason: Literal[
+        "Harassment or hate",
+        "Threats or violence",
+        "Sexual content",
+        "Spam or scam",
+        "Personal information",
+        "Other",
+    ] = "Other"
+
+
 class ReviewInput(BaseModel):
     action: Literal["dismiss", "remove", "suspend"]
 
@@ -401,6 +413,7 @@ def report_message(
 def block_member(
     pool_id: str,
     user_id: str,
+    data: Optional[BlockInput] = None,
     current_user: models.User = Depends(deps.get_current_user),
     db: Session = Depends(deps.get_db),
 ):
@@ -410,6 +423,15 @@ def block_member(
         raise HTTPException(404, "Member not found in this pool")
     if user_id == current_user.id:
         raise HTTPException(400, "You cannot block yourself")
+    reported_message = None
+    if data:
+        reported_message = db.get(models.MessageBoard, data.message_id)
+        if (
+            not reported_message
+            or reported_message.pool_id != pool_id
+            or reported_message.user_id != user_id
+        ):
+            raise HTTPException(400, "The reported message does not belong to this member")
     if not db.get(models.ForumBlock, (current_user.id, user_id)):
         db.add(
             models.ForumBlock(
@@ -418,11 +440,31 @@ def block_member(
                 created_at=datetime.now(timezone.utc).replace(tzinfo=None),
             )
         )
-        try:
-            db.commit()
-        except IntegrityError:
-            db.rollback()
-    return {"ok": True}
+    if reported_message and not (
+        db.query(models.ForumReport)
+        .filter_by(message_id=reported_message.id, reporter_id=current_user.id)
+        .first()
+    ):
+        db.add(
+            models.ForumReport(
+                id=str(uuid.uuid4()),
+                pool_id=pool_id,
+                message_id=reported_message.id,
+                reporter_id=current_user.id,
+                author_id=user_id,
+                message_snapshot=reported_message.message,
+                reason=data.reason,
+                created_at=datetime.now(timezone.utc).replace(tzinfo=None),
+            )
+        )
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+    return {
+        "ok": True,
+        "moderation_report_created": reported_message is not None,
+    }
 
 
 @router.delete("/blocks/{user_id}")

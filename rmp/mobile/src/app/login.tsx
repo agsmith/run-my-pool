@@ -24,6 +24,8 @@ export default function LoginScreen() {
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [showSignIn, setShowSignIn] = useState(false);
+  const [termsError, setTermsError] = useState("");
   if (status === "authenticated") return <Redirect href="/(tabs)" />;
   const submit = async () => {
     setError("");
@@ -61,7 +63,57 @@ export default function LoginScreen() {
               Sign in to manage entries, make picks, and follow every pool.
             </Text>
           </View>
+          {!showSignIn ? (
           <View style={styles.card}>
+            <Text style={styles.cardTitle}>Before you sign in</Text>
+            <Text style={styles.termsIntro}>
+              Run My Pool has zero tolerance for objectionable content or
+              abusive users. The Terms explain the Forum filters, reporting,
+              blocking, and 24-hour moderation process.
+            </Text>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => router.push("/terms")}
+              style={styles.termsButton}
+            >
+              <Text style={styles.termsButtonText}>Read Terms of Use</Text>
+            </Pressable>
+            <Pressable
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: acceptedTerms }}
+              onPress={() => {
+                setAcceptedTerms((value) => !value);
+                setTermsError("");
+              }}
+              style={styles.termsRow}
+            >
+              <Text style={styles.checkbox}>{acceptedTerms ? "☑" : "☐"}</Text>
+              <Text style={styles.termsText}>
+                I agree to the Terms of Use, including the zero-tolerance Forum
+                rules.
+              </Text>
+            </Pressable>
+            {!!termsError && (
+              <Text accessibilityRole="alert" style={styles.termsError}>
+                {termsError}
+              </Text>
+            )}
+            <Pressable
+              onPress={() => {
+                if (!acceptedTerms) {
+                  setTermsError("You must agree to the Terms of Use before signing in.");
+                  return;
+                }
+                setShowSignIn(true);
+              }}
+              style={({ pressed }) => [styles.button, pressed && styles.pressed]}
+            >
+              <Text style={styles.buttonText}>Continue to sign in</Text>
+            </Pressable>
+          </View>
+          ) : (
+          <View style={styles.card}>
+            <Text style={styles.termsAccepted}>✓ Terms accepted</Text>
             <Text style={styles.label}>Email</Text>
             <TextInput
               autoCapitalize="none"
@@ -89,7 +141,7 @@ export default function LoginScreen() {
               </Text>
             )}
             <Pressable
-              disabled={submitting || !email || !password || !acceptedTerms}
+              disabled={submitting || !email || !password}
               onPress={submit}
               style={({ pressed }) => [
                 styles.button,
@@ -102,26 +154,14 @@ export default function LoginScreen() {
                 <Text style={styles.buttonText}>Sign in</Text>
               )}
             </Pressable>
-            <Pressable
-              accessibilityRole="checkbox"
-              accessibilityState={{ checked: acceptedTerms }}
-              onPress={() => setAcceptedTerms((value) => !value)}
-              style={styles.termsRow}
-            >
-              <Text style={styles.checkbox}>{acceptedTerms ? "☑" : "☐"}</Text>
-              <Text style={styles.termsText}>
-                I agree to the <Text style={styles.inlineLink} onPress={() => router.push("/terms")}>Terms of Use</Text>, including the zero-tolerance Forum rules.
-              </Text>
-            </Pressable>
-            {!acceptedTerms && (
-              <Text accessibilityRole="alert" style={styles.termsError}>
-                Check the Terms of Use box before signing in.
-              </Text>
-            )}
             <Pressable onPress={() => router.push("/forgot-password")}>
               <Text style={styles.link}>Forgot password?</Text>
             </Pressable>
+            <Pressable onPress={() => setShowSignIn(false)}>
+              <Text style={styles.link}>Review Terms agreement</Text>
+            </Pressable>
           </View>
+          )}
           <View style={styles.footerLinks}>
             <Pressable accessibilityRole="button" onPress={() => router.push("/terms")}><Text style={styles.link}>Terms of Use</Text></Pressable>
             <Pressable accessibilityRole="button" onPress={() => router.push("/privacy")}><Text style={styles.link}>Privacy Policy</Text></Pressable>
@@ -153,6 +193,8 @@ const styles = StyleSheet.create({
     borderColor: colors.line,
   },
   label: { color: colors.text, fontWeight: "700", marginTop: 4 },
+  cardTitle: { color: colors.text, fontSize: 22, fontWeight: "900" },
+  termsIntro: { color: colors.muted, fontSize: 15, lineHeight: 22 },
   input: {
     backgroundColor: colors.ink,
     borderColor: colors.line,
@@ -182,6 +224,8 @@ const styles = StyleSheet.create({
   checkbox: { color: colors.lime, fontSize: 22, lineHeight: 24 },
   termsText: { color: colors.muted, flex: 1, fontSize: 13, lineHeight: 20 },
   termsError: { color: colors.danger, fontSize: 13, lineHeight: 19 },
-  inlineLink: { color: colors.cyan, fontWeight: "800" },
+  termsButton: { borderWidth: 1, borderColor: colors.cyan, borderRadius: 12, padding: 14, alignItems: "center" },
+  termsButtonText: { color: colors.cyan, fontSize: 16, fontWeight: "800" },
+  termsAccepted: { color: colors.lime, fontSize: 14, fontWeight: "800" },
   footerLinks: { flexDirection: "row", justifyContent: "center", gap: 18 },
 });
