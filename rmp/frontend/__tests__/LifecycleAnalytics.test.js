@@ -6,6 +6,7 @@ describe('lifecycle analytics', () => {
   beforeEach(() => {
     process.env.NEXT_PUBLIC_API_URL = 'https://api.example.test';
     window.sessionStorage.clear();
+    window.localStorage.clear();
     global.fetch = jest.fn().mockResolvedValue({ ok: true });
   });
 
@@ -29,6 +30,26 @@ describe('lifecycle analytics', () => {
     }));
     expect(payload.session_id).toMatch(/^[A-Za-z0-9_-]{16,64}$/);
     expect(payload).not.toHaveProperty('email');
+    expect(payload).toEqual(expect.objectContaining({
+      acquisition_channel: 'direct',
+      landing_path: '/',
+    }));
+  });
+
+  test('preserves privacy-safe campaign attribution across the registration journey', () => {
+    window.history.replaceState({}, '', '/nfl-survivor-pool?utm_source=instagram&utm_medium=social&utm_campaign=week-one');
+    trackLifecycleEvent('landing_view', { page: 'survivor_landing', source: 'direct' });
+    window.history.replaceState({}, '', '/create-account');
+    trackLifecycleEvent('account_created', { page: 'create_account', source: 'direct' });
+
+    const accountPayload = JSON.parse(global.fetch.mock.calls[1][1].body);
+    expect(accountPayload).toEqual(expect.objectContaining({
+      acquisition_channel: 'campaign',
+      landing_path: '/nfl-survivor-pool',
+      utm_source: 'instagram',
+      utm_medium: 'social',
+      utm_campaign: 'week-one',
+    }));
   });
 
   test('never throws when analytics delivery fails', () => {

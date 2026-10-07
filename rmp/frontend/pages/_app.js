@@ -19,7 +19,7 @@ export function shouldShowSportzBallzAd(pathname = '') {
 
 export default function MyApp({ Component, pageProps }) {
   const router = useRouter()
-  const isMarketingPage = ['/', '/pricing'].includes(router.pathname)
+  const isMarketingPage = ['/', '/pricing', '/nfl-survivor-pool', '/nfl-pick-em-pool', '/football-squares-pool'].includes(router.pathname)
 
   const getExperience = (pathname) => {
     if (['/login', '/register', '/create-account', '/forgot-password', '/reset-password', '/verify-email'].includes(pathname)) return 'auth'
@@ -51,6 +51,21 @@ export default function MyApp({ Component, pageProps }) {
       title: 'Install the Run My Pool App',
       description: 'Install Run My Pool on iPhone, Android, or desktop for fast home-screen access to picks and standings.',
       path: '/install',
+    },
+    '/nfl-survivor-pool': {
+      title: 'NFL Survivor Pool',
+      description: 'Run an NFL Survivor pool online with weekly picks, configurable deadlines, eligible autopicks, automatic results, and live season standings.',
+      path: '/nfl-survivor-pool',
+    },
+    '/nfl-pick-em-pool': {
+      title: "NFL Pick 'Em Pool",
+      description: "Run an NFL Pick 'Em pool online with every weekly matchup, configurable deadlines, tiebreakers, automatic scoring, and season standings.",
+      path: '/nfl-pick-em-pool',
+    },
+    '/football-squares-pool': {
+      title: 'Football Squares Pool',
+      description: 'Run a 100-square football pool online with player reservations, randomized score digits, automatic quarter winners, and printable boards.',
+      path: '/football-squares-pool',
     },
     '/support': {
       title: 'Support',

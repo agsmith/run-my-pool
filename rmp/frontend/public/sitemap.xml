@@ -11,6 +11,21 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://runmypool.net/nfl-survivor-pool</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://runmypool.net/nfl-pick-em-pool</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://runmypool.net/football-squares-pool</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
     <loc>https://runmypool.net/install</loc>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>

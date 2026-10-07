@@ -20,6 +20,7 @@ class LifecycleEvent(BaseModel):
         "pricing_view",
         "plan_selected",
         "account_creation_view",
+        "account_created",
         "checkout_started",
         "payment_confirmed",
         "pool_launch_checklist_view",
@@ -40,11 +41,25 @@ class LifecycleEvent(BaseModel):
         "pool_home",
         "profile",
         "support",
+        "survivor_landing",
+        "pickem_landing",
+        "squares_landing",
     ]
     plan: Optional[Literal["free", "squares-plus", "commissioner", "pro", "club", "club-unlimited"]] = (
         None
     )
     source: Optional[Literal["homepage", "pricing", "billing", "direct"]] = None
+    acquisition_channel: Optional[
+        Literal["direct", "organic_search", "referral", "campaign"]
+    ] = None
+    landing_path: Optional[str] = Field(default=None, max_length=160, pattern=r"^/[A-Za-z0-9._~/%-]*$")
+    referrer_host: Optional[str] = Field(
+        default=None, max_length=160, pattern=r"^[A-Za-z0-9.-]+$"
+    )
+    utm_source: Optional[str] = Field(default=None, max_length=100, pattern=r"^[A-Za-z0-9._~:+%-]+$")
+    utm_medium: Optional[str] = Field(default=None, max_length=100, pattern=r"^[A-Za-z0-9._~:+%-]+$")
+    utm_campaign: Optional[str] = Field(default=None, max_length=100, pattern=r"^[A-Za-z0-9._~:+%-]+$")
+    utm_content: Optional[str] = Field(default=None, max_length=100, pattern=r"^[A-Za-z0-9._~:+%-]+$")
 
 
 class UserBase(BaseModel):

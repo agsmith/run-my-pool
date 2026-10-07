@@ -1,6 +1,6 @@
 {
   "title": "Privacy Policy",
-  "updated": "September 10, 2026",
+  "updated": "October 7, 2026",
   "contact": "support@runmypool.net",
   "intro": "This policy explains how Run My Pool collects, uses, and shares information when you use runmypool.net, the Run My Pool mobile app, and our support services.",
   "sections": [
@@ -36,7 +36,7 @@
     {
       "title": "Cookies, device storage, and analytics",
       "paragraphs": [
-        "The website uses authentication cookies and browser storage to keep you signed in and remember session information. It also records website activity, such as account, plan, checkout, and support interactions, using a browser-session identifier. Cloudflare Web Analytics may collect website traffic and performance measurements when enabled.",
+        "The website uses authentication cookies and browser storage to keep you signed in, remember session information, and retain privacy-safe first-visit attribution such as the landing page, referring website hostname, and campaign tags included in a link. It also records website activity, such as account, plan, checkout, and support interactions, using a browser-session identifier. We use this information to understand how people discover and use Run My Pool. Cloudflare Web Analytics may collect website traffic and performance measurements when enabled.",
         "The mobile app stores authentication tokens in the device\u2019s secure storage. Signing out clears the app\u2019s stored session credentials. Clearing website cookies or storage can sign you out. Uninstalling the app does not delete your account or records held by the service."
       ]
     },

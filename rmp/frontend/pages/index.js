@@ -221,18 +221,21 @@ export default function Home() {
                 <h3>LAST ENTRY STANDING</h3>
                 <p>Pick one team each week without reusing it. Win and advance; lose and that entry is eliminated.</p>
                 <ul><li>One pick per surviving entry</li><li>Configurable weekly lock time</li><li>Automatic results and autopicks</li></ul>
+                <Link href="/nfl-survivor-pool">Explore NFL Survivor pools →</Link>
               </article>
               <article>
                 <span>02 · PICK &apos;EM</span>
                 <h3>MOST WINS TAKES IT</h3>
                 <p>Pick the winner of every game each week with no point spreads. Every correct pick earns one point.</p>
                 <ul><li>Every NFL matchup each week</li><li>One point for every winner</li><li>Season-long standings</li></ul>
+                <Link href="/nfl-pick-em-pool">Explore NFL Pick &apos;Em pools →</Link>
               </article>
               <article>
                 <span>03 · SQUARES</span>
                 <h3>OWN THE BOARD</h3>
                 <p>Fill a 10×10 board for one game or a collection of games. Score digits are randomized when the board locks.</p>
                 <ul><li>100 numbered squares</li><li>Member claims or commissioner entry</li><li>Quarter, halftime, and final winners</li></ul>
+                <Link href="/football-squares-pool">Explore Football Squares →</Link>
               </article>
             </div>
             <Link href={createPoolHref} className="rmp-button rmp-primary">Compare packages and start <span>→</span></Link>
@@ -259,7 +262,7 @@ export default function Home() {
         </section>
       </main>
 
-      <footer className="rmp-footer"><div className="rmp-shell"><Link href="/" className="rmp-brand"><BrandLogo className="rmp-brand__logo" alt="Run My Pool" /></Link><p>Built for football fans, by football fans. <Link href="/pricing">Pricing</Link> · <Link href="/install">Install the app</Link> · <Link href="/support">Contact support</Link></p><span>© 2026 Run My Pool</span></div></footer>
+      <footer className="rmp-footer"><div className="rmp-shell"><Link href="/" className="rmp-brand"><BrandLogo className="rmp-brand__logo" alt="Run My Pool" /></Link><p>Built for football fans, by football fans. <Link href="/nfl-survivor-pool">Survivor</Link> · <Link href="/nfl-pick-em-pool">Pick &apos;Em</Link> · <Link href="/football-squares-pool">Squares</Link> · <Link href="/pricing">Pricing</Link> · <Link href="/install">Install</Link> · <Link href="/support">Support</Link></p><span>© 2026 Run My Pool</span></div></footer>
     </div>
   );
 }

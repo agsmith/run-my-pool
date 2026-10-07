@@ -2143,3 +2143,51 @@ table {
 .broadcast-v2--entries .entries-season-table__week > button.is-loss { color:#ffd0dd!important; background:#0b1315!important; border-color:#f19aaf!important; opacity:1; }
 
 .pickem-game .pickem-team-spread { color:#b8e5eb; font-weight:700; font-size:.85rem; margin-top:4px; white-space:normal; }
+
+/* Public pool-format landing pages */
+.format-landing { min-height:100vh; color:#101514; background:#f4f1e9; }
+.format-hero { position:relative; overflow:hidden; padding:96px 0 88px; color:#f7fbfa; background:radial-gradient(circle at 78% 35%,rgba(74,218,245,.18),transparent 28%),#071012; }
+.format-hero::after { position:absolute; right:-80px; bottom:-160px; width:520px; height:520px; content:""; border:1px solid rgba(198,255,55,.18); border-radius:50%; box-shadow:0 0 0 70px rgba(198,255,55,.025),0 0 0 140px rgba(198,255,55,.018); }
+.format-hero__grid { position:relative; z-index:1; display:grid; grid-template-columns:minmax(0,1.2fr) minmax(320px,.8fr); gap:72px; align-items:center; }
+.format-hero h1,.format-section h2,.format-final h2 { margin:20px 0; font-size:clamp(3.3rem,7vw,6.8rem); line-height:.84; letter-spacing:-.055em; }
+.format-hero h1 em,.format-section h2 em,.format-final h2 em { color:var(--lime); font-style:normal; }
+.format-hero__intro { max-width:720px; color:#c3d0d1; font:1.13rem/1.65 Georgia,serif; }
+.format-scorecard { padding:34px; background:rgba(12,27,30,.9); border:1px solid #38535a; box-shadow:18px 18px 0 rgba(198,255,55,.09); }
+.format-scorecard>span { color:#75eaff; font-size:.7rem; font-weight:900; letter-spacing:.18em; }
+.format-scorecard>strong { display:block; margin:12px 0; color:#fff; font-size:clamp(2.1rem,4vw,3.8rem); line-height:.9; text-transform:uppercase; }
+.format-scorecard>p { color:#98aaad; font:1rem/1.55 Georgia,serif; }
+.format-scorecard ul { display:grid; gap:12px; margin:24px 0 0; padding:22px 0 0; border-top:1px solid #2d4146; list-style:none; }
+.format-scorecard li { color:#dce8e8; font-size:.82rem; font-weight:750; }
+.format-section { padding:92px 0; }
+.format-section h2 { max-width:900px; color:#101514; }
+.format-section--dark { color:#fff; background:#0a1315; }
+.format-section--dark h2 { color:#fff; }
+.format-steps { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:1px; margin-top:50px; background:#b7b7ae; border:1px solid #b7b7ae; }
+.format-steps article { min-height:250px; padding:30px; background:#f4f1e9; }
+.format-steps article>span { display:block; color:#6b7776; font-size:.7rem; font-weight:900; }
+.format-steps h3 { margin:40px 0 12px; font-size:1.25rem; text-transform:uppercase; }
+.format-steps p { color:#53605f; font:1rem/1.55 Georgia,serif; }
+.format-feature-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px; margin-top:45px; }
+.format-feature-grid article { min-height:128px; padding:23px; background:#101e21; border:1px solid #30454a; }
+.format-feature-grid span { color:var(--lime); font-weight:900; }
+.format-feature-grid p { margin:20px 0 0; color:#d8e4e4; font-size:.87rem; font-weight:750; line-height:1.45; }
+.format-faq .rmp-home-faq__grid { margin-top:45px; }
+.format-final { padding:90px 0; color:#fff; background:#0a1315; }
+.format-final h2 { max-width:1000px; font-size:clamp(2.8rem,6vw,5.8rem); }
+.rmp-format-grid article>a { display:inline-block; margin-top:18px; color:#124f5c; font-size:.72rem; font-weight:900; letter-spacing:.04em; text-decoration:none; text-transform:uppercase; }
+.rmp-format-grid article>a:hover { color:#101514; text-decoration:underline; }
+
+@media (max-width:900px) {
+  .format-hero { padding:64px 0; }
+  .format-hero__grid { grid-template-columns:1fr; gap:42px; }
+  .format-steps,.format-feature-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+}
+@media (max-width:560px) {
+  .format-hero h1 { font-size:3.45rem; }
+  .format-section { padding:64px 0; }
+  .format-section h2 { font-size:3.25rem; }
+  .format-scorecard { padding:25px; box-shadow:10px 10px 0 rgba(198,255,55,.09); }
+  .format-steps,.format-feature-grid { grid-template-columns:1fr; }
+  .format-steps article { min-height:0; }
+  .format-final { padding:65px 0; }
+}

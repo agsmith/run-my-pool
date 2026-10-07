@@ -98,6 +98,11 @@ export default function CreateAccount() {
       }
       registrationData = data;
       setVerificationNeeded(data.email_verified !== true);
+      trackLifecycleEvent('account_created', {
+        page: 'create_account',
+        ...(selectedPlan ? { plan: selectedPlan } : {}),
+        source: selectedPlan ? 'pricing' : 'direct',
+      });
     } catch (err) {
       setError(err.message || 'Account creation failed. Please try again.');
       setLoading(false);

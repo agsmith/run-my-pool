@@ -44,7 +44,15 @@ def _validate_content_length(
 def _enforce_limits(request: Request, event: schemas.LifecycleEvent) -> bool:
     now = time.monotonic()
     client = _client_key(request)
-    fingerprint = (event.session_id, event.event, event.page, event.plan, event.source)
+    fingerprint = (
+        event.session_id,
+        event.event,
+        event.page,
+        event.plan,
+        event.source,
+        event.acquisition_channel,
+        event.landing_path,
+    )
     with _lock:
         requests = _requests_by_client[client]
         while requests and requests[0] <= now - RATE_WINDOW_SECONDS:

@@ -14,12 +14,14 @@ export default function Seo({
 }) {
   const canonical = `${SITE_URL}${path === '/' ? '' : path}`;
   const fullTitle = title === 'Run My Pool' ? title : `${title} | Run My Pool`;
+  const googleSiteVerification = process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION?.trim();
 
   return (
     <Head>
       <title>{fullTitle}</title>
       {description && <meta name="description" content={description} key="description" />}
       <meta name="robots" content={noIndex ? 'noindex, nofollow' : 'index, follow, max-image-preview:large'} key="robots" />
+      {googleSiteVerification && <meta name="google-site-verification" content={googleSiteVerification} key="google-site-verification" />}
       {!noIndex && <link rel="canonical" href={canonical} key="canonical" />}
 
       <meta property="og:type" content={type} key="og:type" />

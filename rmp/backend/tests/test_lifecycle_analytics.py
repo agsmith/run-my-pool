@@ -14,6 +14,9 @@ def test_lifecycle_event_is_logged_without_personal_data(client, caplog):
             "page": "pricing",
             "plan": "pro",
             "source": "pricing",
+            "acquisition_channel": "organic_search",
+            "landing_path": "/nfl-pick-em-pool",
+            "referrer_host": "www.google.com",
         },
     )
 
@@ -24,6 +27,8 @@ def test_lifecycle_event_is_logged_without_personal_data(client, caplog):
     assert record.event == "customer_lifecycle_event"
     assert record.lifecycle_event == "plan_selected"
     assert record.plan == "pro"
+    assert record.acquisition_channel == "organic_search"
+    assert record.referrer_host == "www.google.com"
     assert not hasattr(record, "email")
 
 
@@ -35,6 +40,21 @@ def test_lifecycle_event_rejects_unknown_events_and_fields(client):
             "session_id": "12345678-1234-1234-1234-123456789abc",
             "page": "home",
             "email": "must-not-be-accepted@example.com",
+        },
+    )
+
+    assert response.status_code == 422
+
+
+def test_lifecycle_event_rejects_unsafe_attribution(client):
+    response = client.post(
+        "/analytics/events",
+        json={
+            "event": "landing_view",
+            "session_id": "safe-session-1234567890",
+            "page": "home",
+            "acquisition_channel": "referral",
+            "referrer_host": "example.com/<script>",
         },
     )
 
